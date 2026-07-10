@@ -1,10 +1,5 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #ffffff;
-}
+@import "./styles/variables.css";
+@import "./styles/globals.css";
+@import "./styles/animations.css";
+@import "./styles/responsive.css";
+@import "./styles/utilities.css";

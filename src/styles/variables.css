@@ -1,0 +1,14 @@
+:root {
+  --primary-color: #FF6B00;
+  --primary-hover: #E66000;
+  --secondary-color: #1F1F1F;
+  --bg-color: #F8FAFC;
+  --border-color: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --phone-width: 430px;
+  --phone-height: 932px;
+  --border-radius-lg: 24px;
+  --border-radius-md: 16px;
+  --border-radius-sm: 12px;
+}
