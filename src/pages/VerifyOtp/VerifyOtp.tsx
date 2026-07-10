@@ -23,10 +23,12 @@ const VerifyOtp: React.FC = () => {
       otpCode?: string;
       name?: string;
     };
-  };
+  } | null;
 
   const identifier = state?.identifier || "your mobile/email";
-  const expectedOtp = state?.signupData?.otpCode || "123456";
+  const [expectedOtp, setExpectedOtp] = useState<string>(
+    state?.signupData?.otpCode || "123456"
+  );
 
   // OTP Input State (6 digits)
   const [otp, setOtp] = useState<string[]>(new Array(6).fill(""));
@@ -34,7 +36,6 @@ const VerifyOtp: React.FC = () => {
 
   // Timer State
   const [timer, setTimer] = useState(59);
-  const [canResend, setCanResend] = useState(false);
 
   // Status Feedback State
   const [loading, setLoading] = useState(false);
@@ -48,8 +49,6 @@ const VerifyOtp: React.FC = () => {
         setTimer((prev) => prev - 1);
       }, 1000);
       return () => clearInterval(interval);
-    } else {
-      setCanResend(true);
     }
   }, [timer]);
 
@@ -76,17 +75,14 @@ const VerifyOtp: React.FC = () => {
 
   // Simulated OTP Resend Call
   const handleResend = () => {
-    if (!canResend) return;
+    if (timer > 0) return;
 
     setError(null);
     setTimer(59);
-    setCanResend(false);
 
     // Generate new mock OTP code
     const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    if (state?.signupData) {
-      state.signupData.otpCode = newOtpCode;
-    }
+    setExpectedOtp(newOtpCode);
     console.log(`[PASADA Auth] New SMS OTP Code re-sent to ${identifier}: ${newOtpCode}`);
     
     // Alert the user via console log
@@ -246,7 +242,7 @@ const VerifyOtp: React.FC = () => {
 
         {/* Timer / Resend Button */}
         <Box sx={{ marginTop: "24px", textAlign: "center", width: "100%" }}>
-          {canResend ? (
+          {timer === 0 ? (
             <Typography
               onClick={handleResend}
               sx={{

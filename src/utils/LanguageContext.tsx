@@ -1,9 +1,10 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export type Language = 'tl' | 'en';
 
-export const translations = {
+const translations = {
   tl: {
     start: "Magsimula na",
     hasAccount: "May account na?",
