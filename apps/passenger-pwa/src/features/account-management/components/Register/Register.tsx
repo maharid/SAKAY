@@ -22,6 +22,8 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import { supabase } from "../../../../services/supabaseClient";
+import { formatPhoneToE164 } from "../../../../utils/phone";
 
 const Register: React.FC = () => {
   const { language, t } = useLanguage();
@@ -39,6 +41,11 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
+  // Passenger Specific Form State
+  const [email, setEmail] = useState("");
+  const [dob, setDob] = useState("");
+  const [address, setAddress] = useState("");
+  
   // Driver Form State
   const [todaName, setTodaName] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -49,7 +56,7 @@ const Register: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -88,33 +95,121 @@ const Register: React.FC = () => {
       return;
     }
 
-    // Simulate OTP Code Generation
-    const mockOtp = "123456";
-    console.log(`[PASADA Auth] OTP Code generated for ${identifier}: ${mockOtp}`);
-
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const formattedPhone = formatPhoneToE164(identifier);
+
+      // 1. Run duplicate checks in app code BEFORE calling signUp()
+      const { data: existingPassengerPhone, error: pPhoneErr } = await supabase
+        .from('passenger')
+        .select('passenger_id')
+        .eq('contact_number', formattedPhone)
+        .maybeSingle();
+
+      if (pPhoneErr) {
+        console.error("Passenger phone check error:", pPhoneErr);
+      }
+
+      const { data: existingDriverPhone, error: dPhoneErr } = await supabase
+        .from('driver')
+        .select('driver_id')
+        .eq('contact_number', formattedPhone)
+        .maybeSingle();
+
+      if (dPhoneErr) {
+        console.error("Driver phone check error:", dPhoneErr);
+      }
+
+      if (existingPassengerPhone || existingDriverPhone) {
+        setError(language === "tl" ? "Ang mobile number na ito ay rehistrado na." : "This mobile number is already registered.");
+        setLoading(false);
+        return;
+      }
+
+      let matchedTodaId: string | null = null;
+
+      if (selectedRole === "driver") {
+        const { data: existingDriverLicense, error: dLicenseErr } = await supabase
+          .from('driver')
+          .select('driver_id')
+          .eq('license_number', licenseNumber.trim())
+          .maybeSingle();
+
+        if (dLicenseErr) {
+          console.error("Driver license check error:", dLicenseErr);
+        }
+
+        if (existingDriverLicense) {
+          setError(language === "tl" ? "Ang license number na ito ay rehistrado na." : "This license number is already registered.");
+          setLoading(false);
+          return;
+        }
+
+        // Lookup matching TODA id by acronym or name if possible
+        const { data: matchedToda, error: todaErr } = await supabase
+          .from('toda')
+          .select('toda_id')
+          .or(`toda_name.ilike.%${todaName}%,toda_acronym.ilike.%${todaName}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (todaErr) {
+          console.error("TODA lookup error:", todaErr);
+        }
+
+        if (matchedToda) {
+          matchedTodaId = matchedToda.toda_id;
+        }
+      }
+
+      // 2. Call Supabase Auth signUp()
+      const { error: signUpError } = await supabase.auth.signUp({
+        phone: formattedPhone,
+        password: password,
+        options: {
+          data: {
+            role: selectedRole,
+            full_name: name,
+            contact_number: formattedPhone,
+            email: email.trim() || null,
+            date_of_birth: dob || null,
+            residential_address: address.trim() || null,
+            profile_photo_url: null,
+            // For drivers, pass the collected metadata fields
+            ...(selectedRole === "driver" && {
+              toda_id: matchedTodaId,
+              license_number: licenseNumber.trim(),
+              plate_number: plateNumber.trim(),
+            })
+          }
+        }
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
       setSuccess(true);
+
       setTimeout(() => {
-        // Navigate to verify OTP, passing signup state to finalize signup on verification success
+        // Navigate to verify OTP, passing phone and metadata context
         navigate("/verify-otp", {
           state: {
-            identifier,
+            identifier: formattedPhone,
             role: selectedRole,
-            signupData: {
-              name,
-              identifier,
-              password,
-              todaName,
-              licenseNumber,
-              plateNumber,
-              otpCode: mockOtp,
-            },
           },
         });
-      }, 1200);
-    }, 1000);
+      }, 1500);
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "An unexpected error occurred during registration.";
+      setError(errMsg);
+      setLoading(false);
+    }
   };
 
   return (
@@ -259,7 +354,7 @@ const Register: React.FC = () => {
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               disabled={loading}
-              placeholder={t.phoneOrEmail}
+              placeholder={selectedRole === "passenger" ? (language === "tl" ? "Numero ng Mobile" : "Mobile Number") : t.phoneOrEmail}
               type="text"
               slotProps={{
                 input: {
@@ -280,6 +375,87 @@ const Register: React.FC = () => {
               }}
             />
           </Box>
+
+          {/* Passenger Specific Fields */}
+          {selectedRole === "passenger" && (
+            <>
+              {/* Email */}
+              <Box sx={{ width: "100%" }}>
+                <TextField
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  placeholder={language === "tl" ? "Email Address (Opsyonal)" : "Email (Optional)"}
+                  type="email"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailOutlinedIcon sx={{ color: "#94A3B8" }} />
+                        </InputAdornment>
+                      ),
+                      sx: {
+                        height: "56px",
+                        backgroundColor: "#F8FAFC",
+                        borderRadius: "14px",
+                        "& fieldset": { borderColor: "#F1F5F9" },
+                        "&:hover fieldset": { borderColor: "#CBD5E1" },
+                        "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
+                      },
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* Date of Birth */}
+              <Box sx={{ width: "100%" }}>
+                <TextField
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  disabled={loading}
+                  type="date"
+                  label={language === "tl" ? "Araw ng Kapanganakan (Opsyonal)" : "Date of Birth (Optional)"}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      sx: {
+                        height: "56px",
+                        backgroundColor: "#F8FAFC",
+                        borderRadius: "14px",
+                        "& fieldset": { borderColor: "#F1F5F9" },
+                        "&:hover fieldset": { borderColor: "#CBD5E1" },
+                        "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
+                      },
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* Residential Address */}
+              <Box sx={{ width: "100%" }}>
+                <TextField
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  disabled={loading}
+                  placeholder={language === "tl" ? "Tirahan (Opsyonal)" : "Residential Address (Optional)"}
+                  type="text"
+                  multiline
+                  rows={2}
+                  slotProps={{
+                    input: {
+                      sx: {
+                        backgroundColor: "#F8FAFC",
+                        borderRadius: "14px",
+                        "& fieldset": { borderColor: "#F1F5F9" },
+                        "&:hover fieldset": { borderColor: "#CBD5E1" },
+                        "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </>
+          )}
 
           {/* Driver Specific Fields */}
           {selectedRole === "driver" && (

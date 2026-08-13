@@ -12,6 +12,8 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import { supabase } from "../../../../services/supabaseClient";
+import { formatPhoneToE164 } from "../../../../utils/phone";
 
 const ForgotPassword: React.FC = () => {
   const { language, t } = useLanguage();
@@ -23,7 +25,7 @@ const ForgotPassword: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -32,24 +34,59 @@ const ForgotPassword: React.FC = () => {
       return;
     }
 
-    // Simulate sending password reset code
-    const mockResetCode = "654321";
-    console.log(`[PASADA Auth] Password reset code generated for ${identifier}: ${mockResetCode}`);
-
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const formattedPhone = formatPhoneToE164(identifier);
+
+      // Check if user exists before triggering OTP
+      const { data: existingPassenger } = await supabase
+        .from('passenger')
+        .select('passenger_id')
+        .eq('contact_number', formattedPhone)
+        .maybeSingle();
+
+      const { data: existingDriver } = await supabase
+        .from('driver')
+        .select('driver_id')
+        .eq('contact_number', formattedPhone)
+        .maybeSingle();
+
+      if (!existingPassenger && !existingDriver) {
+        setError(language === "tl" ? "Hindi rehistrado ang mobile number na ito." : "This mobile number is not registered.");
+        setLoading(false);
+        return;
+      }
+
+      // Request recovery OTP via Supabase
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (otpError) {
+        setError(otpError.message);
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
       setSuccess(true);
+      
       setTimeout(() => {
-        // Navigate to ResetPassword, passing the reset token and user identifier in state
-        navigate("/reset-password", {
+        // Navigate to verify OTP, passing phone and recovery type in state
+        navigate("/verify-otp", {
           state: {
-            identifier,
-            expectedCode: mockResetCode,
+            identifier: formattedPhone,
+            type: 'recovery',
           },
         });
-      }, 1200);
-    }, 1000);
+      }, 1500);
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred while requesting reset.';
+      setError(errMsg);
+      setLoading(false);
+    }
   };
 
   return (

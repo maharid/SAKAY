@@ -15,6 +15,8 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import { supabase } from "../../../../services/supabaseClient";
+import { formatPhoneToE164 } from "../../../../utils/phone";
 
 const Login: React.FC = () => {
   const { language, t } = useLanguage();
@@ -30,7 +32,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -44,15 +46,91 @@ const Login: React.FC = () => {
       return;
     }
 
-    // Simulate login request
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const formattedPhone = formatPhoneToE164(identifier);
+      
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        phone: formattedPhone,
+        password: password,
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+        return;
+      }
+
+      const user = data.user;
+      const role = user?.user_metadata?.role || 'passenger';
+
+      if (role === 'passenger') {
+        const { data: profile } = await supabase
+          .from('passenger')
+          .select('account_status, full_name')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          if (profile.account_status === 'Pending OTP Verification') {
+            setError(language === "tl" ? "Kailangan muna i-verify ang iyong account gamit ang OTP." : "Your account needs to be verified first using OTP.");
+            setLoading(false);
+            // Sign out since verification is incomplete
+            await supabase.auth.signOut();
+            
+            // Redirect to OTP verification page
+            setTimeout(() => {
+              navigate("/verify-otp", {
+                state: {
+                  identifier: formattedPhone,
+                  role: 'passenger',
+                }
+              });
+            }, 2000);
+            return;
+          }
+          
+          if (profile.account_status === 'Suspended' || profile.account_status === 'Deactivated') {
+            setError(language === "tl" ? "Ang iyong account ay suspendido o na-deactivate." : "Your account has been suspended or deactivated.");
+            setLoading(false);
+            await supabase.auth.signOut();
+            return;
+          }
+        }
+      } else if (role === 'driver') {
+        const { data: profile } = await supabase
+          .from('driver')
+          .select('account_status')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          if (profile.account_status === 'Suspended' || profile.account_status === 'Deactivated') {
+            setError(language === "tl" ? "Ang iyong account ay suspendido o na-deactivate." : "Your account has been suspended or deactivated.");
+            setLoading(false);
+            await supabase.auth.signOut();
+            return;
+          }
+        }
+      }
+
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
-        navigate("/");
+        // Redirect to dashboard, passing name inside route state
+        navigate("/dashboard", {
+          state: {
+            name: user?.user_metadata?.full_name || 'Passenger',
+          }
+        });
       }, 1500);
-    }, 1200);
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred during login.';
+      setError(errMsg);
+      setLoading(false);
+    }
   };
 
   return (

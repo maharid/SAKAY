@@ -9,6 +9,7 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import { supabase } from "../../../../services/supabaseClient";
 
 const VerifyOtp: React.FC = () => {
   const { language } = useLanguage();
@@ -19,6 +20,7 @@ const VerifyOtp: React.FC = () => {
   const state = location.state as {
     identifier?: string;
     role?: string;
+    type?: 'signup' | 'recovery';
     signupData?: {
       otpCode?: string;
       name?: string;
@@ -26,9 +28,6 @@ const VerifyOtp: React.FC = () => {
   } | null;
 
   const identifier = state?.identifier || "your mobile/email";
-  const [expectedOtp, setExpectedOtp] = useState<string>(
-    state?.signupData?.otpCode || "123456"
-  );
 
   // OTP Input State (6 digits)
   const [otp, setOtp] = useState<string[]>(new Array(6).fill(""));
@@ -73,23 +72,35 @@ const VerifyOtp: React.FC = () => {
     }
   };
 
-  // Simulated OTP Resend Call
-  const handleResend = () => {
+  // Actual OTP Resend Call via Supabase
+  const handleResend = async () => {
     if (timer > 0) return;
 
     setError(null);
-    setTimer(59);
+    setLoading(true);
 
-    // Generate new mock OTP code
-    const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    setExpectedOtp(newOtpCode);
-    console.log(`[PASADA Auth] New SMS OTP Code re-sent to ${identifier}: ${newOtpCode}`);
-    
-    // Alert the user via console log
-    alert(language === "tl" ? `Muling ipinadala ang OTP: ${newOtpCode}` : `OTP Code re-sent: ${newOtpCode}`);
+    try {
+      const { error: resendError } = await supabase.auth.signInWithOtp({
+        phone: identifier,
+      });
+
+      if (resendError) {
+        setError(resendError.message);
+        setLoading(false);
+        return;
+      }
+
+      setTimer(59);
+      setLoading(false);
+      alert(language === "tl" ? "Muling ipinadala ang OTP code sa iyong mobile number." : "OTP code re-sent to your mobile number.");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to resend OTP.";
+      setError(errMsg);
+      setLoading(false);
+    }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setError(null);
     const enteredOtp = otp.join("");
 
@@ -98,24 +109,90 @@ const VerifyOtp: React.FC = () => {
       return;
     }
 
-    if (enteredOtp !== expectedOtp) {
-      setError(language === "tl" ? "Maling OTP code, pakisubukang muli." : "Incorrect OTP code, please try again.");
-      return;
-    }
-
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const isRecovery = state?.type === 'recovery';
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        phone: identifier,
+        token: enteredOtp,
+        type: isRecovery ? 'recovery' : 'sms',
+      });
+
+      if (verifyError) {
+        setError(verifyError.message);
+        setLoading(false);
+        return;
+      }
+
+      // Check if registration success and verify trigger updated the database
+      let fullName = "User";
+      if (!isRecovery) {
+        const { data: { user }, error: userErr } = await supabase.auth.getUser();
+        if (userErr || !user) {
+          setError(userErr?.message || "Failed to retrieve user session.");
+          setLoading(false);
+          return;
+        }
+
+        fullName = user?.user_metadata?.full_name || "User";
+        const role = state?.role || "passenger";
+
+        if (role === "passenger") {
+          // Fetch passenger profile to confirm that the handle_user_auth_update trigger activated it
+          const { data: profile, error: profileErr } = await supabase
+            .from("passenger")
+            .select("account_status")
+            .eq("auth_user_id", user.id)
+            .maybeSingle();
+
+          if (profileErr) {
+            setError(profileErr.message);
+            setLoading(false);
+            return;
+          }
+
+          if (!profile) {
+            setError("Passenger profile record not found in database.");
+            setLoading(false);
+            return;
+          }
+
+          if (profile.account_status !== "Active") {
+            setError(`Registration verification pending. Account status is currently: ${profile.account_status}`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       setLoading(false);
       setSuccess(true);
+
       setTimeout(() => {
-        navigate("/registration-success", {
-          state: {
-            name: state?.signupData?.name,
-            role: state?.role,
-          },
-        });
+        if (isRecovery) {
+          // Password recovery re-verification -> Navigate to reset password page
+          navigate("/reset-password", {
+            state: {
+              identifier,
+            },
+          });
+        } else {
+          // Passenger/Driver Registration Success
+          navigate("/registration-success", {
+            state: {
+              name: fullName,
+              role: state?.role || "passenger",
+            },
+          });
+        }
       }, 1500);
-    }, 1200);
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Verification failed. Please try again.";
+      setError(errMsg);
+      setLoading(false);
+    }
   };
 
   return (

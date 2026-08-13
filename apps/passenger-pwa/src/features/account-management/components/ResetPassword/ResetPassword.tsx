@@ -7,7 +7,6 @@ import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import PinIcon from "@mui/icons-material/Pin";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Alert from "@mui/material/Alert";
@@ -15,6 +14,7 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import { supabase } from "../../../../services/supabaseClient";
 
 const ResetPassword: React.FC = () => {
   const { language, t } = useLanguage();
@@ -24,14 +24,11 @@ const ResetPassword: React.FC = () => {
   // Retrieve state passed from ForgotPassword
   const state = location.state as {
     identifier?: string;
-    expectedCode?: string;
   };
 
   const identifier = state?.identifier || "";
-  const expectedCode = state?.expectedCode || "654321";
 
   // Form states
-  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,19 +38,11 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     // Validations
-    if (!code.trim()) {
-      setError(language === "tl" ? "Kailangan ang verification code" : "Verification code is required");
-      return;
-    }
-    if (code.trim() !== expectedCode) {
-      setError(language === "tl" ? "Maling verification code" : "Incorrect verification code");
-      return;
-    }
     if (!password) {
       setError(t.passwordRequired);
       return;
@@ -67,15 +56,30 @@ const ResetPassword: React.FC = () => {
       return;
     }
 
-    // Simulate reset request
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (updateError) {
+        setError(updateError.message);
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
         navigate("/login");
       }, 1500);
-    }, 1200);
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred while resetting password.';
+      setError(errMsg);
+      setLoading(false);
+    }
   };
 
   return (
@@ -169,34 +173,6 @@ const ResetPassword: React.FC = () => {
             width: "100%",
           }}
         >
-          {/* Verification Code */}
-          <Box sx={{ width: "100%" }}>
-            <TextField
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={loading}
-              placeholder={language === "tl" ? "Verification Code" : "Verification Code"}
-              type="text"
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PinIcon sx={{ color: "#94A3B8" }} />
-                    </InputAdornment>
-                  ),
-                  sx: {
-                    height: "56px",
-                    backgroundColor: "#F8FAFC",
-                    borderRadius: "14px",
-                    "& fieldset": { borderColor: "#F1F5F9" },
-                    "&:hover fieldset": { borderColor: "#CBD5E1" },
-                    "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
-                  },
-                },
-              }}
-            />
-          </Box>
-
           {/* New Password */}
           <Box sx={{ width: "100%" }}>
             <TextField
