@@ -114,6 +114,7 @@ export const DriverAvailabilityHome: React.FC = () => {
   // Incoming Booking Request State
   const [incomingRequest, setIncomingRequest] = useState<MockDispatchBooking | null>(null);
   const [countdown, setCountdown] = useState<number>(15);
+  const [declinedBookings, setDeclinedBookings] = useState<Set<string>>(new Set());
 
   // Load live Supabase profile and accredited TODAs on mount
   useEffect(() => {
@@ -319,6 +320,7 @@ export const DriverAvailabilityHome: React.FC = () => {
     // 1. Check local broker cache
     const activeWaiting = getAllActiveBookings().find((b) => {
       if (b.booking_status !== 'Searching Driver') return false;
+      if (declinedBookings.has(b.booking_id)) return false;
       // Ignore stale local bookings
       const createdTime = new Date(b.created_at || Date.now()).getTime();
       return createdTime >= fifteenMinsAgoMs;
@@ -334,18 +336,24 @@ export const DriverAvailabilityHome: React.FC = () => {
     // 2. Query Supabase for waiting pending bookings across devices
     const fifteenMinsAgoStr = new Date(fifteenMinsAgoMs).toISOString();
 
+    let query = supabase
+      .from('booking')
+      .select('*')
+      .eq('booking_status', 'Pending')
+      .gte('created_at', fifteenMinsAgoStr);
+
+    if (declinedBookings.size > 0) {
+      query = query.not('booking_id', 'in', `(${Array.from(declinedBookings).join(',')})`);
+    }
+
     Promise.resolve(
-      supabase
-        .from('booking')
-        .select('*')
-        .eq('booking_status', 'Pending')
-        .gte('created_at', fifteenMinsAgoStr)
+      query
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
     )
       .then(({ data }: any) => {
-        if (data && profile.isOnline && !profile.isPaused && !incomingRequest) {
+        if (data && profile.isOnline && !profile.isPaused && !incomingRequest && !declinedBookings.has(data.booking_id)) {
           const mapped: MockDispatchBooking = {
             booking_id: data.booking_id,
             passenger_id: data.passenger_id || 'passenger-demo',
@@ -360,8 +368,8 @@ export const DriverAvailabilityHome: React.FC = () => {
             dropoff_address: data.dropoff_address,
             dropoff_latitude: data.dropoff_latitude,
             dropoff_longitude: data.dropoff_longitude,
-            estimated_distance_km: data.estimated_distance_km || 1.5,
-            estimated_fare: Number(data.estimated_fare) || 18,
+            estimated_distance_km: data.estimated_distance_km || 1,
+            estimated_fare: data.estimated_fare || 20,
             booking_status: 'Searching Driver',
             created_at: data.created_at,
             updated_at: data.created_at,
@@ -372,7 +380,7 @@ export const DriverAvailabilityHome: React.FC = () => {
         }
       })
       .catch((err: any) => console.warn('[DriverAvailabilityHome] Pending booking query note:', err));
-  }, [profile.isOnline, profile.isPaused, incomingRequest]);
+  }, [profile.isOnline, profile.isPaused, incomingRequest, declinedBookings]);
 
   // Request Countdown Timer
   useEffect(() => {
@@ -479,6 +487,12 @@ export const DriverAvailabilityHome: React.FC = () => {
 
   const handleDeclineRequest = () => {
     if (!incomingRequest) return;
+
+    setDeclinedBookings(prev => {
+      const updated = new Set(prev);
+      updated.add(incomingRequest.booking_id);
+      return updated;
+    });
 
     declineBookingByDriver(incomingRequest.booking_id, profile.id || 'test-driver-001', 'Driver unavailable / queue rotation timeout');
     setIncomingRequest(null);
