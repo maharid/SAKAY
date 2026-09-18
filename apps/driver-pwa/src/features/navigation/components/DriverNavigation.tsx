@@ -20,7 +20,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import MapView from '../../../common/components/MapView';
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
-import { getMockBookingById, updateTripStage, updateDriverLocation } from '@sakay/shared/mockDispatch';
 import { supabase } from '../../../services/supabaseClient';
 
 export const DriverNavigation: React.FC = () => {
@@ -28,7 +27,7 @@ export const DriverNavigation: React.FC = () => {
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || 'BKG-9011';
 
-  const [booking, setBooking] = useState(() => getMockBookingById(bookingId));
+  const [booking, setBooking] = useState<any>(null);
   const [driverLocation, setDriverLocation] = useState({ lat: 13.4117, lng: 121.1803 });
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
@@ -73,17 +72,40 @@ export const DriverNavigation: React.FC = () => {
 
   useEffect(() => {
     // Notify broker that driver is en route
-    updateTripStage(bookingId, 'Driver En Route', 3);
+    const notifyEnRoute = async () => {
+      try {
+        await supabase
+          .from('booking')
+          .update({ booking_status: 'In Transit' })
+          .eq('booking_id', bookingId);
+      } catch (err) {
+        // ignore
+      }
+    };
+    notifyEnRoute();
 
     // Watch real-time GPS position and broadcast to passenger
     let watchId: number | null = null;
+    let channel: any = null;
+
+    if (bookingId) {
+      channel = supabase.channel(`passenger_trip_${bookingId}`);
+    }
+
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setDriverLocation({ lat, lng });
-          updateDriverLocation(bookingId, lat, lng);
+          
+          if (channel) {
+            channel.send({
+              type: 'broadcast',
+              event: 'driver_location',
+              payload: { lat, lng }
+            });
+          }
         },
         (err) => console.warn('[DriverNavigation] Geolocation watch error:', err.message),
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
@@ -99,13 +121,14 @@ export const DriverNavigation: React.FC = () => {
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
       }
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
       clearInterval(interval);
     };
   }, [bookingId]);
 
   const handleArrivedAtPickup = async () => {
-    updateTripStage(bookingId, 'Driver Arrived', 0);
-
     // Sync arrival with Supabase
     try {
       await supabase

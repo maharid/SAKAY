@@ -111,6 +111,7 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         created_at
       `)
       .eq("passenger_id", profile.passenger_id)
+      .in("booking_status", ["Completed", "Cancelled"])
       .order("created_at", { ascending: false });
 
     if (error || !bookings || bookings.length === 0) {

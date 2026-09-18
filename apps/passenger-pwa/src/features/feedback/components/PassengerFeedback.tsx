@@ -86,13 +86,20 @@ export const PassengerFeedback: React.FC = () => {
     };
 
     try {
-      await supabase.from('driver_rating').insert([
-        {
-          rating_value: rating || 5,
-          feedback_comment: selectedTags.length > 0 ? `[${selectedTags.join(', ')}] ${comment.trim()}` : comment.trim(),
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      if (booking?.booking_id) {
+        await supabase.from('rating').insert([
+          {
+            booking_id: booking.booking_id,
+            rater_id: booking.passenger_id,
+            ratee_id: booking.driver_id,
+            rater_role: 'Passenger',
+            stars: rating || 5,
+            tags: selectedTags,
+            comment: comment.trim(),
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      }
     } catch (err) {
       console.warn('[PassengerFeedback] DB insert note:', err);
     }

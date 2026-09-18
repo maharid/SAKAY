@@ -14,6 +14,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import PersonIcon from '@mui/icons-material/Person';
 
 import { useLanguage } from '../../utils/LanguageContext';
+import { DriverSessionProvider } from '../../contexts/DriverSessionContext';
+import { DriverIncomingRequestModal } from '../components/DriverIncomingRequestModal';
 
 interface NavTabItem {
   key: string;
@@ -35,6 +37,17 @@ export const DriverMobileAppShell: React.FC = () => {
     '/driver/notifications',
     '/driver/history',
     '/driver/profile',
+  ].includes(currentPath);
+
+  // Routes where we should enable the DriverSessionProvider (authenticated routes)
+  const isDriverPortal = [
+    '/driver/home',
+    '/driver/earnings',
+    '/driver/notifications',
+    '/driver/history',
+    '/driver/profile',
+    '/driver/navigation',
+    '/driver/active-trip'
   ].includes(currentPath);
 
   const tabs: NavTabItem[] = [
@@ -74,7 +87,7 @@ export const DriverMobileAppShell: React.FC = () => {
     },
   ];
 
-  return (
+  const content = (
     <Box className="app-container">
       <Box
         component="main"
@@ -165,9 +178,20 @@ export const DriverMobileAppShell: React.FC = () => {
               })}
             </Paper>
           )}
+
+          {/* Global Incoming Request Modal */}
+          {isDriverPortal && <DriverIncomingRequestModal />}
         </Box>
       </Box>
     </Box>
+  );
+
+  return isDriverPortal ? (
+    <DriverSessionProvider>
+      {content}
+    </DriverSessionProvider>
+  ) : (
+    content
   );
 };
 

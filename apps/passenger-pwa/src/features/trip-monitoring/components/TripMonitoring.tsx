@@ -29,9 +29,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MapView from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import { getBooking, cancelBooking, updateBookingState } from '../../../services/bookingService';
-import type { BookingRecord } from '../../../services/bookingService';
-import { subscribeToDispatchEvents } from '@sakay/shared';
-import type { MockDispatchBooking } from '@sakay/shared';
+import type { BookingRecord } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 
@@ -64,7 +62,7 @@ export const TripMonitoring: React.FC = () => {
       dropoff_longitude: 121.1810,
       estimated_distance_km: 2.4,
       estimated_fare: 18.0,
-      booking_status: 'Searching Driver',
+      booking_status: 'Pending',
       eta_minutes: 4,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -91,20 +89,6 @@ export const TripMonitoring: React.FC = () => {
     lng: booking?.driver_longitude || 121.1845,
   });
   const hasLiveDriverGpsRef = useRef(false);
-
-  // Simulated Driver Location Refresh (~5 seconds) when live GPS is not broadcasting
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!hasLiveDriverGpsRef.current) {
-        setDriverPos((prev) => ({
-          lat: prev.lat + (Math.random() - 0.5) * 0.0004,
-          lng: prev.lng + (Math.random() - 0.5) * 0.0004,
-        }));
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Fetch initial booking details from Supabase if activeBookingId exists
   useEffect(() => {
@@ -134,7 +118,7 @@ export const TripMonitoring: React.FC = () => {
               driver_id,
               full_name,
               contact_number,
-              body_number,
+              franchise_number,
               plate_number,
               toda:toda_id (toda_name)
             )
@@ -165,7 +149,7 @@ export const TripMonitoring: React.FC = () => {
               driver_id: d.driver_id || prev?.driver_id,
               driver_name: driverInfo?.full_name || prev?.driver_name || 'Aurelio Bautista',
               driver_phone: driverInfo?.contact_number || prev?.driver_phone || '+63 917 111 0201',
-              franchise_no: driverInfo?.body_number || prev?.franchise_no || 'CAL-2025-0773',
+              franchise_no: driverInfo?.franchise_number || prev?.franchise_no || 'CAL-2025-0773',
               vehicle_plate: driverInfo?.plate_number || prev?.vehicle_plate || '773-MV',
               toda_name: todaInfo?.toda_name || prev?.toda_name || 'Calapan Central TODA',
               booking_status: mappedStatus as any,
@@ -197,36 +181,50 @@ export const TripMonitoring: React.FC = () => {
     fetchBookingFromDb();
   }, [activeBookingId]);
 
-  // Listen to Shared Dispatch Broker & Supabase Realtime for updates
+  // Listen to Supabase Realtime for updates and broadcast for driver GPS
   useEffect(() => {
-    const unsubscribe = subscribeToDispatchEvents((updatedBooking: MockDispatchBooking) => {
-      if (updatedBooking.booking_id === activeBookingId) {
-        setBooking((prev) => {
-          const merged: BookingRecord = {
-            ...(prev || ({} as any)),
-            ...updatedBooking,
-          };
-          updateBookingState(activeBookingId, merged);
-          return merged;
-        });
+    if (!activeBookingId) return;
 
-        // Live driver GPS coordinates
-        if (updatedBooking.driver_latitude && updatedBooking.driver_longitude) {
-          hasLiveDriverGpsRef.current = true;
-          setDriverPos({
-            lat: updatedBooking.driver_latitude,
-            lng: updatedBooking.driver_longitude,
+    // Polling fallback in case Supabase Realtime is not enabled on the dashboard
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('booking')
+          .select('booking_status, actual_fare, updated_at, driver_id')
+          .eq('booking_id', activeBookingId)
+          .maybeSingle();
+
+        if (!error && data) {
+          setBooking((prev) => {
+            if (prev?.booking_status === data.booking_status) return prev; // No change
+            
+            const mappedStatus = data.booking_status === 'Pending' ? 'Searching Driver'
+              : data.booking_status === 'Accepted' || data.booking_status === 'Driver Assigned' ? 'Driver Assigned'
+              : data.booking_status === 'In Transit' || data.booking_status === 'Trip Ongoing' ? 'Trip Ongoing'
+              : data.booking_status === 'Arrived at Pickup' || data.booking_status === 'Driver Arrived' ? 'Driver Arrived'
+              : data.booking_status === 'Completed' ? 'Completed'
+              : data.booking_status === 'Cancelled' ? 'Cancelled'
+              : (data.booking_status || prev?.booking_status);
+
+            const merged: BookingRecord = {
+              ...(prev || ({} as any)),
+              booking_status: mappedStatus as any,
+              actual_fare: data.actual_fare !== null && data.actual_fare !== undefined ? Number(data.actual_fare) : prev?.actual_fare,
+              updated_at: data.updated_at || new Date().toISOString(),
+            };
+            updateBookingState(activeBookingId, merged);
+
+            if (mappedStatus === 'Completed') {
+              setCompletionFareModalOpen(true);
+            }
+            return merged;
           });
         }
-
-        // Trigger Workflow Step 12 Simultaneous Fare Confirmation Dialog
-        if (updatedBooking.booking_status === 'Completed') {
-          setCompletionFareModalOpen(true);
-        }
+      } catch (err) {
+        // ignore polling errors
       }
-    });
+    }, 5000);
 
-    // Secondary direct Supabase Realtime channel specifically for activeBookingId
     const channel = supabase
       .channel(`passenger_trip_${activeBookingId}`)
       .on(
@@ -265,10 +263,19 @@ export const TripMonitoring: React.FC = () => {
           }
         }
       )
+      .on('broadcast', { event: 'driver_location' }, (payload: any) => {
+        if (payload.payload?.lat && payload.payload?.lng) {
+          hasLiveDriverGpsRef.current = true;
+          setDriverPos({
+            lat: payload.payload.lat,
+            lng: payload.payload.lng,
+          });
+        }
+      })
       .subscribe();
 
     return () => {
-      unsubscribe();
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [activeBookingId]);

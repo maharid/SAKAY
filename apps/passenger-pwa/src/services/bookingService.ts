@@ -1,54 +1,12 @@
 /**
  * SAKAY Passenger Live & Real-Time Booking Service Layer
- * Directly synchronizes bookings with Supabase PostgreSQL tables and dispatch brokers.
+ * Directly synchronizes bookings with Supabase PostgreSQL tables.
  */
 
-import { publishBookingRequest } from '@sakay/shared';
 import { supabase } from './supabaseClient';
+import type { BookingRecord } from '@sakay/shared';
 
-export interface BookingRecord {
-  booking_id: string;
-  passenger_id: string;
-  passenger_name: string;
-  passenger_phone: string;
-  driver_id?: string;
-  driver_name?: string;
-  driver_photo?: string;
-  driver_phone?: string;
-  franchise_no?: string;
-  vehicle_plate?: string;
-  toda_name?: string;
-  toda_id?: string;
-  booking_type: 'Immediate' | 'Scheduled';
-  is_shared_trip: boolean;
-  passenger_count: number;
-  pickup_address: string;
-  pickup_latitude: number;
-  pickup_longitude: number;
-  dropoff_address: string;
-  dropoff_latitude: number;
-  dropoff_longitude: number;
-  estimated_distance_km: number;
-  estimated_fare: number;
-  actual_fare?: number;
-  proportionate_fare?: number;
-  paired_booking_count?: number;
-  paired_passenger_name?: string;
-  booking_status:
-    | 'Searching Driver'
-    | 'Driver Assigned'
-    | 'Driver En Route'
-    | 'Driver Arrived'
-    | 'Trip Ongoing'
-    | 'Completed'
-    | 'Cancelled'
-    | 'No Driver Found';
-  driver_latitude?: number;
-  driver_longitude?: number;
-  eta_minutes?: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { BookingRecord };
 
 export interface CreateBookingPayload {
   passenger_id?: string;
@@ -102,13 +60,18 @@ const notifyBookingListeners = (booking: BookingRecord) => {
   }
 };
 
+let isCreatingBooking = false;
+
 /**
  * Creates a new booking directly in Supabase and the reactive store
  */
 export const createBooking = async (payload: CreateBookingPayload): Promise<BookingRecord> => {
+  if (isCreatingBooking) {
+    throw new Error('Booking already in progress');
+  }
+  isCreatingBooking = true;
   const now = new Date().toISOString();
-  let generatedId = `BKG-${Date.now().toString().slice(-6)}`;
-
+  
   let validPassengerId = payload.passenger_id;
 
   // 1. Resolve passenger UUID from active session if available
@@ -146,6 +109,43 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     }
   }
 
+  const insertPayload: any = {
+    pickup_address: payload.pickup_address,
+    pickup_latitude: payload.pickup_latitude,
+    pickup_longitude: payload.pickup_longitude,
+    dropoff_address: payload.dropoff_address,
+    dropoff_latitude: payload.dropoff_latitude,
+    dropoff_longitude: payload.dropoff_longitude,
+    estimated_distance_km: payload.estimated_distance_km,
+    estimated_fare: payload.estimated_fare,
+    actual_fare: payload.estimated_fare,
+    is_shared_trip: Boolean(payload.is_shared_trip),
+    passenger_count: Math.min(Math.max(Number(payload.passenger_count) || 1, 1), 4),
+    booking_type: payload.booking_type || 'Immediate',
+    booking_status: 'Pending',
+    fare_confirmation_status: 'Matched',
+    created_at: now,
+  };
+
+  if (validPassengerId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validPassengerId)) {
+    insertPayload.passenger_id = validPassengerId;
+  }
+
+  // 3. Attempt database insertion into public.booking
+  const { data: dbData, error } = await supabase
+    .from('booking')
+    .insert([insertPayload])
+    .select()
+    .single();
+
+  isCreatingBooking = false;
+
+  if (error || !dbData) {
+    console.error('[bookingService] Supabase insert error:', error?.message);
+    throw new Error(error?.message || 'Failed to create booking');
+  }
+
+  const generatedId = dbData.booking_id;
   const newBooking: BookingRecord = {
     booking_id: generatedId,
     passenger_id: validPassengerId || payload.passenger_id || 'PSG-DEMO-001',
@@ -162,54 +162,13 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     dropoff_longitude: payload.dropoff_longitude,
     estimated_distance_km: payload.estimated_distance_km,
     estimated_fare: payload.estimated_fare,
-    booking_status: 'Searching Driver',
+    booking_status: 'Pending',
     driver_latitude: payload.pickup_latitude + 0.004,
     driver_longitude: payload.pickup_longitude + 0.003,
     eta_minutes: 4,
-    created_at: now,
-    updated_at: now,
+    created_at: dbData.created_at || now,
+    updated_at: dbData.created_at || now,
   };
-
-  // 3. Attempt database insertion into public.booking
-  try {
-    const insertPayload: any = {
-      pickup_address: payload.pickup_address,
-      pickup_latitude: payload.pickup_latitude,
-      pickup_longitude: payload.pickup_longitude,
-      dropoff_address: payload.dropoff_address,
-      dropoff_latitude: payload.dropoff_latitude,
-      dropoff_longitude: payload.dropoff_longitude,
-      estimated_distance_km: payload.estimated_distance_km,
-      estimated_fare: payload.estimated_fare,
-      actual_fare: payload.estimated_fare,
-      is_shared_trip: Boolean(payload.is_shared_trip),
-      passenger_count: Math.min(Math.max(Number(payload.passenger_count) || 1, 1), 4),
-      booking_type: payload.booking_type || 'Immediate',
-      booking_status: 'Pending',
-      fare_confirmation_status: 'Matched',
-      created_at: now,
-    };
-
-    if (validPassengerId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validPassengerId)) {
-      insertPayload.passenger_id = validPassengerId;
-    }
-
-    const { data: dbData, error } = await supabase
-      .from('booking')
-      .insert([insertPayload])
-      .select()
-      .single();
-
-    if (!error && dbData) {
-      generatedId = dbData.booking_id;
-      newBooking.booking_id = generatedId;
-      console.log('[bookingService] Successfully persisted booking in Supabase:', generatedId);
-    } else if (error) {
-      console.warn('[bookingService] Supabase insert warning:', error.message);
-    }
-  } catch (dbErr) {
-    console.warn('[bookingService] Supabase insert note:', dbErr);
-  }
 
   const store = loadBookings();
   store[generatedId] = newBooking;
@@ -217,13 +176,6 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
 
   // Set as current active trip
   sessionStorage.setItem('current_active_booking_id', generatedId);
-
-  // Publish to shared broker for Driver PWA (Realtime + BroadcastChannel)
-  try {
-    publishBookingRequest(newBooking as any);
-  } catch (e) {
-    console.warn('Failed to publish booking to shared dispatch broker:', e);
-  }
 
   return newBooking;
 };
@@ -254,7 +206,7 @@ export const cancelBooking = async (bookingId: string, _reason?: string): Promis
     try {
       await supabase
         .from('booking')
-        .update({ booking_status: 'Cancelled by Passenger' })
+        .update({ booking_status: 'Cancelled' })
         .eq('booking_id', bookingId);
     } catch (err) {
       console.warn('[bookingService] cancelBooking DB sync note:', err);
@@ -316,11 +268,3 @@ export const updateBooking = (
 };
 
 export const updateBookingState = updateBooking;
-
-// Bridge global dispatch events to local listeners
-subscribeToDispatchEvents((updatedBooking: any) => {
-  if (updatedBooking && updatedBooking.booking_id) {
-    updateBookingState(updatedBooking.booking_id, updatedBooking);
-  }
-});
-

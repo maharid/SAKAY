@@ -92,11 +92,11 @@ export const DriverLogin: React.FC = () => {
       sessionStorage.removeItem('sakay_driver_location_prompt_dismissed');
       localStorage.removeItem('sakay_driver_location_permission');
       localStorage.setItem('sakay_driver_phone', phone63);
-      localStorage.setItem('sakay_driver_id', 'test-driver-001');
+      localStorage.setItem('sakay_driver_id', '11111111-1111-1111-1111-111111111111');
       localStorage.setItem(
         'sakay_driver_profile',
         JSON.stringify({
-          id: 'test-driver-001',
+          id: '11111111-1111-1111-1111-111111111111',
           name: 'Juan Dela Cruz',
           phone: phone63,
           vehiclePlate: 'ABC 123',

@@ -19,7 +19,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 
 import MapView from '../../../common/components/MapView';
-import { getMockBookingById, updateTripStage, completeBookingByDriver, updateDriverLocation } from '@sakay/shared/mockDispatch';
+
 import { supabase } from '../../../services/supabaseClient';
 
 export const DriverActiveTrip: React.FC = () => {
@@ -27,7 +27,7 @@ export const DriverActiveTrip: React.FC = () => {
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || 'BKG-9011';
 
-  const [booking, setBooking] = useState(() => getMockBookingById(bookingId));
+  const [booking, setBooking] = useState<any>(null);
   const [tripStarted, setTripStarted] = useState(false);
   const [progress, setProgress] = useState(0); // 0% to 100%
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
@@ -88,13 +88,26 @@ export const DriverActiveTrip: React.FC = () => {
   // Real-time GPS broadcasting during active trip
   useEffect(() => {
     let watchId: number | null = null;
+    let channel: any = null;
+
+    if (bookingId) {
+      channel = supabase.channel(`passenger_trip_${bookingId}`);
+    }
+
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setDriverLocation({ lat, lng });
-          updateDriverLocation(bookingId, lat, lng);
+          
+          if (channel) {
+            channel.send({
+              type: 'broadcast',
+              event: 'driver_location',
+              payload: { lat, lng }
+            });
+          }
         },
         (err) => console.warn('[DriverActiveTrip] Geolocation watch error:', err.message),
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
@@ -104,6 +117,9 @@ export const DriverActiveTrip: React.FC = () => {
     return () => {
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
+      }
+      if (channel) {
+        supabase.removeChannel(channel);
       }
     };
   }, [bookingId]);
@@ -121,9 +137,32 @@ export const DriverActiveTrip: React.FC = () => {
     }
   }, [tripStarted, hasPromptedShared, booking?.is_shared_trip]);
 
+  const handleEnRoute = async () => {
+    try {
+      await supabase
+        .from('booking')
+        .update({ booking_status: 'In Transit' })
+        .eq('booking_id', bookingId);
+      setBooking((prev: any) => ({ ...prev, booking_status: 'In Transit' }));
+    } catch (err) {
+      console.warn('[DriverActiveTrip] enRoute error:', err);
+    }
+  };
+
+  const handleArrived = async () => {
+    try {
+      await supabase
+        .from('booking')
+        .update({ booking_status: 'Arrived at Pickup' })
+        .eq('booking_id', bookingId);
+      setBooking((prev: any) => ({ ...prev, booking_status: 'Arrived at Pickup' }));
+    } catch (err) {
+      console.warn('[DriverActiveTrip] arrived error:', err);
+    }
+  };
+
   const handleStartTrip = async () => {
     setTripStarted(true);
-    updateTripStage(bookingId, 'Trip Ongoing', 5);
 
     // Sync trip start with Supabase
     try {
@@ -134,6 +173,7 @@ export const DriverActiveTrip: React.FC = () => {
           trip_started_at: new Date().toISOString(),
         })
         .eq('booking_id', bookingId);
+      setBooking((prev: any) => ({ ...prev, booking_status: 'Trip Ongoing' }));
     } catch (err) {
       console.warn('[DriverActiveTrip] startTrip Supabase update note:', err);
     }
@@ -148,11 +188,8 @@ export const DriverActiveTrip: React.FC = () => {
     setCurrentFare(newP1 + p2Fare);
     setSharedPromptOpen(false);
 
-    // Notify broker of paired passenger update
-    updateTripStage(bookingId, 'Trip Ongoing', 4, {
-      paired_booking_count: 2,
-      proportionate_fare: newP1,
-    });
+    // Note: Instead of updating via mock broker, we just let the DB update below handle it.
+
 
     try {
       await supabase
@@ -173,7 +210,6 @@ export const DriverActiveTrip: React.FC = () => {
   const handleCompleteTrip = async () => {
     // For the passenger's individual record, set their payable share (proportionate fare if carpooled)
     const p1PayableFare = pairedPassenger ? proportionateFareP1 : currentFare;
-    completeBookingByDriver(bookingId, p1PayableFare);
 
     // Sync completion with Supabase
     try {
@@ -376,7 +412,41 @@ export const DriverActiveTrip: React.FC = () => {
           </Typography>
         </Box>
 
-        {!tripStarted ? (
+        {booking?.booking_status === 'Accepted' || booking?.booking_status === 'Driver Assigned' ? (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleEnRoute}
+            sx={{
+              height: 50,
+              borderRadius: '14px',
+              backgroundColor: '#3B82F6',
+              fontWeight: 800,
+              fontSize: '15px',
+              textTransform: 'none',
+              '&:hover': { backgroundColor: '#2563EB' },
+            }}
+          >
+            I'm On My Way
+          </Button>
+        ) : booking?.booking_status === 'In Transit' ? (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleArrived}
+            sx={{
+              height: 50,
+              borderRadius: '14px',
+              backgroundColor: '#F59E0B',
+              fontWeight: 800,
+              fontSize: '15px',
+              textTransform: 'none',
+              '&:hover': { backgroundColor: '#D97706' },
+            }}
+          >
+            Arrived at Pickup
+          </Button>
+        ) : booking?.booking_status === 'Arrived at Pickup' || booking?.booking_status === 'Driver Arrived' ? (
           <Button
             variant="contained"
             fullWidth

@@ -41,7 +41,6 @@ import {
 import {
   createBooking,
   cancelBooking,
-  subscribeToBooking,
   type BookingRecord,
 } from "../../../../services/bookingService";
 
@@ -340,21 +339,53 @@ const NewTrip: React.FC = () => {
   useEffect(() => {
     if (!activeBooking?.booking_id) return;
 
-    const unsubscribe = subscribeToBooking(activeBooking.booking_id, (updated) => {
-      setActiveBooking(updated);
-      if (
-        updated.booking_status === "Driver Assigned" ||
-        updated.booking_status === "Driver En Route" ||
-        updated.booking_status === "Driver Arrived" ||
-        updated.booking_status === "Trip Ongoing"
-      ) {
-        navigate("/trip-monitoring", {
-          state: { bookingId: updated.booking_id },
-        });
-      }
-    });
+    // Polling fallback
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('booking')
+          .select('booking_status, actual_fare, updated_at, driver_id')
+          .eq('booking_id', activeBooking.booking_id)
+          .maybeSingle();
 
-    return () => unsubscribe();
+        if (!error && data) {
+          if (data.booking_status === "Accepted" || data.booking_status === "Driver Assigned") {
+            clearInterval(pollInterval);
+            navigate("/trip-monitoring", {
+              state: { bookingId: activeBooking.booking_id },
+            });
+          }
+        }
+      } catch (err) {}
+    }, 4000);
+
+    // Realtime channel
+    const channel = supabase
+      .channel(`new_trip_wait_${activeBooking.booking_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'booking',
+          filter: `booking_id=eq.${activeBooking.booking_id}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          if (row.booking_status === "Accepted" || row.booking_status === "Driver Assigned") {
+            clearInterval(pollInterval);
+            navigate("/trip-monitoring", {
+              state: { bookingId: activeBooking.booking_id },
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+    };
   }, [activeBooking?.booking_id, navigate]);
 
   const handleOpenSetPlace = (target: "pickup" | "dropoff") => {
