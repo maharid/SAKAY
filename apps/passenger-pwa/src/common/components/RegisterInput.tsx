@@ -16,6 +16,7 @@ export interface RegisterInputProps {
   placeholder?: string;
   readOnly?: boolean;
   required?: boolean;
+  shake?: boolean;
 }
 
 export const RegisterInput: React.FC<RegisterInputProps> = ({
@@ -32,6 +33,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
   placeholder,
   readOnly = false,
   required = false,
+  shake = false,
 }) => {
   const [focused, setFocused] = useState(false);
   const isFloating = focused || Boolean(value && value.length > 0);
@@ -39,6 +41,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
   return (
     <Box sx={{ width: '100%' }}>
       <Box
+        className={shake ? 'anim-shake' : ''}
         sx={{
           width: '100%',
           minHeight: '62px',

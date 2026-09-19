@@ -10,7 +10,7 @@ import Logo from "../../../../common/components/Logo";
 
 // Shared branding assets
 import background from "@sakay/shared/src/assets/images/splash-bg.png";
-import tricycle from "@sakay/shared/src/assets/icons/app-icon.png";
+import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.png";
 import { BookingIllustration, FareIllustration, SafetyIllustration } from "@sakay/shared";
 
 interface SplashProps {
@@ -272,7 +272,6 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
 
       {/* Tricycle Illustration */}
       <Box
-        className="anim-float-tricycle"
         sx={{
           mt: "30px",
           zIndex: 2,

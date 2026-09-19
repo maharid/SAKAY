@@ -131,9 +131,18 @@ export const Register: React.FC = () => {
     return language === 'tl' ? 'Malakas' : 'Strong';
   };
 
-  const isPasswordMismatched = confirmPassword.length > 0 && password !== confirmPassword;
+  const isConfirmPasswordEntered = confirmPassword.length > 0;
+  const isPasswordMismatched = isConfirmPasswordEntered && password !== confirmPassword;
   const [showMatchSuccess, setShowMatchSuccess] = useState(false);
   const [showPasswordStrength, setShowPasswordStrength] = useState(true);
+  const [shakeTrigger, setShakeTrigger] = useState(0);
+
+  useEffect(() => {
+    if (shakeTrigger > 0) {
+      const timer = setTimeout(() => setShakeTrigger(0), 450);
+      return () => clearTimeout(timer);
+    }
+  }, [shakeTrigger]);
 
   useEffect(() => {
     if (!isPasswordValid) {
@@ -147,7 +156,7 @@ export const Register: React.FC = () => {
   }, [isPasswordValid]);
 
   useEffect(() => {
-    if (confirmPassword.length > 0 && password === confirmPassword) {
+    if (isConfirmPasswordEntered && password === confirmPassword) {
       setShowMatchSuccess(true);
       const timer = setTimeout(() => {
         setShowMatchSuccess(false);
@@ -156,7 +165,7 @@ export const Register: React.FC = () => {
     } else {
       setShowMatchSuccess(false);
     }
-  }, [password, confirmPassword]);
+  }, [password, confirmPassword, isConfirmPasswordEntered]);
 
   const e164Phone = formatPhoneToE164(cleanPhoneDigits);
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith('09');
@@ -174,7 +183,10 @@ export const Register: React.FC = () => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
     setAccountError(null);
-    if (!isFormValid) return;
+    if (!isFormValid) {
+      setShakeTrigger((prev) => prev + 1);
+      return;
+    }
 
     // Check if phone number is already registered and Active
     const existing = await lookupPassengerByPhone(cleanPhoneDigits);
@@ -311,6 +323,7 @@ export const Register: React.FC = () => {
               required
               error={hasAttemptedSubmit && !firstName.trim()}
               helperText={hasAttemptedSubmit && !firstName.trim() ? (language === 'tl' ? 'Kailangan ang unang pangalan.' : 'First name is required.') : ''}
+              shake={shakeTrigger > 0 && hasAttemptedSubmit && !firstName.trim()}
             />
 
             <RegisterInput
@@ -328,6 +341,7 @@ export const Register: React.FC = () => {
                   required
                   error={hasAttemptedSubmit && !lastName.trim()}
                   helperText={hasAttemptedSubmit && !lastName.trim() ? (language === 'tl' ? 'Kailangan ang apelyido.' : 'Last name is required.') : ''}
+                  shake={shakeTrigger > 0 && hasAttemptedSubmit && !lastName.trim()}
                 />
               </Box>
               <Box sx={{ flex: '3 3 30%', minWidth: 0 }}>
@@ -357,6 +371,7 @@ export const Register: React.FC = () => {
                     ? (language === 'tl' ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.' : 'Please enter a valid 10-digit mobile number starting with 9.')
                     : '')
             }
+            shake={shakeTrigger > 0 && ((hasAttemptedSubmit && !isValidPhone) || Boolean(phoneRegisteredError))}
           />
 
           {/* Password Input */}
@@ -374,6 +389,7 @@ export const Register: React.FC = () => {
                     ? (language === 'tl' ? 'Kailangang sundin ang lahat ng pamantayan sa password.' : 'Password must meet all criteria.')
                     : '')
             }
+            shake={shakeTrigger > 0 && hasAttemptedSubmit && (!password || !isPasswordValid)}
             endAdornment={
               <IconButton
                 onClick={() => setShowPassword(!showPassword)}
@@ -442,14 +458,15 @@ export const Register: React.FC = () => {
             value={confirmPassword}
             onChange={(val) => setConfirmPassword(val)}
             required
-            error={hasAttemptedSubmit && (isPasswordMismatched || !confirmPassword)}
+            error={isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim())}
             helperText={
-              hasAttemptedSubmit && isPasswordMismatched
+              isPasswordMismatched
                 ? (language === 'tl' ? 'Hindi magkapareho ang password.' : 'Passwords do not match.')
-                : (hasAttemptedSubmit && !confirmPassword
+                : (hasAttemptedSubmit && !confirmPassword.trim()
                     ? (language === 'tl' ? 'Kailangan kumpirmahin ang password.' : 'Please confirm password.')
                     : '')
             }
+            shake={shakeTrigger > 0 && (isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim()))}
             endAdornment={
               <IconButton
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -485,21 +502,21 @@ export const Register: React.FC = () => {
           form="passenger-register-form"
           fullWidth
           loading={submitted}
-          disabled={!isFormValid || submitted}
+          disabled={!isConfirmPasswordEntered || submitted}
           sx={{
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 800,
-            backgroundColor: isFormValid ? '#FF6B00' : '#E2E8F0',
-            color: isFormValid ? '#FFFFFF' : '#94A3B8',
+            backgroundColor: (isConfirmPasswordEntered && !submitted) ? '#FF6B00' : '#E2E8F0',
+            color: (isConfirmPasswordEntered && !submitted) ? '#FFFFFF' : '#94A3B8',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
               color: '#94A3B8',
             },
             '&:hover': {
-              backgroundColor: isFormValid ? '#E66000' : '#E2E8F0',
+              backgroundColor: (isConfirmPasswordEntered && !submitted) ? '#E66000' : '#E2E8F0',
               boxShadow: 'none',
             },
           }}
