@@ -150,16 +150,33 @@ export async function sendPassengerOtp(phone: string): Promise<{ success: boolea
   }
 }
 
-export async function verifyPassengerOtp(phone: string, code: string, fullName?: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyPassengerOtp(
+  phone: string,
+  code: string,
+  fullName?: string,
+  authUserId?: string
+): Promise<{ success: boolean; error?: string }> {
   const e164Phone = normalizePhoneE164(phone);
   const trimmedCode = (code || '').trim();
+
+  const payload: Record<string, any> = {
+    phone: e164Phone,
+    code: trimmedCode,
+    role: 'passenger',
+    passengerName: fullName,
+    fullName,
+  };
+  if (authUserId) {
+    payload.auth_user_id = authUserId;
+    payload.userId = authUserId;
+  }
 
   // Fast sandbox dev codes - still trigger database activation
   if (trimmedCode === '123456' || trimmedCode === '654321') {
     fetch('/api/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone, code: trimmedCode, role: 'passenger', passengerName: fullName, fullName }),
+      body: JSON.stringify(payload),
     }).catch(() => {});
     return { success: true };
   }
@@ -171,7 +188,7 @@ export async function verifyPassengerOtp(phone: string, code: string, fullName?:
     const response = await fetch('/api/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone, code: trimmedCode, role: 'passenger', passengerName: fullName, fullName }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
 
@@ -240,11 +257,15 @@ export async function ensurePassengerAuthSession(
     // Helper to ensure public.passenger record is provisioned and linked to auth_user_id
     const syncPassengerProfileRecord = async (userId: string, usedEmail: string = passengerEmail) => {
       try {
-        const { data: existingRows } = await supabase
+        const { data: existingRows, error: findErr } = await supabase
           .from('passenger')
-          .select('passenger_id, contact_number')
+          .select('passenger_id, contact_number, auth_user_id')
           .or(`auth_user_id.eq.${userId},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
           .limit(1);
+
+        if (findErr) {
+          console.warn('[PASSENGER REGISTRATION AUTH] Passenger search note:', findErr.message);
+        }
 
         const existing = existingRows?.[0] || null;
 
@@ -256,8 +277,16 @@ export async function ensurePassengerAuthSession(
           };
           if (fullName) updateObj.full_name = fullName;
 
-          await supabase.from('passenger').update(updateObj).eq('passenger_id', existing.passenger_id);
-          return existing.passenger_id;
+          const { error: upErr } = await supabase
+            .from('passenger')
+            .update(updateObj)
+            .eq('passenger_id', existing.passenger_id);
+
+          if (upErr) {
+            console.error('[PASSENGER REGISTRATION AUTH] CRITICAL Update Error:', upErr.message, upErr.details, upErr.code);
+            return { success: false, error: upErr.message };
+          }
+          return { success: true, passengerId: existing.passenger_id };
         } else {
           const insertObj: Record<string, any> = {
             auth_user_id: userId,
@@ -270,17 +299,18 @@ export async function ensurePassengerAuthSession(
           const { data: inserted, error: insErr } = await supabase
             .from('passenger')
             .insert([insertObj])
-            .select('passenger_id')
+            .select('passenger_id, auth_user_id')
             .maybeSingle();
 
           if (insErr) {
-            console.warn('[PASSENGER REGISTRATION AUTH] Direct passenger insert note:', insErr.message);
+            console.error('[PASSENGER REGISTRATION AUTH] CRITICAL Insert Error:', insErr.message, insErr.details, insErr.code);
+            return { success: false, error: insErr.message };
           }
-          return inserted?.passenger_id || null;
+          return { success: true, passengerId: inserted?.passenger_id };
         }
-      } catch (profileSyncErr) {
-        console.warn('[PASSENGER REGISTRATION AUTH] Profile sync exception:', profileSyncErr);
-        return null;
+      } catch (profileSyncErr: any) {
+        console.error('[PASSENGER REGISTRATION AUTH] Profile sync exception:', profileSyncErr);
+        return { success: false, error: profileSyncErr.message || 'Profile persistence exception' };
       }
     };
 
@@ -304,6 +334,16 @@ export async function ensurePassengerAuthSession(
 
     if (!signUpError && (signUpData?.session || signUpData?.user)) {
       authUser = signUpData?.session?.user || signUpData?.user;
+    }
+
+    // Ensure client session is active so auth.uid() is populated for RLS
+    const signInImmediate = await supabase.auth.signInWithPassword({
+      email: passengerEmail,
+      password: password,
+    });
+
+    if (!signInImmediate.error && signInImmediate.data?.user) {
+      authUser = signInImmediate.data.user;
     }
 
     // 4. If Supabase Auth already has an account for this email (e.g. table was cleared during testing),
@@ -351,17 +391,22 @@ export async function ensurePassengerAuthSession(
     }
 
     if (authUser?.id) {
-      console.log('[PASSENGER REGISTRATION AUTH] Registration session established. User:', authUser.id);
-      await syncPassengerProfileRecord(authUser.id, usedEmail);
+      console.log('[PASSENGER REGISTRATION AUTH] Registration session established. User UUID:', authUser.id);
+      const syncResult = await syncPassengerProfileRecord(authUser.id, usedEmail);
+      if (!syncResult.success) {
+        return { success: false, error: syncResult.error };
+      }
       return { success: true };
     }
 
-    // If auth session could not be finalized right now (e.g. email confirmation required or unverified state),
-    // do NOT block registration. The user will verify ownership via cellular SMS OTP on the next screen.
-    console.log('[PASSENGER REGISTRATION AUTH] Auth record prepared. Finalizing verification on OTP screen.');
+    if (signUpError) {
+      console.error('[PASSENGER REGISTRATION AUTH] Registration error:', signUpError.message);
+      return { success: false, error: signUpError.message };
+    }
+
     return { success: true };
   } catch (err: any) {
-    console.warn('[PASSENGER REGISTRATION AUTH] Non-blocking exception in ensurePassengerAuthSession:', err);
-    return { success: true };
+    console.error('[PASSENGER REGISTRATION AUTH] Exception in ensurePassengerAuthSession:', err);
+    return { success: false, error: err.message || 'Registration failed' };
   }
 }

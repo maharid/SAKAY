@@ -8,7 +8,7 @@ import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
-import NavigationIcon from "@mui/icons-material/Navigation";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import { supabase } from "../../../../services/supabaseClient";
 import MapView from "../../../../common/components/MapView";
@@ -220,7 +220,7 @@ const Dashboard: React.FC = () => {
 
   const [isCardCollapsed, setIsCardCollapsed] = useState(false);
   const [homeAddress, setHomeAddress] = useState<string>(() => {
-    return localStorage.getItem("sakay_passenger_home_address") || "San Vicente, Calapan City";
+    return localStorage.getItem("sakay_passenger_home_address") || "";
   });
 
   const handleSetHomeAddress = (newAddr: string) => {
@@ -308,13 +308,13 @@ const Dashboard: React.FC = () => {
         </Paper>
       )}
 
-      {/* 3. Floating Recenter GPS Location Button (offset exactly 8px above bottom card) */}
+      {/* 3. Floating Recenter GPS Location Button (clearly floating above bottom card) */}
       <IconButton
         onClick={handleRecenterGps}
         aria-label="Recenter map location"
         sx={{
           position: "absolute",
-          bottom: isCardCollapsed ? "calc(var(--safe-area-bottom) + 84px)" : "calc(var(--safe-area-bottom) + 242px)",
+          bottom: isCardCollapsed ? "calc(var(--safe-area-bottom) + 100px)" : "calc(var(--safe-area-bottom) + 265px)",
           right: "16px",
           backgroundColor: "#FFFFFF",
           width: "44px",
@@ -333,7 +333,7 @@ const Dashboard: React.FC = () => {
           },
         }}
       >
-        <NavigationIcon sx={{ fontSize: 20, transform: "rotate(45deg)" }} />
+        <MyLocationIcon sx={{ fontSize: 22, color: "#0F172A" }} />
       </IconButton>
 
       {/* 4. Bottom Sheet Card Container respecting safe-area-inset-bottom */}

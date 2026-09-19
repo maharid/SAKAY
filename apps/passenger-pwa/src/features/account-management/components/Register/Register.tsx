@@ -202,9 +202,17 @@ export const Register: React.FC = () => {
     setSubmitted(true);
 
     try {
-      await ensurePassengerAuthSession(e164Phone, password, fullName);
-    } catch (authErr) {
-      console.warn('[Register] Non-blocking auth preparation note:', authErr);
+      const authResult = await ensurePassengerAuthSession(e164Phone, password, fullName);
+      if (!authResult.success) {
+        setAccountError(authResult.error || (language === 'tl' ? 'Hindi maikonekta ang account sa database.' : 'Failed to initialize account.'));
+        setSubmitted(false);
+        return;
+      }
+    } catch (authErr: any) {
+      console.warn('[Register] Auth session error:', authErr);
+      setAccountError(authErr.message || (language === 'tl' ? 'Nagkaroon ng aberya sa paglikha ng account.' : 'An error occurred creating account.'));
+      setSubmitted(false);
+      return;
     }
 
     try {

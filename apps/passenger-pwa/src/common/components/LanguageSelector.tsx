@@ -24,11 +24,13 @@ const LanguageSelector: React.FC = () => {
         onClick={() => setLanguage("tl")}
         sx={{
           display: "flex",
+          flexDirection: "row",
           alignItems: "center",
           gap: "6px",
-          padding: "6px 16px",
+          padding: "8px 16px",
           borderRadius: "24px",
           cursor: "pointer",
+          whiteSpace: "nowrap",
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           ...(language === "tl"
             ? {
@@ -45,8 +47,9 @@ const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        <Typography sx={{ fontSize: "14px", fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-          🇵🇭 Tagalog
+        <Box component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>🇵🇭</Box>
+        <Typography sx={{ fontSize: "14px", fontWeight: 700, whiteSpace: "nowrap", lineHeight: 1 }}>
+          Tagalog
         </Typography>
       </Box>
 
@@ -55,11 +58,13 @@ const LanguageSelector: React.FC = () => {
         onClick={() => setLanguage("en")}
         sx={{
           display: "flex",
+          flexDirection: "row",
           alignItems: "center",
           gap: "6px",
-          padding: "6px 16px",
+          padding: "8px 16px",
           borderRadius: "24px",
           cursor: "pointer",
+          whiteSpace: "nowrap",
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           ...(language === "en"
             ? {
@@ -76,8 +81,9 @@ const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        <Typography sx={{ fontSize: "14px", fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-          🇺🇸 English
+        <Box component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>🇺🇸</Box>
+        <Typography sx={{ fontSize: "14px", fontWeight: 700, whiteSpace: "nowrap", lineHeight: 1 }}>
+          English
         </Typography>
       </Box>
     </Box>

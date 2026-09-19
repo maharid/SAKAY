@@ -18,8 +18,6 @@ const RegistrationSuccess: React.FC = () => {
     role?: string;
   };
 
-  const userName = state?.name ? `, ${state.name}` : "";
-
   return (
     <Box
       sx={{
@@ -58,17 +56,22 @@ const RegistrationSuccess: React.FC = () => {
       </Box>
 
       {/* Text Area */}
-      <Box sx={{ textAlign: "center", marginBottom: "48px" }}>
+      <Box sx={{ textAlign: "center", marginBottom: "40px", px: 2 }}>
         <Typography
           component="h2"
           sx={{
-            fontSize: "26px",
+            fontSize: "22px",
             fontWeight: 800,
             color: "#0F172A",
-            lineHeight: 1.3,
+            lineHeight: 1.35,
           }}
         >
-          {language === "tl" ? `Maligayang Pagdating${userName}!` : `Welcome${userName}!`}
+          <Box component="span" sx={{ display: "block" }}>
+            {language === "tl" ? "Maligayang Pagbabalik," : "Welcome Back,"}
+          </Box>
+          <Box component="span" sx={{ display: "block", color: "#FF6B00", mt: "2px" }}>
+            {(state?.name?.trim() || (language === "tl" ? "Pasahero" : "Passenger"))}!
+          </Box>
         </Typography>
         <Typography
           sx={{

@@ -13,8 +13,6 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
 
@@ -36,12 +34,31 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   onAddPlace,
   isCollapsed = false,
   onToggleCollapse,
-  homeAddress = "San Vicente, Calapan City",
+  homeAddress = "",
   onSetHomeAddress,
 }) => {
   const { language } = useLanguage();
   const [editHomeOpen, setEditHomeOpen] = useState(false);
   const [inputHome, setInputHome] = useState(homeAddress);
+
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const diffY = e.changedTouches[0].clientY - touchStartY;
+    if (diffY > 30) {
+      if (onToggleCollapse && !isCollapsed) onToggleCollapse();
+    } else if (diffY < -30) {
+      if (onToggleCollapse && isCollapsed) onToggleCollapse();
+    } else if (Math.abs(diffY) < 5) {
+      if (onToggleCollapse) onToggleCollapse();
+    }
+    setTouchStartY(null);
+  };
 
   const handleSaveHome = () => {
     if (inputHome.trim() && onSetHomeAddress) {
@@ -49,6 +66,10 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     }
     setEditHomeOpen(false);
   };
+
+  const displayHomeSubtext = homeAddress && homeAddress.trim().length > 0
+    ? homeAddress
+    : (language === "tl" ? "I-set na" : "Set Now");
 
   return (
     <>
@@ -62,43 +83,38 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           backgroundColor: "#F4FBF7", // Soft mint background matching reference UI
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
-          padding: "12px 20px calc(var(--safe-area-bottom) + 16px) 20px",
+          padding: "10px 20px calc(var(--safe-area-bottom) + 16px) 20px",
           zIndex: 10,
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
-          gap: isCollapsed ? "6px" : "14px",
+          gap: isCollapsed ? "4px" : "14px",
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        {/* Drag handle & Collapse Toggle Pill */}
+        {/* Drag handle bar (Life360 style draggable bottom sheet) */}
         <Box
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           onClick={onToggleCollapse}
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: "pointer",
-            py: 0.5,
+            cursor: "grab",
+            py: 0.75,
             width: "100%",
+            userSelect: "none",
           }}
         >
           <Box
             sx={{
-              width: "44px",
+              width: "48px",
               height: "5px",
               backgroundColor: "#CBD5E1",
               borderRadius: "3px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
             }}
           />
-          {onToggleCollapse && (
-            <IconButton size="small" sx={{ p: 0, ml: 1, color: "#64748B" }}>
-              {isCollapsed ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
-            </IconButton>
-          )}
         </Box>
 
         {/* Personalized Greeting Text */}
@@ -117,23 +133,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               {language === "tl" ? "Saan tayo pupunta?" : "Where are we going?"}
             </Box>
           </Typography>
-
-          {onToggleCollapse && (
-            <Button
-              size="small"
-              onClick={onToggleCollapse}
-              sx={{
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#64748B',
-                textTransform: 'none',
-                p: '2px 8px',
-                minWidth: 0,
-              }}
-            >
-              {isCollapsed ? (language === 'tl' ? 'Ipakita ▴' : 'Expand ▴') : (language === 'tl' ? 'I-tago ▾' : 'Collapse ▾')}
-            </Button>
-          )}
         </Box>
 
         {/* Horizontal Action Cards Scrollable Row (Hidden when Collapsed) */}
@@ -193,11 +192,12 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               <Box>
                 <Typography
                   sx={{
-                    fontSize: "15px",
+                    fontSize: "13.5px",
                     fontWeight: 800,
                     color: "#0F172A",
                     lineHeight: 1.2,
                     fontFamily: "Poppins, sans-serif",
+                    letterSpacing: "-0.2px",
                   }}
                 >
                   {language === "tl" ? "Bagong Trip" : "New Trip"}
@@ -216,9 +216,16 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               </Box>
             </Box>
 
-            {/* Card 2: Home (Manually Set Saved Home Location) */}
+            {/* Card 2: Home (Set Now or Saved Address) */}
             <Box
-              onClick={onHomeTrip}
+              onClick={() => {
+                if (!homeAddress || homeAddress.trim().length === 0) {
+                  setInputHome(homeAddress);
+                  setEditHomeOpen(true);
+                } else {
+                  onHomeTrip();
+                }
+              }}
               role="button"
               tabIndex={0}
               sx={{
@@ -274,20 +281,21 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               <Box>
                 <Typography
                   sx={{
-                    fontSize: "15px",
+                    fontSize: "13.5px",
                     fontWeight: 800,
                     color: "#0F172A",
                     lineHeight: 1.2,
                     fontFamily: "Poppins, sans-serif",
+                    letterSpacing: "-0.2px",
                   }}
                 >
                   Home
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "11px",
-                    fontWeight: 500,
-                    color: "#64748B",
+                    fontSize: "11.5px",
+                    fontWeight: (!homeAddress || homeAddress.trim().length === 0) ? 700 : 500,
+                    color: (!homeAddress || homeAddress.trim().length === 0) ? "#FF6B00" : "#64748B",
                     marginTop: "2px",
                     fontFamily: "Poppins, sans-serif",
                     whiteSpace: "nowrap",
@@ -295,12 +303,12 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {homeAddress}
+                  {displayHomeSubtext}
                 </Typography>
               </Box>
             </Box>
 
-            {/* Card 3: Mag-dagdag (Add Custom Saved Place) */}
+            {/* Card 3: Magdagdag (Add Custom Saved Place - Single Line!) */}
             <Box
               onClick={onAddPlace}
               role="button"
@@ -344,14 +352,16 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               <Box>
                 <Typography
                   sx={{
-                    fontSize: "15px",
+                    fontSize: "13.5px",
                     fontWeight: 800,
                     color: "#0F172A",
                     lineHeight: 1.2,
                     fontFamily: "Poppins, sans-serif",
+                    whiteSpace: "nowrap",
+                    letterSpacing: "-0.2px",
                   }}
                 >
-                  {language === "tl" ? "Mag-dagdag" : "Add Place"}
+                  {language === "tl" ? "Magdagdag" : "Add Place"}
                 </Typography>
                 <Typography
                   sx={{

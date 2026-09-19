@@ -35,14 +35,6 @@ const Login: React.FC = () => {
   const cleanPhoneDigits = phone.replace(/\D/g, "");
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith("09");
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/get-started");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -122,11 +114,20 @@ const Login: React.FC = () => {
 
       if (user?.id) {
         if (role === "passenger") {
-          const { data: profile } = await supabase
+          let { data: profile } = await supabase
             .from("passenger")
-            .select("account_status, full_name")
-            .eq("auth_user_id", user.id)
+            .select("passenger_id, account_status, full_name, auth_user_id")
+            .or(`auth_user_id.eq.${user.id},contact_number.eq.${formattedPhone},contact_number.eq.0${cleanPhoneDigits.slice(-10)},contact_number.eq.+63${cleanPhoneDigits.slice(-10)}`)
+            .limit(1)
             .maybeSingle();
+
+          if (profile && !profile.auth_user_id) {
+            await supabase
+              .from("passenger")
+              .update({ auth_user_id: user.id })
+              .eq("passenger_id", profile.passenger_id);
+            profile.auth_user_id = user.id;
+          }
 
           if (profile) {
             const isVerifiedInAuth = Boolean(
@@ -138,8 +139,13 @@ const Login: React.FC = () => {
             if (profile.account_status === "Pending OTP Verification") {
               if (isVerifiedInAuth) {
                 // Auto-heal status in database if possible
+                await supabase
+                  .from("passenger")
+                  .update({ account_status: "Active" })
+                  .eq("passenger_id", profile.passenger_id);
+                profile.account_status = "Active";
                 supabase.rpc('activate_passenger_otp', {
-                  p_contact_number: user.phone || user.user_metadata?.contact_number || '',
+                  p_contact_number: user.phone || user.user_metadata?.contact_number || formattedPhone,
                 }).then(() => {}, () => {});
               } else {
                 // Show error clearly without automatic hijacking/redirect
@@ -238,7 +244,7 @@ const Login: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={handleBack}
+          onClick={() => navigate("/get-started")}
           sx={{
             backgroundColor: "#FFFFFF",
             border: "1px solid #E2E8F0",
@@ -260,147 +266,149 @@ const Login: React.FC = () => {
 
       {/* Scrollable Form Body */}
       <Box
+        component="form"
+        onSubmit={handleSubmit}
+        className="anim-fade-in hide-scrollbar"
         sx={{
           flexGrow: 1,
           overflowY: "auto",
           padding: "24px 24px calc(var(--safe-area-bottom) + 24px) 24px",
           display: "flex",
           flexDirection: "column",
+          justifyContent: "space-between",
         }}
-        className="hide-scrollbar"
       >
-        {/* Title Section */}
-        <Box sx={{ marginTop: "12px", textAlign: "left", width: "100%" }}>
-          <Typography
-            component="h2"
-            sx={{
-              fontSize: "26px",
-              fontWeight: 800,
-              color: "#0F172A",
-              lineHeight: 1.3,
-            }}
-          >
-            {t.loginTitle}
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: "15px",
-              color: "#64748B",
-              marginTop: "8px",
-              lineHeight: 1.5,
-              fontWeight: 500,
-            }}
-          >
-            {language === "tl"
-              ? "Ilagay ang inyong numero ng telepono at password upang mag-login."
-              : "Enter your mobile number and password to log in."}
-          </Typography>
-        </Box>
-
-        {/* Error Alert */}
-        {error && (
-          <Alert severity="error" sx={{ width: "100%", marginTop: "16px", borderRadius: "12px" }}>
-            {error}
-          </Alert>
-        )}
-
-        {/* Form - Styled Identically to Register.tsx */}
-        <Box
-          component="form"
-          onSubmit={handleSubmit}
-          className="anim-fade-in"
-          sx={{
-            marginTop: "28px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            width: "100%",
-          }}
-        >
-          {/* Mobile Number with SakayPhoneInput */}
-          <SakayPhoneInput
-            label={language === "tl" ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
-            value={phone}
-            onChange={(fullVal) => {
-              setPhone(fullVal);
-              if (error) setError(null);
-            }}
-            required
-            error={hasAttemptedSubmit && !isValidPhone}
-            helperText={
-              hasAttemptedSubmit && !isValidPhone
-                ? language === "tl"
-                  ? "Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9."
-                  : "Please enter a valid 10-digit mobile number starting with 9."
-                : ""
-            }
-          />
-
-          {/* Password Input with RegisterInput */}
-          <RegisterInput
-            label="PASSWORD"
-            type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(val) => {
-              setPassword(val);
-              if (error) setError(null);
-            }}
-            error={hasAttemptedSubmit && !password}
-            helperText={hasAttemptedSubmit && !password ? t.passwordRequired : ""}
-            endAdornment={
-              <IconButton
-                onClick={() => setShowPassword(!showPassword)}
-                edge="end"
-                size="small"
-                sx={{ color: "#64748B" }}
-              >
-                {showPassword ? (
-                  <VisibilityOffOutlinedIcon fontSize="small" />
-                ) : (
-                  <VisibilityOutlinedIcon fontSize="small" />
-                )}
-              </IconButton>
-            }
-          />
-
-          {/* Forgot Password Link */}
-          <Box sx={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+        <Box sx={{ width: "100%" }}>
+          {/* Title Section */}
+          <Box sx={{ marginTop: "8px", textAlign: "left", width: "100%" }}>
             <Typography
-              onClick={() => navigate("/forgot-password")}
+              component="h2"
               sx={{
-                fontSize: "14px",
-                color: "#FF6B00",
-                fontWeight: 600,
-                cursor: "pointer",
-                "&:hover": {
-                  textDecoration: "underline",
-                  color: "#E66000",
-                },
+                fontSize: "26px",
+                fontWeight: 800,
+                color: "#0F172A",
+                lineHeight: 1.3,
               }}
             >
-              {t.forgotPassword}
+              {t.loginTitle}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: "15px",
+                color: "#64748B",
+                marginTop: "8px",
+                lineHeight: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              {language === "tl"
+                ? "Ilagay ang inyong numero ng telepono at password upang mag-login."
+                : "Enter your mobile number and password to log in."}
             </Typography>
           </Box>
 
-          <Box sx={{ marginTop: "20px", width: "100%" }}>
-            <PrimaryButton type="submit" fullWidth loading={loading}>
-              {t.loginLink.trim()}
-            </PrimaryButton>
+          {/* Error Alert */}
+          {error && (
+            <Alert severity="error" sx={{ width: "100%", marginTop: "16px", borderRadius: "12px" }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Form Fields */}
+          <Box
+            sx={{
+              marginTop: "24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              width: "100%",
+            }}
+          >
+            {/* Mobile Number with SakayPhoneInput */}
+            <SakayPhoneInput
+              label={language === "tl" ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
+              value={phone}
+              onChange={(fullVal) => {
+                setPhone(fullVal);
+                if (error) setError(null);
+              }}
+              required
+              error={hasAttemptedSubmit && !isValidPhone}
+              helperText={
+                hasAttemptedSubmit && !isValidPhone
+                  ? language === "tl"
+                    ? "Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9."
+                    : "Please enter a valid 10-digit mobile number starting with 9."
+                  : ""
+              }
+            />
+
+            {/* Password Input with RegisterInput */}
+            <RegisterInput
+              label="PASSWORD"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(val) => {
+                setPassword(val);
+                if (error) setError(null);
+              }}
+              error={hasAttemptedSubmit && !password}
+              helperText={hasAttemptedSubmit && !password ? t.passwordRequired : ""}
+              endAdornment={
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  size="small"
+                  sx={{ color: "#64748B" }}
+                >
+                  {showPassword ? (
+                    <VisibilityOffOutlinedIcon fontSize="small" />
+                  ) : (
+                    <VisibilityOutlinedIcon fontSize="small" />
+                  )}
+                </IconButton>
+              }
+            />
+
+            {/* Forgot Password Link */}
+            <Box sx={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+              <Typography
+                onClick={() => navigate("/forgot-password")}
+                sx={{
+                  fontSize: "14px",
+                  color: "#FF6B00",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  "&:hover": {
+                    textDecoration: "underline",
+                    color: "#E66000",
+                  },
+                }}
+              >
+                {t.forgotPassword}
+              </Typography>
+            </Box>
           </Box>
         </Box>
 
-        {/* Bottom Link */}
+        {/* Bottom Actions: Mag-login Button + Register Link */}
         <Box
-          className="anim-fade-in-up"
           sx={{
             marginTop: "auto",
-            paddingTop: "28px",
-            textAlign: "center",
+            paddingTop: "24px",
             width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
           }}
         >
+          <PrimaryButton type="submit" fullWidth loading={loading}>
+            {t.loginLink.trim()}
+          </PrimaryButton>
+
           <Typography
             sx={{
+              textAlign: "center",
               fontSize: "14px",
               color: "#0F172A",
               fontWeight: 600,

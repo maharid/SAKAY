@@ -133,7 +133,8 @@ export const VerifyOtp: React.FC = () => {
       setError('');
 
       try {
-        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, resolvedName);
+        const activeAuthUser = (await supabase.auth.getUser()).data.user;
+        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, resolvedName, activeAuthUser?.id);
         if (!result.success) {
           hasAutoApprovedRef.current = false;
           setLoading(false);

@@ -52,7 +52,8 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
     // Direct Database Synchronization: Activate passenger account in Supabase
     if (supabase) {
       try {
-        const { passengerName, fullName } = req.body;
+        const { passengerName, fullName, auth_user_id, userId } = req.body;
+        const targetUserId = auth_user_id || userId;
         const resolvedName = fullName || passengerName || 'Passenger';
         const digits = (phone || '').replace(/\D/g, '');
         let phoneRaw = digits;
@@ -79,14 +80,18 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
         // 2. Check if row exists in passenger table
         const { data: existingRows } = await supabase
           .from('passenger')
-          .select('passenger_id, account_status')
-          .or(`contact_number.eq.${phone63WithPlus},contact_number.eq.${phone09},contact_number.eq.${phone63NoPlus},contact_number.eq.${phoneRaw}`)
+          .select('passenger_id, account_status, auth_user_id')
+          .or(`contact_number.eq.${phone63WithPlus},contact_number.eq.${phone09},contact_number.eq.${phone63NoPlus},contact_number.eq.${phoneRaw}${targetUserId ? `,auth_user_id.eq.${targetUserId}` : ''}`)
           .limit(1);
 
         if (existingRows && existingRows.length > 0) {
+          const updateObj: Record<string, any> = { account_status: 'Active', full_name: resolvedName };
+          if (targetUserId && !existingRows[0].auth_user_id) {
+            updateObj.auth_user_id = targetUserId;
+          }
           const { data: updatedPassengers, error: pErr } = await supabase
             .from('passenger')
-            .update({ account_status: 'Active', full_name: resolvedName })
+            .update(updateObj)
             .eq('passenger_id', existingRows[0].passenger_id)
             .select('passenger_id, account_status');
 
@@ -95,12 +100,13 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
           } else {
             console.log('[Auth Route] Passenger successfully activated in database:', updatedPassengers);
           }
-        } else {
-          // Insert new passenger record
+        } else if (targetUserId) {
+          // Insert new passenger record with auth_user_id
           const { data: insertedPassenger, error: insErr } = await supabase
             .from('passenger')
             .insert([
               {
+                auth_user_id: targetUserId,
                 contact_number: phone63WithPlus,
                 full_name: resolvedName,
                 account_status: 'Active',
@@ -113,6 +119,8 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
           } else {
             console.log('[Auth Route] New passenger successfully created in database:', insertedPassenger);
           }
+        } else {
+          console.warn('[Auth Route] Cannot insert new passenger in verify-otp: missing auth_user_id');
         }
       } catch (dbErr: any) {
         console.warn('[Auth Route] Failed to update database account_status:', dbErr.message);
