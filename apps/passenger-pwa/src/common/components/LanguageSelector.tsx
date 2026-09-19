@@ -1,7 +1,6 @@
 import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import LanguageIcon from "@mui/icons-material/Language";
 import { useLanguage } from "../../utils/LanguageContext";
 
 const LanguageSelector: React.FC = () => {
@@ -46,9 +45,8 @@ const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        {language === "tl" && <LanguageIcon sx={{ fontSize: 16, color: "#FF6B00" }} />}
-        <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
-          Tagalog
+        <Typography sx={{ fontSize: "14px", fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+          🇵🇭 Tagalog
         </Typography>
       </Box>
 
@@ -78,9 +76,8 @@ const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        {language === "en" && <LanguageIcon sx={{ fontSize: 16, color: "#FF6B00" }} />}
-        <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
-          English
+        <Typography sx={{ fontSize: "14px", fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+          🇺🇸 English
         </Typography>
       </Box>
     </Box>

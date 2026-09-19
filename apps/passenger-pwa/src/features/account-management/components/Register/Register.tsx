@@ -308,6 +308,7 @@ export const Register: React.FC = () => {
               label={language === 'tl' ? "UNANG PANGALAN" : "FIRST NAME"}
               value={firstName}
               onChange={setFirstName}
+              required
               error={hasAttemptedSubmit && !firstName.trim()}
               helperText={hasAttemptedSubmit && !firstName.trim() ? (language === 'tl' ? 'Kailangan ang unang pangalan.' : 'First name is required.') : ''}
             />
@@ -324,6 +325,7 @@ export const Register: React.FC = () => {
                   label={language === 'tl' ? "APELYIDO" : "LAST NAME"}
                   value={lastName}
                   onChange={setLastName}
+                  required
                   error={hasAttemptedSubmit && !lastName.trim()}
                   helperText={hasAttemptedSubmit && !lastName.trim() ? (language === 'tl' ? 'Kailangan ang apelyido.' : 'Last name is required.') : ''}
                 />
@@ -363,7 +365,15 @@ export const Register: React.FC = () => {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(val) => setPassword(val)}
-            error={hasAttemptedSubmit && !isPasswordValid}
+            required
+            error={hasAttemptedSubmit && (!password || !isPasswordValid)}
+            helperText={
+              hasAttemptedSubmit && !password
+                ? (language === 'tl' ? 'Kailangan ang password.' : 'Password is required.')
+                : (hasAttemptedSubmit && !isPasswordValid
+                    ? (language === 'tl' ? 'Kailangang sundin ang lahat ng pamantayan sa password.' : 'Password must meet all criteria.')
+                    : '')
+            }
             endAdornment={
               <IconButton
                 onClick={() => setShowPassword(!showPassword)}
@@ -431,11 +441,14 @@ export const Register: React.FC = () => {
             type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(val) => setConfirmPassword(val)}
+            required
             error={hasAttemptedSubmit && (isPasswordMismatched || !confirmPassword)}
             helperText={
               hasAttemptedSubmit && isPasswordMismatched
-                ? (language === 'tl' ? 'Hindi magkatugma ang inyong password.' : 'Passwords do not match.')
-                : ''
+                ? (language === 'tl' ? 'Hindi magkapareho ang password.' : 'Passwords do not match.')
+                : (hasAttemptedSubmit && !confirmPassword
+                    ? (language === 'tl' ? 'Kailangan kumpirmahin ang password.' : 'Please confirm password.')
+                    : '')
             }
             endAdornment={
               <IconButton

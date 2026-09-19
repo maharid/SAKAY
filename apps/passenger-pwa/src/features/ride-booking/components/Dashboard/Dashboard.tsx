@@ -218,6 +218,16 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const [isCardCollapsed, setIsCardCollapsed] = useState(false);
+  const [homeAddress, setHomeAddress] = useState<string>(() => {
+    return localStorage.getItem("sakay_passenger_home_address") || "San Vicente, Calapan City";
+  });
+
+  const handleSetHomeAddress = (newAddr: string) => {
+    setHomeAddress(newAddr);
+    localStorage.setItem("sakay_passenger_home_address", newAddr);
+  };
+
   return (
     <Box
       sx={{
@@ -298,13 +308,13 @@ const Dashboard: React.FC = () => {
         </Paper>
       )}
 
-      {/* 3. Floating Recenter GPS Location Button */}
+      {/* 3. Floating Recenter GPS Location Button (offset exactly 8px above bottom card) */}
       <IconButton
         onClick={handleRecenterGps}
         aria-label="Recenter map location"
         sx={{
           position: "absolute",
-          bottom: "calc(var(--safe-area-bottom) + 235px)",
+          bottom: isCardCollapsed ? "calc(var(--safe-area-bottom) + 84px)" : "calc(var(--safe-area-bottom) + 242px)",
           right: "16px",
           backgroundColor: "#FFFFFF",
           width: "44px",
@@ -313,7 +323,7 @@ const Dashboard: React.FC = () => {
           boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
           color: "#0F172A",
           zIndex: 10,
-          transition: "all 0.2s ease",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           "&:hover": {
             backgroundColor: "#F8FAFC",
             transform: "scale(1.05)",
@@ -332,6 +342,10 @@ const Dashboard: React.FC = () => {
         onStartNewTrip={handleStartNewTrip}
         onHomeTrip={handleHomeTrip}
         onAddPlace={handleAddPlace}
+        isCollapsed={isCardCollapsed}
+        onToggleCollapse={() => setIsCardCollapsed((prev) => !prev)}
+        homeAddress={homeAddress}
+        onSetHomeAddress={handleSetHomeAddress}
       />
 
       {/* 5. Mobile Navigation Drawer (Constrained to mobile viewport & safe areas) */}

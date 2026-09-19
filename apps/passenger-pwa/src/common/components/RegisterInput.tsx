@@ -15,6 +15,7 @@ export interface RegisterInputProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   placeholder?: string;
   readOnly?: boolean;
+  required?: boolean;
 }
 
 export const RegisterInput: React.FC<RegisterInputProps> = ({
@@ -30,6 +31,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
   onKeyDown,
   placeholder,
   readOnly = false,
+  required = false,
 }) => {
   const [focused, setFocused] = useState(false);
   const isFloating = focused || Boolean(value && value.length > 0);
@@ -74,9 +76,16 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
             wordBreak: 'break-word',
             lineHeight: 1.15,
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
           {label}
+          {required && (
+            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 800 }}>
+              *
+            </Box>
+          )}
         </Typography>
 
         <Box

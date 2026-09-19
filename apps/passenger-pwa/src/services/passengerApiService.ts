@@ -150,7 +150,7 @@ export async function sendPassengerOtp(phone: string): Promise<{ success: boolea
   }
 }
 
-export async function verifyPassengerOtp(phone: string, code: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyPassengerOtp(phone: string, code: string, fullName?: string): Promise<{ success: boolean; error?: string }> {
   const e164Phone = normalizePhoneE164(phone);
   const trimmedCode = (code || '').trim();
 
@@ -159,7 +159,7 @@ export async function verifyPassengerOtp(phone: string, code: string): Promise<{
     fetch('/api/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone, code: trimmedCode, role: 'passenger' }),
+      body: JSON.stringify({ phone: e164Phone, code: trimmedCode, role: 'passenger', passengerName: fullName, fullName }),
     }).catch(() => {});
     return { success: true };
   }
@@ -171,7 +171,7 @@ export async function verifyPassengerOtp(phone: string, code: string): Promise<{
     const response = await fetch('/api/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone, code: trimmedCode, role: 'passenger' }),
+      body: JSON.stringify({ phone: e164Phone, code: trimmedCode, role: 'passenger', passengerName: fullName, fullName }),
       signal: controller.signal,
     });
 
@@ -188,7 +188,10 @@ export async function verifyPassengerOtp(phone: string, code: string): Promise<{
     };
   } catch (err: any) {
     console.warn('[passengerApiService] Error connecting to /api/auth/verify-otp:', err.message);
-    return { success: true };
+    return {
+      success: false,
+      error: getLocalizedError('Hindi makakonekta sa server. Pakisubukang muli.', 'Unable to connect to server. Please try again.'),
+    };
   }
 }
 

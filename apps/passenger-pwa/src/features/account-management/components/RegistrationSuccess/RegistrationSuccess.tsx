@@ -2,9 +2,10 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
+
+import totoHead from "@sakay/shared/src/assets/icons/toto_head.png";
 
 const RegistrationSuccess: React.FC = () => {
   const { language } = useLanguage();
@@ -34,24 +35,24 @@ const RegistrationSuccess: React.FC = () => {
         alignItems: "center",
       }}
     >
-      {/* Animated Checkmark Circle */}
+      {/* Toto Head Mascot Illustration */}
       <Box
         className="anim-scale-in"
         sx={{
-          width: "100px",
-          height: "100px",
-          borderRadius: "50%",
-          backgroundColor: "rgba(255, 107, 0, 0.1)",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          marginBottom: "32px",
+          marginBottom: "24px",
         }}
       >
-        <CheckCircleOutlinedIcon
+        <Box
+          component="img"
+          src={totoHead}
+          alt="Toto Mascot"
           sx={{
-            fontSize: "64px",
-            color: "#FF6B00",
+            width: "120px",
+            height: "120px",
+            objectFit: "contain",
           }}
         />
       </Box>

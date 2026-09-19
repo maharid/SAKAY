@@ -6,6 +6,8 @@ import {
   IconButton,
   TextField,
   Alert,
+  Button,
+  CircularProgress,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
@@ -49,7 +51,6 @@ export const VerifyOtp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
-  const [sendingInitialOtp, setSendingInitialOtp] = useState<boolean>(true);
   const [resendTimer, setResendTimer] = useState(60);
   const [resendKey, setResendKey] = useState(0);
 
@@ -66,7 +67,6 @@ export const VerifyOtp: React.FC = () => {
 
     const dispatchInitialOtp = async () => {
       setError('');
-      setSendingInitialOtp(true);
       try {
         let result = await sendPassengerOtp(resolvedPhone);
         // If initial radio wake-up glitched, auto-retry once after 1s
@@ -76,7 +76,6 @@ export const VerifyOtp: React.FC = () => {
           result = await sendPassengerOtp(resolvedPhone);
         }
 
-        setSendingInitialOtp(false);
         if (result.success) {
           setResendTimer(60);
           setInfoNotice(
@@ -95,7 +94,6 @@ export const VerifyOtp: React.FC = () => {
           );
         }
       } catch (err: any) {
-        setSendingInitialOtp(false);
         console.warn('[VerifyOtp] Initial OTP dispatch error:', err);
         setError(
           language === 'tl'
@@ -110,12 +108,12 @@ export const VerifyOtp: React.FC = () => {
 
   // Countdown timer for resend
   useEffect(() => {
-    if (resendTimer <= 0 || isComplete) return;
+    if (resendTimer <= 0) return;
     const timer = setInterval(() => {
       setResendTimer((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [resendTimer, isComplete]);
+  }, [resendTimer]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -123,6 +121,8 @@ export const VerifyOtp: React.FC = () => {
       if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
     };
   }, []);
+
+  const [isResending, setIsResending] = useState(false);
 
   // Core verification function
   const executeVerification = useCallback(
@@ -133,7 +133,7 @@ export const VerifyOtp: React.FC = () => {
       setError('');
 
       try {
-        const result = await verifyPassengerOtp(resolvedPhone, enteredCode);
+        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, resolvedName);
         if (!result.success) {
           hasAutoApprovedRef.current = false;
           setLoading(false);
@@ -368,14 +368,14 @@ export const VerifyOtp: React.FC = () => {
   };
 
   const handleResendOtp = async () => {
-    if (resendTimer > 0 || loading) return;
+    if (resendTimer > 0 || isResending || loading) return;
     setError('');
     setInfoNotice(null);
-    setLoading(true);
+    setIsResending(true);
 
     try {
       const result = await sendPassengerOtp(resolvedPhone);
-      setLoading(false);
+      setIsResending(false);
       if (result.success) {
         hasAutoApprovedRef.current = false;
         setResendTimer(60);
@@ -388,7 +388,7 @@ export const VerifyOtp: React.FC = () => {
         setError(result.error || (language === 'tl' ? 'Hindi maipadala ang OTP code. Pakisubukang muli.' : 'Failed to resend OTP. Please try again.'));
       }
     } catch {
-      setLoading(false);
+      setIsResending(false);
       setError(language === 'tl' ? 'Nagkaroon ng aberya sa koneksyon. Pakisubukang muli.' : 'Network connection error. Please try again.');
     }
   };
@@ -484,14 +484,6 @@ export const VerifyOtp: React.FC = () => {
           </Typography>
         </Box>
 
-        {sendingInitialOtp && !infoNotice && !error && (
-          <Alert severity="info" sx={{ mb: 2.5, borderRadius: '12px', alignItems: 'center' }}>
-            {language === 'tl'
-              ? 'Ipinapadala ang 6-digit verification code sa pamamagitan ng SMS...'
-              : 'Sending 6-digit verification code via SMS...'}
-          </Alert>
-        )}
-
         {error && (
           <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
             {error}
@@ -512,7 +504,7 @@ export const VerifyOtp: React.FC = () => {
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justify: 'space-between',
             gap: 1.2,
             my: 2,
           }}
@@ -580,24 +572,34 @@ export const VerifyOtp: React.FC = () => {
               </Box>
             </Typography>
           ) : (
-            <Box
+            <Button
               onClick={handleResendOtp}
+              disabled={isResending || loading}
+              variant="outlined"
+              size="small"
+              startIcon={isResending ? <CircularProgress size={16} sx={{ color: '#FF6B00' }} /> : <RefreshRoundedIcon />}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
+                borderRadius: '20px',
+                borderColor: '#FF6B00',
                 color: '#FF6B00',
-                cursor: 'pointer',
+                textTransform: 'none',
                 fontWeight: 700,
-                fontSize: '14px',
-                '&:hover': { textDecoration: 'underline' },
+                fontSize: '13.5px',
+                padding: '6px 16px',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 107, 0, 0.08)',
+                  borderColor: '#E66000',
+                },
+                '&.Mui-disabled': {
+                  borderColor: '#CBD5E1',
+                  color: '#94A3B8',
+                },
               }}
             >
-              <RefreshRoundedIcon sx={{ fontSize: 18 }} />
-              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#FF6B00' }}>
-                {language === 'tl' ? 'Ipadala Muli ang Code' : 'Resend Code'}
-              </Typography>
-            </Box>
+              {isResending
+                ? (language === 'tl' ? 'Ipinapadala...' : 'Sending...')
+                : (language === 'tl' ? 'Ipadala Muli ang Code' : 'Resend Code')}
+            </Button>
           )}
         </Box>
       </Box>

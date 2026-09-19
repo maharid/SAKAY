@@ -25,6 +25,7 @@ import PassengerHistory from "./features/trip-history/components/PassengerHistor
 import { TripMonitoring } from "./features/trip-monitoring/components/TripMonitoring";
 import { PassengerFeedback } from "./features/feedback/components/PassengerFeedback";
 import { IncidentReporting } from "./features/incident-reporting/components/IncidentReporting";
+import NotFoundPage from "./common/components/NotFoundPage";
 
 function App() {
   return (
@@ -60,6 +61,7 @@ function App() {
               <Route path="/feedback" element={<PassengerFeedback />} />
               <Route path="/incident-report" element={<IncidentReporting />} />
               <Route path="/history" element={<PassengerHistory />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

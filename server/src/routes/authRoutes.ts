@@ -52,6 +52,8 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
     // Direct Database Synchronization: Activate passenger account in Supabase
     if (supabase) {
       try {
+        const { passengerName, fullName } = req.body;
+        const resolvedName = fullName || passengerName || 'Passenger';
         const digits = (phone || '').replace(/\D/g, '');
         let phoneRaw = digits;
         if (digits.startsWith('639')) phoneRaw = digits.slice(2);
@@ -74,19 +76,43 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
           console.log('[Auth Route] Passenger activated via RPC activate_passenger_otp:', rpcRes);
         }
 
-        // 2. Also try direct table update (works with service_role or authenticated admin)
-        const { data: updatedPassengers, error: pErr } = await supabase
+        // 2. Check if row exists in passenger table
+        const { data: existingRows } = await supabase
           .from('passenger')
-          .update({ account_status: 'Active' })
-          .or(
-            `contact_number.eq.${phone63WithPlus},contact_number.eq.${phone09},contact_number.eq.${phone63NoPlus},contact_number.eq.${phoneRaw}`
-          )
-          .select('passenger_id, account_status');
+          .select('passenger_id, account_status')
+          .or(`contact_number.eq.${phone63WithPlus},contact_number.eq.${phone09},contact_number.eq.${phone63NoPlus},contact_number.eq.${phoneRaw}`)
+          .limit(1);
 
-        if (pErr) {
-          console.warn('[Auth Route] Supabase passenger activation warning:', pErr.message);
+        if (existingRows && existingRows.length > 0) {
+          const { data: updatedPassengers, error: pErr } = await supabase
+            .from('passenger')
+            .update({ account_status: 'Active', full_name: resolvedName })
+            .eq('passenger_id', existingRows[0].passenger_id)
+            .select('passenger_id, account_status');
+
+          if (pErr) {
+            console.warn('[Auth Route] Supabase passenger activation update warning:', pErr.message);
+          } else {
+            console.log('[Auth Route] Passenger successfully activated in database:', updatedPassengers);
+          }
         } else {
-          console.log('[Auth Route] Passenger successfully activated in database:', updatedPassengers);
+          // Insert new passenger record
+          const { data: insertedPassenger, error: insErr } = await supabase
+            .from('passenger')
+            .insert([
+              {
+                contact_number: phone63WithPlus,
+                full_name: resolvedName,
+                account_status: 'Active',
+              },
+            ])
+            .select('passenger_id, account_status');
+
+          if (insErr) {
+            console.warn('[Auth Route] Supabase passenger creation insert warning:', insErr.message);
+          } else {
+            console.log('[Auth Route] New passenger successfully created in database:', insertedPassenger);
+          }
         }
       } catch (dbErr: any) {
         console.warn('[Auth Route] Failed to update database account_status:', dbErr.message);
