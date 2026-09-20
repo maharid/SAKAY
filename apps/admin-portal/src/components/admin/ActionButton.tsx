@@ -25,7 +25,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
         height: 36,
         padding: '0 16px',
         borderRadius: '9px',
-        fontSize: '12px',
+        fontSize: '14px',
         fontWeight: 500,
         textTransform: 'none',
         backgroundColor: active ? 'var(--sakay-orange-soft)' : '#FFFFFF',

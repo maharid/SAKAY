@@ -37,9 +37,36 @@ export const theme = createTheme({
   },
   typography: {
     fontFamily: '"Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    h1: {
+      fontWeight: 700,
+      fontSize: '1.5rem', // 24px - Page title
+      lineHeight: 1.2,
+    },
+    h2: {
+      fontWeight: 600,
+      fontSize: '1.125rem', // 18px - Section title
+      lineHeight: 1.3,
+    },
+    body1: {
+      fontWeight: 400,
+      fontSize: '1rem', // 16px - Mobile primary body text
+      lineHeight: 1.5,
+    },
+    body2: {
+      fontWeight: 400,
+      fontSize: '0.875rem', // 14px - Secondary text
+      lineHeight: 1.4,
+    },
     button: {
       textTransform: 'none',
       fontWeight: 600,
+      fontSize: '0.9375rem', // 15px - Button text
+      lineHeight: 1.2,
+    },
+    caption: {
+      fontWeight: 400,
+      fontSize: '0.75rem', // 12px - Caption / metadata
+      lineHeight: 1.3,
     },
   },
   shape: {

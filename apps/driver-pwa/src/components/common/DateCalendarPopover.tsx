@@ -203,7 +203,7 @@ export const DateCalendarPopover: React.FC<DateCalendarPopoverProps> = ({
         }}
       >
         {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d) => (
-          <Typography key={d} sx={{ fontSize: '10.5px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.2px' }}>
+          <Typography key={d} sx={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.2px' }}>
             {d}
           </Typography>
         ))}
@@ -222,7 +222,7 @@ export const DateCalendarPopover: React.FC<DateCalendarPopoverProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '12.5px',
+                fontSize: '12px',
                 fontWeight: 500,
                 color: '#CBD5E1',
                 userSelect: 'none',

@@ -267,19 +267,19 @@ export const IncidentReporting: React.FC = () => {
                   size="small"
                   sx={{
                     fontWeight: 700,
-                    fontSize: '10.5px',
+                    fontSize: '12px',
                     backgroundColor: report.status === 'Resolved' ? '#E6F4EA' : '#FEF3C7',
                     color: report.status === 'Resolved' ? '#1E8E3E' : '#B45309',
                   }}
                 />
               </Box>
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#FF6B00' }}>
+              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#FF6B00' }}>
                 {language === 'tl' ? 'Kategorya' : 'Category'}: {report.incidentType}
               </Typography>
               <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 {language === 'tl' ? 'Inirereklamong Unit:' : 'Reported Unit:'} <strong>{report.franchiseNo}</strong> • {language === 'tl' ? 'Petsa:' : 'Date:'} {report.submittedAt}
               </Typography>
-              <Typography sx={{ fontSize: '12.5px', color: '#334155', mt: 0.5 }}>
+              <Typography sx={{ fontSize: '14px', color: '#334155', mt: 0.5 }}>
                 {report.description}
               </Typography>
             </Paper>

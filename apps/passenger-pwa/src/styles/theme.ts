@@ -27,27 +27,39 @@ const theme = createTheme({
     fontFamily: '"Poppins", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
-      fontSize: '2rem',
+      fontSize: '1.5rem', // 24px - Page title
+      lineHeight: 1.2,
     },
     h2: {
       fontWeight: 600,
-      fontSize: '1.5rem',
+      fontSize: '1.125rem', // 18px - Section heading
+      lineHeight: 1.3,
     },
     h3: {
       fontWeight: 600,
-      fontSize: '1.25rem',
+      fontSize: '1rem', // 16px - Sub-section / card title
+      lineHeight: 1.3,
     },
     body1: {
       fontWeight: 400,
-      fontSize: '1rem',
+      fontSize: '1rem', // 16px - Mobile primary body text
+      lineHeight: 1.5,
     },
     body2: {
       fontWeight: 400,
-      fontSize: '0.875rem',
+      fontSize: '0.875rem', // 14px - Secondary mobile body text
+      lineHeight: 1.4,
     },
     button: {
       fontWeight: 600,
+      fontSize: '0.9375rem', // 15px - Button text
+      lineHeight: 1.2,
       textTransform: 'none',
+    },
+    caption: {
+      fontWeight: 400,
+      fontSize: '0.75rem', // 12px - Timestamps, metadata
+      lineHeight: 1.3,
     },
   },
   shape: {
@@ -62,7 +74,8 @@ const theme = createTheme({
         root: {
           borderRadius: 14,
           padding: '12px 24px',
-          fontSize: '1rem',
+          fontSize: '0.9375rem', // 15px
+          lineHeight: 1.2,
           boxShadow: 'none',
           '&:hover': {
             boxShadow: 'none',
@@ -89,6 +102,7 @@ const theme = createTheme({
           '& .MuiOutlinedInput-root': {
             borderRadius: 12,
             backgroundColor: '#F7F9FC',
+            fontSize: '1rem', // 16px input text
             '& fieldset': {
               borderColor: '#E2E8F0',
             },

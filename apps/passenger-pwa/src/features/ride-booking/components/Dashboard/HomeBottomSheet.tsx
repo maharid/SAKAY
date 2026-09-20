@@ -14,6 +14,7 @@ import Alert from "@mui/material/Alert";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
+import Divider from "@mui/material/Divider";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import AddIcon from "@mui/icons-material/Add";
@@ -24,6 +25,7 @@ import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import { searchPlaces } from "../../../../services/locationService";
 import type { PlaceSuggestion } from "../../../../services/locationService";
+import MapLocationPicker from "./MapLocationPicker";
 
 export interface SavedPlace {
   id: string;
@@ -31,6 +33,7 @@ export interface SavedPlace {
   address: string;
   lat: number;
   lng: number;
+  isHome?: boolean;
 }
 
 interface HomeBottomSheetProps {
@@ -50,7 +53,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   onStartNewTrip,
   onHomeTrip,
   onSelectPlaceTrip,
-  onAddPlace,
   isCollapsed = false,
   onToggleCollapse,
   homeAddress = "",
@@ -68,27 +70,26 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     }
   });
 
-  // Modal States
-  const [editHomeOpen, setEditHomeOpen] = useState(false);
-  const [inputHome, setInputHome] = useState(homeAddress);
-
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [newPlaceName, setNewPlaceName] = useState("");
-  const [newPlaceAddress, setNewPlaceAddress] = useState("");
-  const [newPlaceCoords, setNewPlaceCoords] = useState<{ lat: number; lng: number }>({ lat: 13.4124, lng: 121.1834 });
+  // Unified Saved Location Modal State (Add & Edit)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
+  const [placeName, setPlaceName] = useState("");
+  const [placeAddress, setPlaceAddress] = useState("");
+  const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number }>({ lat: 13.4124, lng: 121.1834 });
   const [addressSearchQuery, setAddressSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
 
-  // Transient Toast Validation State
+  // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Real-time gesture tracking states for continuous finger drag
+  // Gesture tracking states for continuous bottom-sheet dragging
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStartTimeRef = useRef<number>(0);
 
-  // Debounced search for Add Location address input
+  // Search Places autocomplete
   useEffect(() => {
     if (!addressSearchQuery || addressSearchQuery.trim().length < 2) {
       setSuggestions([]);
@@ -119,9 +120,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     const deltaY = currentY - touchStartY;
 
     if (!isCollapsed && deltaY < 0) {
-      setDragOffsetY(deltaY * 0.25);
+      // Damping when dragging up while already expanded
+      setDragOffsetY(deltaY * 0.15);
     } else if (isCollapsed && deltaY > 0) {
-      setDragOffsetY(deltaY * 0.25);
+      // Damping when dragging down while already collapsed
+      setDragOffsetY(deltaY * 0.15);
     } else {
       setDragOffsetY(deltaY);
     }
@@ -133,11 +136,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     const isFlick = dragDuration < 250 && Math.abs(dragOffsetY) > 20;
 
     if (!isCollapsed) {
-      if (dragOffsetY > 45 || (isFlick && dragOffsetY > 0)) {
+      if (dragOffsetY > 40 || (isFlick && dragOffsetY > 0)) {
         if (onToggleCollapse) onToggleCollapse();
       }
     } else {
-      if (dragOffsetY < -45 || (isFlick && dragOffsetY < 0)) {
+      if (dragOffsetY < -40 || (isFlick && dragOffsetY < 0)) {
         if (onToggleCollapse) onToggleCollapse();
       }
     }
@@ -147,49 +150,87 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     setIsDragging(false);
   };
 
-  const handleSaveHome = () => {
-    if (!inputHome.trim()) {
-      setToastMessage(language === "tl" ? "Hindi pa kumpleto ang impormasyon." : "Information is incomplete.");
-      return;
-    }
-    if (onSetHomeAddress) {
-      onSetHomeAddress(inputHome.trim());
-    }
-    setEditHomeOpen(false);
+  // Open Unified Modal for Adding a Place
+  const handleOpenAddModal = () => {
+    setEditingPlaceId(null);
+    setPlaceName("");
+    setPlaceAddress("");
+    setAddressSearchQuery("");
+    setModalOpen(true);
   };
 
-  const handleSaveNewPlace = () => {
-    if (!newPlaceName.trim() || (!newPlaceAddress.trim() && !addressSearchQuery.trim())) {
-      setToastMessage(language === "tl" ? "Hindi pa kumpleto ang impormasyon." : "Information is incomplete.");
+  // Open Unified Modal for Editing Home
+  const handleOpenEditHome = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingPlaceId("home");
+    setPlaceName(language === "tl" ? "Bahay" : "Home");
+    setPlaceAddress(homeAddress || "");
+    setAddressSearchQuery(homeAddress || "");
+    setModalOpen(true);
+  };
+
+  // Open Unified Modal for Editing a Saved Place
+  const handleOpenEditPlace = (e: React.MouseEvent, place: SavedPlace) => {
+    e.stopPropagation();
+    setEditingPlaceId(place.id);
+    setPlaceName(place.name);
+    setPlaceAddress(place.address);
+    setAddressSearchQuery(place.address);
+    setPlaceCoords({ lat: place.lat, lng: place.lng });
+    setModalOpen(true);
+  };
+
+  // Save Handler for Unified Modal
+  const handleSavePlace = () => {
+    const finalAddress = placeAddress.trim() || addressSearchQuery.trim();
+    if (!placeName.trim() || !finalAddress) {
+      setToastMessage(language === "tl" ? "Kumpletuhin ang pangalan at lokasyon." : "Please complete place name and location.");
       return;
     }
 
-    const resolvedAddress = newPlaceAddress.trim() || addressSearchQuery.trim() || "Calapan City";
-    const newPlace: SavedPlace = {
-      id: `place_${Date.now()}`,
-      name: newPlaceName.trim(),
-      address: resolvedAddress,
-      lat: newPlaceCoords.lat,
-      lng: newPlaceCoords.lng,
-    };
+    if (editingPlaceId === "home") {
+      if (onSetHomeAddress) onSetHomeAddress(finalAddress);
+    } else if (editingPlaceId) {
+      const updated = savedPlaces.map((p) =>
+        p.id === editingPlaceId
+          ? { ...p, name: placeName.trim(), address: finalAddress, lat: placeCoords.lat, lng: placeCoords.lng }
+          : p
+      );
+      setSavedPlaces(updated);
+      try {
+        localStorage.setItem("sakay_passenger_saved_places", JSON.stringify(updated));
+      } catch {}
+    } else {
+      const newPlace: SavedPlace = {
+        id: `place_${Date.now()}`,
+        name: placeName.trim(),
+        address: finalAddress,
+        lat: placeCoords.lat,
+        lng: placeCoords.lng,
+      };
+      const updated = [...savedPlaces, newPlace];
+      setSavedPlaces(updated);
+      try {
+        localStorage.setItem("sakay_passenger_saved_places", JSON.stringify(updated));
+      } catch {}
+    }
 
-    const updated = [...savedPlaces, newPlace];
-    setSavedPlaces(updated);
-    try {
-      localStorage.setItem("sakay_passenger_saved_places", JSON.stringify(updated));
-    } catch {}
-
-    setAddModalOpen(false);
-    setNewPlaceName("");
-    setNewPlaceAddress("");
-    setAddressSearchQuery("");
+    setModalOpen(false);
   };
 
   const handleSelectSuggestion = (s: PlaceSuggestion) => {
-    setNewPlaceAddress(s.address);
+    setPlaceAddress(s.address);
     setAddressSearchQuery(s.address);
-    setNewPlaceCoords({ lat: s.lat, lng: s.lng });
+    setPlaceCoords({ lat: s.lat, lng: s.lng });
     setSuggestions([]);
+  };
+
+  // Callback from MapLocationPicker when location is confirmed
+  const handleConfirmMapLocation = (loc: { address: string; lat: number; lng: number }) => {
+    setPlaceAddress(loc.address);
+    setAddressSearchQuery(loc.address);
+    setPlaceCoords({ lat: loc.lat, lng: loc.lng });
+    setModalOpen(true);
   };
 
   const displayHomeSubtext = homeAddress && homeAddress.trim().length > 0
@@ -198,6 +239,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
 
   return (
     <>
+      {/* ANCHORED BOTTOM SHEET (Bottom edge remains anchored to bottom of viewport: bottom: 0) */}
       <Paper
         elevation={4}
         sx={{
@@ -205,7 +247,8 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: "#F4FBF7", // Soft mint background
+          maxHeight: "310px", // MAXIMUM EXPANSION CONSTRAINT
+          backgroundColor: "#F4FBF7",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
           padding: "10px 20px calc(var(--safe-area-bottom) + 16px) 20px",
@@ -213,13 +256,17 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
-          gap: isCollapsed ? "4px" : "14px",
-          transform: `translateY(${dragOffsetY}px)`,
-          transition: isDragging ? "none" : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          gap: isCollapsed ? "4px" : "12px",
+          transform: `translateY(${
+            isCollapsed
+              ? Math.max(0, 195 + dragOffsetY)
+              : Math.min(195, Math.max(0, dragOffsetY))
+          }px)`,
+          transition: isDragging ? "none" : "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
           willChange: "transform",
         }}
       >
-        {/* Drag handle bar with touch gesture listeners */}
+        {/* Drag handle bar - moves together with sheet */}
         <Box
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -251,11 +298,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           />
         </Box>
 
-        {/* Personalized Greeting Text */}
+        {/* Personalized Greeting Text - moves together with sheet */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: '4px' }}>
           <Typography
             sx={{
-              fontSize: "14.5px",
+              fontSize: "14px",
               color: "#0F172A",
               fontWeight: 400,
               lineHeight: 1.4,
@@ -269,7 +316,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           </Typography>
         </Box>
 
-        {/* Horizontal Action Cards Scrollable Row (Hidden when Collapsed) */}
+        {/* Horizontal Action Cards Scrollable Row (Visible when sheet is expanded) */}
         {!isCollapsed && (
           <Box
             className="hide-scrollbar"
@@ -326,7 +373,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               <Box>
                 <Typography
                   sx={{
-                    fontSize: "13px",
+                    fontSize: "14px",
                     fontWeight: 800,
                     color: "#0F172A",
                     lineHeight: 1.2,
@@ -338,7 +385,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "11.5px",
+                    fontSize: "12px",
                     fontWeight: 500,
                     color: "#64748B",
                     marginTop: "2px",
@@ -354,8 +401,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             <Box
               onClick={() => {
                 if (!homeAddress || homeAddress.trim().length === 0) {
-                  setInputHome(homeAddress);
-                  setEditHomeOpen(true);
+                  setEditingPlaceId("home");
+                  setPlaceName(language === "tl" ? "Bahay" : "Home");
+                  setPlaceAddress("");
+                  setAddressSearchQuery("");
+                  setModalOpen(true);
                 } else {
                   onHomeTrip();
                 }
@@ -401,11 +451,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 </Box>
                 <IconButton
                   size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setInputHome(homeAddress);
-                    setEditHomeOpen(true);
-                  }}
+                  onClick={handleOpenEditHome}
                   sx={{ color: '#64748B', p: '4px' }}
                 >
                   <EditOutlinedIcon sx={{ fontSize: 16 }} />
@@ -415,7 +461,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               <Box>
                 <Typography
                   sx={{
-                    fontSize: "13px",
+                    fontSize: "14px",
                     fontWeight: 800,
                     color: "#0F172A",
                     lineHeight: 1.2,
@@ -423,11 +469,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                     letterSpacing: "-0.2px",
                   }}
                 >
-                  Home
+                  {language === "tl" ? "Bahay" : "Home"}
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: (!homeAddress || homeAddress.trim().length === 0) ? 700 : 500,
                     color: (!homeAddress || homeAddress.trim().length === 0) ? "#FF6B00" : "#64748B",
                     marginTop: "2px",
@@ -442,7 +488,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               </Box>
             </Box>
 
-            {/* Custom Saved Places Cards (Same component structure, typography & destination shortcut behavior) */}
+            {/* Custom Saved Places Cards */}
             {savedPlaces.map((place) => (
               <Box
                 key={place.id}
@@ -477,24 +523,33 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   },
                 }}
               >
-                <Box
-                  sx={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "12px",
-                    backgroundColor: "rgba(15, 23, 42, 0.04)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <PlaceOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <Box
+                    sx={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "12px",
+                      backgroundColor: "rgba(15, 23, 42, 0.04)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <PlaceOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleOpenEditPlace(e, place)}
+                    sx={{ color: '#64748B', p: '4px' }}
+                  >
+                    <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
                 </Box>
 
                 <Box>
                   <Typography
                     sx={{
-                      fontSize: "13px",
+                      fontSize: "14px",
                       fontWeight: 800,
                       color: "#0F172A",
                       lineHeight: 1.2,
@@ -509,7 +564,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: "11px",
+                      fontSize: "12px",
                       fontWeight: 500,
                       color: "#64748B",
                       marginTop: "2px",
@@ -527,12 +582,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
 
             {/* Card 3: Magdagdag (Add Saved Location Action) */}
             <Box
-              onClick={() => {
-                setNewPlaceName("");
-                setNewPlaceAddress("");
-                setAddressSearchQuery("");
-                setAddModalOpen(true);
-              }}
+              onClick={handleOpenAddModal}
               role="button"
               tabIndex={0}
               sx={{
@@ -574,7 +624,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               <Box>
                 <Typography
                   sx={{
-                    fontSize: "13px",
+                    fontSize: "14px",
                     fontWeight: 800,
                     color: "#0F172A",
                     lineHeight: 1.2,
@@ -587,7 +637,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: 500,
                     color: "#64748B",
                     marginTop: "2px",
@@ -602,104 +652,58 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
         )}
       </Paper>
 
-      {/* Dialog 1: Set Home Address */}
+      {/* UNIFIED SAVED PLACE CREATION & EDITING MODAL */}
       <Dialog
-        open={editHomeOpen}
-        onClose={() => setEditHomeOpen(false)}
-        slotProps={{
-          paper: {
-            sx: { borderRadius: '20px', padding: '8px', maxWidth: '360px', width: '100%' },
-          },
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-          {language === 'tl' ? 'I-set ang Home Location' : 'Set Home Location'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: '12.5px', color: '#64748B', mb: 2, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl'
-              ? 'Ilagay ang address ng iyong tirahan para sa mabilis na pag-book.'
-              : 'Enter your home address for quick booking.'}
-          </Typography>
-          <TextField
-            fullWidth
-            label={language === 'tl' ? 'Home Address' : 'Home Address'}
-            value={inputHome}
-            onChange={(e) => setInputHome(e.target.value)}
-            placeholder="e.g. San Vicente, Calapan City"
-            variant="outlined"
-            sx={{
-              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-            }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setEditHomeOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Kanselahin' : 'Cancel'}
-          </Button>
-          <Button
-            onClick={handleSaveHome}
-            variant="contained"
-            sx={{
-              backgroundColor: '#FF6B00',
-              textTransform: 'none',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontFamily: 'Poppins, sans-serif',
-              '&:hover': { backgroundColor: '#E66000' },
-            }}
-          >
-            {language === 'tl' ? 'I-save' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog 2: Magdagdag ng Lugar (Add Saved Location Flow) */}
-      <Dialog
-        open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
         slotProps={{
           paper: {
             sx: { borderRadius: '20px', padding: '12px', maxWidth: '370px', width: '92%' },
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A', fontFamily: 'Poppins, sans-serif', pb: 1 }}>
-          {language === 'tl' ? 'Magdagdag ng Lugar' : 'Add Saved Location'}
+        <DialogTitle sx={{ fontWeight: 800, fontSize: '18px', color: '#0F172A', fontFamily: 'Poppins, sans-serif', pb: 1 }}>
+          {editingPlaceId
+            ? (language === 'tl' ? 'I-edit ang Lugar' : 'Edit Saved Location')
+            : (language === 'tl' ? 'Magdagdag ng Lugar' : 'Add Saved Location')}
         </DialogTitle>
         <DialogContent sx={{ py: 1 }}>
-          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
+          {/* Field 1: Pangalan ng Lugar */}
+          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Pangalan ng Lugar' : 'Place Name'}
           </Typography>
           <TextField
             fullWidth
-            value={newPlaceName}
-            onChange={(e) => setNewPlaceName(e.target.value)}
-            placeholder={language === 'tl' ? 'e.g. Work, School, Palengke, Lola’s House' : 'e.g. Work, School, Market'}
+            value={placeName}
+            onChange={(e) => setPlaceName(e.target.value)}
+            placeholder={language === 'tl' ? 'Hal. Bahay, Paaralan, Trabaho' : 'e.g. Home, School, Work'}
             variant="outlined"
             size="small"
             sx={{
               mb: 2,
-              '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '13px' },
+              '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '14px' },
             }}
           />
 
-          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Lokasyon (Address / Landmark)' : 'Location (Address / Landmark)'}
+          {/* Field 2: Lokasyon with Clear Two-Way Entry: Option A vs Option B */}
+          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Lokasyon' : 'Location'}
           </Typography>
+
+          {/* Option A: Search / type address */}
           <TextField
             fullWidth
             value={addressSearchQuery}
             onChange={(e) => {
               setAddressSearchQuery(e.target.value);
-              setNewPlaceAddress(e.target.value);
+              setPlaceAddress(e.target.value);
             }}
             placeholder={language === 'tl' ? 'Ilagay ang address o landmark' : 'Enter address or landmark'}
             variant="outlined"
             size="small"
             sx={{
               mb: 1,
-              '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '13px' },
+              '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '14px' },
             }}
           />
 
@@ -715,8 +719,8 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                     sx={{ cursor: 'pointer', '&:hover': { backgroundColor: '#FFF7ED' } }}
                   >
                     <ListItemText
-                      primary={<Typography sx={{ fontSize: '12px', fontWeight: 600 }}>{s.name || s.address}</Typography>}
-                      secondary={<Typography sx={{ fontSize: '10.5px', color: '#64748B' }}>{s.address}</Typography>}
+                      primary={<Typography sx={{ fontSize: '14px', fontWeight: 600 }}>{s.name || s.address}</Typography>}
+                      secondary={<Typography sx={{ fontSize: '12px', color: '#64748B' }}>{s.address}</Typography>}
                     />
                   </ListItem>
                 ))}
@@ -724,23 +728,32 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             </Paper>
           )}
 
-          {/* Map Pin Option Button */}
+          {/* Divider "o" / "or" */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 1.5 }}>
+            <Divider sx={{ flex: 1, borderColor: '#E2E8F0' }} />
+            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8' }}>
+              {language === 'tl' ? 'o' : 'or'}
+            </Typography>
+            <Divider sx={{ flex: 1, borderColor: '#E2E8F0' }} />
+          </Box>
+
+          {/* Option B: Pumili sa Mapa (Opens dedicated MapLocationPicker overlay) */}
           <Button
             fullWidth
             variant="outlined"
             startIcon={<MapOutlinedIcon sx={{ color: '#FF6B00' }} />}
             onClick={() => {
-              setAddModalOpen(false);
-              onAddPlace();
+              setModalOpen(false);
+              setMapPickerOpen(true);
             }}
             sx={{
-              mt: 1,
               borderColor: '#E2E8F0',
               color: '#0F172A',
               textTransform: 'none',
               borderRadius: '12px',
-              fontSize: '12.5px',
+              fontSize: '14px',
               fontWeight: 600,
+              py: '8px',
               fontFamily: 'Poppins, sans-serif',
               '&:hover': { backgroundColor: '#F8FAFC', borderColor: '#CBD5E1' },
             }}
@@ -750,11 +763,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
         </DialogContent>
 
         <DialogActions sx={{ px: 2, pb: 2, pt: 1, display: 'flex', gap: '8px' }}>
-          <Button onClick={() => setAddModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontFamily: 'Poppins, sans-serif', width: '50%' }}>
+          <Button onClick={() => setModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontFamily: 'Poppins, sans-serif', width: '50%', fontSize: '14px' }}>
             {language === 'tl' ? 'Kanselahin' : 'Cancel'}
           </Button>
           <Button
-            onClick={handleSaveNewPlace}
+            onClick={handleSavePlace}
             variant="contained"
             sx={{
               width: '50%',
@@ -762,16 +775,24 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               textTransform: 'none',
               borderRadius: '12px',
               fontWeight: 700,
-              fontSize: '13px',
+              fontSize: '14px',
               fontFamily: 'Poppins, sans-serif',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
             }}
           >
-            {language === 'tl' ? 'I-save ang Lugar' : 'Save Location'}
+            {language === 'tl' ? 'I-save' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* DEDICATED MAP LOCATION PICKER OVERLAY */}
+      <MapLocationPicker
+        open={mapPickerOpen}
+        onClose={() => setMapPickerOpen(false)}
+        initialCoords={placeCoords}
+        onConfirmLocation={handleConfirmMapLocation}
+      />
 
       {/* Transient Validation Toast */}
       <Snackbar

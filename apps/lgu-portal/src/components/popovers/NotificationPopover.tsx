@@ -67,7 +67,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
           backgroundColor: 'rgba(250, 250, 252, 0.6)',
         }}
       >
-        <Typography sx={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--mac-text-primary)' }}>
+        <Typography sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-primary)' }}>
           Notifications
         </Typography>
         {notifications.length > 0 && (
@@ -93,7 +93,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
         {notifications.length === 0 ? (
           <Box sx={{ padding: '32px 16px', textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)' }}>
               No new notifications
             </Typography>
           </Box>
@@ -113,7 +113,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography sx={{ fontWeight: item.unread ? 600 : 500, fontSize: '13px', color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontWeight: item.unread ? 600 : 500, fontSize: '14px', color: 'var(--mac-text-primary)' }}>
                   {item.title}
                 </Typography>
                 {item.unread && (
@@ -131,7 +131,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
               <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)', lineHeight: 1.35, mb: 0.5 }}>
                 {item.description}
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
                 {item.time}
               </Typography>
             </Box>

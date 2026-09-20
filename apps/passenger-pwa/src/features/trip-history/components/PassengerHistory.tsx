@@ -607,7 +607,7 @@ const PassengerHistory: React.FC = () => {
                   <Typography sx={{ fontSize: "11px", color: "#1E8E3E", fontWeight: 700 }}>
                     ✓ Final Proportionate Shared Tariff Applied
                   </Typography>
-                  <Typography sx={{ fontSize: "10.5px", color: "#065F46" }}>
+                  <Typography sx={{ fontSize: "12px", color: "#065F46" }}>
                     {language === 'tl'
                       ? 'Pinagsamang carpool fare base sa aktwal na sakay sa ruta.'
                       : 'Combined carpool fare based on actual riders on route.'}
@@ -650,7 +650,7 @@ const PassengerHistory: React.FC = () => {
                     },
                   });
                 }}
-                sx={{ color: "#EF4444", fontWeight: 600, fontSize: "11.5px", textTransform: "none" }}
+                sx={{ color: "#EF4444", fontWeight: 600, fontSize: "12px", textTransform: "none" }}
               >
                 {language === 'tl' ? 'I-ulat ang Biyahe' : 'Report Trip'}
               </Button>

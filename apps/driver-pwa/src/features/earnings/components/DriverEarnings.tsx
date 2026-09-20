@@ -164,10 +164,10 @@ export const DriverEarnings: React.FC = () => {
                 {language === 'tl' ? 'KABUUANG KITA NGAYONG ARAW' : "TODAY'S TOTAL EARNINGS"}
               </Typography>
             </Box>
-            <Chip label="Live Total" size="small" sx={{ backgroundColor: 'rgba(255, 107, 0, 0.2)', color: '#FF8533', fontWeight: 700, fontSize: '10.5px' }} />
+            <Chip label="Live Total" size="small" sx={{ backgroundColor: 'rgba(255, 107, 0, 0.2)', color: '#FF8533', fontWeight: 700, fontSize: '12px' }} />
           </Box>
 
-          <Typography sx={{ fontSize: '36px', fontWeight: 900, color: '#FFFFFF', lineHeight: 1 }}>
+          <Typography sx={{ fontSize: '32px', fontWeight: 900, color: '#FFFFFF', lineHeight: 1 }}>
             ₱{todayTotal.toFixed(2)}
           </Typography>
           <Typography sx={{ fontSize: '12px', color: '#94A3B8', mt: 0.5 }}>
@@ -240,15 +240,15 @@ export const DriverEarnings: React.FC = () => {
                     {trip.tripMode === 'Shared Ride' ? <GroupsIcon fontSize="small" /> : <TwoWheelerIcon fontSize="small" />}
                   </Avatar>
                   <Box>
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 800, color: '#0F172A' }}>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
                       {trip.passengerName}
                     </Typography>
-                    <Typography sx={{ fontSize: '11px', color: '#64748B', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <Typography sx={{ fontSize: '12px', color: '#64748B', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {trip.pickupLocation} → {trip.dropoffLocation}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
                       <AccessTimeIcon sx={{ fontSize: 11, color: '#94A3B8' }} />
-                      <Typography sx={{ fontSize: '10.5px', color: '#94A3B8' }}>{trip.date} • {trip.time}</Typography>
+                      <Typography sx={{ fontSize: '12px', color: '#94A3B8' }}>{trip.date} • {trip.time}</Typography>
                     </Box>
                   </Box>
                 </Box>

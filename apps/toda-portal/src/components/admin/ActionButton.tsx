@@ -28,7 +28,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
         borderColor: 'var(--mac-border-color)',
         backgroundColor: '#FFFFFF',
         color: 'var(--mac-text-primary)',
-        fontSize: '12px',
+        fontSize: '14px',
         fontWeight: 500,
         textTransform: 'none',
         // prevent text wrapping so label doesn't spill out of fixed height button

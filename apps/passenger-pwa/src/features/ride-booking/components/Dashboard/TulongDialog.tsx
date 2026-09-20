@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -40,21 +39,24 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
             borderRadius: "20px",
             padding: "8px",
             maxWidth: "360px",
-            width: "90%",
+            width: "92%",
           },
         },
       }}
     >
+      {/* Modal Header: Title + Top-Right X Close Icon */}
       <DialogTitle
         sx={{
-          fontWeight: 800,
-          fontSize: "16px",
+          fontWeight: 700,
+          fontSize: "18px",
           color: "#0F172A",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           fontFamily: "Poppins, sans-serif",
           pb: 1,
+          px: 2.5,
+          pt: 2,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -66,12 +68,12 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ py: 1 }}>
+      {/* Modal Content: Shared left/right margins (px: 2.5) for all internal cards/buttons */}
+      <DialogContent sx={{ px: 2.5, py: 1, display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography
           sx={{
-            fontSize: "12.5px",
+            fontSize: "14px",
             color: "#64748B",
-            marginBottom: "14px",
             fontFamily: "Poppins, sans-serif",
             lineHeight: 1.45,
           }}
@@ -81,22 +83,25 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
             : "Have questions or need assistance with your ride in Calapan City? Contact us:"}
         </Typography>
 
+        {/* 1. Calapan TODA Hotline Card */}
         <Paper
           elevation={0}
           sx={{
-            padding: "12px 14px",
+            padding: "14px 16px",
             backgroundColor: "#F8FAFC",
             borderRadius: "14px",
             border: "1px solid #E2E8F0",
             display: "flex",
             alignItems: "center",
-            gap: "12px",
+            gap: "14px",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <Box
             sx={{
-              width: "36px",
-              height: "36px",
+              width: "40px",
+              height: "40px",
               borderRadius: "12px",
               backgroundColor: "#FFF7ED",
               display: "flex",
@@ -105,12 +110,12 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
               flexShrink: 0,
             }}
           >
-            <PhoneIcon sx={{ color: "#FF6B00", fontSize: "19px" }} />
+            <PhoneIcon sx={{ color: "#FF6B00", fontSize: "20px" }} />
           </Box>
           <Box>
             <Typography
               sx={{
-                fontSize: "10.5px",
+                fontSize: "12px",
                 fontWeight: 700,
                 color: "#94A3B8",
                 letterSpacing: "0.5px",
@@ -121,61 +126,45 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
             </Typography>
             <Typography
               sx={{
-                fontSize: "13px",
+                fontSize: "14px",
                 fontWeight: 800,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
+                mt: "2px",
               }}
             >
               (043) 288-7000 / 0917-812-3456
             </Typography>
           </Box>
         </Paper>
-      </DialogContent>
 
-      <DialogActions sx={{ padding: "12px 16px 16px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* 2. Mag-ulat ng Reklamo o Insidente Button (Aligned to same content boundaries) */}
         <Button
           fullWidth
           variant="outlined"
-          startIcon={<ReportProblemIcon sx={{ fontSize: "18px !important" }} />}
+          startIcon={<ReportProblemIcon sx={{ fontSize: "20px !important" }} />}
           onClick={handleOpenIncidentReport}
           sx={{
             borderColor: "#EF4444",
             color: "#EF4444",
-            borderRadius: "12px",
+            borderRadius: "14px",
             fontWeight: 700,
             textTransform: "none",
-            minHeight: "42px",
-            py: "6px",
-            px: "12px",
-            fontSize: "12.5px",
+            minHeight: "44px",
+            py: "10px",
+            px: "16px",
+            fontSize: "14px",
             fontFamily: "Poppins, sans-serif",
             lineHeight: 1.25,
+            width: "100%",
+            boxSizing: "border-box",
+            mb: 1.5,
             "&:hover": { borderColor: "#DC2626", backgroundColor: "#FEF2F2" },
           }}
         >
           {language === "tl" ? "Mag-ulat ng Reklamo o Insidente" : "Report a Complaint or Incident"}
         </Button>
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={onClose}
-          sx={{
-            backgroundColor: "#FF6B00",
-            color: "#FFFFFF",
-            borderRadius: "12px",
-            fontWeight: 700,
-            textTransform: "none",
-            height: "42px",
-            fontSize: "13.5px",
-            fontFamily: "Poppins, sans-serif",
-            boxShadow: "none",
-            "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-          }}
-        >
-          {language === "tl" ? "Isara" : "Close"}
-        </Button>
-      </DialogActions>
+      </DialogContent>
     </Dialog>
   );
 };

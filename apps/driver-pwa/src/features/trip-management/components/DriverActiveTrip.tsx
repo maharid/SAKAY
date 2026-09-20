@@ -358,8 +358,8 @@ export const DriverActiveTrip: React.FC = () => {
             {passengerName.charAt(0)}
           </Avatar>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>{passengerName}</Typography>
-            <Typography sx={{ fontSize: '11px', color: '#64748B' }}>Passenger #1 • {dropoffAddress.split(',')[0]}</Typography>
+            <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>{passengerName}</Typography>
+            <Typography sx={{ fontSize: '12px', color: '#64748B' }}>Passenger #1 • {dropoffAddress.split(',')[0]}</Typography>
           </Box>
           <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#10B981' }}>
             ₱{proportionateFareP1.toFixed(2)}
@@ -373,8 +373,8 @@ export const DriverActiveTrip: React.FC = () => {
               J
             </Avatar>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#065F46' }}>{pairedPassenger}</Typography>
-              <Typography sx={{ fontSize: '10.5px', color: '#047857' }}>Passenger #2 (Shared Carpool)</Typography>
+              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#065F46' }}>{pairedPassenger}</Typography>
+              <Typography sx={{ fontSize: '12px', color: '#047857' }}>Passenger #2 (Shared Carpool)</Typography>
             </Box>
             <Typography sx={{ fontSize: '13px', fontWeight: 800, color: '#047857' }}>
               ₱15.00

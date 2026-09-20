@@ -72,25 +72,30 @@
   --mac-font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
 }
 
-/* Global Font Scaling (-2px across body, tables, buttons, inputs, chips) */
+/* SAKAY Standard Desktop Administrative Typography Scale */
 body, html {
-  font-size: 13px !important;
+  font-size: 14px;
 }
 
 .MuiTableCell-root {
-  font-size: 12.5px !important;
+  font-size: 14px;
+}
+
+.MuiTableCell-head {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .MuiButton-root {
-  font-size: 12px !important;
+  font-size: 14px;
 }
 
 .MuiInputBase-input {
-  font-size: 12.5px !important;
+  font-size: 14px;
 }
 
 .MuiChip-root {
-  font-size: 11.5px !important;
+  font-size: 12px;
 }
 
 /* Apple/macOS Auto-Hiding Scrollbar Fade System */
