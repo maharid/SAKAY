@@ -19,19 +19,19 @@ export const TYPOGRAPHY_TOKENS = {
     metric: '1.75rem',         // 28px - Dashboard KPI summary stats
   },
 
-  // Line Heights
+  // Line Heights (Tightened for Mobile Efficiency & Readability)
   lineHeight: {
-    tight: 1.2,     // Buttons, titles, KPI figures
-    heading: 1.3,   // Section titles, dialog titles
-    secondary: 1.4, // Secondary metadata, captions
-    relaxed: 1.5,   // Readable body text
+    tight: 1.15,    // Buttons, titles, KPI figures
+    heading: 1.25,   // Section titles, dialog titles
+    secondary: 1.35, // Secondary metadata, captions
+    relaxed: 1.4,    // Readable body text
   },
 
   // Font Weights
   fontWeight: {
     regular: 400,
-    medium: 500,
-    semibold: 600,
+    medium: 500,     // Recommended default for micro & caption text (10px–12px)
+    semibold: 600,   // Emphasized small text & secondary titles
     bold: 700,
   },
 } as const;

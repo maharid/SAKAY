@@ -51,8 +51,8 @@ interface HomeBottomSheetProps {
 }
 
 const MAX_SHEET_HEIGHT = 220;
-const MIN_SHEET_HEIGHT = 100;
-const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 120px
+const MIN_SHEET_HEIGHT = 72;
+const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 148px
 
 const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   firstName,

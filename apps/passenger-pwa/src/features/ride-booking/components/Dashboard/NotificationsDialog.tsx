@@ -8,7 +8,6 @@ import IconButton from "@mui/material/IconButton";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
@@ -192,7 +191,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           })}
         </Box>
 
-        {/* 3. Unread Section Header (14px heading, 13px action link) */}
+        {/* 3. Unread Section Header (Medium weight non-bold heading, 13px action link) */}
         <Box
           sx={{
             display: "flex",
@@ -206,7 +205,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           <Typography
             sx={{
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
-              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
+              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
               color: "#0F172A",
               fontFamily: "Poppins, sans-serif",
             }}
@@ -238,7 +237,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           )}
         </Box>
 
-        {/* 4. Notification List Rows (Matching Image 1: soft icon circle with red unread badge) */}
+        {/* 4. Notification List Rows (Matching Image 1: soft light-orange icon circle with red unread badge) */}
         {filteredNotifications.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center" }}>
             <Typography
@@ -288,7 +287,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                           width: 36,
                           height: 36,
                           borderRadius: "50%",
-                          backgroundColor: "#E0F2FE",
+                          backgroundColor: "#FFF2E9",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -351,9 +350,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                         {time}
                       </Typography>
                     </Box>
-
-                    {/* Right Chevron */}
-                    <ChevronRightIcon sx={{ color: "#CBD5E1", fontSize: 18, flexShrink: 0 }} />
                   </Box>
                 </React.Fragment>
               );

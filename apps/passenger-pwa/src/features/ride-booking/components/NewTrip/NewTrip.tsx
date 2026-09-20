@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -88,6 +88,22 @@ const NewTrip: React.FC = () => {
 
   // Dialog States for Controls
   const [notesDialogOpen, setNotesDialogOpen] = useState<boolean>(false);
+
+  // Dynamic Bottom Sheet Height tracking for floating Back & Location buttons
+  const bottomSheetRef = useRef<HTMLDivElement | null>(null);
+  const [bottomSheetHeight, setBottomSheetHeight] = useState<number>(380);
+
+  useEffect(() => {
+    const el = bottomSheetRef.current;
+    if (!el) return;
+    const updateHeight = () => {
+      setBottomSheetHeight(el.offsetHeight);
+    };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const [noteText, setNoteText] = useState<string>(() => sessionStorage.getItem("trip_notes") || "");
   const [tempNoteText, setTempNoteText] = useState<string>("");
   const [tariffInfoOpen, setTariffInfoOpen] = useState<boolean>(false);
@@ -565,7 +581,7 @@ const NewTrip: React.FC = () => {
         onOpenTulong={() => setTulongOpen(true)}
       />
 
-      {/* 3. Floating Left Back Button over Map matching BOOK - SOLO.png */}
+      {/* 3. Floating Left Back Button over Map */}
       <IconButton
         onClick={() => {
           if (isSearching) {
@@ -577,8 +593,8 @@ const NewTrip: React.FC = () => {
         aria-label="Back"
         sx={{
           position: "absolute",
-          bottom: "calc(var(--safe-area-bottom) + 380px)",
-          left: "20px",
+          bottom: `calc(var(--safe-area-bottom) + ${bottomSheetHeight + 16}px)`,
+          left: "16px",
           backgroundColor: "#FFFFFF",
           width: "44px",
           height: "44px",
@@ -586,7 +602,7 @@ const NewTrip: React.FC = () => {
           boxShadow: "0 4px 14px rgba(15, 23, 42, 0.12)",
           color: "#0F172A",
           zIndex: 10,
-          transition: "all 0.2s ease",
+          transition: "bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease",
           "&:hover": { backgroundColor: "#F8FAFC" },
         }}
       >
@@ -599,8 +615,8 @@ const NewTrip: React.FC = () => {
         aria-label="Recenter location"
         sx={{
           position: "absolute",
-          bottom: "calc(var(--safe-area-bottom) + 380px)",
-          right: "20px",
+          bottom: `calc(var(--safe-area-bottom) + ${bottomSheetHeight + 16}px)`,
+          right: "16px",
           backgroundColor: "#FFFFFF",
           width: "44px",
           height: "44px",
@@ -608,7 +624,7 @@ const NewTrip: React.FC = () => {
           boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
           color: "#0F172A",
           zIndex: 10,
-          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease",
           "&:hover": {
             backgroundColor: "#F8FAFC",
             transform: "scale(1.05)",
@@ -623,6 +639,7 @@ const NewTrip: React.FC = () => {
 
       {/* 5. Bottom Sheet Container */}
       <Paper
+        ref={bottomSheetRef}
         elevation={4}
         sx={{
           position: "absolute",
