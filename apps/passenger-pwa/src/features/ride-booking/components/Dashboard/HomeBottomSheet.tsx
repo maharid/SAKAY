@@ -643,7 +643,19 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#475569', mb: 0.75, fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Simbolo / Icon' : 'Location Icon'}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, overflowX: 'auto', py: 0.5 }} className="hide-scrollbar">
+          <Box
+            sx={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '16px',
+              p: '10px 8px',
+              mb: 2,
+            }}
+          >
             {ICON_OPTIONS.map((opt) => {
               const isSelected = selectedIcon === opt.key;
               const IconComp = opt.icon;
@@ -652,28 +664,28 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   key={opt.key}
                   onClick={() => setSelectedIcon(opt.key)}
                   sx={{
+                    flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: 0.5,
                     cursor: 'pointer',
-                    flexShrink: 0,
                   }}
                 >
                   <Box
                     sx={{
-                      width: '40px',
-                      height: '40px',
+                      width: '38px',
+                      height: '38px',
                       borderRadius: '12px',
-                      backgroundColor: isSelected ? '#FF6B00' : '#F1F5F9',
+                      backgroundColor: isSelected ? '#FF6B00' : '#FFFFFF',
                       color: isSelected ? '#FFFFFF' : '#64748B',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: isSelected ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                      border: isSelected ? '1.5px solid #FF6B00' : '1px solid #CBD5E1',
                       transition: 'all 0.15s ease',
                       '&:hover': {
-                        backgroundColor: isSelected ? '#E66000' : '#E2E8F0',
+                        backgroundColor: isSelected ? '#E66000' : '#F1F5F9',
                       },
                     }}
                   >
@@ -681,10 +693,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   </Box>
                   <Typography
                     sx={{
-                      fontSize: '11px',
+                      fontSize: '10px',
                       fontWeight: isSelected ? 700 : 500,
                       color: isSelected ? '#FF6B00' : '#64748B',
                       fontFamily: 'Poppins, sans-serif',
+                      textAlign: 'center',
                     }}
                   >
                     {language === 'tl' ? opt.labelTl : opt.labelEn}

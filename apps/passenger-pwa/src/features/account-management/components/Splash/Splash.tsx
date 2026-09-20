@@ -11,10 +11,10 @@ import Logo from "../../../../common/components/Logo";
 // Shared branding assets
 import background from "@sakay/shared/src/assets/images/splash-bg.png";
 import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.png";
-import splash01 from "@sakay/shared/src/assets/icons/passenger-splash-01.png";
-import splash02 from "@sakay/shared/src/assets/icons/passenger-splash-02.png";
-import splash03 from "@sakay/shared/src/assets/icons/passenger-splash-03.png";
-import splash04 from "@sakay/shared/src/assets/icons/passenger-splash-04.png";
+import splash01 from "@sakay/shared/src/assets/icons/passenger-onboarding-01.png";
+import splash02 from "@sakay/shared/src/assets/icons/passenger-onboarding-02.png";
+import splash03 from "@sakay/shared/src/assets/icons/passenger-onboarding-03.png";
+import splash04 from "@sakay/shared/src/assets/icons/passenger-onboarding-04.png";
 import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 interface SplashProps {
@@ -168,7 +168,7 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
             maxHeight: "320px",
             marginTop: "16px",
             marginBottom: "12px",
-            px: "16px",
+            px: "32px",
           }}
         >
           <Box
@@ -176,11 +176,13 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
             src={slideImg}
             alt={slideTitle}
             sx={{
-              maxWidth: "100%",
+              maxWidth: "85%",
               maxHeight: "100%",
               width: "auto",
               height: "auto",
               objectFit: "contain",
+              display: "block",
+              margin: "0 auto",
             }}
           />
         </Box>
