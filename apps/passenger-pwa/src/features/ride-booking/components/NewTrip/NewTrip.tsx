@@ -42,6 +42,7 @@ import {
   cancelBooking,
   type BookingRecord,
 } from "../../../../services/bookingService";
+import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 const haversineDistanceKm = (
   lat1: number,
@@ -1462,11 +1463,11 @@ const NewTrip: React.FC = () => {
             justifyContent: "space-between",
             alignItems: "center",
             fontWeight: 800,
-            fontSize: "17px",
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
             fontFamily: "Poppins, sans-serif",
           }}
         >
-          {language === "tl" ? "🏛️ Taripa ng Calapan City" : "🏛️ Calapan City Tariff"}
+          {language === "tl" ? "Taripa ng Calapan City" : "Calapan City Tariff"}
           <IconButton size="small" onClick={() => setTariffInfoOpen(false)}>
             <CloseIcon />
           </IconButton>
@@ -1482,45 +1483,31 @@ const NewTrip: React.FC = () => {
                 border: "1px solid #FFEDD5",
               }}
             >
-              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#C2410C" }}>
                 {language === "tl" ? "Opisyal na Taripa ng Lungsod:" : "Official Municipal Matrix:"}
               </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#9A3412", mt: 0.5 }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 600, color: "#EA580C", mt: 0.25, mb: 1 }}>
+                {language === "tl"
+                  ? "Ordinansa ng Lungsod Blg. 110, Serye ng 2022"
+                  : "City Ordinance No. 110, Series of 2022"}
+              </Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
                 • Base Fare: ₱{activeTariff.baseFare.toFixed(2)} (unang {activeTariff.baseKm} km)
               </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#9A3412" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
                 • Kada Karagdagang Kilometro: +₱{activeTariff.succRate.toFixed(2)}/km
               </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#9A3412" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
                 • Tinatayang Distansya: {tripDistanceKm} km
               </Typography>
             </Paper>
-            <Typography sx={{ fontSize: "12px", color: "#64748B", px: 0.5 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: "#64748B", px: 0.5 }}>
               {language === "tl"
-                ? "Lahat ng pamasahe sa SAKAY ay awtomatikong kinukwenta batay sa opisyal na ordinansa upang maiwasan ang paniningil nang higit sa taripa."
-                : "All fares in SAKAY are automatically calculated based on official ordinances to prevent overcharging."}
+                ? "Lahat ng pamasahe sa SAKAY ay awtomatikong kinukwenta batay sa Ordinansa ng Lungsod Blg. 110, S. 2022 upang maiwasan ang paniningil nang higit sa taripa."
+                : "All fares in SAKAY are automatically calculated based on City Ordinance No. 110, S. 2022 to prevent overcharging."}
             </Typography>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => setTariffInfoOpen(false)}
-            sx={{
-              backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
-              borderRadius: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              boxShadow: "none",
-              fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-            }}
-          >
-            {language === "tl" ? "Naintindihan Ko" : "Understood"}
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* 8. Trip Type Info Modal */}
