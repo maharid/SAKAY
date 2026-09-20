@@ -264,7 +264,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             </Box>
           </Box>
 
-          {/* Gamitin ang Lokasyong Ito Button */}
+          {/* Kumpirmahin ang Lokasyon Button */}
           <Button
             fullWidth
             variant="contained"
@@ -275,7 +275,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
               color: "#FFFFFF",
               borderRadius: "14px",
               height: "44px",
-              fontSize: "15px",
+              fontSize: "14px",
               fontWeight: 700,
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
@@ -283,7 +283,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
               "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
             }}
           >
-            {language === "tl" ? "Gamitin ang Lokasyong Ito" : "Use This Location"}
+            {language === "tl" ? "Kumpirmahin ang Lokasyon" : "Confirm Location"}
           </Button>
         </Paper>
       </Box>

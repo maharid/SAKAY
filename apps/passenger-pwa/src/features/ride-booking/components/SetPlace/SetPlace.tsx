@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import Button from "@mui/material/Button";
 import InputBase from "@mui/material/InputBase";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -13,7 +12,9 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import NorthEastIcon from "@mui/icons-material/NorthEast";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import splashBg from "@sakay/shared/src/assets/images/splash-bg.png";
+import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 import type { PlaceSuggestion } from "../../../../services/locationService";
 import {
@@ -23,11 +24,14 @@ import {
   reverseGeocodeCoordinates,
 } from "../../../../services/locationService";
 import { useLanguage } from "../../../../utils/LanguageContext";
+import MapLocationPicker from "../Dashboard/MapLocationPicker";
 
 const SetPlace: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { language } = useLanguage();
+
+  const [mapPickerOpen, setMapPickerOpen] = useState<boolean>(false);
 
   const navState = location.state as {
     target?: "pickup" | "dropoff";
@@ -438,205 +442,136 @@ const SetPlace: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Visually Appealing "Use Current Location" Option */}
+      {/* Compact Quick Actions Section */}
       <Box
         sx={{
           backgroundColor: "#FFFFFF",
           borderBottom: "1px solid #F1F5F9",
-          padding: "12px 16px",
+          padding: "6px 16px",
           display: "flex",
           flexDirection: "column",
-          gap: "10px",
+          gap: "2px",
           boxShadow: "0 2px 8px rgba(15, 23, 42, 0.03)",
         }}
       >
-        {/* Main One-Tap Target Card */}
+        {/* Action 1: Current Location */}
         <Box
           onClick={() => handleUseCurrentLocation(activeTarget)}
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: "14px",
-            padding: "12px 16px",
-            borderRadius: "16px",
-            background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
-            border: "1.5px solid #FDBA74",
+            gap: "12px",
+            padding: "10px 12px",
+            borderRadius: "14px",
             cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(255, 107, 0, 0.08)",
-            transition: "all 0.18s ease-in-out",
-            "&:hover": {
-              transform: "translateY(-1px)",
-              boxShadow: "0 4px 12px rgba(255, 107, 0, 0.16)",
-              borderColor: "#FB923C",
-            },
-            "&:active": {
-              transform: "scale(0.99)",
-            },
+            transition: "background-color 0.15s ease",
+            "&:hover": { backgroundColor: "#FFF7ED" },
+            "&:active": { backgroundColor: "#FFEAD5" },
           }}
         >
-          {/* Pulsing GPS Badge Icon */}
           <Box
             sx={{
-              width: "42px",
-              height: "42px",
+              width: "36px",
+              height: "36px",
               borderRadius: "50%",
-              backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              backgroundColor: "#FFF2E9",
+              color: "#FF6B00",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              boxShadow: "0 2px 8px rgba(255, 107, 0, 0.35)",
             }}
           >
             {locatingCurrent ? (
-              <CircularProgress size={20} sx={{ color: "#FFFFFF" }} />
+              <CircularProgress size={18} sx={{ color: "#FF6B00" }} />
             ) : (
-              <MyLocationIcon sx={{ fontSize: "22px" }} />
+              <MyLocationIcon sx={{ fontSize: "20px" }} />
             )}
           </Box>
 
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Typography
-                sx={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#0F172A",
-                  fontFamily: "Poppins, sans-serif",
-                }}
-              >
-                {language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon" : "Use current location"}
-              </Typography>
-              <Box
-                sx={{
-                  backgroundColor: "#22C55E",
-                  color: "#FFFFFF",
-                  fontSize: "9px",
-                  fontWeight: 800,
-                  px: "6px",
-                  py: "2px",
-                  borderRadius: "6px",
-                  letterSpacing: "0.5px",
-                  textTransform: "uppercase",
-                  fontFamily: "Poppins, sans-serif",
-                }}
-              >
-                GPS
-              </Box>
-            </Box>
-
             <Typography
               sx={{
-                fontSize: "12px",
-                color: "#EA580C",
-                fontWeight: 600,
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, // 13px
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.semibold,
+                color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
-                mt: 0.25,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                lineHeight: 1.25,
+              }}
+            >
+              {language === "tl" ? "Gamitin ang kasalukuyang lokasyon" : "Use current location"}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, // 11px
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
+                color: "#64748B",
+                fontFamily: "Poppins, sans-serif",
+                lineHeight: 1.3,
               }}
             >
               {activeTarget === "pickup"
-                ? (language === "tl" ? "I-tap upang itakda bilang PICKUP" : "Tap to set as PICKUP point")
-                : (language === "tl" ? "I-tap upang itakda bilang DESTINASYON" : "Tap to set as DESTINATION")}
+                ? (language === "tl" ? "Itakda ang GPS location bilang Pickup Point" : "Set GPS location as Pickup Point")
+                : (language === "tl" ? "Itakda ang GPS location bilang Destinasyon" : "Set GPS location as Destination")}
             </Typography>
           </Box>
-
-          <IconButton
-            size="small"
-            sx={{
-              backgroundColor: "rgba(255, 107, 0, 0.12)",
-              color: "#FF6B00",
-              "&:hover": { backgroundColor: "rgba(255, 107, 0, 0.2)" },
-            }}
-          >
-            <NorthEastIcon sx={{ fontSize: "18px" }} />
-          </IconButton>
         </Box>
 
-        {/* Dual Quick Option Buttons: Explicitly set as Pickup or Destination */}
-        <Box sx={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <Typography
+        {/* Action 2: Select on Map */}
+        <Box
+          onClick={() => setMapPickerOpen(true)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            padding: "10px 12px",
+            borderRadius: "14px",
+            cursor: "pointer",
+            transition: "background-color 0.15s ease",
+            "&:hover": { backgroundColor: "#FFF7ED" },
+            "&:active": { backgroundColor: "#FFEAD5" },
+          }}
+        >
+          <Box
             sx={{
-              fontSize: "11px",
-              color: "#64748B",
-              fontWeight: 600,
-              fontFamily: "Poppins, sans-serif",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              backgroundColor: "#FFF2E9",
+              color: "#FF6B00",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               flexShrink: 0,
             }}
           >
-            {language === "tl" ? "O i-set bilang:" : "Or set as:"}
-          </Typography>
+            <MapOutlinedIcon sx={{ fontSize: "20px" }} />
+          </Box>
 
-          <Button
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleUseCurrentLocation("pickup");
-            }}
-            disabled={locatingCurrent}
-            startIcon={
-              <Box
-                sx={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  backgroundColor: "#FF6B00",
-                }}
-              />
-            }
-            sx={{
-              flex: 1,
-              borderRadius: "10px",
-              fontSize: "11px",
-              fontWeight: 700,
-              textTransform: "none",
-              backgroundColor: activeTarget === "pickup" ? "#FFE8D6" : "#F8FAFC",
-              color: "#EA580C",
-              border: activeTarget === "pickup" ? "1.5px solid #FDBA74" : "1px solid #E2E8F0",
-              py: "5px",
-              fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#FFEDD5" },
-            }}
-          >
-            {language === "tl" ? "Pickup Point" : "Pickup Point"}
-          </Button>
-
-          <Button
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleUseCurrentLocation("dropoff");
-            }}
-            disabled={locatingCurrent}
-            startIcon={
-              <Box
-                sx={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  backgroundColor: "#0F172A",
-                }}
-              />
-            }
-            sx={{
-              flex: 1,
-              borderRadius: "10px",
-              fontSize: "11px",
-              fontWeight: 700,
-              textTransform: "none",
-              backgroundColor: activeTarget === "dropoff" ? "#E2E8F0" : "#F8FAFC",
-              color: "#0F172A",
-              border: activeTarget === "dropoff" ? "1.5px solid #94A3B8" : "1px solid #E2E8F0",
-              py: "5px",
-              fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E2E8F0" },
-            }}
-          >
-            {language === "tl" ? "Destinasyon" : "Destination"}
-          </Button>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, // 13px
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.semibold,
+                color: "#0F172A",
+                fontFamily: "Poppins, sans-serif",
+                lineHeight: 1.25,
+              }}
+            >
+              {language === "tl" ? "Pumili sa Mapa" : "Select on Map"}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, // 11px
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
+                color: "#64748B",
+                fontFamily: "Poppins, sans-serif",
+                lineHeight: 1.3,
+              }}
+            >
+              {language === "tl" ? "I-pan ang mapa upang itakda ang lokasyon" : "Pan map to select exact location"}
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
@@ -734,6 +669,31 @@ const SetPlace: React.FC = () => {
           ))
         )}
       </Box>
+
+      {/* Map Location Picker Dialog Modal */}
+      <MapLocationPicker
+        open={mapPickerOpen}
+        onClose={() => setMapPickerOpen(false)}
+        initialCoords={{ lat: userLat, lng: userLng }}
+        onConfirmLocation={(loc) => {
+          const selectedObj = {
+            address: loc.address,
+            lat: loc.lat,
+            lng: loc.lng,
+            isCustom: true,
+          };
+
+          if (activeTarget === "pickup") {
+            setPickupText(loc.address);
+            sessionStorage.setItem("trip_pickup", JSON.stringify(selectedObj));
+          } else {
+            setDropoffText(loc.address);
+            sessionStorage.setItem("trip_dropoff", JSON.stringify(selectedObj));
+          }
+
+          navigate("/new-trip");
+        }}
+      />
     </Box>
   );
 };
