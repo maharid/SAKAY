@@ -5,7 +5,6 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
-import NavigationIcon from "@mui/icons-material/Navigation";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import EventIcon from "@mui/icons-material/Event";
@@ -594,7 +593,7 @@ const NewTrip: React.FC = () => {
         <ArrowBackIcon sx={{ fontSize: 22 }} />
       </IconButton>
 
-      {/* 4. Floating Right GPS Recenter Button over Map matching BOOK - SOLO.png */}
+      {/* 4. Floating Right GPS Recenter Button over Map matching Dashboard.tsx */}
       <IconButton
         onClick={handleRecenterGps}
         aria-label="Recenter location"
@@ -605,15 +604,21 @@ const NewTrip: React.FC = () => {
           backgroundColor: "#FFFFFF",
           width: "44px",
           height: "44px",
-          borderRadius: "14px",
-          boxShadow: "0 4px 14px rgba(15, 23, 42, 0.12)",
+          borderRadius: "50%",
+          boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
           color: "#0F172A",
           zIndex: 10,
-          transition: "all 0.2s ease",
-          "&:hover": { backgroundColor: "#F8FAFC" },
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          "&:hover": {
+            backgroundColor: "#F8FAFC",
+            transform: "scale(1.05)",
+          },
+          "&:active": {
+            transform: "scale(0.95)",
+          },
         }}
       >
-        <NavigationIcon sx={{ fontSize: 20, transform: "rotate(45deg)" }} />
+        <MyLocationIcon sx={{ fontSize: 22, color: "#0F172A" }} />
       </IconButton>
 
       {/* 5. Bottom Sheet Container */}

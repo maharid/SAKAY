@@ -6,6 +6,7 @@ import {
   IconButton,
   LinearProgress,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -77,6 +78,7 @@ export const Register: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [phoneRegisteredError, setPhoneRegisteredError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -192,10 +194,11 @@ export const Register: React.FC = () => {
     const existing = await lookupPassengerByPhone(cleanPhoneDigits);
     if (existing && (existing.account_status === 'Active' || existing.account_status === 'Verified')) {
       const msg = language === 'tl'
-        ? 'Ang numerong ito ay nakarehistro na. Mangyaring mag-log in na lamang.'
-        : 'This mobile number is already registered. Please log in instead.';
+        ? 'Nakapagrehistro na ang account na ito.'
+        : 'This account is already registered.';
       setPhoneRegisteredError(msg);
       setAccountError(msg);
+      setToastMessage(msg);
       return;
     }
 
@@ -558,6 +561,18 @@ export const Register: React.FC = () => {
           </Box>
         </Typography>
       </Box>
+
+      {/* Transient feedback toast */}
+      <Snackbar
+        open={Boolean(toastMessage)}
+        autoHideDuration={4000}
+        onClose={() => setToastMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}>
+          {toastMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

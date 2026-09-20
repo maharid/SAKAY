@@ -87,8 +87,8 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           top: 0,
           left: 0,
           bottom: 0,
-          width: "80%",
-          maxWidth: "320px",
+          width: "78%",
+          maxWidth: "310px",
           backgroundColor: "#FFFFFF",
           zIndex: 1001,
           display: "flex",
@@ -104,102 +104,92 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           onClick={handleProfileClick}
           sx={{
             background: "linear-gradient(135deg, #FF6B00 0%, #FF8533 100%)",
-            padding: "calc(var(--safe-area-top) + 24px) 20px 24px 20px",
+            padding: "calc(var(--safe-area-top) + 20px) 20px 20px 20px",
             display: "flex",
             alignItems: "center",
-            gap: "16px",
+            gap: "14px",
             cursor: "pointer",
             position: "relative",
             overflow: "hidden",
-            "&::before": {
-              content: '""',
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundImage:
-                "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 40%)",
-              pointerEvents: "none",
-            },
           }}
         >
           {/* Avatar Circle */}
           <Avatar
             src={profilePhoto || undefined}
             sx={{
-              width: "56px",
-              height: "56px",
+              width: "52px",
+              height: "52px",
               backgroundColor: "#FFFFFF",
               color: "#FF6B00",
               fontWeight: 800,
-              fontSize: "20px",
+              fontSize: "19px",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
               border: "2px solid #FFFFFF",
             }}
           >
-            {profileName ? profileName.charAt(0).toUpperCase() : "J"}
+            {profileName ? profileName.charAt(0).toUpperCase() : "P"}
           </Avatar>
 
           {/* User Name & Arrow */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <Typography
               sx={{
-                fontSize: "18px",
+                fontSize: "17px",
                 fontWeight: 800,
                 color: "#FFFFFF",
                 letterSpacing: "-0.2px",
+                fontFamily: "Poppins, sans-serif",
               }}
             >
-              {profileName || "John Doe"}
+              {profileName || (language === "tl" ? "Pasahero" : "Passenger")}
             </Typography>
-            <ArrowForwardIcon sx={{ color: "#FFFFFF", fontSize: "20px" }} />
+            <ArrowForwardIcon sx={{ color: "#FFFFFF", fontSize: "18px" }} />
           </Box>
         </Box>
 
-        {/* Menu Items List matching SIDEBAR MENU.png */}
-        <List disablePadding sx={{ flexGrow: 1, paddingTop: "8px" }}>
+        {/* Menu Items List */}
+        <List disablePadding sx={{ flexGrow: 1, paddingTop: "6px" }}>
           {/* Item 1: History */}
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => handleNavigate("/history")}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
-              <ListItemIcon sx={{ color: "#0F172A", minWidth: "44px" }}>
-                <AccessTimeIcon sx={{ fontSize: "22px" }} />
+              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
+                <AccessTimeIcon sx={{ fontSize: "21px" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 600, color: "#0F172A" }}
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
-                    History
+                    {language === "tl" ? "Kasaysayan (History)" : "History"}
                   </Typography>
                 }
               />
             </ListItemButton>
           </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "24px" }} />
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
 
           {/* Item 2: Nai-save na Lugar */}
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => handleNavigate("/set-place")}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
-              <ListItemIcon sx={{ color: "#0F172A", minWidth: "44px" }}>
-                <BookmarkBorderIcon sx={{ fontSize: "22px" }} />
+              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
+                <BookmarkBorderIcon sx={{ fontSize: "21px" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 600, color: "#0F172A" }}
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
                     {language === "tl" ? "Nai-save na Lugar" : "Saved Places"}
                   </Typography>
@@ -207,7 +197,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
               />
             </ListItemButton>
           </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "24px" }} />
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
 
           {/* Item 3: Support */}
           <ListItem disablePadding>
@@ -217,42 +207,42 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
                 if (onOpenTulong) onOpenTulong();
               }}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
-              <ListItemIcon sx={{ color: "#0F172A", minWidth: "44px" }}>
-                <HeadsetMicIcon sx={{ fontSize: "22px" }} />
+              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
+                <HeadsetMicIcon sx={{ fontSize: "21px" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 600, color: "#0F172A" }}
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
-                    Support
+                    {language === "tl" ? "Tulong at Suporta" : "Support"}
                   </Typography>
                 }
               />
             </ListItemButton>
           </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "24px" }} />
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
 
           {/* Item 4: Feedback */}
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => handleNavigate("/feedback")}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
-              <ListItemIcon sx={{ color: "#0F172A", minWidth: "44px" }}>
-                <ChatOutlinedIcon sx={{ fontSize: "22px" }} />
+              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
+                <ChatOutlinedIcon sx={{ fontSize: "21px" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 600, color: "#0F172A" }}
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
                     {language === "tl" ? "Puna at Rating (Feedback)" : "Feedback & Rating"}
                   </Typography>
@@ -260,24 +250,24 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
               />
             </ListItemButton>
           </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "24px" }} />
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
 
           {/* Item 5: I-ulat ang Insidente */}
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => handleNavigate("/incident-report")}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
-              <ListItemIcon sx={{ color: "#DC2626", minWidth: "44px" }}>
-                <ReportProblemOutlinedIcon sx={{ fontSize: "22px" }} />
+              <ListItemIcon sx={{ color: "#DC2626", minWidth: "40px" }}>
+                <ReportProblemOutlinedIcon sx={{ fontSize: "21px" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 600, color: "#DC2626" }}
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#DC2626", fontFamily: "Poppins, sans-serif" }}
                   >
                     {language === "tl" ? "I-ulat ang Insidente" : "Report Incident"}
                   </Typography>
@@ -285,51 +275,51 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
               />
             </ListItemButton>
           </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "24px" }} />
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
 
           {/* Item 6: Settings */}
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => handleNavigate("/profile")}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
-              <ListItemIcon sx={{ color: "#0F172A", minWidth: "44px" }}>
-                <SettingsOutlinedIcon sx={{ fontSize: "22px" }} />
+              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
+                <SettingsOutlinedIcon sx={{ fontSize: "21px" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 600, color: "#0F172A" }}
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
-                    Settings
+                    {language === "tl" ? "Mga Setting" : "Settings"}
                   </Typography>
                 }
               />
             </ListItemButton>
           </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "24px" }} />
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
         </List>
 
-        {/* Bottom Item: Logout respecting safe-area-inset-bottom */}
-        <Box sx={{ paddingBottom: "calc(var(--safe-area-bottom) + 20px)" }}>
+        {/* Bottom Item: Logout */}
+        <Box sx={{ paddingBottom: "calc(var(--safe-area-bottom) + 16px)" }}>
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => setLogoutConfirmOpen(true)}
               sx={{
-                padding: "16px 24px",
+                padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FEF2F2" },
               }}
             >
-              <ListItemIcon sx={{ color: "#EF4444", minWidth: "44px" }}>
-                <ExitToAppIcon sx={{ fontSize: "22px", color: "#EF4444" }} />
+              <ListItemIcon sx={{ color: "#EF4444", minWidth: "40px" }}>
+                <ExitToAppIcon sx={{ fontSize: "21px", color: "#EF4444" }} />
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Typography
-                    sx={{ fontSize: "16px", fontWeight: 700, color: "#EF4444" }}
+                    sx={{ fontSize: "15px", fontWeight: 700, color: "#EF4444", fontFamily: "Poppins, sans-serif" }}
                   >
                     {language === "tl" ? "Mag-logout" : "Log out"}
                   </Typography>

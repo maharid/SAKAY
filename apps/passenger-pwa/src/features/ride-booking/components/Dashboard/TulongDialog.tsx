@@ -48,30 +48,32 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
       <DialogTitle
         sx={{
           fontWeight: 800,
-          fontSize: "18px",
+          fontSize: "16px",
           color: "#0F172A",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           fontFamily: "Poppins, sans-serif",
+          pb: 1,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <SupportAgentIcon sx={{ color: "#FF6B00" }} />
-          {language === "tl" ? "Tulong at Suporta" : "Help & Support"}
+          <SupportAgentIcon sx={{ color: "#FF6B00", fontSize: 22 }} />
+          <span>{language === "tl" ? "Tulong at Suporta" : "Help & Support"}</span>
         </Box>
-        <IconButton size="small" onClick={onClose}>
-          <CloseIcon />
+        <IconButton size="small" onClick={onClose} sx={{ color: "#64748B" }}>
+          <CloseIcon sx={{ fontSize: 20 }} />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ py: 1 }}>
         <Typography
           sx={{
-            fontSize: "13px",
+            fontSize: "12.5px",
             color: "#64748B",
-            marginBottom: "16px",
+            marginBottom: "14px",
             fontFamily: "Poppins, sans-serif",
+            lineHeight: 1.45,
           }}
         >
           {language === "tl"
@@ -93,21 +95,22 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
         >
           <Box
             sx={{
-              width: "38px",
-              height: "38px",
+              width: "36px",
+              height: "36px",
               borderRadius: "12px",
               backgroundColor: "#FFF7ED",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            <PhoneIcon sx={{ color: "#FF6B00", fontSize: "20px" }} />
+            <PhoneIcon sx={{ color: "#FF6B00", fontSize: "19px" }} />
           </Box>
           <Box>
             <Typography
               sx={{
-                fontSize: "11px",
+                fontSize: "10.5px",
                 fontWeight: 700,
                 color: "#94A3B8",
                 letterSpacing: "0.5px",
@@ -118,7 +121,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
             </Typography>
             <Typography
               sx={{
-                fontSize: "14px",
+                fontSize: "13px",
                 fontWeight: 800,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
@@ -130,20 +133,24 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
         </Paper>
       </DialogContent>
 
-      <DialogActions sx={{ padding: "8px 16px 16px 16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <DialogActions sx={{ padding: "12px 16px 16px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
         <Button
           fullWidth
           variant="outlined"
-          startIcon={<ReportProblemIcon />}
+          startIcon={<ReportProblemIcon sx={{ fontSize: "18px !important" }} />}
           onClick={handleOpenIncidentReport}
           sx={{
             borderColor: "#EF4444",
             color: "#EF4444",
-            borderRadius: "14px",
+            borderRadius: "12px",
             fontWeight: 700,
             textTransform: "none",
-            height: "44px",
+            minHeight: "42px",
+            py: "6px",
+            px: "12px",
+            fontSize: "12.5px",
             fontFamily: "Poppins, sans-serif",
+            lineHeight: 1.25,
             "&:hover": { borderColor: "#DC2626", backgroundColor: "#FEF2F2" },
           }}
         >
@@ -156,12 +163,14 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
           sx={{
             backgroundColor: "#FF6B00",
             color: "#FFFFFF",
-            borderRadius: "14px",
+            borderRadius: "12px",
             fontWeight: 700,
             textTransform: "none",
-            height: "44px",
+            height: "42px",
+            fontSize: "13.5px",
             fontFamily: "Poppins, sans-serif",
-            "&:hover": { backgroundColor: "#E66000" },
+            boxShadow: "none",
+            "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
           }}
         >
           {language === "tl" ? "Isara" : "Close"}

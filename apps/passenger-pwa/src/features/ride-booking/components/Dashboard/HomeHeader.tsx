@@ -15,6 +15,7 @@ interface HomeHeaderProps {
   onOpenNotifications: () => void;
   onOpenTulong: () => void;
   onBack?: () => void;
+  hasUnread?: boolean;
 }
 
 const HomeHeader: React.FC<HomeHeaderProps> = ({
@@ -22,6 +23,7 @@ const HomeHeader: React.FC<HomeHeaderProps> = ({
   onOpenNotifications,
   onOpenTulong,
   onBack,
+  hasUnread = false,
 }) => {
   const { language } = useLanguage();
 
@@ -95,7 +97,7 @@ const HomeHeader: React.FC<HomeHeaderProps> = ({
             },
           }}
         >
-          <Badge color="error" variant="dot">
+          <Badge color="error" variant="dot" invisible={!hasUnread}>
             <NotificationsOutlinedIcon sx={{ fontSize: 24 }} />
           </Badge>
         </IconButton>

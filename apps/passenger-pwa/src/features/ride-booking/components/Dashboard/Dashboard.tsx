@@ -179,14 +179,25 @@ const Dashboard: React.FC = () => {
   };
 
   const handleHomeTrip = () => {
+    const savedHomeAddress = localStorage.getItem("sakay_passenger_home_address") || "Home (San Vicente, Calapan City)";
     sessionStorage.setItem(
       "trip_dropoff",
       JSON.stringify({
-        address: "Home (San Vicente, Calapan City)",
+        address: savedHomeAddress,
         lat: 13.4124,
         lng: 121.1834,
       })
     );
+    navigate("/new-trip", {
+      state: {
+        hasGps: true,
+        coords: userLocation,
+      },
+    });
+  };
+
+  const handleSelectPlaceTrip = (place: { address: string; lat: number; lng: number }) => {
+    sessionStorage.setItem("trip_dropoff", JSON.stringify(place));
     navigate("/new-trip", {
       state: {
         hasGps: true,
@@ -218,6 +229,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Bottom Sheet & Home Address State
   const [isCardCollapsed, setIsCardCollapsed] = useState(false);
   const [homeAddress, setHomeAddress] = useState<string>(() => {
     return localStorage.getItem("sakay_passenger_home_address") || "";
@@ -227,6 +239,32 @@ const Dashboard: React.FC = () => {
     setHomeAddress(newAddr);
     localStorage.setItem("sakay_passenger_home_address", newAddr);
   };
+
+  // Notifications State & Handlers
+  const [notifications, setNotifications] = useState([
+    {
+      id: "n1",
+      titleTl: "Maligayang Pagdating sa SAKAY!",
+      titleEn: "Welcome to SAKAY!",
+      bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City.",
+      bodyEn: "Fast and fair tricycle fares anywhere in Calapan City.",
+      timeTl: "Ngayon",
+      timeEn: "Just now",
+      isRead: false,
+    },
+  ]);
+
+  const handleMarkAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const hasUnreadNotifications = notifications.some((n) => !n.isRead);
 
   return (
     <Box
@@ -251,6 +289,7 @@ const Dashboard: React.FC = () => {
         onOpenDrawer={() => setDrawerOpen(true)}
         onOpenNotifications={() => setNotificationsOpen(true)}
         onOpenTulong={() => setTulongOpen(true)}
+        hasUnread={hasUnreadNotifications}
       />
 
       {/* Active Ongoing Trip Banner Pill */}
@@ -308,13 +347,13 @@ const Dashboard: React.FC = () => {
         </Paper>
       )}
 
-      {/* 3. Floating Recenter GPS Location Button (clearly floating above bottom card) */}
+      {/* 3. Floating Recenter GPS Location Button (moved slightly lower for optimal gap above bottom card) */}
       <IconButton
         onClick={handleRecenterGps}
         aria-label="Recenter map location"
         sx={{
           position: "absolute",
-          bottom: isCardCollapsed ? "calc(var(--safe-area-bottom) + 100px)" : "calc(var(--safe-area-bottom) + 265px)",
+          bottom: isCardCollapsed ? "calc(var(--safe-area-bottom) + 76px)" : "calc(var(--safe-area-bottom) + 225px)",
           right: "16px",
           backgroundColor: "#FFFFFF",
           width: "44px",
@@ -341,6 +380,7 @@ const Dashboard: React.FC = () => {
         firstName={firstName}
         onStartNewTrip={handleStartNewTrip}
         onHomeTrip={handleHomeTrip}
+        onSelectPlaceTrip={handleSelectPlaceTrip}
         onAddPlace={handleAddPlace}
         isCollapsed={isCardCollapsed}
         onToggleCollapse={() => setIsCardCollapsed((prev) => !prev)}
@@ -366,6 +406,9 @@ const Dashboard: React.FC = () => {
       <NotificationsDialog
         open={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
+        notifications={notifications}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
       />
 
       {/* 7. Location Permission Modal Card (Direct in-app prompt) */}

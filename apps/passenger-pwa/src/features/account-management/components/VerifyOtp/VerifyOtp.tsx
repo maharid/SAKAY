@@ -8,6 +8,7 @@ import {
   Alert,
   Button,
   CircularProgress,
+  Snackbar,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
@@ -80,11 +81,11 @@ export const VerifyOtp: React.FC = () => {
           setResendTimer(60);
           setInfoNotice(
             language === 'tl'
-              ? 'Ipinadala ang 6-digit verification code sa iyong mobile number.'
-              : 'A 6-digit verification code was sent to your mobile number.'
+              ? 'Naipadala na ang verification code.'
+              : 'The verification code has already been sent.'
           );
           if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
-          resendNoticeTimerRef.current = setTimeout(() => setInfoNotice(null), 5000);
+          resendNoticeTimerRef.current = setTimeout(() => setInfoNotice(null), 4000);
         } else {
           setError(
             result.error ||
@@ -641,6 +642,18 @@ export const VerifyOtp: React.FC = () => {
           {language === 'tl' ? 'Kumpirmahin' : 'Confirm'}
         </PrimaryButton>
       </Box>
+
+      {/* Transient feedback toast */}
+      <Snackbar
+        open={Boolean(infoNotice)}
+        autoHideDuration={4000}
+        onClose={() => setInfoNotice(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setInfoNotice(null)} severity="info" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}>
+          {infoNotice}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
