@@ -11,26 +11,31 @@ import Logo from "../../../../common/components/Logo";
 // Shared branding assets
 import background from "@sakay/shared/src/assets/images/splash-bg.png";
 import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.png";
-import { BookingIllustration, FareIllustration, SafetyIllustration } from "@sakay/shared";
+import splash01 from "@sakay/shared/src/assets/icons/passenger-splash-01.png";
+import splash02 from "@sakay/shared/src/assets/icons/passenger-splash-02.png";
+import splash03 from "@sakay/shared/src/assets/icons/passenger-splash-03.png";
+import splash04 from "@sakay/shared/src/assets/icons/passenger-splash-04.png";
+import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 interface SplashProps {
   initialStep?: number;
 }
 
 const Splash: React.FC<SplashProps> = ({ initialStep }) => {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
   // State to manage onboarding steps:
   // 1: Animated splash sequence (tricycle rides in/out, logo fades in)
-  // 4: Onboarding Slide 1 (Mag-book ng Biyahe / Book a Ride)
-  // 5: Onboarding Slide 2 (Tamang Pamasahe / Fair Fares)
-  // 6: Onboarding Slide 3 (Ligtas at Maaasahan / Safe & Reliable)
-  // 7: Main welcome landing page ("Get Started" screen)
+  // 4: Onboarding Slide 1 — Book a Ride
+  // 5: Onboarding Slide 2 — Share Your Ride
+  // 6: Onboarding Slide 3 — Find Your Driver
+  // 7: Onboarding Slide 4 — Track Your Trip
+  // 8: Main welcome landing page ("Get Started" screen)
   const [step, setStep] = useState<number>(() => {
     if (initialStep) return initialStep;
-    if (location.pathname === "/get-started") return 7;
+    if (location.pathname === "/get-started") return 8;
     const navStep = (location.state as { step?: number })?.step;
     if (navStep) return navStep;
     return 1;
@@ -47,10 +52,11 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
     if (step === 4) setStep(5);
     else if (step === 5) setStep(6);
     else if (step === 6) setStep(7);
+    else if (step === 7) setStep(8);
   };
 
   const handleSkip = () => {
-    setStep(7);
+    setStep(8);
   };
 
   // Helper to render pagination dots
@@ -63,17 +69,17 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
           alignItems: "center",
           gap: "8px",
           marginTop: "auto",
-          marginBottom: "24px",
+          marginBottom: "20px",
         }}
       >
-        {[0, 1, 2].map((idx) => (
+        {[0, 1, 2, 3].map((idx) => (
           <Box
             key={idx}
             sx={{
               width: idx === activeIdx ? "24px" : "8px",
               height: "8px",
               borderRadius: "4px",
-              backgroundColor: idx === activeIdx ? "#FF6B00" : "#E2E8F0",
+              backgroundColor: idx === activeIdx ? "#FF6B00" : "#CBD5E1",
               transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           />
@@ -82,28 +88,45 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
     );
   };
 
-  // RENDER ONBOARDING SLIDES (Steps 4, 5, 6)
-  if (step === 4 || step === 5 || step === 6) {
+  // RENDER ONBOARDING SLIDES (Steps 4, 5, 6, 7)
+  if (step === 4 || step === 5 || step === 6 || step === 7) {
     let slideTitle = "";
     let slideDesc = "";
-    let slideIllustration = <BookingIllustration />;
+    let slideImg = splash01;
     let activeDotIdx = 0;
 
     if (step === 4) {
-      slideTitle = "Mag-book ng Biyahe";
-      slideDesc = "Mabilis at madaling pag-book ng traysikel sa isang pindot lang kahit nasaan ka.";
-      slideIllustration = <BookingIllustration />;
+      slideTitle = language === "tl" ? "Mag-book ng Biyahe" : "Your Ride, Just a Tap Away";
+      slideDesc =
+        language === "tl"
+          ? "Itakda ang pickup at destinasyon, tingnan ang taripa, at mag-request ng traysikel anumang oras."
+          : "Set your pickup and destination, view your estimated fare, and request a tricycle ride whenever you need one.";
+      slideImg = splash01;
       activeDotIdx = 0;
     } else if (step === 5) {
-      slideTitle = "Tamang Pamasahe";
-      slideDesc = "Malinaw at tapat na presyo para sa bawat biyahe, walang hulaan.";
-      slideIllustration = <FareIllustration />;
+      slideTitle = language === "tl" ? "Mag-Share ng Biyahe" : "Ride Together, Pay Less";
+      slideDesc =
+        language === "tl"
+          ? "Pumili ng ride sharing upang makasabay ang ibang pasahero sa kaparehong ruta at makatipid sa pamasahe."
+          : "Choose ride sharing to match with another passenger heading along a similar route and share the trip fare.";
+      slideImg = splash02;
       activeDotIdx = 1;
     } else if (step === 6) {
-      slideTitle = "Ligtas at Maaasahan";
-      slideDesc = "Siguradong drayber na lisensyado at rehistrado sa TODA ang susundo sa iyo.";
-      slideIllustration = <SafetyIllustration />;
+      slideTitle = language === "tl" ? "Drayber na Para sa Iyo" : "A Driver Matched for You";
+      slideDesc =
+        language === "tl"
+          ? "Ikinokonekta ng SAKAY ang iyong booking sa kwalipikadong drayber batay sa lokasyon at service area."
+          : "SAKAY connects your booking with an available, verified driver based on location, service area, and ride compatibility.";
+      slideImg = splash03;
       activeDotIdx = 2;
+    } else if (step === 7) {
+      slideTitle = language === "tl" ? "Subaybayan ang Iyong Biyahe" : "Know Where Your Ride Is";
+      slideDesc =
+        language === "tl"
+          ? "Sundan ang lokasyon at biyahe ng drayber sa pamamagitan ng GPS tracking mula pickup hanggang destinasyon."
+          : "Follow your driver's location and trip progress through near-real-time GPS tracking from pickup to destination.";
+      slideImg = splash04;
+      activeDotIdx = 3;
     }
 
     return (
@@ -141,33 +164,49 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
             justifyContent: "center",
             alignItems: "center",
             flexGrow: 1,
-            height: "280px",
-            maxHeight: "360px",
-            marginTop: "20px",
+            height: "260px",
+            maxHeight: "320px",
+            marginTop: "16px",
+            marginBottom: "12px",
+            px: "16px",
           }}
         >
-          {slideIllustration}
+          <Box
+            component="img"
+            src={slideImg}
+            alt={slideTitle}
+            sx={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              width: "auto",
+              height: "auto",
+              objectFit: "contain",
+            }}
+          />
         </Box>
 
-        {/* Text Section */}
+        {/* Text Section following compact typography */}
         <Box sx={{ width: "100%", textAlign: "center", padding: "0 12px" }}>
           <Typography
             component="h2"
             sx={{
-              fontSize: "24px",
-              fontWeight: 800,
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
+              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
               color: "#0F172A",
+              fontFamily: "Poppins, sans-serif",
+              lineHeight: 1.25,
             }}
           >
             {slideTitle}
           </Typography>
           <Typography
             sx={{
-              fontSize: "14px",
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
               color: "#64748B",
-              marginTop: "12px",
-              lineHeight: 1.6,
-              fontWeight: 500,
+              marginTop: "10px",
+              lineHeight: 1.45,
+              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
+              fontFamily: "Poppins, sans-serif",
             }}
           >
             {slideDesc}
@@ -180,27 +219,29 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
         {/* Action Buttons */}
         <Box sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
           <PrimaryButton fullWidth onClick={handleNextOnboarding}>
-            Magpatuloy
+            {language === "tl" ? "Magpatuloy" : "Continue"}
           </PrimaryButton>
 
-          {step !== 6 && (
+          {step !== 7 && (
             <Button
               variant="text"
               onClick={handleSkip}
               sx={{
-                height: "56px",
+                height: "48px",
                 backgroundColor: "#F1F5F9",
                 color: "#475569",
-                marginTop: "12px",
-                borderRadius: "16px",
+                marginTop: "10px",
+                borderRadius: "14px",
                 fontWeight: 700,
-                fontSize: "1rem",
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
+                fontFamily: "Poppins, sans-serif",
+                textTransform: "none",
                 "&:hover": {
                   backgroundColor: "#E2E8F0",
                 },
               }}
             >
-              Laktawan
+              {language === "tl" ? "Laktawan" : "Skip"}
             </Button>
           )}
         </Box>

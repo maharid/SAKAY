@@ -21,6 +21,9 @@ import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
+import WorkOutlinedIcon from "@mui/icons-material/WorkOutlined";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
 import { searchPlaces } from "../../../../services/locationService";
@@ -33,13 +36,22 @@ export interface SavedPlace {
   address: string;
   lat: number;
   lng: number;
+  icon?: string;
   isHome?: boolean;
 }
+
+const ICON_OPTIONS = [
+  { key: "home", labelTl: "Bahay", labelEn: "Home", icon: HomeOutlinedIcon },
+  { key: "work", labelTl: "Trabaho", labelEn: "Work", icon: WorkOutlinedIcon },
+  { key: "school", labelTl: "Paaralan", labelEn: "School", icon: SchoolOutlinedIcon },
+  { key: "favorite", labelTl: "Paborito", labelEn: "Favorite", icon: FavoriteBorderOutlinedIcon },
+  { key: "other", labelTl: "Iba pa", labelEn: "Other", icon: PlaceOutlinedIcon },
+];
 
 interface HomeBottomSheetProps {
   firstName: string;
   onStartNewTrip: () => void;
-  onHomeTrip: () => void;
+  onHomeTrip?: () => void;
   onSelectPlaceTrip?: (place: { address: string; lat: number; lng: number }) => void;
   onAddPlace: () => void;
   isCollapsed?: boolean;
@@ -57,12 +69,9 @@ const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 148px
 const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   firstName,
   onStartNewTrip,
-  onHomeTrip,
   onSelectPlaceTrip,
   isCollapsed = false,
   onToggleCollapse,
-  homeAddress = "",
-  onSetHomeAddress,
   onHeightChange,
   onDragStateChange,
 }) => {
@@ -85,8 +94,24 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   const [placeName, setPlaceName] = useState("");
   const [placeAddress, setPlaceAddress] = useState("");
   const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number }>({ lat: 13.4124, lng: 121.1834 });
+  const [selectedIcon, setSelectedIcon] = useState<string>("other");
   const [addressSearchQuery, setAddressSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+
+  const renderPlaceIcon = (iconKey?: string) => {
+    switch (iconKey) {
+      case "home":
+        return <HomeOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />;
+      case "work":
+        return <WorkOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />;
+      case "school":
+        return <SchoolOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />;
+      case "favorite":
+        return <FavoriteBorderOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />;
+      default:
+        return <PlaceOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />;
+    }
+  };
 
   // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -173,16 +198,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     setPlaceName("");
     setPlaceAddress("");
     setAddressSearchQuery("");
-    setModalOpen(true);
-  };
-
-  // Open Unified Modal for Editing Home
-  const handleOpenEditHome = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingPlaceId("home");
-    setPlaceName(language === "tl" ? "Bahay" : "Home");
-    setPlaceAddress(homeAddress || "");
-    setAddressSearchQuery(homeAddress || "");
+    setSelectedIcon("other");
     setModalOpen(true);
   };
 
@@ -194,6 +210,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     setPlaceAddress(place.address);
     setAddressSearchQuery(place.address);
     setPlaceCoords({ lat: place.lat, lng: place.lng });
+    setSelectedIcon(place.icon || "other");
     setModalOpen(true);
   };
 
@@ -205,12 +222,10 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
       return;
     }
 
-    if (editingPlaceId === "home") {
-      if (onSetHomeAddress) onSetHomeAddress(finalAddress);
-    } else if (editingPlaceId) {
+    if (editingPlaceId) {
       const updated = savedPlaces.map((p) =>
         p.id === editingPlaceId
-          ? { ...p, name: placeName.trim(), address: finalAddress, lat: placeCoords.lat, lng: placeCoords.lng }
+          ? { ...p, name: placeName.trim(), address: finalAddress, lat: placeCoords.lat, lng: placeCoords.lng, icon: selectedIcon }
           : p
       );
       setSavedPlaces(updated);
@@ -224,6 +239,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
         address: finalAddress,
         lat: placeCoords.lat,
         lng: placeCoords.lng,
+        icon: selectedIcon,
       };
       const updated = [...savedPlaces, newPlace];
       setSavedPlaces(updated);
@@ -249,10 +265,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     setPlaceCoords({ lat: loc.lat, lng: loc.lng });
     setModalOpen(true);
   };
-
-  const displayHomeSubtext = homeAddress && homeAddress.trim().length > 0
-    ? homeAddress
-    : (language === "tl" ? "I-set na" : "Set Now");
 
   return (
     <>
@@ -368,8 +380,8 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               role="button"
               tabIndex={0}
               sx={{
-                flexShrink: 0,
-                width: "130px",
+                flex: "1 1 0px",
+                minWidth: "130px",
                 height: "130px",
                 backgroundColor: "#FFF7ED",
                 border: "1px solid #FFEDD5",
@@ -431,97 +443,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               </Box>
             </Box>
 
-            {/* Card 2: Home (Destination Shortcut) */}
-            <Box
-              onClick={() => {
-                if (!homeAddress || homeAddress.trim().length === 0) {
-                  setEditingPlaceId("home");
-                  setPlaceName(language === "tl" ? "Bahay" : "Home");
-                  setPlaceAddress("");
-                  setAddressSearchQuery("");
-                  setModalOpen(true);
-                } else {
-                  onHomeTrip();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              sx={{
-                flexShrink: 0,
-                width: "130px",
-                height: "130px",
-                backgroundColor: "#F4FBF7",
-                border: "1px solid #E2E8F0",
-                borderRadius: "22px",
-                padding: "14px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                cursor: "pointer",
-                position: "relative",
-                transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)",
-                },
-                "&:active": {
-                  transform: "scale(0.97)",
-                },
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <Box
-                  sx={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "12px",
-                    backgroundColor: "rgba(15, 23, 42, 0.04)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <HomeOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />
-                </Box>
-                <IconButton
-                  size="small"
-                  onClick={handleOpenEditHome}
-                  sx={{ color: '#64748B', p: '4px' }}
-                >
-                  <EditOutlinedIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Box>
-
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: "14px",
-                    fontWeight: 800,
-                    color: "#0F172A",
-                    lineHeight: 1.2,
-                    fontFamily: "Poppins, sans-serif",
-                    letterSpacing: "-0.2px",
-                  }}
-                >
-                  {language === "tl" ? "Bahay" : "Home"}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "12px",
-                    fontWeight: (!homeAddress || homeAddress.trim().length === 0) ? 700 : 500,
-                    color: (!homeAddress || homeAddress.trim().length === 0) ? "#FF6B00" : "#64748B",
-                    marginTop: "2px",
-                    fontFamily: "Poppins, sans-serif",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {displayHomeSubtext}
-                </Typography>
-              </Box>
-            </Box>
-
             {/* Custom Saved Places Cards */}
             {savedPlaces.map((place) => (
               <Box
@@ -536,8 +457,8 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 role="button"
                 tabIndex={0}
                 sx={{
-                  flexShrink: 0,
-                  width: "130px",
+                  flex: "1 1 0px",
+                  minWidth: "130px",
                   height: "130px",
                   backgroundColor: "#F4FBF7",
                   border: "1px solid #E2E8F0",
@@ -569,7 +490,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                       justifyContent: "center",
                     }}
                   >
-                    <PlaceOutlinedIcon sx={{ color: "#0F172A", fontSize: "22px" }} />
+                    {renderPlaceIcon(place.icon)}
                   </Box>
                   <IconButton
                     size="small"
@@ -614,14 +535,14 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               </Box>
             ))}
 
-            {/* Card 3: Magdagdag (Add Saved Location Action) */}
+            {/* Card 2: Magdagdag (Add Saved Location Action) */}
             <Box
               onClick={handleOpenAddModal}
               role="button"
               tabIndex={0}
               sx={{
-                flexShrink: 0,
-                width: "130px",
+                flex: "1 1 0px",
+                minWidth: "130px",
                 height: "130px",
                 backgroundColor: "#F4FBF7",
                 border: "1px solid #E2E8F0",
@@ -713,10 +634,65 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             variant="outlined"
             size="small"
             sx={{
-              mb: 2,
+              mb: 1.5,
               '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '14px' },
             }}
           />
+
+          {/* Field 1.5: Simbolo / Icon Selection */}
+          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#475569', mb: 0.75, fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Simbolo / Icon' : 'Location Icon'}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, overflowX: 'auto', py: 0.5 }} className="hide-scrollbar">
+            {ICON_OPTIONS.map((opt) => {
+              const isSelected = selectedIcon === opt.key;
+              const IconComp = opt.icon;
+              return (
+                <Box
+                  key={opt.key}
+                  onClick={() => setSelectedIcon(opt.key)}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      backgroundColor: isSelected ? '#FF6B00' : '#F1F5F9',
+                      color: isSelected ? '#FFFFFF' : '#64748B',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: isSelected ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        backgroundColor: isSelected ? '#E66000' : '#E2E8F0',
+                      },
+                    }}
+                  >
+                    <IconComp sx={{ fontSize: 20 }} />
+                  </Box>
+                  <Typography
+                    sx={{
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 700 : 500,
+                      color: isSelected ? '#FF6B00' : '#64748B',
+                      fontFamily: 'Poppins, sans-serif',
+                    }}
+                  >
+                    {language === 'tl' ? opt.labelTl : opt.labelEn}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
 
           {/* Field 2: Lokasyon with Clear Two-Way Entry: Option A vs Option B */}
           <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
