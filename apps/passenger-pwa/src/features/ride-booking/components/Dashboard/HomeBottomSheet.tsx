@@ -50,9 +50,9 @@ interface HomeBottomSheetProps {
   onDragStateChange?: (isDragging: boolean) => void;
 }
 
-const MAX_SHEET_HEIGHT = 295;
-const MIN_SHEET_HEIGHT = 115;
-const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 180px
+const MAX_SHEET_HEIGHT = 220;
+const MIN_SHEET_HEIGHT = 100;
+const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 120px
 
 const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   firstName,
@@ -268,12 +268,12 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           backgroundColor: "#F4FBF7",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
-          padding: "10px 20px calc(var(--safe-area-bottom) + 16px) 20px",
+          padding: "10px 16px calc(var(--safe-area-bottom) + 12px) 16px",
           zIndex: 10,
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
-          gap: "12px",
+          gap: "8px",
           overflow: "hidden",
           transform: `translateY(${targetTranslate}px)`,
           transition: isDragging ? "none" : "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",

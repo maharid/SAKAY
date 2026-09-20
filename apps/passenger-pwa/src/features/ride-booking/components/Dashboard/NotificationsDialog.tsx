@@ -102,25 +102,35 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         },
       }}
     >
-      {/* 1. Sleek Top Header: Back Arrow + Centered Title */}
+      {/* 1. Header (Matching Image 2: ProfileEditor square rounded back button card) */}
       <DialogTitle
         sx={{
-          fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
-          fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
-          color: "#0F172A",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          fontFamily: "Poppins, sans-serif",
-          py: 1.25,
+          width: "100%",
+          pt: "calc(var(--safe-area-top) + 12px)",
+          pb: 1.5,
           px: 2,
+          backgroundColor: "#FFFFFF",
           borderBottom: "1px solid #F1F5F9",
-          position: "relative",
-          minHeight: "52px",
         }}
       >
-        <IconButton onClick={onClose} edge="start" sx={{ color: "#0F172A", p: 0.5 }}>
-          <ArrowBackIcon sx={{ fontSize: 22 }} />
+        <IconButton
+          onClick={onClose}
+          aria-label="Close notifications"
+          sx={{
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+            color: "#1A1A1A",
+            borderRadius: "14px",
+            width: "44px",
+            height: "44px",
+            "&:hover": { backgroundColor: "#F8FAFC" },
+          }}
+        >
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
         </IconButton>
 
         <Typography
@@ -129,26 +139,23 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
             color: "#0F172A",
             fontFamily: "Poppins, sans-serif",
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
           }}
         >
           {language === "tl" ? "Mga Notification" : "Notifications"}
         </Typography>
 
-        <Box sx={{ width: 32 }} />
+        <Box sx={{ width: "44px" }} /> {/* spacer */}
       </DialogTitle>
 
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
-        {/* 2. Standardized Filter Pills */}
+        {/* 2. Compact Filter Pills (28px height, 13px font size) */}
         <Box
           className="hide-scrollbar"
           sx={{
             display: "flex",
             gap: 1,
             px: 2,
-            py: 1.25,
+            py: 1,
             overflowX: "auto",
             borderBottom: "1px solid #F8FAFC",
           }}
@@ -161,7 +168,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                 onClick={() => setActiveFilter(f.key as any)}
                 sx={{
                   px: 1.75,
-                  py: 0.4,
+                  py: 0.25,
                   borderRadius: "999px",
                   fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                   fontWeight: isSelected ? TYPOGRAPHY_TOKENS.fontWeight.bold : TYPOGRAPHY_TOKENS.fontWeight.medium,
@@ -171,7 +178,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   transition: "all 0.18s ease",
-                  height: "32px",
+                  height: "28px",
                   display: "flex",
                   alignItems: "center",
                   "&:hover": {
@@ -185,20 +192,20 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           })}
         </Box>
 
-        {/* 3. Compact Unread Section Header (Secondary hierarchy heading, Caption action link) */}
+        {/* 3. Unread Section Header (14px heading, 13px action link) */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             px: 2,
-            pt: 1.5,
+            pt: 1.25,
             pb: 0.75,
           }}
         >
           <Typography
             sx={{
-              fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
               fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
               color: "#0F172A",
               fontFamily: "Poppins, sans-serif",
@@ -214,8 +221,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               size="small"
               onClick={onMarkAllAsRead}
               sx={{
-                fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
-                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.semibold,
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
                 color: "#FF6B00",
                 textTransform: "none",
                 p: "2px 4px",
@@ -231,12 +238,12 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           )}
         </Box>
 
-        {/* 4. Compact Notification List Rows (py: 1, 32x32 icon, 14px title, 13.5px body, 12px caption) */}
+        {/* 4. Notification List Rows (Matching Image 1: soft icon circle with red unread badge) */}
         {filteredNotifications.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center" }}>
             <Typography
               sx={{
-                fontSize: "13.5px",
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                 color: "#94A3B8",
                 fontFamily: "Poppins, sans-serif",
               }}
@@ -261,62 +268,64 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       if (!item.isRead) onMarkAsRead(item.id);
                     }}
                     sx={{
-                      py: 1,
+                      py: 1.25,
                       px: 2,
                       display: "flex",
                       alignItems: "center",
-                      gap: 1.25,
-                      backgroundColor: item.isRead ? "#FFFFFF" : "#FFF7ED",
+                      gap: 1.5,
+                      backgroundColor: "#FFFFFF",
                       cursor: "pointer",
                       transition: "background-color 0.15s ease",
                       "&:hover": {
-                        backgroundColor: item.isRead ? "#F8FAFC" : "#FFEAD5",
+                        backgroundColor: "#F8FAFC",
                       },
                     }}
                   >
-                    {/* Category Icon Badge (32x32px) */}
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        backgroundColor: "#FFF2E9",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {getCategoryIcon(item.category)}
+                    {/* Category Icon Circle with Red Badge Overlay */}
+                    <Box sx={{ position: "relative", flexShrink: 0 }}>
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          backgroundColor: "#E0F2FE",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {getCategoryIcon(item.category)}
+                      </Box>
+                      {!item.isRead && (
+                        <Box
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            backgroundColor: "#FF3B30",
+                            border: "1.5px solid #FFFFFF",
+                            position: "absolute",
+                            top: 0,
+                            right: 0,
+                          }}
+                        />
+                      )}
                     </Box>
 
-                    {/* Title (secondary 14px), Body (secondary 14px), Timestamp (caption 12px) */}
+                    {/* Title (14px), Body (13px), Timestamp (12px caption) */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.2 }}>
-                        <Typography
-                          sx={{
-                            fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                            fontWeight: item.isRead ? TYPOGRAPHY_TOKENS.fontWeight.semibold : TYPOGRAPHY_TOKENS.fontWeight.bold,
-                            color: "#0F172A",
-                            fontFamily: "Poppins, sans-serif",
-                            lineHeight: 1.25,
-                          }}
-                        >
-                          {title}
-                        </Typography>
-
-                        {!item.isRead && (
-                          <Box
-                            sx={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: "50%",
-                              backgroundColor: "#FF6B00",
-                              flexShrink: 0,
-                            }}
-                          />
-                        )}
-                      </Box>
+                      <Typography
+                        sx={{
+                          fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
+                          fontWeight: item.isRead ? TYPOGRAPHY_TOKENS.fontWeight.semibold : TYPOGRAPHY_TOKENS.fontWeight.bold,
+                          color: "#0F172A",
+                          fontFamily: "Poppins, sans-serif",
+                          lineHeight: 1.25,
+                          mb: 0.2,
+                        }}
+                      >
+                        {title}
+                      </Typography>
 
                       <Typography
                         sx={{

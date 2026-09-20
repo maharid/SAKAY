@@ -4,19 +4,19 @@
  */
 
 export const TYPOGRAPHY_TOKENS = {
-  // Font Sizes
+  // Font Sizes (Phone-First Compact Scale)
   fontSize: {
-    micro: '0.6875rem',    // 11px - Micro status badges, compact indicators
-    caption: '0.75rem',     // 12px - Timestamps, secondary metadata, helper text
-    secondary: '0.875rem',  // 14px - Secondary text, desktop table body/inputs/buttons
-    buttonMobile: '0.9375rem', // 15px - Mobile primary action buttons
+    micro: '0.6875rem',       // 11px - Micro status badges, tiny metadata
+    caption: '0.75rem',        // 12px - Timestamps, secondary subtext, helper text
+    secondary: '0.8125rem',    // 13px - Filter pills, notification body, secondary text
+    buttonMobile: '0.875rem',  // 14px - Mobile button labels, card titles, item titles
     buttonDesktop: '0.875rem', // 14px - Desktop buttons
-    bodyMobile: '1rem',        // 16px - Mobile body text, form input text
+    bodyMobile: '0.9375rem',   // 15px - Primary mobile body text, input text
     bodyDesktop: '0.875rem',   // 14px - Desktop body text
-    section: '1.125rem',    // 18px - Section titles, card titles, dialog titles
-    pageTitle: '1.5rem',    // 24px - Main screen headings, login headings
-    display: '1.75rem',     // 28px - Hero information, driver fare figures
-    metric: '2rem',         // 32px - Dashboard KPI summary stats
+    section: '1rem',           // 16px - Section titles, card subheadings
+    pageTitle: '1.125rem',     // 18px - Main screen page titles, inner screen headers
+    display: '1.5rem',         // 24px - Hero figures, fare amounts
+    metric: '1.75rem',         // 28px - Dashboard KPI summary stats
   },
 
   // Line Heights

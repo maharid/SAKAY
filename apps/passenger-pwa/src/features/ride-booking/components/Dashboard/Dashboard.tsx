@@ -231,7 +231,7 @@ const Dashboard: React.FC = () => {
 
   // Bottom Sheet & Home Address State
   const [isCardCollapsed, setIsCardCollapsed] = useState(false);
-  const [sheetHeight, setSheetHeight] = useState<number>(295);
+  const [sheetHeight, setSheetHeight] = useState<number>(220);
   const [isDraggingSheet, setIsDraggingSheet] = useState<boolean>(false);
   const [homeAddress, setHomeAddress] = useState<string>(() => {
     return localStorage.getItem("sakay_passenger_home_address") || "";
