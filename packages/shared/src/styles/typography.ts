@@ -4,19 +4,19 @@
  */
 
 export const TYPOGRAPHY_TOKENS = {
-  // Font Sizes (Revised Phone-First Compact Scale)
+  // Font Sizes (Established Mobile SAKAY Scale)
   fontSize: {
-    micro: '0.5625rem',       // 9px - Micro status badges, tiny metadata
-    caption: '0.625rem',       // 10px - Timestamps, secondary subtext, helper text
-    secondary: '0.6875rem',    // 11px - Filter pills, notification body, secondary text
-    buttonMobile: '0.75rem',   // 12px - Mobile button labels, card titles, item titles
-    buttonDesktop: '0.875rem', // 14px - Desktop buttons (Unchanged for LGU/TODA)
-    bodyMobile: '0.8125rem',   // 13px - Primary mobile body text, input text
-    bodyDesktop: '0.875rem',   // 14px - Desktop body text (Unchanged for LGU/TODA)
-    section: '0.875rem',       // 14px - Section titles, card subheadings
-    pageTitle: '1rem',         // 16px - Main screen page titles, inner screen headers
-    display: '1.375rem',       // 22px - Hero figures, fare amounts
-    metric: '1.625rem',        // 26px - Dashboard KPI summary stats
+    micro: '0.625rem',        // 10px - Tiny metadata, timestamps, micro badges
+    caption: '0.6875rem',     // 11px - Captions, helper text, subtext
+    secondary: '0.75rem',     // 12px - Filter pills, secondary labels, card body
+    buttonMobile: '0.8125rem',// 13px - Mobile buttons, item titles
+    buttonDesktop: '0.8125rem',// 13px - Compact desktop buttons
+    bodyMobile: '0.75rem',    // 12px - Primary mobile body text, inputs
+    bodyDesktop: '0.75rem',   // 12px - Body text
+    section: '0.875rem',      // 14px - Section headers, card titles
+    pageTitle: '1rem',        // 16px - Header titles, screen titles
+    display: '1.25rem',       // 20px - Prominent values (fare amounts, hero figures)
+    metric: '1.5rem',         // 24px - KPI summary metrics
   },
 
   // Line Heights (Tightened for Mobile Efficiency & Readability)

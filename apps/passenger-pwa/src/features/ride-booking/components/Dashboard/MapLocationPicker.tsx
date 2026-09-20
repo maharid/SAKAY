@@ -31,7 +31,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 }) => {
   const { language } = useLanguage();
 
-  const [centerCoords] = useState<{ lat: number; lng: number }>(() => {
+  const [centerCoords, setCenterCoords] = useState<{ lat: number; lng: number }>(() => {
     if (initialCoords && initialCoords.lat !== 0) return initialCoords;
     const savedLat = localStorage.getItem("user_lat");
     const savedLng = localStorage.getItem("user_lng");
@@ -43,6 +43,21 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
       lng: DEFAULT_CALAPAN_CENTER.longitude,
     };
   });
+
+  // Re-sync initial center when dialog opens
+  useEffect(() => {
+    if (open) {
+      if (initialCoords && initialCoords.lat !== 0) {
+        setCenterCoords(initialCoords);
+      } else {
+        const savedLat = localStorage.getItem("user_lat");
+        const savedLng = localStorage.getItem("user_lng");
+        if (savedLat && savedLng) {
+          setCenterCoords({ lat: parseFloat(savedLat), lng: parseFloat(savedLng) });
+        }
+      }
+    }
+  }, [open, initialCoords?.lat, initialCoords?.lng]);
 
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
   const [resolving, setResolving] = useState<boolean>(false);
@@ -115,7 +130,9 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
         {/* 1. Map Canvas Underlying View */}
         <MapView
           userLocation={centerCoords}
+          center={centerCoords}
           recenterTrigger={1}
+          onCenterChange={(coords) => setCenterCoords(coords)}
         />
 
         {/* 2. Top Header Bar: ← Bumalik / Back + Centered "Pumili sa Mapa" Title */}

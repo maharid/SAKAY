@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../utils/LanguageContext';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
+import { TYPOGRAPHY_TOKENS } from '@sakay/shared';
 
 export const DriverIncomingRequestModal: React.FC = () => {
   const { language } = useLanguage();
@@ -92,14 +93,14 @@ export const DriverIncomingRequestModal: React.FC = () => {
         <Chip
           label={language === 'tl' ? `Bagong Booking Request (${countdown}s)` : `New Booking Request (${countdown}s)`}
           color="warning"
-          sx={{ fontWeight: 800, fontSize: '12px' }}
+          sx={{ fontWeight: 800, fontSize: TYPOGRAPHY_TOKENS.fontSize.caption }}
         />
-        <Typography sx={{ fontSize: '19px', fontWeight: 800, color: '#0F172A', mt: 1 }}>
+        <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 800, color: '#0F172A', mt: 1 }}>
           {incomingRequest.is_shared_trip
             ? (language === 'tl' ? 'Shared Commuter Ride' : 'Shared Commuter Ride')
             : (language === 'tl' ? 'Solo Charter Ride' : 'Solo Charter Ride')}
         </Typography>
-        <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
+        <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, color: '#64748B' }}>
           {language === 'tl' ? 'Pasahero:' : 'Passenger:'} <strong>{incomingRequest.passenger_name}</strong> • {incomingRequest.passenger_count} {language === 'tl' ? 'pasahero' : 'passenger(s)'}
         </Typography>
       </DialogTitle>
@@ -109,36 +110,36 @@ export const DriverIncomingRequestModal: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
             <LocationOnIcon sx={{ color: '#10B981', fontSize: 20 }} />
             <Box>
-              <Typography sx={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700 }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#94A3B8', fontWeight: 700 }}>
                 {language === 'tl' ? 'LOKASYON NG PICKUP' : 'PICKUP LOCATION'}
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>{incomingRequest.pickup_address}</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.pickup_address}</Typography>
             </Box>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
             <LocationOnIcon sx={{ color: '#EF4444', fontSize: 20 }} />
             <Box>
-              <Typography sx={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700 }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#94A3B8', fontWeight: 700 }}>
                 {language === 'tl' ? 'DESTINASYON' : 'DESTINATION'}
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>{incomingRequest.dropoff_address}</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.dropoff_address}</Typography>
             </Box>
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}>
           <Box>
-            <Typography sx={{ fontSize: '11.5px', color: '#64748B' }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
               {language === 'tl' ? 'Tinatayang Distansya' : 'Estimated Distance'}
             </Typography>
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>{incomingRequest.estimated_distance_km} km</Typography>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.section, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.estimated_distance_km} km</Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Typography sx={{ fontSize: '11.5px', color: '#64748B' }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
               {language === 'tl' ? 'Pamasahe' : 'Fare'}
             </Typography>
-            <Typography sx={{ fontSize: '24px', fontWeight: 900, color: '#FF6B00' }}>₱{incomingRequest.estimated_fare.toFixed(2)}</Typography>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 900, color: '#FF6B00' }}>₱{incomingRequest.estimated_fare.toFixed(2)}</Typography>
           </Box>
         </Box>
       </DialogContent>
@@ -149,7 +150,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
           fullWidth
           color="inherit"
           onClick={handleDeclineRequest}
-          sx={{ height: 48, borderRadius: '14px', fontWeight: 700, color: '#64748B', textTransform: 'none' }}
+          sx={{ height: 44, borderRadius: '14px', fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile, color: '#64748B', textTransform: 'none' }}
         >
           {language === 'tl' ? 'Tanggihan' : 'Decline'}
         </Button>
@@ -159,12 +160,12 @@ export const DriverIncomingRequestModal: React.FC = () => {
           fullWidth
           onClick={handleAcceptRequest}
           sx={{
-            height: 48,
+            height: 44,
             borderRadius: '14px',
             backgroundColor: '#1E8E3E',
             color: '#FFFFFF',
             fontWeight: 800,
-            fontSize: '15px',
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
             textTransform: 'none',
             '&:hover': { backgroundColor: '#137333' },
           }}

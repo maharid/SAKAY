@@ -14,6 +14,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import SendIcon from '@mui/icons-material/Send';
 import CircularProgress from '@mui/material/CircularProgress';
 import { sendDriverPassengerSms } from '../../../services/driverApiService';
+import { TYPOGRAPHY_TOKENS } from '@sakay/shared';
 
 interface DriverCommunicationModalProps {
   open: boolean;
@@ -82,10 +83,10 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
         <Box>
-          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 800, color: '#0F172A' }}>
             Contact Passenger
           </Typography>
-          <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
+          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, color: '#64748B' }}>
             {passengerName} ({passengerPhone})
           </Typography>
         </Box>
@@ -97,7 +98,7 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         {sentAlert && (
           <Box sx={{ p: 1.5, borderRadius: '10px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0' }}>
-            <Typography sx={{ fontSize: '12.5px', color: '#1E8E3E', fontWeight: 600 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: '#1E8E3E', fontWeight: 600 }}>
               {sentAlert}
             </Typography>
           </Box>
@@ -105,7 +106,7 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
 
         {errorMessage && (
           <Box sx={{ p: 1.5, borderRadius: '10px', backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5' }}>
-            <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', fontWeight: 600 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: '#B91C1C', fontWeight: 600 }}>
               {errorMessage}
             </Typography>
           </Box>
@@ -118,11 +119,11 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
           startIcon={<PhoneIcon />}
           onClick={handleCall}
           sx={{
-            height: 48,
+            height: 44,
             borderRadius: '14px',
             backgroundColor: '#1E8E3E',
             fontWeight: 800,
-            fontSize: '14.5px',
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
             textTransform: 'none',
             '&:hover': { backgroundColor: '#137333' },
           }}
@@ -130,7 +131,7 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
           Call Passenger
         </Button>
 
-        <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mt: 1 }}>
+        <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mt: 1 }}>
           Quick SMS Templates
         </Typography>
 
@@ -147,7 +148,7 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
                 borderRadius: '12px',
                 borderColor: '#E2E8F0',
                 color: '#0F172A',
-                fontSize: '12.5px',
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
                 py: 1,
                 px: 1.5,
                 textTransform: 'none',

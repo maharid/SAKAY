@@ -7,14 +7,13 @@ import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
-import EventIcon from "@mui/icons-material/Event";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import MessageIcon from "@mui/icons-material/Message";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import LinearProgress from "@mui/material/LinearProgress";
 import Alert from "@mui/material/Alert";
 import Dialog from "@mui/material/Dialog";
@@ -109,9 +108,6 @@ const NewTrip: React.FC = () => {
   const [tempNoteText, setTempNoteText] = useState<string>("");
   const [tariffInfoOpen, setTariffInfoOpen] = useState<boolean>(false);
   const [tripTypeInfoOpen, setTripTypeInfoOpen] = useState<boolean>(false);
-  const [scheduleDialogOpen, setScheduleDialogOpen] = useState<boolean>(false);
-  const [scheduleDate, setScheduleDate] = useState<string>("");
-  const [scheduleTime, setScheduleTime] = useState<string>("");
 
   // Trip Configuration State
   const [tripType, setTripType] = useState<"Solo" | "Shared">(() => {
@@ -999,8 +995,13 @@ const NewTrip: React.FC = () => {
                   >
                     TRIP TYPE
                   </Typography>
-                  <IconButton size="small" onClick={() => setTripTypeInfoOpen(true)} sx={{ p: 0 }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94A3B8" }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => setTripTypeInfoOpen(true)}
+                    title={language === "tl" ? "Impormasyon sa Uri ng Biyahe" : "Trip Type Info"}
+                    sx={{ p: 0, color: "#94A3B8", "&:hover": { color: "#64748B" } }}
+                  >
+                    <InfoOutlinedIcon sx={{ fontSize: 13 }} />
                   </IconButton>
                 </Box>
 
@@ -1095,9 +1096,6 @@ const NewTrip: React.FC = () => {
                   >
                     PASSENGERS
                   </Typography>
-                  <IconButton size="small" onClick={() => setTariffInfoOpen(true)} sx={{ p: 0 }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94A3B8" }} />
-                  </IconButton>
                 </Box>
 
                 {/* Counter [- 1 +] */}
@@ -1172,16 +1170,6 @@ const NewTrip: React.FC = () => {
                   >
                     NOTES
                   </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setTempNoteText(noteText);
-                      setNotesDialogOpen(true);
-                    }}
-                    sx={{ p: 0 }}
-                  >
-                    <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94A3B8" }} />
-                  </IconButton>
                 </Box>
 
                 {/* Notes Button Pill */}
@@ -1251,8 +1239,13 @@ const NewTrip: React.FC = () => {
                   >
                     {language === "tl" ? "ESTIMATED FARE" : "ESTIMATED FARE"}
                   </Typography>
-                  <IconButton size="small" onClick={() => setTariffInfoOpen(true)} sx={{ p: 0 }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94A3B8" }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => setTariffInfoOpen(true)}
+                    title={language === "tl" ? "Taripa at Detalye ng Pamasahe" : "Tariff & Fare Details"}
+                    sx={{ p: 0, color: "#94A3B8", "&:hover": { color: "#64748B" } }}
+                  >
+                    <InfoOutlinedIcon sx={{ fontSize: 13 }} />
                   </IconButton>
                 </Box>
                 <Typography
@@ -1279,27 +1272,8 @@ const NewTrip: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* 5. Bottom Action Row: Calendar Schedule Button + Mag-book ng Biyahe */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: "10px", mt: "2px" }}>
-              {/* Calendar Schedule Button */}
-              <IconButton
-                onClick={() => setScheduleDialogOpen(true)}
-                aria-label="Schedule trip"
-                sx={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "16px",
-                  backgroundColor: "#FFF8F0",
-                  border: "1.5px solid #FF6B00",
-                  color: "#FF6B00",
-                  flexShrink: 0,
-                  boxShadow: "none",
-                  "&:hover": { backgroundColor: "#FFF2E6" },
-                }}
-              >
-                <EventIcon sx={{ fontSize: 24 }} />
-              </IconButton>
-
+            {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
+            <Box sx={{ width: "100%", mt: "2px" }}>
               {/* Primary Mag-book ng Biyahe Button */}
               <Button
                 variant="contained"
@@ -1356,7 +1330,7 @@ const NewTrip: React.FC = () => {
             justifyContent: "space-between",
             alignItems: "center",
             fontWeight: 800,
-            fontSize: "17px",
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
             fontFamily: "Poppins, sans-serif",
           }}
         >
@@ -1381,6 +1355,7 @@ const NewTrip: React.FC = () => {
               mt: 1,
               "& .MuiOutlinedInput-root": {
                 borderRadius: "14px",
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
                 fontFamily: "Poppins, sans-serif",
               },
             }}
@@ -1392,6 +1367,7 @@ const NewTrip: React.FC = () => {
             sx={{
               color: "#64748B",
               fontWeight: 600,
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
             }}
@@ -1406,6 +1382,7 @@ const NewTrip: React.FC = () => {
               color: "#FFFFFF",
               borderRadius: "12px",
               fontWeight: 700,
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
               textTransform: "none",
               boxShadow: "none",
               fontFamily: "Poppins, sans-serif",
@@ -1506,7 +1483,7 @@ const NewTrip: React.FC = () => {
             justifyContent: "space-between",
             alignItems: "center",
             fontWeight: 800,
-            fontSize: "17px",
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
             fontFamily: "Poppins, sans-serif",
           }}
         >
@@ -1526,10 +1503,10 @@ const NewTrip: React.FC = () => {
                 border: "1px solid #FFE4D6",
               }}
             >
-              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6B00" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#FF6B00" }}>
                 Solo Trip
               </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.5 }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#64748B", mt: 0.5 }}>
                 {language === "tl"
                   ? "Iyo ang buong tricycle (hanggang 4 na pasahero). Diretso ang biyahe nang walang kasabay."
                   : "You get the entire tricycle (up to 4 passengers). Direct route without other passengers."}
@@ -1545,10 +1522,10 @@ const NewTrip: React.FC = () => {
                 border: "1px solid #A7F3D0",
               }}
             >
-              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#059669" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#059669" }}>
                 Share Trip (Carpool)
               </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.5 }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#64748B", mt: 0.5 }}>
                 {language === "tl"
                   ? "Makatipid ng pamasahe sa pamamagitan ng pag-share ng tricycle sa ibang pasaherong pareho ang ruta (hanggang 2 pasahero bawat booking)."
                   : "Save on fare by carpooling with passengers heading the same way (up to 2 passengers per booking)."}
@@ -1556,110 +1533,9 @@ const NewTrip: React.FC = () => {
             </Paper>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => setTripTypeInfoOpen(false)}
-            sx={{
-              backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
-              borderRadius: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              boxShadow: "none",
-              fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-            }}
-          >
-            {language === "tl" ? "Naintindihan Ko" : "Understood"}
-          </Button>
-        </DialogActions>
       </Dialog>
 
-      {/* 9. Schedule Ride Dialog */}
-      <Dialog
-        open={scheduleDialogOpen}
-        onClose={() => setScheduleDialogOpen(false)}
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: "20px",
-              padding: "10px",
-              maxWidth: "360px",
-              width: "90%",
-            },
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontWeight: 800,
-            fontSize: "17px",
-            fontFamily: "Poppins, sans-serif",
-          }}
-        >
-          {language === "tl" ? "Mag-iskedyul ng Biyahe" : "Schedule a Trip"}
-          <IconButton size="small" onClick={() => setScheduleDialogOpen(false)}>
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-            <Typography sx={{ fontSize: "12px", color: "#64748B" }}>
-              {language === "tl"
-                ? "Piliin ang petsa at oras kung kailan mo kailangan ang tricycle."
-                : "Select the date and time when you need the tricycle."}
-            </Typography>
-            <TextField
-              type="date"
-              fullWidth
-              value={scheduleDate}
-              onChange={(e) => setScheduleDate(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              label={language === "tl" ? "Petsa" : "Date"}
-            />
-            <TextField
-              type="time"
-              fullWidth
-              value={scheduleTime}
-              onChange={(e) => setScheduleTime(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              label={language === "tl" ? "Oras" : "Time"}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button
-            onClick={() => setScheduleDialogOpen(false)}
-            sx={{ color: "#64748B", textTransform: "none", fontFamily: "Poppins, sans-serif" }}
-          >
-            {language === "tl" ? "Kanselahin" : "Cancel"}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setScheduleDialogOpen(false);
-              handleBookTrip();
-            }}
-            sx={{
-              backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
-              borderRadius: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              boxShadow: "none",
-              fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-            }}
-          >
-            {language === "tl" ? "Kumpirmahin" : "Confirm"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+
 
       {/* 10. Navigation Drawer & Support Dialogs */}
       <PassengerNavigationDrawer

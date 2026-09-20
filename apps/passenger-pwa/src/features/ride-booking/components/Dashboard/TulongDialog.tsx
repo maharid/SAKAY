@@ -14,6 +14,7 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
+import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 interface TulongDialogProps {
   open: boolean;
@@ -48,7 +49,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
       <DialogTitle
         sx={{
           fontWeight: 700,
-          fontSize: "18px",
+          fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
           color: "#0F172A",
           display: "flex",
           justifyContent: "space-between",
@@ -72,7 +73,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
       <DialogContent sx={{ px: 2.5, py: 1, display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography
           sx={{
-            fontSize: "14px",
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
             color: "#64748B",
             fontFamily: "Poppins, sans-serif",
             lineHeight: 1.45,
@@ -115,7 +116,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
           <Box>
             <Typography
               sx={{
-                fontSize: "12px",
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                 fontWeight: 700,
                 color: "#94A3B8",
                 letterSpacing: "0.5px",
@@ -126,7 +127,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
             </Typography>
             <Typography
               sx={{
-                fontSize: "14px",
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.section,
                 fontWeight: 800,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
@@ -153,7 +154,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
             minHeight: "44px",
             py: "10px",
             px: "16px",
-            fontSize: "14px",
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
             fontFamily: "Poppins, sans-serif",
             lineHeight: 1.25,
             width: "100%",

@@ -12,6 +12,7 @@ import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
 import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
@@ -77,13 +78,13 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'trips':
-        return <DirectionsCarOutlinedIcon sx={{ color: '#FF6B00', fontSize: 16 }} />;
+        return <DirectionsCarOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
       case 'promos':
-        return <LocalOfferOutlinedIcon sx={{ color: '#FF6B00', fontSize: 16 }} />;
+        return <LocalOfferOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
       case 'advisories':
-        return <CampaignOutlinedIcon sx={{ color: '#FF6B00', fontSize: 16 }} />;
+        return <CampaignOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
       default:
-        return <NotificationsOutlinedIcon sx={{ color: '#FF6B00', fontSize: 16 }} />;
+        return <NotificationsOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
     }
   };
 
@@ -205,8 +206,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           <Typography
             sx={{
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
-              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
-              color: "#0F172A",
+              fontWeight: 500,
+              color: "#64748B",
               fontFamily: "Poppins, sans-serif",
             }}
           >
@@ -267,10 +268,10 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       if (!item.isRead) onMarkAsRead(item.id);
                     }}
                     sx={{
-                      py: 1.25,
+                      py: 1.5,
                       px: 2,
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       gap: 1.5,
                       backgroundColor: "#FFFFFF",
                       cursor: "pointer",
@@ -284,8 +285,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                     <Box sx={{ position: "relative", flexShrink: 0 }}>
                       <Box
                         sx={{
-                          width: 36,
-                          height: 36,
+                          width: 40,
+                          height: 40,
                           borderRadius: "50%",
                           backgroundColor: "#FFF2E9",
                           display: "flex",
@@ -350,6 +351,11 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                         {time}
                       </Typography>
                     </Box>
+
+                    {/* Chevron right icon only for announcements / advisories */}
+                    {item.category === "advisories" && (
+                      <ChevronRightIcon sx={{ color: "#94A3B8", fontSize: 20, mt: 0.5, flexShrink: 0 }} />
+                    )}
                   </Box>
                 </React.Fragment>
               );

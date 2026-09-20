@@ -16,6 +16,7 @@ export interface MapViewProps {
   height?: string;
   width?: string;
   interactive?: boolean;
+  onCenterChange?: (center: { lat: number; lng: number }) => void;
 }
 
 /**
@@ -34,11 +35,14 @@ export const MapView: React.FC<MapViewProps> = ({
   height = "100%",
   width = "100%",
   interactive = true,
+  onCenterChange,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayersRef = useRef<L.LayerGroup | null>(null);
+  const onCenterChangeRef = useRef(onCenterChange);
+  onCenterChangeRef.current = onCenterChange;
   const [roadCoords, setRoadCoords] = useState<[number, number][]>(routeCoordinates || []);
 
   // Initialize Leaflet Map
@@ -88,6 +92,14 @@ export const MapView: React.FC<MapViewProps> = ({
     routeLayersRef.current = routeLayers;
 
     mapInstanceRef.current = map;
+
+    // Report map center changes on move
+    map.on("move", () => {
+      const c = map.getCenter();
+      if (onCenterChangeRef.current) {
+        onCenterChangeRef.current({ lat: c.lat, lng: c.lng });
+      }
+    });
 
     // Invalidate size after container settles
     const resizeTimer = setTimeout(() => {

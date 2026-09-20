@@ -376,21 +376,8 @@ const SetPlace: React.FC = () => {
                 cursor: "pointer",
               }}
             >
-              {/* Black Location Pin Icon */}
-              <Box
-                sx={{
-                  width: "18px",
-                  height: "18px",
-                  borderRadius: "50%",
-                  backgroundColor: "#000000",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <LocationOnIcon sx={{ color: "#FFFFFF", fontSize: "12px" }} />
-              </Box>
+              {/* Location Pin Icon */}
+              <LocationOnIcon sx={{ color: "#FFFFFF", fontSize: "18px", flexShrink: 0 }} />
 
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Typography
@@ -442,15 +429,14 @@ const SetPlace: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Compact Quick Actions Section */}
+      {/* Quick Action Options Container */}
       <Box
         sx={{
           backgroundColor: "#FFFFFF",
           borderBottom: "1px solid #F1F5F9",
-          padding: "6px 16px",
+          padding: "4px 0",
           display: "flex",
           flexDirection: "column",
-          gap: "2px",
           boxShadow: "0 2px 8px rgba(15, 23, 42, 0.03)",
         }}
       >
@@ -460,9 +446,8 @@ const SetPlace: React.FC = () => {
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: "12px",
-            padding: "10px 12px",
-            borderRadius: "14px",
+            gap: "16px",
+            padding: "12px 20px",
             cursor: "pointer",
             transition: "background-color 0.15s ease",
             "&:hover": { backgroundColor: "#FFF7ED" },
@@ -471,28 +456,37 @@ const SetPlace: React.FC = () => {
         >
           <Box
             sx={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              backgroundColor: "#FFF2E9",
-              color: "#FF6B00",
+              minWidth: "40px",
               display: "flex",
-              alignItems: "center",
               justifyContent: "center",
-              flexShrink: 0,
+              alignItems: "center",
             }}
           >
-            {locatingCurrent ? (
-              <CircularProgress size={18} sx={{ color: "#FF6B00" }} />
-            ) : (
-              <MyLocationIcon sx={{ fontSize: "20px" }} />
-            )}
+            <Box
+              sx={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                backgroundColor: "#FFF2E9",
+                color: "#FF6B00",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {locatingCurrent ? (
+                <CircularProgress size={18} sx={{ color: "#FF6B00" }} />
+              ) : (
+                <MyLocationIcon sx={{ fontSize: "20px" }} />
+              )}
+            </Box>
           </Box>
 
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography
               sx={{
-                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, // 13px
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, // 12px
                 fontWeight: TYPOGRAPHY_TOKENS.fontWeight.semibold,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
@@ -523,9 +517,8 @@ const SetPlace: React.FC = () => {
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: "12px",
-            padding: "10px 12px",
-            borderRadius: "14px",
+            gap: "16px",
+            padding: "12px 20px",
             cursor: "pointer",
             transition: "background-color 0.15s ease",
             "&:hover": { backgroundColor: "#FFF7ED" },
@@ -534,24 +527,33 @@ const SetPlace: React.FC = () => {
         >
           <Box
             sx={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              backgroundColor: "#FFF2E9",
-              color: "#FF6B00",
+              minWidth: "40px",
               display: "flex",
-              alignItems: "center",
               justifyContent: "center",
-              flexShrink: 0,
+              alignItems: "center",
             }}
           >
-            <MapOutlinedIcon sx={{ fontSize: "20px" }} />
+            <Box
+              sx={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                backgroundColor: "#FFF2E9",
+                color: "#FF6B00",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <MapOutlinedIcon sx={{ fontSize: "20px" }} />
+            </Box>
           </Box>
 
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography
               sx={{
-                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, // 13px
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, // 12px
                 fontWeight: TYPOGRAPHY_TOKENS.fontWeight.semibold,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
