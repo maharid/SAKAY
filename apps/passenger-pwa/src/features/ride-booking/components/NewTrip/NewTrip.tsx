@@ -971,33 +971,26 @@ const NewTrip: React.FC = () => {
               </IconButton>
             </Box>
 
-            {/* 3. Three Controls Row matching BOOK - SOLO.png */}
-            <Box sx={{ display: "flex", gap: "8px", width: "100%" }}>
-              {/* Card A: TRIP TYPE ⓘ */}
-              <Box
-                sx={{
-                  flex: 1,
-                  backgroundColor: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "16px",
-                  p: "8px 10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  minWidth: 0,
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: "6px",
-                  }}
-                >
+            {/* 3. Consolidated Controls Row: TRIP TYPE | PASSENGERS | NOTES */}
+            <Box
+              sx={{
+                width: "100%",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                borderRadius: "16px",
+                p: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "8px",
+              }}
+            >
+              {/* --- Section A: TRIP TYPE --- */}
+              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <Typography
                     sx={{
-                      fontSize: "10px",
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
                       letterSpacing: "0.5px",
@@ -1015,7 +1008,7 @@ const NewTrip: React.FC = () => {
                 <Box
                   sx={{
                     backgroundColor: "#F1F5F9",
-                    borderRadius: "12px",
+                    borderRadius: "10px",
                     p: "2px",
                     display: "flex",
                     height: "32px",
@@ -1028,16 +1021,16 @@ const NewTrip: React.FC = () => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      borderRadius: "10px",
+                      borderRadius: "8px",
                       backgroundColor: tripType === "Solo" ? "#FFFFFF" : "transparent",
-                      boxShadow: tripType === "Solo" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                      boxShadow: tripType === "Solo" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                       cursor: "pointer",
                       transition: "all 0.15s ease",
                     }}
                   >
                     <Typography
                       sx={{
-                        fontSize: "12px",
+                        fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
                         fontWeight: tripType === "Solo" ? 700 : 500,
                         color: tripType === "Solo" ? "#0F172A" : "#64748B",
                         fontFamily: "Poppins, sans-serif",
@@ -1057,16 +1050,16 @@ const NewTrip: React.FC = () => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      borderRadius: "10px",
+                      borderRadius: "8px",
                       backgroundColor: tripType === "Shared" ? "#FFFFFF" : "transparent",
-                      boxShadow: tripType === "Shared" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                      boxShadow: tripType === "Shared" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                       cursor: "pointer",
                       transition: "all 0.15s ease",
                     }}
                   >
                     <Typography
                       sx={{
-                        fontSize: "12px",
+                        fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
                         fontWeight: tripType === "Shared" ? 700 : 500,
                         color: tripType === "Shared" ? "#0F172A" : "#64748B",
                         fontFamily: "Poppins, sans-serif",
@@ -1078,31 +1071,22 @@ const NewTrip: React.FC = () => {
                 </Box>
               </Box>
 
-              {/* Card B: PASSENGERS ⓘ */}
+              {/* Vertical Separator 1 */}
               <Box
                 sx={{
-                  flex: 1,
-                  backgroundColor: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "16px",
-                  p: "8px 10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  minWidth: 0,
+                  width: "1px",
+                  height: "44px",
+                  backgroundColor: "#E2E8F0",
+                  flexShrink: 0,
                 }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: "6px",
-                  }}
-                >
+              />
+
+              {/* --- Section B: PASSENGERS --- */}
+              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <Typography
                     sx={{
-                      fontSize: "10px",
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
                       letterSpacing: "0.5px",
@@ -1123,8 +1107,8 @@ const NewTrip: React.FC = () => {
                     alignItems: "center",
                     justifyContent: "space-between",
                     backgroundColor: "#F1F5F9",
-                    borderRadius: "12px",
-                    p: "2px 4px",
+                    borderRadius: "10px",
+                    px: "4px",
                     height: "32px",
                   }}
                 >
@@ -1132,14 +1116,14 @@ const NewTrip: React.FC = () => {
                     size="small"
                     disabled={passengers <= 1}
                     onClick={() => setPassengers((prev) => Math.max(1, prev - 1))}
-                    sx={{ width: 26, height: 26, p: 0, color: "#0F172A" }}
+                    sx={{ width: 24, height: 24, p: 0, color: "#0F172A" }}
                   >
-                    <RemoveIcon sx={{ fontSize: 15 }} />
+                    <RemoveIcon sx={{ fontSize: 14 }} />
                   </IconButton>
 
                   <Typography
                     sx={{
-                      fontSize: "13px",
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
                       fontWeight: 700,
                       color: "#0F172A",
                       fontFamily: "Poppins, sans-serif",
@@ -1157,38 +1141,29 @@ const NewTrip: React.FC = () => {
                         setPassengers((prev) => prev + 1);
                       }
                     }}
-                    sx={{ width: 26, height: 26, p: 0, color: "#0F172A" }}
+                    sx={{ width: 24, height: 24, p: 0, color: "#0F172A" }}
                   >
-                    <AddIcon sx={{ fontSize: 15 }} />
+                    <AddIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Box>
               </Box>
 
-              {/* Card C: NOTES ⓘ */}
+              {/* Vertical Separator 2 */}
               <Box
                 sx={{
-                  flex: 1,
-                  backgroundColor: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "16px",
-                  p: "8px 10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  minWidth: 0,
+                  width: "1px",
+                  height: "44px",
+                  backgroundColor: "#E2E8F0",
+                  flexShrink: 0,
                 }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: "6px",
-                  }}
-                >
+              />
+
+              {/* --- Section C: NOTES --- */}
+              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <Typography
                     sx={{
-                      fontSize: "10px",
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
                       letterSpacing: "0.5px",
@@ -1217,8 +1192,8 @@ const NewTrip: React.FC = () => {
                   }}
                   sx={{
                     backgroundColor: "#F1F5F9",
-                    borderRadius: "12px",
-                    p: "4px 8px",
+                    borderRadius: "10px",
+                    px: "6px",
                     height: "32px",
                     display: "flex",
                     alignItems: "center",
@@ -1229,10 +1204,10 @@ const NewTrip: React.FC = () => {
                     "&:hover": { backgroundColor: "#E2E8F0" },
                   }}
                 >
-                  <MessageIcon sx={{ fontSize: 14, color: "#64748B" }} />
+                  <MessageIcon sx={{ fontSize: 13, color: noteText ? "#FF6B00" : "#64748B" }} />
                   <Typography
                     sx={{
-                      fontSize: "11px",
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                       fontWeight: 600,
                       color: noteText ? "#FF6B00" : "#64748B",
                       whiteSpace: "nowrap",
@@ -1267,7 +1242,7 @@ const NewTrip: React.FC = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
                   <Typography
                     sx={{
-                      fontSize: "11px",
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
                       letterSpacing: "0.5px",
@@ -1282,7 +1257,7 @@ const NewTrip: React.FC = () => {
                 </Box>
                 <Typography
                   sx={{
-                    fontSize: "12px",
+                    fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                     color: "#64748B",
                     mt: "1px",
                     fontFamily: "Poppins, sans-serif",
@@ -1294,7 +1269,7 @@ const NewTrip: React.FC = () => {
 
               <Typography
                 sx={{
-                  fontSize: "20px",
+                  fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
                   fontWeight: 800,
                   color: "#0F172A",
                   fontFamily: "Poppins, sans-serif",
