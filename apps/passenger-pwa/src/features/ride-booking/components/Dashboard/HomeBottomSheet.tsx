@@ -46,7 +46,13 @@ interface HomeBottomSheetProps {
   onToggleCollapse?: () => void;
   homeAddress?: string;
   onSetHomeAddress?: (address: string) => void;
+  onHeightChange?: (height: number) => void;
+  onDragStateChange?: (isDragging: boolean) => void;
 }
+
+const MAX_SHEET_HEIGHT = 295;
+const MIN_SHEET_HEIGHT = 115;
+const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 180px
 
 const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   firstName,
@@ -57,6 +63,8 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   onToggleCollapse,
   homeAddress = "",
   onSetHomeAddress,
+  onHeightChange,
+  onDragStateChange,
 }) => {
   const { language } = useLanguage();
 
@@ -89,6 +97,24 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStartTimeRef = useRef<number>(0);
 
+  // Calculate current translation and visible height strictly clamped between MIN_SHEET_HEIGHT and MAX_SHEET_HEIGHT
+  const rawTranslate = isCollapsed ? MAX_TRANSLATE + dragOffsetY : dragOffsetY;
+  const targetTranslate = Math.max(0, Math.min(MAX_TRANSLATE, rawTranslate));
+  const currentVisibleHeight = MAX_SHEET_HEIGHT - targetTranslate;
+
+  // Emit height changes & drag state to parent for real-time location button alignment
+  useEffect(() => {
+    if (onHeightChange) {
+      onHeightChange(currentVisibleHeight);
+    }
+  }, [currentVisibleHeight, onHeightChange]);
+
+  useEffect(() => {
+    if (onDragStateChange) {
+      onDragStateChange(isDragging);
+    }
+  }, [isDragging, onDragStateChange]);
+
   // Search Places autocomplete
   useEffect(() => {
     if (!addressSearchQuery || addressSearchQuery.trim().length < 2) {
@@ -118,16 +144,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     if (touchStartY === null) return;
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY;
-
-    if (!isCollapsed && deltaY < 0) {
-      // Damping when dragging up while already expanded
-      setDragOffsetY(deltaY * 0.15);
-    } else if (isCollapsed && deltaY > 0) {
-      // Damping when dragging down while already collapsed
-      setDragOffsetY(deltaY * 0.15);
-    } else {
-      setDragOffsetY(deltaY);
-    }
+    setDragOffsetY(deltaY);
   };
 
   const handleTouchEnd = () => {
@@ -247,7 +264,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           bottom: 0,
           left: 0,
           right: 0,
-          maxHeight: "310px", // MAXIMUM EXPANSION CONSTRAINT
+          height: `${MAX_SHEET_HEIGHT}px`,
           backgroundColor: "#F4FBF7",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
@@ -256,12 +273,9 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
-          gap: isCollapsed ? "4px" : "12px",
-          transform: `translateY(${
-            isCollapsed
-              ? Math.max(0, 195 + dragOffsetY)
-              : Math.min(195, Math.max(0, dragOffsetY))
-          }px)`,
+          gap: "12px",
+          overflow: "hidden",
+          transform: `translateY(${targetTranslate}px)`,
           transition: isDragging ? "none" : "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
           willChange: "transform",
         }}
@@ -298,8 +312,26 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           />
         </Box>
 
-        {/* Personalized Greeting Text - moves together with sheet */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: '4px' }}>
+        {/* Personalized Greeting Text - moves together with sheet and accepts tap/drag */}
+        <Box
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={() => {
+            if (isCollapsed && Math.abs(dragOffsetY) < 5 && onToggleCollapse) {
+              onToggleCollapse();
+            }
+          }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: '4px',
+            cursor: isCollapsed ? 'pointer' : 'grab',
+            userSelect: 'none',
+            touchAction: 'none',
+          }}
+        >
           <Typography
             sx={{
               fontSize: "14px",
@@ -316,18 +348,20 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           </Typography>
         </Box>
 
-        {/* Horizontal Action Cards Scrollable Row (Visible when sheet is expanded) */}
-        {!isCollapsed && (
-          <Box
-            className="hide-scrollbar"
-            sx={{
-              display: "flex",
-              gap: "12px",
-              overflowX: "auto",
-              paddingBottom: "4px",
-              width: "100%",
-            }}
-          >
+        {/* Horizontal Action Cards Scrollable Row */}
+        <Box
+          className="hide-scrollbar"
+          sx={{
+            display: "flex",
+            gap: "12px",
+            overflowX: "auto",
+            paddingBottom: "4px",
+            width: "100%",
+            opacity: isCollapsed ? 0.4 : 1,
+            transition: "opacity 0.2s ease",
+            pointerEvents: isCollapsed ? "none" : "auto",
+          }}
+        >
             {/* Card 1: Bagong Trip (Primary New Trip Action) */}
             <Box
               onClick={onStartNewTrip}
@@ -649,7 +683,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               </Box>
             </Box>
           </Box>
-        )}
       </Paper>
 
       {/* UNIFIED SAVED PLACE CREATION & EDITING MODAL */}

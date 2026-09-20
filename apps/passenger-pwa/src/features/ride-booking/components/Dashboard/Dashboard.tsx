@@ -231,6 +231,8 @@ const Dashboard: React.FC = () => {
 
   // Bottom Sheet & Home Address State
   const [isCardCollapsed, setIsCardCollapsed] = useState(false);
+  const [sheetHeight, setSheetHeight] = useState<number>(295);
+  const [isDraggingSheet, setIsDraggingSheet] = useState<boolean>(false);
   const [homeAddress, setHomeAddress] = useState<string>(() => {
     return localStorage.getItem("sakay_passenger_home_address") || "";
   });
@@ -347,13 +349,13 @@ const Dashboard: React.FC = () => {
         </Paper>
       )}
 
-      {/* 3. Floating Recenter GPS Location Button (moved slightly lower for optimal gap above bottom card) */}
+      {/* 3. Floating Recenter GPS Location Button (Dynamically synced 16px above bottom sheet top edge) */}
       <IconButton
         onClick={handleRecenterGps}
         aria-label="Recenter map location"
         sx={{
           position: "absolute",
-          bottom: isCardCollapsed ? "calc(var(--safe-area-bottom) + 76px)" : "calc(var(--safe-area-bottom) + 225px)",
+          bottom: `calc(var(--safe-area-bottom) + ${sheetHeight + 16}px)`,
           right: "16px",
           backgroundColor: "#FFFFFF",
           width: "44px",
@@ -362,7 +364,9 @@ const Dashboard: React.FC = () => {
           boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
           color: "#0F172A",
           zIndex: 10,
-          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: isDraggingSheet
+            ? "none"
+            : "bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease",
           "&:hover": {
             backgroundColor: "#F8FAFC",
             transform: "scale(1.05)",
@@ -386,6 +390,8 @@ const Dashboard: React.FC = () => {
         onToggleCollapse={() => setIsCardCollapsed((prev) => !prev)}
         homeAddress={homeAddress}
         onSetHomeAddress={handleSetHomeAddress}
+        onHeightChange={(h) => setSheetHeight(h)}
+        onDragStateChange={(d) => setIsDraggingSheet(d)}
       />
 
       {/* 5. Mobile Navigation Drawer (Constrained to mobile viewport & safe areas) */}

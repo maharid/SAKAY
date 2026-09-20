@@ -15,6 +15,7 @@ import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
+import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 export interface NotificationItem {
   id: string;
@@ -101,11 +102,11 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         },
       }}
     >
-      {/* 1. Sleek Top Header: Back Arrow + Centered 20px Title */}
+      {/* 1. Sleek Top Header: Back Arrow + Centered Title */}
       <DialogTitle
         sx={{
-          fontWeight: 700,
-          fontSize: "20px",
+          fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
+          fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
           color: "#0F172A",
           display: "flex",
           alignItems: "center",
@@ -124,8 +125,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
         <Typography
           sx={{
-            fontSize: "20px",
-            fontWeight: 700,
+            fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
+            fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
             color: "#0F172A",
             fontFamily: "Poppins, sans-serif",
             position: "absolute",
@@ -140,7 +141,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
-        {/* 2. Sleek Filter Pills (32px height, 13.5px font size) */}
+        {/* 2. Standardized Filter Pills */}
         <Box
           className="hide-scrollbar"
           sx={{
@@ -162,8 +163,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   px: 1.75,
                   py: 0.4,
                   borderRadius: "999px",
-                  fontSize: "13.5px",
-                  fontWeight: isSelected ? 700 : 500,
+                  fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+                  fontWeight: isSelected ? TYPOGRAPHY_TOKENS.fontWeight.bold : TYPOGRAPHY_TOKENS.fontWeight.medium,
                   fontFamily: "Poppins, sans-serif",
                   backgroundColor: isSelected ? "#FF6B00" : "#F1F5F9",
                   color: isSelected ? "#FFFFFF" : "#64748B",
@@ -184,7 +185,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           })}
         </Box>
 
-        {/* 3. Compact Unread Section Header (15px heading, 13.5px single-line action) */}
+        {/* 3. Compact Unread Section Header (Secondary hierarchy heading, Caption action link) */}
         <Box
           sx={{
             display: "flex",
@@ -197,8 +198,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         >
           <Typography
             sx={{
-              fontSize: "15px",
-              fontWeight: 700,
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
               color: "#0F172A",
               fontFamily: "Poppins, sans-serif",
             }}
@@ -213,8 +214,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               size="small"
               onClick={onMarkAllAsRead}
               sx={{
-                fontSize: "13.5px",
-                fontWeight: 600,
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.semibold,
                 color: "#FF6B00",
                 textTransform: "none",
                 p: "2px 4px",
@@ -289,13 +290,13 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       {getCategoryIcon(item.category)}
                     </Box>
 
-                    {/* Title (14px 600), Body (13.5px 400), Timestamp (12px caption) */}
+                    {/* Title (secondary 14px), Body (secondary 14px), Timestamp (caption 12px) */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.2 }}>
                         <Typography
                           sx={{
-                            fontSize: "14px",
-                            fontWeight: item.isRead ? 600 : 700,
+                            fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+                            fontWeight: item.isRead ? TYPOGRAPHY_TOKENS.fontWeight.semibold : TYPOGRAPHY_TOKENS.fontWeight.bold,
                             color: "#0F172A",
                             fontFamily: "Poppins, sans-serif",
                             lineHeight: 1.25,
@@ -319,8 +320,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
                       <Typography
                         sx={{
-                          fontSize: "13.5px",
-                          fontWeight: 400,
+                          fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+                          fontWeight: TYPOGRAPHY_TOKENS.fontWeight.regular,
                           color: "#64748B",
                           fontFamily: "Poppins, sans-serif",
                           lineHeight: 1.35,
@@ -332,8 +333,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
                       <Typography
                         sx={{
-                          fontSize: "12px",
-                          fontWeight: 400,
+                          fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
+                          fontWeight: TYPOGRAPHY_TOKENS.fontWeight.regular,
                           color: "#94A3B8",
                           fontFamily: "Poppins, sans-serif",
                         }}
