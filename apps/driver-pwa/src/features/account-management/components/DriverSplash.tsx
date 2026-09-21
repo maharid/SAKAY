@@ -10,7 +10,7 @@ import Logo from "../../../common/components/Logo";
 
 // Shared branding assets
 import background from "@sakay/shared/src/assets/images/splash-bg.png";
-import tricycle from "@sakay/shared/src/assets/icons/app-icon.webp";
+import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 import driver01 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-01.webp";
 import driver02 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-02.webp";
 import driver03 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-03.webp";

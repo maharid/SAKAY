@@ -4,7 +4,7 @@ import { Box, Typography } from '@mui/material';
 
 import { performLicenseOcr } from '../../../services/licenseOcrService';
 import { saveLicenseScanData } from '../../../services/driverOnboardingCache';
-import appIcon from '../../../../../../packages/shared/src/assets/icons/app-icon.webp';
+import appIcon from '@sakay/shared/src/assets/icons/app-icon-toto.webp';
 import defaultFrontSample from '../../../../../../packages/shared/src/assets/images/drivers_license_front.png';
 import defaultBackSample from '../../../../../../packages/shared/src/assets/images/drivers_license_back.png';
 
