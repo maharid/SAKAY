@@ -6,7 +6,6 @@ import {
   IconButton,
   LinearProgress,
   Alert,
-  Snackbar,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -16,6 +15,7 @@ import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
 import Logo from '../../../../common/components/Logo';
 import PrimaryButton from '../../../../common/components/PrimaryButton';
+import SakayToast from '../../../../common/components/SakayToast';
 import RegisterInput from '../../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../../utils/LanguageContext';
@@ -171,6 +171,13 @@ export const Register: React.FC = () => {
 
   const e164Phone = formatPhoneToE164(cleanPhoneDigits);
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith('09');
+  const isAllRequiredFilled = Boolean(
+    firstName.trim() &&
+    lastName.trim() &&
+    phone.trim() &&
+    password.trim() &&
+    confirmPassword.trim()
+  );
 
   const isFormValid = Boolean(
     firstName.trim() &&
@@ -237,6 +244,14 @@ export const Register: React.FC = () => {
     });
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1 && window.history.state?.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/get-started');
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -262,7 +277,7 @@ export const Register: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate('/account-selection')}
+          onClick={handleBack}
           sx={{
             color: '#0F172A',
             backgroundColor: '#FFFFFF',
@@ -513,21 +528,21 @@ export const Register: React.FC = () => {
           form="passenger-register-form"
           fullWidth
           loading={submitted}
-          disabled={!isConfirmPasswordEntered || submitted}
+          disabled={!isAllRequiredFilled || submitted}
           sx={{
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 800,
-            backgroundColor: (isConfirmPasswordEntered && !submitted) ? '#FF6B00' : '#E2E8F0',
-            color: (isConfirmPasswordEntered && !submitted) ? '#FFFFFF' : '#94A3B8',
+            backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6B00' : '#E2E8F0',
+            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#94A3B8',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
               color: '#94A3B8',
             },
             '&:hover': {
-              backgroundColor: (isConfirmPasswordEntered && !submitted) ? '#E66000' : '#E2E8F0',
+              backgroundColor: (isAllRequiredFilled && !submitted) ? '#E66000' : '#E2E8F0',
               boxShadow: 'none',
             },
           }}
@@ -563,17 +578,12 @@ export const Register: React.FC = () => {
       </Box>
 
       {/* Transient feedback toast */}
-      <Snackbar
+      <SakayToast
         open={Boolean(toastMessage)}
-        autoHideDuration={4000}
+        message={toastMessage}
+        severity="warning"
         onClose={() => setToastMessage(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ top: "calc(var(--safe-area-top) + 16px) !important" }}
-      >
-        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)" }}>
-          {toastMessage}
-        </Alert>
-      </Snackbar>
+      />
     </Box>
   );
 };

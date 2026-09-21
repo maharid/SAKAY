@@ -11,6 +11,7 @@ export interface SakayPhoneInputProps {
   helperText?: string;
   required?: boolean;
   readOnly?: boolean;
+  shake?: boolean;
 }
 
 // Robust extractor for Philippine mobile numbers (10 digits starting with 9)
@@ -56,6 +57,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
   helperText = '',
   required = false,
   readOnly = false,
+  shake = false,
 }) => {
   const [focused, setFocused] = useState(false);
   const [digits10, setDigits10] = useState(() => extractPhDigits10(value));
@@ -95,6 +97,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
   return (
     <Box sx={{ width: '100%' }}>
       <Box
+        className={shake ? 'anim-shake' : ''}
         sx={{
           width: '100%',
           minHeight: '62px',
@@ -136,7 +139,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
         >
           {label}
           {required && (
-            <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 800 }}>
               *
             </Box>
           )}

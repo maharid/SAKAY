@@ -50,9 +50,13 @@ export const SakayToast: React.FC<SakayToastProps> = ({
       anchorOrigin={anchorOrigin}
       sx={{
         zIndex: 9999,
-        maxWidth: "92%",
-        width: "380px",
+        width: "calc(100% - 32px)",
+        maxWidth: "400px",
+        left: "50% !important",
+        right: "auto !important",
+        transform: "translateX(-50%) !important",
         top: anchorOrigin.vertical === "top" ? "calc(var(--safe-area-top) + 12px) !important" : undefined,
+        bottom: anchorOrigin.vertical === "bottom" ? "calc(var(--safe-area-bottom) + 16px) !important" : undefined,
       }}
     >
       <Alert

@@ -5,8 +5,6 @@ import {
   Typography,
   IconButton,
   LinearProgress,
-  InputBase,
-  Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -19,6 +17,7 @@ import { Select, MenuItem } from '@mui/material';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
+import SakayToast from '../../../common/components/SakayToast';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -70,6 +69,7 @@ export const DriverRegister: React.FC = () => {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [todaFocused, setTodaFocused] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [shakeTrigger, setShakeTrigger] = useState(0);
 
   useEffect(() => {
     try {
@@ -82,54 +82,12 @@ export const DriverRegister: React.FC = () => {
     });
   }, []);
 
-  const handlePhoneFocus = () => {
-    if (!phone || !phone.trim()) {
-      setPhone('09');
+  useEffect(() => {
+    if (shakeTrigger > 0) {
+      const timer = setTimeout(() => setShakeTrigger(0), 450);
+      return () => clearTimeout(timer);
     }
-  };
-
-  const handlePhoneBlur = () => {
-    const clean = phone.replace(/\D/g, '');
-    if (clean === '09' || clean === '0' || clean === '9' || !clean) {
-      setPhone('');
-    }
-  };
-
-  const handlePhoneChange = (val: string) => {
-    if (!val || !val.trim()) {
-      setPhone('09');
-      return;
-    }
-    setPhone(formatMobileNumber(val));
-  };
-
-  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const input = e.currentTarget;
-    const start = input.selectionStart ?? 0;
-    const end = input.selectionEnd ?? 0;
-
-    if (e.key === 'Backspace') {
-      if (start === end) {
-        if (start <= 2 && input.value.startsWith('09')) {
-          e.preventDefault();
-          return;
-        }
-        if (input.value[start - 1] === ' ') {
-          e.preventDefault();
-          const currentVal = input.value;
-          const updated = currentVal.slice(0, start - 2) + currentVal.slice(start);
-          setPhone(formatMobileNumber(updated));
-        }
-      }
-    }
-
-    if (e.key === 'Delete') {
-      if (start === end && start < 2 && input.value.startsWith('09')) {
-        e.preventDefault();
-        return;
-      }
-    }
-  };
+  }, [shakeTrigger]);
 
   const cleanPhoneDigits = phone.replace(/\D/g, '');
   const fullName = [firstName.trim(), middleName.trim(), lastName.trim(), suffix.trim()].filter(Boolean).join(' ');
@@ -171,8 +129,8 @@ export const DriverRegister: React.FC = () => {
     return language === 'tl' ? 'Malakas' : 'Strong';
   };
 
-  const isPasswordMatched = confirmPassword.length > 0 && password === confirmPassword;
-  const isPasswordMismatched = confirmPassword.length > 0 && password !== confirmPassword;
+  const isConfirmPasswordEntered = confirmPassword.length > 0;
+  const isPasswordMismatched = isConfirmPasswordEntered && password !== confirmPassword;
   const [showMatchSuccess, setShowMatchSuccess] = useState(false);
   const [showPasswordStrength, setShowPasswordStrength] = useState(true);
 
@@ -188,7 +146,7 @@ export const DriverRegister: React.FC = () => {
   }, [isPasswordValid]);
 
   useEffect(() => {
-    if (confirmPassword.length > 0 && password === confirmPassword) {
+    if (isConfirmPasswordEntered && password === confirmPassword) {
       setShowMatchSuccess(true);
       const timer = setTimeout(() => {
         setShowMatchSuccess(false);
@@ -197,10 +155,19 @@ export const DriverRegister: React.FC = () => {
     } else {
       setShowMatchSuccess(false);
     }
-  }, [password, confirmPassword]);
+  }, [password, confirmPassword, isConfirmPasswordEntered]);
 
   const e164Phone = formatPhoneToE164(cleanPhoneDigits);
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith('09');
+
+  const isAllRequiredFilled = Boolean(
+    firstName.trim() &&
+    lastName.trim() &&
+    selectedTodaId &&
+    phone.trim() &&
+    password.trim() &&
+    confirmPassword.trim()
+  );
 
   const isFormValid = Boolean(
     firstName.trim() &&
@@ -211,11 +178,22 @@ export const DriverRegister: React.FC = () => {
     password === confirmPassword
   );
 
+  const handleBack = () => {
+    if (window.history.length > 1 && window.history.state?.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/driver/get-started');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
     setAccountError(null);
-    if (!isFormValid) return;
+    if (!isFormValid) {
+      setShakeTrigger((prev) => prev + 1);
+      return;
+    }
 
     setSubmitted(true);
 
@@ -256,6 +234,15 @@ export const DriverRegister: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {/* Toast Error Notification */}
+      <SakayToast
+        open={Boolean(accountError)}
+        message={accountError}
+        severity="warning"
+        onClose={() => setAccountError(null)}
+      />
+
+      {/* Pinned Top Navigation Bar with Back Button & Logo */}
       <Box
         sx={{
           padding: 'calc(var(--safe-area-top) + 16px) 24px 12px 24px',
@@ -268,7 +255,7 @@ export const DriverRegister: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate('/account-selection')}
+          onClick={handleBack}
           sx={{
             color: '#0F172A',
             backgroundColor: '#FFFFFF',
@@ -323,20 +310,16 @@ export const DriverRegister: React.FC = () => {
           </Typography>
         </Box>
 
-        {accountError && (
-          <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
-            {accountError}
-          </Alert>
-        )}
-
         {/* Input Fields Stack */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
           {/* Stacked Name Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <RegisterInput
               label={language === 'tl' ? "UNANG PANGALAN" : "FIRST NAME"}
+              required
               value={firstName}
               onChange={setFirstName}
+              shake={shakeTrigger > 0 && hasAttemptedSubmit && !firstName.trim()}
               error={hasAttemptedSubmit && !firstName.trim()}
               helperText={hasAttemptedSubmit && !firstName.trim() ? (language === 'tl' ? 'Kailangan ang unang pangalan.' : 'First name is required.') : ''}
             />
@@ -351,8 +334,10 @@ export const DriverRegister: React.FC = () => {
               <Box sx={{ flex: '7 7 70%', minWidth: 0 }}>
                 <RegisterInput
                   label={language === 'tl' ? "APELYIDO" : "LAST NAME"}
+                  required
                   value={lastName}
                   onChange={setLastName}
+                  shake={shakeTrigger > 0 && hasAttemptedSubmit && !lastName.trim()}
                   error={hasAttemptedSubmit && !lastName.trim()}
                   helperText={hasAttemptedSubmit && !lastName.trim() ? (language === 'tl' ? 'Kailangan ang apelyido.' : 'Last name is required.') : ''}
                 />
@@ -370,6 +355,7 @@ export const DriverRegister: React.FC = () => {
           {/* TODA Selection Combobox */}
           <Box sx={{ width: '100%' }}>
             <Box
+              className={shakeTrigger > 0 && hasAttemptedSubmit && !selectedTodaId ? 'anim-shake' : ''}
               sx={{
                 width: '100%',
                 minHeight: '62px',
@@ -415,9 +401,15 @@ export const DriverRegister: React.FC = () => {
                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   pointerEvents: 'none',
                   zIndex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
                 {language === 'tl' ? 'TODA NA KINABABILANGAN' : 'AFFILIATED TODA'}
+                <Box component="span" sx={{ color: '#DC2626', fontWeight: 800 }}>
+                  *
+                </Box>
               </Typography>
               <Select
                 value={selectedTodaId}
@@ -473,6 +465,7 @@ export const DriverRegister: React.FC = () => {
             onFocus={() => setPhoneTouched(true)}
             onBlur={() => setPhoneTouched(true)}
             required
+            shake={shakeTrigger > 0 && ((phoneTouched || hasAttemptedSubmit) && !isValidPhone)}
             error={(hasAttemptedSubmit || phoneTouched) && !isValidPhone}
             helperText={
               (hasAttemptedSubmit || phoneTouched) && !isValidPhone
@@ -487,6 +480,7 @@ export const DriverRegister: React.FC = () => {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(val) => setPassword(val)}
+            shake={shakeTrigger > 0 && hasAttemptedSubmit && !isPasswordValid}
             error={hasAttemptedSubmit && !isPasswordValid}
             endAdornment={
               <IconButton
@@ -551,14 +545,18 @@ export const DriverRegister: React.FC = () => {
 
           <RegisterInput
             label={language === 'tl' ? "KUMPIRMAHIN ANG PASSWORD" : "CONFIRM PASSWORD"}
+            required
             type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(val) => setConfirmPassword(val)}
-            error={hasAttemptedSubmit && (isPasswordMismatched || !confirmPassword)}
+            shake={shakeTrigger > 0 && (isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim()))}
+            error={isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim())}
             helperText={
-              hasAttemptedSubmit && isPasswordMismatched
-                ? (language === 'tl' ? 'Hindi magkatugma ang inyong password.' : 'Passwords do not match.')
-                : ''
+              isPasswordMismatched
+                ? (language === 'tl' ? 'Hindi magkatugma ang password.' : 'Passwords do not match.')
+                : (hasAttemptedSubmit && !confirmPassword.trim()
+                    ? (language === 'tl' ? 'Pakikumpirma ang password.' : 'Please confirm your password.')
+                    : '')
             }
             endAdornment={
               <IconButton
@@ -595,21 +593,21 @@ export const DriverRegister: React.FC = () => {
           form="driver-register-form"
           fullWidth
           loading={submitted}
-          disabled={!isFormValid || submitted}
+          disabled={!isAllRequiredFilled || submitted}
           sx={{
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 800,
-            backgroundColor: isFormValid ? '#FF6B00' : '#E2E8F0',
-            color: isFormValid ? '#FFFFFF' : '#94A3B8',
+            backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6B00' : '#E2E8F0',
+            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#94A3B8',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
               color: '#94A3B8',
             },
             '&:hover': {
-              backgroundColor: isFormValid ? '#E66000' : '#E2E8F0',
+              backgroundColor: (isAllRequiredFilled && !submitted) ? '#E66000' : '#E2E8F0',
               boxShadow: 'none',
             },
           }}
