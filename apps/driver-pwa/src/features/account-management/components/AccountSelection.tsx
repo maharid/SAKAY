@@ -15,7 +15,11 @@ export const AccountSelection: React.FC = () => {
   const navigate = useNavigate();
 
   const handleSelectRole = (role: "passenger" | "driver") => {
-    navigate("/register", { state: { role } });
+    if (role === "driver") {
+      navigate("/driver/register", { state: { role } });
+    } else {
+      navigate("/register", { state: { role } });
+    }
   };
 
   return (

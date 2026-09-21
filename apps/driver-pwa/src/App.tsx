@@ -39,6 +39,9 @@ import { DriverForgotPassword } from './features/account-management/components/D
 import { DriverResetPassword } from './features/account-management/components/DriverResetPassword';
 import { DriverStatusMonitor } from './features/account-management/components/DriverStatusMonitor';
 import { DriverProfileEditor } from './features/account-management/components/DriverProfileEditor';
+import { DriverSettingsPage } from './features/account-management/pages/DriverSettingsPage';
+import { DriverSupportPage } from './features/account-management/pages/DriverSupportPage';
+import { DriverAppFeedbackPage } from './features/account-management/pages/DriverAppFeedbackPage';
 import { DriverAvailabilityHome } from './features/availability/components/DriverAvailabilityHome';
 import { DriverNavigation } from './features/navigation/components/DriverNavigation';
 import { DriverActiveTrip } from './features/trip-management/components/DriverActiveTrip';
@@ -135,6 +138,13 @@ export const App: React.FC = () => {
             <Route path="/driver/notifications" element={<DriverNotifications />} />
             <Route path="/driver/history" element={<DriverTripHistory />} />
             <Route path="/driver/profile" element={<DriverProfileEditor />} />
+            <Route path="/profile" element={<DriverProfileEditor />} />
+            <Route path="/driver/settings" element={<DriverSettingsPage />} />
+            <Route path="/settings" element={<DriverSettingsPage />} />
+            <Route path="/driver/support" element={<DriverSupportPage />} />
+            <Route path="/support" element={<DriverSupportPage />} />
+            <Route path="/driver/rate-app" element={<DriverAppFeedbackPage />} />
+            <Route path="/rate-app" element={<DriverAppFeedbackPage />} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

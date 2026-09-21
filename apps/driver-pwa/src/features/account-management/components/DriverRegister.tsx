@@ -20,15 +20,13 @@ import { Select, MenuItem } from '@mui/material';
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
+import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164 } from '../../../services/driverApiService';
 
 export const formatMobileNumber = (value: string): string => {
   const digits = value.replace(/\D/g, '');
-
-  if (!digits) {
-    return '';
-  }
+  if (!digits) return '';
 
   let afterPrefix = '';
   if (digits.startsWith('09')) {
@@ -44,165 +42,12 @@ export const formatMobileNumber = (value: string): string => {
   }
 
   afterPrefix = afterPrefix.slice(0, 9);
-
-  if (!afterPrefix) {
-    return '09';
-  }
+  if (!afterPrefix) return '09';
 
   const full = '09' + afterPrefix;
-  if (full.length <= 4) {
-    return full;
-  }
-  if (full.length <= 7) {
-    return `${full.slice(0, 4)} ${full.slice(4)}`;
-  }
+  if (full.length <= 4) return full;
+  if (full.length <= 7) return `${full.slice(0, 4)} ${full.slice(4)}`;
   return `${full.slice(0, 4)} ${full.slice(4, 7)} ${full.slice(7, 11)}`;
-};
-
-interface RegisterInputProps {
-  label: string;
-  value: string;
-  onChange: (val: string) => void;
-  type?: string;
-  error?: boolean;
-  helperText?: string;
-  endAdornment?: React.ReactNode;
-  isPhone?: boolean;
-  onFocus?: () => void;
-  onBlur?: () => void;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-}
-
-const RegisterInput: React.FC<RegisterInputProps> = ({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  error = false,
-  helperText = '',
-  endAdornment,
-  isPhone = false,
-  onFocus,
-  onBlur,
-  onKeyDown,
-}) => {
-  const [focused, setFocused] = useState(false);
-  const isFloating = focused || Boolean(value && value.length > 0);
-
-  return (
-    <Box sx={{ width: '100%' }}>
-      <Box
-        sx={{
-          width: '100%',
-          minHeight: '62px',
-          height: '62px',
-          borderRadius: '16px',
-          backgroundColor: focused ? '#FFFFFF' : '#F1F3F5',
-          border: `1.5px solid ${error ? '#DC2626' : focused ? '#FF6B00' : '#E2E8F0'}`,
-          boxShadow: focused
-            ? '0 0 0 3px rgba(255, 107, 0, 0.12)'
-            : 'none',
-          px: 2,
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxSizing: 'border-box',
-          cursor: 'text',
-        }}
-      >
-        <Typography
-          sx={{
-            position: 'absolute',
-            left: '16px',
-            right: endAdornment ? '48px' : '16px',
-            top: isFloating ? '8px' : '50%',
-            transform: isFloating ? 'translateY(0)' : 'translateY(-50%)',
-            fontSize: isFloating ? '9.5px' : '15px',
-            fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : isFloating ? '#64748B' : '#94A3B8',
-            letterSpacing: isFloating ? '0.5px' : '0px',
-            textTransform: isFloating ? 'uppercase' : 'none',
-            userSelect: 'none',
-            pointerEvents: 'none',
-            whiteSpace: isFloating ? 'normal' : 'nowrap',
-            wordBreak: 'break-word',
-            lineHeight: 1.15,
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          {label}
-        </Typography>
-
-        <Box
-          sx={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mt: isFloating ? '16px' : 0,
-            transition: 'margin-top 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          {isPhone && isFloating && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                mr: 1,
-                pr: 1,
-                borderRight: '1px solid #CBD5E1',
-                height: '20px',
-                flexShrink: 0,
-              }}
-            >
-              <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#0F172A' }}>
-                +63
-              </Typography>
-            </Box>
-          )}
-
-          <InputBase
-            type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onFocus={() => {
-              setFocused(true);
-              onFocus?.();
-            }}
-            onBlur={() => {
-              setFocused(false);
-              onBlur?.();
-            }}
-            onKeyDown={onKeyDown}
-            fullWidth
-            sx={{
-              fontSize: '15px',
-              fontWeight: 600,
-              color: '#0F172A',
-              py: 0,
-              '& input': {
-                py: 0,
-                lineHeight: 1.2,
-                opacity: isFloating ? 1 : 0,
-                transition: 'opacity 0.15s ease-in-out',
-              },
-            }}
-          />
-          {endAdornment && (
-            <Box sx={{ zIndex: 2, display: 'flex', alignItems: 'center', ml: 1 }}>
-              {endAdornment}
-            </Box>
-          )}
-        </Box>
-      </Box>
-      {helperText && (
-        <Typography sx={{ color: '#DC2626', fontSize: '12px', mt: 0.5, px: 1, fontWeight: 500 }}>
-          {helperText}
-        </Typography>
-      )}
-    </Box>
-  );
 };
 
 export const DriverRegister: React.FC = () => {

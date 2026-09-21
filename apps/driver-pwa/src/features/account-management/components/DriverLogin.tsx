@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  InputAdornment,
   IconButton,
   Alert,
 } from '@mui/material';
@@ -13,6 +12,7 @@ import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
+import SuccessModal from '../../../common/components/SuccessModal';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -49,20 +49,20 @@ export const DriverLogin: React.FC = () => {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
 
-  // Input fields start EMPTY (no prefilled default credentials)
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  const handlePhoneChange = (val: string) => {
-    const formatted = formatMobileNumber(val);
-    setPhone(formatted);
-  };
+  const cleanPhoneDigits = phone.replace(/\D/g, '');
+  const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith('09');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     const rawDigits = phone.replace(/\D/g, '');
     if (!rawDigits || !password) {
       setError(
@@ -115,7 +115,10 @@ export const DriverLogin: React.FC = () => {
           verificationStage: 'Stage 2 Approved',
         })
       );
-      navigate('/driver/home', { replace: true });
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/driver/home', { replace: true });
+      }, 1000);
       return;
     }
 
@@ -135,9 +138,8 @@ export const DriverLogin: React.FC = () => {
 
       // 2. Driver exists! Attempt authentication with Supabase Auth
       let sessionUser: any = null;
-      let lastAuthError: any = null;
 
-      // Prepare candidate credentials (including driver email if present in profile)
+      // Prepare candidate credentials
       const authCandidates = [...candidates.authCandidates];
       if (driverData.email && !authCandidates.some((c: any) => c.email === driverData.email)) {
         authCandidates.unshift({ email: driverData.email });
@@ -151,10 +153,8 @@ export const DriverLogin: React.FC = () => {
 
         if (!signInErr && signInData?.user) {
           sessionUser = signInData.user;
-          console.log('[DriverLogin] Authenticated successfully with candidate:', candidate);
           break;
         }
-        lastAuthError = signInErr;
       }
 
       // 3. If password was incorrect:
@@ -175,7 +175,6 @@ export const DriverLogin: React.FC = () => {
           .update({ auth_user_id: sessionUser.id, contact_number: phone63 })
           .eq('driver_id', driverData.driver_id);
       } else if (driverData.contact_number !== phone63) {
-        // Standardize contact_number in DB to E.164 (+639XXXXXXXXX)
         supabase
           .from('driver')
           .update({ contact_number: phone63 })
@@ -183,12 +182,10 @@ export const DriverLogin: React.FC = () => {
           .then(() => {});
       }
 
-      // Reset location permission prompt so the location modal always shows upon entering interface
       sessionStorage.setItem('sakay_driver_just_logged_in', 'true');
       sessionStorage.removeItem('sakay_driver_location_prompt_dismissed');
       localStorage.removeItem('sakay_driver_location_permission');
 
-      // Persist active driver session cache
       localStorage.setItem('sakay_driver_phone', phone63);
       localStorage.setItem('sakay_driver_id', driverData.driver_id);
 
@@ -224,48 +221,49 @@ export const DriverLogin: React.FC = () => {
       );
 
       setLoading(false);
+      setSuccess(true);
 
-      // Enforce strict approval lifecycle routing:
-      if (driverData.account_status === 'Active' || driverData.account_status === 'Verified') {
-        navigate('/driver/home', { replace: true });
-      } else if (driverData.account_status === 'Rejected') {
-        navigate('/driver/status', {
-          replace: true,
-          state: {
-            driverName: driverData.full_name,
-            accountStatus: 'Rejected',
-            rejectionReason: driverData.verification?.remarks || 'Application rejected',
-          },
-        });
-      } else {
-        // Check verification status
-        const verif = driverData.verification;
-        if (!verif || !verif.submitted_license_number) {
-          navigate('/driver/prepare-documents', {
+      setTimeout(() => {
+        if (driverData.account_status === 'Active' || driverData.account_status === 'Verified') {
+          navigate('/driver/home', { replace: true });
+        } else if (driverData.account_status === 'Rejected') {
+          navigate('/driver/status', {
             replace: true,
             state: {
-              phone: phone63,
               driverName: driverData.full_name,
+              accountStatus: 'Rejected',
+              rejectionReason: driverData.verification?.remarks || 'Application rejected',
             },
           });
-          return;
+        } else {
+          const verifObj = driverData.verification;
+          if (!verifObj || !verifObj.submitted_license_number) {
+            navigate('/driver/prepare-documents', {
+              replace: true,
+              state: {
+                phone: phone63,
+                driverName: driverData.full_name,
+              },
+            });
+            return;
+          }
+
+          const isEndorsed =
+            verifObj.verification_status === 'Approved' ||
+            verifObj.verification_status === 'TODA Approved' ||
+            verifObj.verification_status === 'Endorsed to LGU' ||
+            driverData.account_status === 'TODA Approved' ||
+            driverData.account_status === 'Endorsed to LGU';
+
+          navigate('/driver/status', {
+            replace: true,
+            state: {
+              driverName: driverData.full_name,
+              accountStatus: isEndorsed ? 'Endorsed to LGU' : 'Pending Verification',
+            },
+          });
         }
-
-        const isEndorsed =
-          verif.verification_status === 'Approved' ||
-          verif.verification_status === 'TODA Approved' ||
-          verif.verification_status === 'Endorsed to LGU' ||
-          driverData.account_status === 'TODA Approved' ||
-          driverData.account_status === 'Endorsed to LGU';
-
-        navigate('/driver/status', {
-          replace: true,
-          state: {
-            driverName: driverData.full_name,
-            accountStatus: isEndorsed ? 'Endorsed to LGU' : 'Pending Verification',
-          },
-        });
-      }
+      }, 1000);
     } catch (err: any) {
       setLoading(false);
       console.error('[DriverLogin] Login exception:', err);
@@ -294,31 +292,34 @@ export const DriverLogin: React.FC = () => {
         backgroundColor: '#FFFFFF',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
-      {/* Fixed Sticky Header */}
+      {/* Fixed Sticky Header matching Passenger PWA */}
       <Box
         sx={{
-          padding: '16px 24px 12px 24px',
-          paddingTop: 'calc(var(--safe-area-top) + 16px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          width: '100%',
+          padding: '16px 24px 12px 24px',
+          paddingTop: 'calc(var(--safe-area-top) + 16px)',
           backgroundColor: '#FFFFFF',
-          flexShrink: 0,
           zIndex: 20,
+          flexShrink: 0,
+          borderBottom: '1px solid rgba(226, 232, 240, 0.6)',
         }}
       >
         <IconButton
           onClick={handleBack}
           sx={{
-            color: '#0F172A',
             backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
             border: '1px solid #E2E8F0',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            width: 44,
-            height: 44,
+            color: '#1A1A1A',
+            borderRadius: '14px',
+            width: '44px',
+            height: '44px',
             '&:hover': { backgroundColor: '#F8FAFC' },
           }}
         >
@@ -327,143 +328,170 @@ export const DriverLogin: React.FC = () => {
         <Logo color="orange" width={110} />
       </Box>
 
-      {/* Form Content */}
+      {/* Scrollable Form Body */}
       <Box
         component="form"
         onSubmit={handleLogin}
+        className="anim-fade-in hide-scrollbar"
         sx={{
-          flex: 1,
+          flexGrow: 1,
           overflowY: 'auto',
-          padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
+          padding: '24px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
+          justifyContent: 'space-between',
         }}
       >
-        <Box sx={{ mb: 3.5, mt: 1 }}>
-          <Typography
-            sx={{
-              fontSize: '26px',
-              fontWeight: 800,
-              color: '#0F172A',
-              lineHeight: 1.2,
-              letterSpacing: '-0.5px',
-            }}
-          >
-            {t.loginTitle}
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '15px',
-              color: '#64748B',
-              mt: 0.75,
-              fontWeight: 500,
-            }}
-          >
-            {t.loginSubtitle}
-          </Typography>
-        </Box>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
-            {error}
-          </Alert>
-        )}
-
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Mobile Phone Number Input (+63 | 9XXXXXXXX) */}
-          <SakayPhoneInput
-            label={t.phoneOrEmail || 'Numero ng Telepono'}
-            value={phone}
-            onChange={(val) => setPhone(val)}
-          />
-
-          {/* Password Input (Starts Empty, Floating Label Inside, Active Orange Glow) */}
-          <RegisterInput
-            label={t.password || 'Password'}
-            value={password}
-            onChange={(val) => setPassword(val)}
-            type={showPassword ? 'text' : 'password'}
-            endAdornment={
-              <IconButton
-                onClick={() => setShowPassword(!showPassword)}
-                edge="end"
-                size="small"
-                sx={{ color: '#64748B' }}
-              >
-                {showPassword ? (
-                  <VisibilityOffOutlinedIcon fontSize="small" />
-                ) : (
-                  <VisibilityOutlinedIcon fontSize="small" />
-                )}
-              </IconButton>
-            }
-          />
-
-          {/* Forgot Password Link */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+        <Box sx={{ width: '100%' }}>
+          <Box sx={{ marginTop: '8px', textAlign: 'left', width: '100%' }}>
             <Typography
-              onClick={() => navigate('/forgot-password')}
+              component="h2"
               sx={{
-                fontSize: '13.5px',
-                fontWeight: 600,
-                color: '#FF6B00',
-                cursor: 'pointer',
-                '&:hover': { textDecoration: 'underline' },
+                fontSize: '26px',
+                fontWeight: 800,
+                color: '#0F172A',
+                lineHeight: 1.3,
               }}
             >
-              {t.forgotPassword}
+              {t.loginTitle}
             </Typography>
+            <Typography
+              sx={{
+                fontSize: '15px',
+                color: '#64748B',
+                marginTop: '8px',
+                lineHeight: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              {language === 'tl'
+                ? 'Ilagay ang inyong numero ng telepono at password upang mag-login.'
+                : 'Enter your mobile number and password to log in.'}
+            </Typography>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', marginTop: '16px', borderRadius: '12px' }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box
+            sx={{
+              marginTop: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              width: '100%',
+            }}
+          >
+            <SakayPhoneInput
+              label={language === 'tl' ? 'NUMERO NG TELEPONO' : 'MOBILE NUMBER'}
+              value={phone}
+              onChange={(val) => {
+                setPhone(val);
+                if (error) setError('');
+              }}
+              required
+              error={hasAttemptedSubmit && !isValidPhone}
+              helperText={
+                hasAttemptedSubmit && !isValidPhone
+                  ? language === 'tl'
+                    ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.'
+                    : 'Please enter a valid 10-digit mobile number starting with 9.'
+                  : ''
+              }
+            />
+
+            <RegisterInput
+              label="PASSWORD"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(val) => {
+                setPassword(val);
+                if (error) setError('');
+              }}
+              error={hasAttemptedSubmit && !password}
+              helperText={hasAttemptedSubmit && !password ? t.passwordRequired : ''}
+              endAdornment={
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  size="small"
+                  sx={{ color: '#64748B' }}
+                >
+                  {showPassword ? (
+                    <VisibilityOffOutlinedIcon fontSize="small" />
+                  ) : (
+                    <VisibilityOutlinedIcon fontSize="small" />
+                  )}
+                </IconButton>
+              }
+            />
+
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <Typography
+                onClick={() => navigate('/forgot-password')}
+                sx={{
+                  fontSize: '14px',
+                  color: '#FF6B00',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  '&:hover': { textDecoration: 'underline', color: '#E66000' },
+                }}
+              >
+                {t.forgotPassword}
+              </Typography>
+            </Box>
           </Box>
         </Box>
 
-        <Box sx={{ flexGrow: 1 }} />
-
-        {/* Primary Submit Action Button */}
-        <PrimaryButton
-          fullWidth
-          type="submit"
-          loading={loading}
+        <Box
           sx={{
-            height: '56px',
-            borderRadius: '16px',
-            fontSize: '16px',
-            fontWeight: 800,
-            backgroundColor: '#FF6B00',
-            boxShadow: 'none',
-            '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
-            mb: 2.5,
-            mt: 3,
+            marginTop: 'auto',
+            paddingTop: '24px',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
           }}
         >
-          {t.loginTitle}
-        </PrimaryButton>
+          <PrimaryButton type="submit" fullWidth loading={loading}>
+            {t.loginTitle}
+          </PrimaryButton>
 
-        {/* Tagalog Registration Link */}
-        <Typography
-          sx={{
-            textAlign: 'center',
-            fontSize: '14px',
-            color: '#0F172A',
-            fontWeight: 700,
-            mb: 1,
-          }}
-        >
-          {t.dontHaveAccount || 'Wala ka pang account?'}{' '}
-          <Box
-            component="span"
-            onClick={() => navigate('/account-selection')}
+          <Typography
             sx={{
-              color: '#FF6B00',
-              fontWeight: 700,
-              cursor: 'pointer',
-              ml: '4px',
-              '&:hover': { textDecoration: 'underline' },
+              textAlign: 'center',
+              fontSize: '14px',
+              color: '#0F172A',
+              fontWeight: 600,
             }}
           >
-            {t.registerLink || 'Mag-register'}
-          </Box>
-        </Typography>
+            {t.dontHaveAccount || 'Wala ka pang account?'}{' '}
+            <Box
+              component="span"
+              onClick={() => navigate('/account-selection')}
+              sx={{
+                color: '#FF6B00',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginLeft: '6px',
+                transition: 'color 0.2s',
+                '&:hover': { color: '#E66000', textDecoration: 'underline' },
+              }}
+            >
+              {t.registerLink || 'Mag-register'}
+            </Box>
+          </Typography>
+        </Box>
       </Box>
+
+      <SuccessModal
+        open={success}
+        title={language === 'tl' ? 'Matagumpay na Login!' : 'Login Successful!'}
+        message={t.successLogin || (language === 'tl' ? 'Maligayang pagbabalik sa SAKAY Driver!' : 'Welcome back to SAKAY Driver!')}
+      />
     </Box>
   );
 };

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -12,49 +11,15 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import Logo from '../../../common/components/Logo';
-import PrimaryButton from '../../../common/components/PrimaryButton';
+import PageHeader from '../../../common/components/PageHeader';
 import { useLanguage } from '../../../utils/LanguageContext';
 
 export const DriverTermsOfService: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { language, t } = useLanguage();
-  const state = location.state as { phone?: string; driverName?: string; isRecovery?: boolean } | undefined;
 
   const isTagalog = language === 'tl';
-  const contentRef = React.useRef<HTMLDivElement | null>(null);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-
-  const handleScroll = () => {
-    if (contentRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-      if (scrollHeight - scrollTop - clientHeight <= 30) {
-        setHasScrolledToBottom(true);
-      }
-    }
-  };
-
-  React.useEffect(() => {
-    if (contentRef.current) {
-      const { scrollHeight, clientHeight } = contentRef.current;
-      if (scrollHeight <= clientHeight + 20) {
-        setHasScrolledToBottom(true);
-      }
-    }
-  }, []);
-
-  const handleAgree = () => {
-    navigate('/driver/privacy-policy', {
-      state: {
-        phone: state?.phone,
-        driverName: state?.driverName,
-        isRecovery: state?.isRecovery,
-      },
-    });
-  };
 
   return (
     <Box
@@ -68,44 +33,17 @@ export const DriverTermsOfService: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* 1. Header with Rounded Back Button and SAKAY Logo */}
-      <Box
-        sx={{
-          padding: 'calc(var(--safe-area-top) + 16px) 24px 12px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#FFFFFF',
-          flexShrink: 0,
-          zIndex: 20,
-        }}
-      >
-        <IconButton
-          onClick={() => navigate('/driver/verify-otp', { state })}
-          sx={{
-            color: '#0F172A',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            width: 44,
-            height: 44,
-            '&:hover': { backgroundColor: '#F8FAFC' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-        </IconButton>
-        <Logo color="orange" width={110} />
-      </Box>
+      <PageHeader
+        title={isTagalog ? 'Kasunduan sa Serbisyo' : 'Terms of Service'}
+        onBack={() => navigate(-1)}
+      />
 
-      {/* 2. Scrollable Content */}
+      {/* Scrollable Content */}
       <Box
-        ref={contentRef}
-        onScroll={handleScroll}
         sx={{
           flex: 1,
           overflowY: 'auto',
-          padding: '16px 24px calc(var(--safe-area-bottom) + 96px) 24px',
+          padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
           scrollbarWidth: 'none',
@@ -126,7 +64,7 @@ export const DriverTermsOfService: React.FC = () => {
             mb: 0.5,
           }}
         >
-          {t.termsTitle}
+          {t.termsTitle || (isTagalog ? 'Mga Tuntunin ng Serbisyo' : 'Terms of Service')}
         </Typography>
         <Typography
           sx={{
@@ -136,13 +74,12 @@ export const DriverTermsOfService: React.FC = () => {
             mb: 2.5,
           }}
         >
-          {t.lastUpdatedTerms}
+          {t.lastUpdatedTerms || (isTagalog ? 'Huling binago: Hulyo 2026' : 'Last updated: July 2026')}
         </Typography>
 
         {isTagalog ? (
           /* TAGALOG CONTENT */
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* Section 1 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 1. Pagiging Karapat-dapat
@@ -161,7 +98,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 2 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 2. Katumpakan ng Impormasyon
@@ -174,7 +110,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 3 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 3. Mga Istruktura ng Pamasahe
@@ -184,7 +119,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 4 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 4. Pagtanggap ng Booking
@@ -199,7 +133,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Section 5 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 5. Pagkansela ng Booking
@@ -212,7 +145,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Section 6 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 6. Sistema ng Strike at Parusa
@@ -242,7 +174,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 7 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 7. Pag-uugali bilang Driver
@@ -254,7 +185,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Section 8 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 8. Pagsuspinde at Pag-deactivate
@@ -264,7 +194,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 9 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 9. Pagbabago sa mga Tuntunin
@@ -274,7 +203,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 10 */}
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 10. Pakikipag-ugnayan
@@ -287,7 +215,6 @@ export const DriverTermsOfService: React.FC = () => {
         ) : (
           /* ENGLISH CONTENT */
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* Section 1 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 1. Eligibility
@@ -306,7 +233,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 2 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 2. Accuracy of Information
@@ -319,7 +245,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 3 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 3. Fare Structure
@@ -329,7 +254,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 4 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 4. Accepting a Booking
@@ -344,7 +268,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Section 5 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 5. Cancelling a Booking
@@ -357,7 +280,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Section 6 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 6. Strike System and Penalties
@@ -387,7 +309,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 7 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 7. Driver Conduct
@@ -399,7 +320,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Section 8 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 8. Suspension and Deactivation
@@ -409,7 +329,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 9 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 9. Changes to These Terms
@@ -419,7 +338,6 @@ export const DriverTermsOfService: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Section 10 */}
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
                 10. Contact
@@ -430,56 +348,6 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
           </Box>
         )}
-      </Box>
-
-      {/* 3. Sticky Bottom Action Button */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '16px 24px calc(var(--safe-area-bottom) + 16px) 24px',
-          background: 'linear-gradient(to top, #FFFFFF 75%, rgba(255, 255, 255, 0.9) 90%, rgba(255, 255, 255, 0) 100%)',
-          zIndex: 15,
-        }}
-      >
-        {!hasScrolledToBottom && (
-          <Typography
-            sx={{
-              fontSize: '12px',
-              color: '#64748B',
-              textAlign: 'center',
-              mb: 1,
-              fontWeight: 600,
-            }}
-          >
-            {isTagalog
-              ? 'Mag-scroll pababa sa dulo upang magpatuloy'
-              : 'Scroll down to the bottom to continue'}
-          </Typography>
-        )}
-        <PrimaryButton
-          fullWidth
-          disabled={!hasScrolledToBottom}
-          onClick={handleAgree}
-          sx={{
-            height: '56px',
-            borderRadius: '16px',
-            fontSize: '16px',
-            fontWeight: 800,
-            backgroundColor: hasScrolledToBottom ? '#FF6B00' : '#CBD5E1',
-            color: '#FFFFFF',
-            cursor: hasScrolledToBottom ? 'pointer' : 'not-allowed',
-            boxShadow: 'none',
-            '&:hover': {
-              backgroundColor: hasScrolledToBottom ? '#E66000' : '#CBD5E1',
-              boxShadow: 'none',
-            },
-          }}
-        >
-          {t.iAgree}
-        </PrimaryButton>
       </Box>
     </Box>
   );

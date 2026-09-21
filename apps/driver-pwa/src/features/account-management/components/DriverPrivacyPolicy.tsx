@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  IconButton,
   Collapse,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
-import Logo from '../../../common/components/Logo';
-import PrimaryButton from '../../../common/components/PrimaryButton';
+import PageHeader from '../../../common/components/PageHeader';
 import { useLanguage } from '../../../utils/LanguageContext';
 
 interface AccordionItem {
@@ -22,50 +19,13 @@ interface AccordionItem {
 
 export const DriverPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { language, t } = useLanguage();
-  const state = location.state as { phone?: string; driverName?: string; isRecovery?: boolean } | undefined;
 
   const isTagalog = language === 'tl';
-  const contentRef = React.useRef<HTMLDivElement | null>(null);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const handleScroll = () => {
-    if (contentRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-      if (scrollHeight - scrollTop - clientHeight <= 30) {
-        setHasScrolledToBottom(true);
-      }
-    }
-  };
-
-  React.useEffect(() => {
-    if (contentRef.current) {
-      const { scrollHeight, clientHeight } = contentRef.current;
-      if (scrollHeight <= clientHeight + 20) {
-        setHasScrolledToBottom(true);
-      }
-    }
-  }, []);
 
   const toggleAccordion = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
-  };
-
-  const handleAgree = () => {
-    if (state?.isRecovery) {
-      navigate('/driver/reset-password', {
-        state: { phone: state?.phone },
-      });
-    } else {
-      navigate('/driver/prepare-documents', {
-        state: {
-          driverName: state?.driverName || 'Aurelio Bautista',
-          phone: state?.phone || '09181234567',
-        },
-      });
-    }
   };
 
   const tagalogItems: AccordionItem[] = [
@@ -138,44 +98,17 @@ export const DriverPrivacyPolicy: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* 1. Header with Rounded Back Button and SAKAY Logo */}
-      <Box
-        sx={{
-          padding: 'calc(var(--safe-area-top) + 16px) 24px 12px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#FFFFFF',
-          flexShrink: 0,
-          zIndex: 20,
-        }}
-      >
-        <IconButton
-          onClick={() => navigate('/driver/terms-of-service', { state })}
-          sx={{
-            color: '#0F172A',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            width: 44,
-            height: 44,
-            '&:hover': { backgroundColor: '#F8FAFC' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-        </IconButton>
-        <Logo color="orange" width={110} />
-      </Box>
+      <PageHeader
+        title={isTagalog ? 'Patakaran sa Privacy' : 'Privacy Policy'}
+        onBack={() => navigate(-1)}
+      />
 
-      {/* 2. Scrollable Content */}
+      {/* Scrollable Content */}
       <Box
-        ref={contentRef}
-        onScroll={handleScroll}
         sx={{
           flex: 1,
           overflowY: 'auto',
-          padding: '16px 24px calc(var(--safe-area-bottom) + 96px) 24px',
+          padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
           scrollbarWidth: 'none',
@@ -519,56 +452,6 @@ export const DriverPrivacyPolicy: React.FC = () => {
             </Box>
           </Box>
         )}
-      </Box>
-
-      {/* 3. Sticky Bottom Action Button */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '16px 24px calc(var(--safe-area-bottom) + 16px) 24px',
-          background: 'linear-gradient(to top, #FFFFFF 75%, rgba(255, 255, 255, 0.9) 90%, rgba(255, 255, 255, 0) 100%)',
-          zIndex: 15,
-        }}
-      >
-        {!hasScrolledToBottom && (
-          <Typography
-            sx={{
-              fontSize: '12px',
-              color: '#64748B',
-              textAlign: 'center',
-              mb: 1,
-              fontWeight: 600,
-            }}
-          >
-            {isTagalog
-              ? 'Mag-scroll pababa sa dulo upang magpatuloy'
-              : 'Scroll down to the bottom to continue'}
-          </Typography>
-        )}
-        <PrimaryButton
-          fullWidth
-          disabled={!hasScrolledToBottom}
-          onClick={handleAgree}
-          sx={{
-            height: '56px',
-            borderRadius: '16px',
-            fontSize: '16px',
-            fontWeight: 800,
-            backgroundColor: hasScrolledToBottom ? '#FF6B00' : '#CBD5E1',
-            color: '#FFFFFF',
-            cursor: hasScrolledToBottom ? 'pointer' : 'not-allowed',
-            boxShadow: 'none',
-            '&:hover': {
-              backgroundColor: hasScrolledToBottom ? '#E66000' : '#CBD5E1',
-              boxShadow: 'none',
-            },
-          }}
-        >
-          {t.iAgree}
-        </PrimaryButton>
       </Box>
     </Box>
   );
