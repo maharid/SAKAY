@@ -646,12 +646,12 @@ const NewTrip: React.FC = () => {
           backgroundColor: "#FFFFFF",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
-          padding: "12px 20px calc(var(--safe-area-bottom) + 20px) 20px",
+          padding: "16px 20px calc(var(--safe-area-bottom) + 20px) 20px",
           zIndex: 10,
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
-          gap: "12px",
+          gap: "16px",
         }}
       >
         {isSearching ? (
@@ -903,21 +903,8 @@ const NewTrip: React.FC = () => {
                 "&:hover": { backgroundColor: "#E6F3EA" },
               }}
             >
-              {/* Black Circular Location Pin */}
-              <Box
-                sx={{
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "50%",
-                  backgroundColor: "#0F172A",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <LocationOnIcon sx={{ color: "#FFFFFF", fontSize: "13px" }} />
-              </Box>
+              {/* High-Contrast Standalone Red Destination Location Pin */}
+              <LocationOnIcon sx={{ color: "#EF4444", fontSize: "24px", flexShrink: 0 }} />
 
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Typography
@@ -944,7 +931,7 @@ const NewTrip: React.FC = () => {
                   }}
                 >
                   {dropoff.address ||
-                    (language === "tl" ? "I-type ang lugar" : "Type destination")}
+                    (language === "tl" ? "Saan pupunta?" : "Where to go?")}
                 </Typography>
               </Box>
 
@@ -1222,7 +1209,8 @@ const NewTrip: React.FC = () => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                pt: "4px",
+                pt: "12px",
+                pb: "4px",
                 borderTop: "1px solid #F1F5F9",
               }}
             >
@@ -1273,7 +1261,7 @@ const NewTrip: React.FC = () => {
             </Box>
 
             {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
-            <Box sx={{ width: "100%", mt: "2px" }}>
+            <Box sx={{ width: "100%", mt: "6px" }}>
               {/* Primary Mag-book ng Biyahe Button */}
               <Button
                 variant="contained"
@@ -1445,8 +1433,18 @@ const NewTrip: React.FC = () => {
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
                 {language === "tl"
-                  ? `• Pundasyong Pamasahe (Base Fare): ₱${activeTariff.baseFare.toFixed(2)} (unang ${activeTariff.baseKm} km)`
-                  : `• Base Fare: ₱${activeTariff.baseFare.toFixed(2)} (first ${activeTariff.baseKm} km)`}
+                  ? `• Pundasyong Pamasahe (Base Seat Fare): ₱${activeTariff.baseFare.toFixed(2)} (unang ${activeTariff.baseKm} km)`
+                  : `• Base Seat Fare: ₱${activeTariff.baseFare.toFixed(2)} (first ${activeTariff.baseKm} km)`}
+              </Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
+                {language === "tl"
+                  ? `• Solo Trip Multiplier: × 4 na upuan (₱${(activeTariff.baseFare * 4).toFixed(2)} base rate dahil binabayaran ang buong kapasidad ng tricycle)`
+                  : `• Solo Trip Multiplier: × 4 seats (₱${(activeTariff.baseFare * 4).toFixed(2)} base rate as you pay for the full exclusive tricycle capacity)`}
+              </Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
+                {language === "tl"
+                  ? `• Shared Trip: Kinukwenta bawat upuan (₱${activeTariff.baseFare.toFixed(2)}/upuan para sa carpool split)`
+                  : `• Shared Trip: Calculated per seat (₱${activeTariff.baseFare.toFixed(2)}/seat for carpool split)`}
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
                 {language === "tl"

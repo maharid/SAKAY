@@ -17,6 +17,7 @@ export interface MapViewProps {
   width?: string;
   interactive?: boolean;
   onCenterChange?: (center: { lat: number; lng: number }) => void;
+  onMapClick?: (coords: { lat: number; lng: number }) => void;
 }
 
 /**
@@ -36,6 +37,7 @@ export const MapView: React.FC<MapViewProps> = ({
   width = "100%",
   interactive = true,
   onCenterChange,
+  onMapClick,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -43,6 +45,8 @@ export const MapView: React.FC<MapViewProps> = ({
   const routeLayersRef = useRef<L.LayerGroup | null>(null);
   const onCenterChangeRef = useRef(onCenterChange);
   onCenterChangeRef.current = onCenterChange;
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
   const [roadCoords, setRoadCoords] = useState<[number, number][]>(routeCoordinates || []);
 
   // Initialize Leaflet Map
@@ -57,24 +61,26 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const targetCenter = (pickupLocation && pickupLocation.lat !== 0)
       ? pickupLocation
-      : (userLocation && userLocation.lat !== 0)
-      ? userLocation
-      : null;
+      : (center && center.lat !== 0)
+      ? center
+      : { lat: DEFAULT_CALAPAN_CENTER.latitude, lng: DEFAULT_CALAPAN_CENTER.longitude };
 
-    const effectiveCenter: [number, number] = targetCenter
-      ? [targetCenter.lat, targetCenter.lng]
-      : [center.lat, center.lng];
-
+    // Create Map
     const map = L.map(mapContainerRef.current, {
-      center: effectiveCenter,
+      center: [targetCenter.lat, targetCenter.lng],
       zoom: zoom,
       zoomControl: false,
       attributionControl: false,
       dragging: interactive,
       touchZoom: interactive,
-      scrollWheelZoom: interactive,
       doubleClickZoom: interactive,
-      boxZoom: interactive,
+      scrollWheelZoom: interactive,
+      boxZoom: false,
+      keyboard: false,
+      fadeAnimation: true,
+      zoomAnimation: true,
+      markerZoomAnimation: true,
+      easeLinearity: 0.25,
     });
 
     // OpenStreetMap Tile Layer (Clean & fast)
@@ -93,13 +99,30 @@ export const MapView: React.FC<MapViewProps> = ({
 
     mapInstanceRef.current = map;
 
-    // Report map center changes on move
-    map.on("move", () => {
-      const c = map.getCenter();
-      if (onCenterChangeRef.current) {
+    // Report map center changes when movement completes or pauses for silky smooth dragging
+    const handleMoveEnd = () => {
+      if (mapInstanceRef.current && onCenterChangeRef.current) {
+        const c = mapInstanceRef.current.getCenter();
         onCenterChangeRef.current({ lat: c.lat, lng: c.lng });
       }
-    });
+    };
+
+    // Tap anywhere on map to immediately move pin to tapped location
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.panTo([e.latlng.lat, e.latlng.lng], { animate: true });
+        if (onCenterChangeRef.current) {
+          onCenterChangeRef.current({ lat: e.latlng.lat, lng: e.latlng.lng });
+        }
+        if (onMapClickRef.current) {
+          onMapClickRef.current({ lat: e.latlng.lat, lng: e.latlng.lng });
+        }
+      }
+    };
+
+    map.on("moveend", handleMoveEnd);
+    map.on("click", handleMapClick);
+
 
     // Invalidate size after container settles
     const resizeTimer = setTimeout(() => {

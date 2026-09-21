@@ -190,7 +190,7 @@ const SetPlace: React.FC = () => {
       return (
         <Typography
           sx={{
-            fontSize: "15px",
+            fontSize: "14px",
             color: "#0F172A",
             fontWeight: 700,
             whiteSpace: "nowrap",
@@ -212,7 +212,7 @@ const SetPlace: React.FC = () => {
       return (
         <Typography
           sx={{
-            fontSize: "15px",
+            fontSize: "14px",
             color: "#0F172A",
             fontWeight: 700,
             whiteSpace: "nowrap",
@@ -233,7 +233,7 @@ const SetPlace: React.FC = () => {
     return (
       <Typography
         sx={{
-          fontSize: "15px",
+          fontSize: "14px",
           color: "#0F172A",
           whiteSpace: "nowrap",
           overflow: "hidden",
@@ -242,8 +242,8 @@ const SetPlace: React.FC = () => {
         }}
       >
         {before && <Box component="span" sx={{ fontWeight: 500 }}>{before}</Box>}
-        <Box component="span" sx={{ fontWeight: 400 }}>{matched}</Box>
-        {after && <Box component="span" sx={{ fontWeight: 800 }}>{after}</Box>}
+        <Box component="span" sx={{ fontWeight: 700 }}>{matched}</Box>
+        {after && <Box component="span" sx={{ fontWeight: 700 }}>{after}</Box>}
       </Typography>
     );
   };
@@ -395,7 +395,7 @@ const SetPlace: React.FC = () => {
                   value={dropoffText}
                   onChange={(e) => setDropoffText(e.target.value)}
                   onFocus={() => setActiveTarget("dropoff")}
-                  placeholder={language === "tl" ? "I-type ang lugar" : "Type destination"}
+                  placeholder={language === "tl" ? "Saan pupunta?" : "Where to go?"}
                   autoFocus={initialTarget === "dropoff"}
                   sx={{
                     color: "#FFFFFF",

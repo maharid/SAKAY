@@ -4,12 +4,10 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CircularProgress from "@mui/material/CircularProgress";
 import Rating from "@mui/material/Rating";
@@ -18,12 +16,15 @@ import type { HistoryTrip } from "../../../services/tripService";
 import { fetchTripHistory } from "../../../services/tripService";
 import { useLanguage } from "../../../utils/LanguageContext";
 
+import PageHeader from "../../../common/components/PageHeader";
+
 const PassengerHistory: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<HistoryTrip[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedDetails, setSelectedDetails] = useState<HistoryTrip | null>(null);
+  const [activeTab, setActiveTab] = useState<"trips" | "ratings">("trips");
 
   useEffect(() => {
     fetchTripHistory()
@@ -65,43 +66,62 @@ const PassengerHistory: React.FC = () => {
         position: "relative",
       }}
     >
-      {/* Top Header Card matching PASSENGER HISTORY.png with safe-area support */}
-      <Box
-        sx={{
-          background: "linear-gradient(135deg, #FF5B00 0%, #FF6D00 100%)",
-          padding: "calc(var(--safe-area-top) + 16px) 20px 20px 20px",
-          display: "flex",
-          alignItems: "center",
-          boxShadow: "0 4px 16px rgba(255, 91, 0, 0.25)",
-          position: "relative",
-        }}
-      >
-        <IconButton
-          onClick={() => navigate("/dashboard")}
+      {/* Shared Standardized Reusable Page Header */}
+      <PageHeader
+        title={language === "tl" ? "Kasaysayan ng Biyahe" : "Trip History"}
+        onBack={() => navigate("/dashboard")}
+      />
+
+      {/* Segmented Control / Tabs */}
+      <Box sx={{ px: 2.5, pt: 1.5, pb: 0.5 }}>
+        <Box
           sx={{
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-            color: "#FFFFFF",
-            width: "44px",
-            height: "44px",
+            display: "flex",
+            backgroundColor: "#F1F5F9",
             borderRadius: "14px",
-            "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.3)" },
+            p: 0.5,
+            gap: 0.5,
           }}
         >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography
-          sx={{
-            flexGrow: 1,
-            textAlign: "center",
-            fontSize: "22px",
-            fontWeight: 800,
-            color: "#FFFFFF",
-            marginRight: "44px",
-            fontFamily: "Poppins, sans-serif",
-          }}
-        >
-          History
-        </Typography>
+          <Button
+            fullWidth
+            disableRipple
+            onClick={() => setActiveTab("trips")}
+            sx={{
+              py: 0.75,
+              borderRadius: "10px",
+              fontSize: "13px",
+              fontWeight: activeTab === "trips" ? 700 : 500,
+              fontFamily: "Poppins, sans-serif",
+              textTransform: "none",
+              backgroundColor: activeTab === "trips" ? "#FFFFFF" : "transparent",
+              color: activeTab === "trips" ? "#FF6B00" : "#64748B",
+              boxShadow: activeTab === "trips" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+              "&:hover": { backgroundColor: activeTab === "trips" ? "#FFFFFF" : "rgba(0,0,0,0.02)" },
+            }}
+          >
+            {language === "tl" ? "Mga Biyahe" : "Past Trips"}
+          </Button>
+          <Button
+            fullWidth
+            disableRipple
+            onClick={() => setActiveTab("ratings")}
+            sx={{
+              py: 0.75,
+              borderRadius: "10px",
+              fontSize: "13px",
+              fontWeight: activeTab === "ratings" ? 700 : 500,
+              fontFamily: "Poppins, sans-serif",
+              textTransform: "none",
+              backgroundColor: activeTab === "ratings" ? "#FFFFFF" : "transparent",
+              color: activeTab === "ratings" ? "#FF6B00" : "#64748B",
+              boxShadow: activeTab === "ratings" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+              "&:hover": { backgroundColor: activeTab === "ratings" ? "#FFFFFF" : "rgba(0,0,0,0.02)" },
+            }}
+          >
+            {language === "tl" ? "Mga Rating" : "Driver Ratings"}
+          </Button>
+        </Box>
       </Box>
 
       {/* Scrollable Content Container */}
@@ -119,6 +139,53 @@ const PassengerHistory: React.FC = () => {
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "40px" }}>
             <CircularProgress sx={{ color: "#FF6B00" }} />
+          </Box>
+        ) : activeTab === "ratings" ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {trips.length === 0 ? (
+              <Box sx={{ textAlign: "center", py: 6, px: 2 }}>
+                <Typography sx={{ fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                  {language === "tl" ? "Wala pang nabibigay na rating sa drayber." : "No driver ratings submitted yet."}
+                </Typography>
+              </Box>
+            ) : (
+              trips.map((trip) => (
+                <Paper
+                  key={`rating-${trip.id}`}
+                  elevation={0}
+                  sx={{
+                    backgroundColor: "#FFFFFF",
+                    border: "1px solid #F1F5F9",
+                    borderRadius: "20px",
+                    padding: "16px",
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                      {trip.driverName || "Juan Dela Cruz"} ({trip.bodyNumber || "T-1024"})
+                    </Typography>
+                    <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                      {trip.dateString}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Rating value={5} readOnly size="small" />
+                    <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
+                      5.0 / 5.0
+                    </Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: "12px", color: "#475569", fontStyle: "italic", fontFamily: "Poppins, sans-serif" }}>
+                    {language === "tl"
+                      ? '"Ligtas at maayos ang biyahe. Mabait at magalang ang drayber."'
+                      : '"Safe and smooth ride. The driver was kind and courteous."'}
+                  </Typography>
+                </Paper>
+              ))
+            )}
           </Box>
         ) : (
           <>

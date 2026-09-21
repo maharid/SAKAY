@@ -567,9 +567,10 @@ export const Register: React.FC = () => {
         open={Boolean(toastMessage)}
         autoHideDuration={4000}
         onClose={() => setToastMessage(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ top: "calc(var(--safe-area-top) + 16px) !important" }}
       >
-        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}>
+        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)" }}>
           {toastMessage}
         </Alert>
       </Snackbar>

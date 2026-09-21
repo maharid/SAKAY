@@ -16,6 +16,12 @@ import ForgotPassword from "./features/account-management/components/ForgotPassw
 import ResetPassword from "./features/account-management/components/ResetPassword/ResetPassword";
 import RegistrationSuccess from "./features/account-management/components/RegistrationSuccess/RegistrationSuccess";
 import ProfileEditor from "./features/account-management/components/ProfileEditor/ProfileEditor";
+import SavedPlacesPage from "./features/account-management/pages/SavedPlacesPage";
+import SupportPage from "./features/account-management/pages/SupportPage";
+import AppFeedbackPage from "./features/account-management/pages/AppFeedbackPage";
+import ChangePasswordPage from "./features/account-management/pages/ChangePasswordPage";
+import TrackReportsPage from "./features/account-management/pages/TrackReportsPage";
+import SettingsPage from "./features/account-management/pages/SettingsPage";
 import Dashboard from "./features/ride-booking/components/Dashboard/Dashboard";
 import LocationPermission from "./features/ride-booking/components/LocationPermission/LocationPermission";
 import NewTrip from "./features/ride-booking/components/NewTrip/NewTrip";
@@ -53,6 +59,12 @@ function App() {
               <Route path="/registration-success" element={<RegistrationSuccess />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<ProfileEditor />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/saved-places" element={<SavedPlacesPage />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route path="/app-feedback" element={<AppFeedbackPage />} />
+              <Route path="/change-password" element={<ChangePasswordPage />} />
+              <Route path="/track-reports" element={<TrackReportsPage />} />
               <Route path="/location-permission" element={<LocationPermission />} />
               <Route path="/new-trip" element={<NewTrip />} />
               <Route path="/set-place" element={<SetPlace />} />

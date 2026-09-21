@@ -242,28 +242,47 @@ const Dashboard: React.FC = () => {
     localStorage.setItem("sakay_passenger_home_address", newAddr);
   };
 
-  // Notifications State & Handlers
-  const [notifications, setNotifications] = useState([
-    {
-      id: "n1",
-      titleTl: "Maligayang Pagdating sa SAKAY!",
-      titleEn: "Welcome to SAKAY!",
-      bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City.",
-      bodyEn: "Fast and fair tricycle fares anywhere in Calapan City.",
-      timeTl: "Ngayon",
-      timeEn: "Just now",
-      isRead: false,
-    },
-  ]);
+  // Notifications State & Handlers with localStorage persistence
+  const [notifications, setNotifications] = useState(() => {
+    const rawRead = localStorage.getItem("sakay_read_notifications");
+    let readIds: string[] = [];
+    try {
+      if (rawRead) readIds = JSON.parse(rawRead);
+    } catch {}
+
+    const items = [
+      {
+        id: "n1",
+        titleTl: "Maligayang Pagdating sa SAKAY!",
+        titleEn: "Welcome to SAKAY!",
+        bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City. Mag-book ng iyong unang biyahe ngayon!",
+        bodyEn: "Fast and fair tricycle fares anywhere in Calapan City. Start booking your ride today!",
+        timeTl: "Ngayon",
+        timeEn: "Just now",
+        isRead: readIds.includes("n1"),
+        category: "promos" as const,
+      },
+    ];
+
+    return items;
+  });
 
   const handleMarkAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, isRead: true } : n));
+      const readIds = updated.filter((n) => n.isRead).map((n) => n.id);
+      localStorage.setItem("sakay_read_notifications", JSON.stringify(readIds));
+      return updated;
+    });
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, isRead: true }));
+      const readIds = updated.map((n) => n.id);
+      localStorage.setItem("sakay_read_notifications", JSON.stringify(readIds));
+      return updated;
+    });
   };
 
   const hasUnreadNotifications = notifications.some((n) => !n.isRead);

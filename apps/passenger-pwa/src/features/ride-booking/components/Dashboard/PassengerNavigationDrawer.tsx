@@ -38,7 +38,6 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
   profileName,
   profilePhoto,
   onNavigateProfile,
-  onOpenTulong,
   onLogout,
 }) => {
   const navigate = useNavigate();
@@ -177,7 +176,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           {/* Item 2: Nai-save na Lugar */}
           <ListItem disablePadding>
             <ListItemButton
-              onClick={() => handleNavigate("/set-place")}
+              onClick={() => handleNavigate("/saved-places")}
               sx={{
                 padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
@@ -202,10 +201,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           {/* Item 3: Support */}
           <ListItem disablePadding>
             <ListItemButton
-              onClick={() => {
-                onClose();
-                if (onOpenTulong) onOpenTulong();
-              }}
+              onClick={() => handleNavigate("/support")}
               sx={{
                 padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
@@ -230,7 +226,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           {/* Item 4: Feedback */}
           <ListItem disablePadding>
             <ListItemButton
-              onClick={() => handleNavigate("/feedback")}
+              onClick={() => handleNavigate("/app-feedback")}
               sx={{
                 padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },
@@ -280,7 +276,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           {/* Item 6: Settings */}
           <ListItem disablePadding>
             <ListItemButton
-              onClick={() => handleNavigate("/profile")}
+              onClick={() => handleNavigate("/settings")}
               sx={{
                 padding: "14px 22px",
                 "&:hover": { backgroundColor: "#FFF7ED" },

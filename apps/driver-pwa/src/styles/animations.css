@@ -119,3 +119,34 @@
   animation: logoSplashReveal 4.0s cubic-bezier(0.25, 1, 0.3, 1) forwards;
   animation-delay: 1.5s;
 }
+
+@keyframes slideNext {
+  from {
+    transform: translateX(45px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slidePrev {
+  from {
+    transform: translateX(-45px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.anim-slide-next {
+  animation: slideNext 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.anim-slide-prev {
+  animation: slidePrev 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+

@@ -43,6 +43,8 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
     return 1;
   });
 
+  const [slideDirection, setSlideDirection] = useState<"next" | "prev">("next");
+
   useEffect(() => {
     if (step === 1) {
       const timer = setTimeout(() => setStep(4), 6700); // 1.5s delay + 4s animation + 1.2s logo pause duration
@@ -51,6 +53,7 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
   }, [step]);
 
   const handleNextOnboarding = () => {
+    setSlideDirection("next");
     if (step === 4) setStep(5);
     else if (step === 5) setStep(6);
     else if (step === 6) setStep(7);
@@ -58,6 +61,7 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
   };
 
   const handlePrevOnboarding = () => {
+    setSlideDirection("prev");
     if (step === 7) setStep(6);
     else if (step === 6) setStep(5);
     else if (step === 5) setStep(4);
@@ -100,8 +104,6 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
           justifyContent: "center",
           alignItems: "center",
           gap: "8px",
-          marginTop: "auto",
-          marginBottom: "20px",
         }}
       >
         {[0, 1, 2, 3].map((idx) => (
@@ -184,76 +186,102 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            flexShrink: 0,
           }}
         >
           <Logo color="orange" />
         </Box>
 
-        {/* Illustration Container with horizontal breathing room */}
+        {/* Vertically Centered Onboarding Content Block (PNG + Text) with direction slide transition */}
         <Box
-          className="anim-fade-in"
-          key={step} // Force re-render animation on step change
+          key={step}
+          className={slideDirection === "next" ? "anim-slide-next" : "anim-slide-prev"}
           sx={{
+            flex: 1,
             display: "flex",
-            justifyContent: "center",
+            flexDirection: "column",
             alignItems: "center",
-            flexGrow: 1,
-            height: "260px",
-            maxHeight: "320px",
-            marginTop: "16px",
-            marginBottom: "12px",
-            px: "32px",
+            justifyContent: "center",
+            width: "100%",
+            py: "12px",
           }}
         >
+          {/* Illustration Container — Larger PNG artwork */}
           <Box
-            component="img"
-            src={slideImg}
-            alt={slideTitle}
             sx={{
-              maxWidth: "85%",
-              maxHeight: "100%",
-              width: "auto",
-              height: "auto",
-              objectFit: "contain",
-              display: "block",
-              margin: "0 auto",
-            }}
-          />
-        </Box>
-
-        {/* Text Section following compact typography */}
-        <Box sx={{ width: "100%", textAlign: "center", padding: "0 12px" }}>
-          <Typography
-            component="h2"
-            sx={{
-              fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
-              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
-              color: "#0F172A",
-              fontFamily: "Poppins, sans-serif",
-              lineHeight: 1.25,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "290px",
+              maxHeight: "310px",
+              width: "100%",
+              px: "8px",
+              mb: "20px",
             }}
           >
-            {slideTitle}
-          </Typography>
-          <Typography
+            <Box
+              component="img"
+              src={slideImg}
+              alt={slideTitle}
+              sx={{
+                maxWidth: "100%",
+                maxHeight: "280px",
+                width: "auto",
+                height: "auto",
+                objectFit: "contain",
+                display: "block",
+                margin: "0 auto",
+              }}
+            />
+          </Box>
+
+          {/* Fixed-position Text Section preventing vertical position shifting */}
+          <Box
             sx={{
-              fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
-              color: "#64748B",
-              marginTop: "10px",
-              lineHeight: 1.45,
-              fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
-              fontFamily: "Poppins, sans-serif",
+              width: "100%",
+              textAlign: "center",
+              padding: "0 12px",
+              height: "92px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "flex-start",
             }}
           >
-            {slideDesc}
-          </Typography>
+            <Typography
+              component="h2"
+              sx={{
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
+                color: "#0F172A",
+                fontFamily: "Poppins, sans-serif",
+                lineHeight: 1.25,
+              }}
+            >
+              {slideTitle}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
+                color: "#64748B",
+                marginTop: "8px",
+                lineHeight: 1.45,
+                fontWeight: TYPOGRAPHY_TOKENS.fontWeight.medium,
+                fontFamily: "Poppins, sans-serif",
+              }}
+            >
+              {slideDesc}
+            </Typography>
+          </Box>
         </Box>
 
-        {/* Dots Indicator */}
-        {renderDots(activeDotIdx)}
+        {/* Action Buttons & Progress Dots */}
+        <Box sx={{ width: "100%", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+          {/* Dots Indicator at the bottom above Magpatuloy button */}
+          <Box sx={{ display: "flex", justifyContent: "center", mb: "20px" }}>
+            {renderDots(activeDotIdx)}
+          </Box>
 
-        {/* Action Buttons */}
-        <Box sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
           <PrimaryButton fullWidth onClick={handleNextOnboarding}>
             {language === "tl" ? "Magpatuloy" : "Continue"}
           </PrimaryButton>

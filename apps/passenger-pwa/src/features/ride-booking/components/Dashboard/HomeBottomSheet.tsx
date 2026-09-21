@@ -98,6 +98,35 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   const [addressSearchQuery, setAddressSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
 
+  // Long press & Action Dialog State for Saved Places
+  const [actionPlace, setActionPlace] = useState<SavedPlace | null>(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState<boolean>(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTouchStartPlace = (place: SavedPlace) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setActionPlace(place);
+      setActionDialogOpen(true);
+    }, 500);
+  };
+
+  const handleTouchEndPlace = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleDeletePlace = (placeId: string) => {
+    const updated = savedPlaces.filter((p) => p.id !== placeId);
+    setSavedPlaces(updated);
+    try {
+      localStorage.setItem("sakay_passenger_saved_places", JSON.stringify(updated));
+    } catch {}
+    setToastMessage(language === "tl" ? "Matagumpay na nabura ang lugar." : "Saved place deleted.");
+    setActionDialogOpen(false);
+  };
+
   const renderPlaceIcon = (iconKey?: string) => {
     switch (iconKey) {
       case "home":
@@ -392,10 +421,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 justifyContent: "space-between",
                 cursor: "pointer",
                 transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 8px 20px rgba(255, 107, 0, 0.14)",
-                },
                 "&:active": {
                   transform: "scale(0.97)",
                 },
@@ -447,6 +472,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             {savedPlaces.map((place) => (
               <Box
                 key={place.id}
+                onTouchStart={() => handleTouchStartPlace(place)}
+                onTouchEnd={handleTouchEndPlace}
+                onMouseDown={() => handleTouchStartPlace(place)}
+                onMouseUp={handleTouchEndPlace}
+                onMouseLeave={handleTouchEndPlace}
                 onClick={() => {
                   if (onSelectPlaceTrip) {
                     onSelectPlaceTrip({ address: place.address, lat: place.lat, lng: place.lng });
@@ -469,10 +499,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   justifyContent: "space-between",
                   cursor: "pointer",
                   transition: "all 0.2s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)",
-                  },
                   "&:active": {
                     transform: "scale(0.97)",
                   },
@@ -553,10 +579,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 justifyContent: "space-between",
                 cursor: "pointer",
                 transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)",
-                },
                 "&:active": {
                   transform: "scale(0.97)",
                 },
@@ -816,14 +838,80 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
         onConfirmLocation={handleConfirmMapLocation}
       />
 
+      {/* Long-Press Action Dialog (Edit & Delete options) */}
+      <Dialog
+        open={actionDialogOpen}
+        onClose={() => setActionDialogOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "20px",
+              padding: "16px",
+              maxWidth: "320px",
+              width: "90%",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: "16px", p: 0, mb: 1, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+          {actionPlace?.name || (language === "tl" ? "Opsyon sa Lugar" : "Place Options")}
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={(e) => {
+              if (actionPlace) handleOpenEditPlace(e as any, actionPlace);
+              setActionDialogOpen(false);
+            }}
+            sx={{
+              borderRadius: "12px",
+              borderColor: "#CBD5E1",
+              color: "#0F172A",
+              fontWeight: 700,
+              textTransform: "none",
+              height: "44px",
+              justifyContent: "flex-start",
+              px: 2,
+              fontFamily: "Poppins, sans-serif",
+            }}
+          >
+            ✏️ {language === "tl" ? "I-edit ang Lugar" : "Edit Place"}
+          </Button>
+
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={() => {
+              if (actionPlace) handleDeletePlace(actionPlace.id);
+            }}
+            sx={{
+              borderRadius: "12px",
+              borderColor: "#FCA5A5",
+              color: "#EF4444",
+              fontWeight: 700,
+              textTransform: "none",
+              height: "44px",
+              justifyContent: "flex-start",
+              px: 2,
+              fontFamily: "Poppins, sans-serif",
+              "&:hover": { backgroundColor: "#FEF2F2", borderColor: "#EF4444" },
+            }}
+          >
+            🗑️ {language === "tl" ? "Burahin ang Lugar" : "Delete Place"}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       {/* Transient Validation Toast */}
       <Snackbar
         open={Boolean(toastMessage)}
         autoHideDuration={4000}
         onClose={() => setToastMessage(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ top: "calc(var(--safe-area-top) + 16px) !important" }}
       >
-        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}>
+        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)" }}>
           {toastMessage}
         </Alert>
       </Snackbar>

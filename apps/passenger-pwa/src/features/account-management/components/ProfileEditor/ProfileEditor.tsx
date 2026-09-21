@@ -5,7 +5,6 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -16,6 +15,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import PageHeader from "../../../../common/components/PageHeader";
 import { supabase } from "../../../../services/supabaseClient";
 
 const ProfileEditor: React.FC = () => {
@@ -30,7 +30,6 @@ const ProfileEditor: React.FC = () => {
   // Profile Form States
   const [fullName, setFullName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
-  const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -57,7 +56,6 @@ const ProfileEditor: React.FC = () => {
       }
 
       setContactNumber(user.phone || "");
-      setEmail(user.email || "");
 
       // Fetch passenger profile from database
       const { data: profile, error: dbErr } = await supabase
@@ -249,36 +247,10 @@ const ProfileEditor: React.FC = () => {
       className="hide-scrollbar"
     >
       {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-        }}
-      >
-        <IconButton
-          onClick={() => navigate("/dashboard")}
-          sx={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-            color: "#1A1A1A",
-            borderRadius: "14px",
-            width: "44px",
-            height: "44px",
-            "&:hover": { backgroundColor: "#F8FAFC" },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-        </IconButton>
-
-        <Typography sx={{ fontSize: "18px", fontWeight: 700, color: "#0F172A" }}>
-          {language === "tl" ? "I-edit ang Profile" : "Edit Profile"}
-        </Typography>
-
-        <Box sx={{ width: "44px" }} /> {/* spacer */}
-      </Box>
+      <PageHeader
+        title={language === "tl" ? "I-edit ang Profile" : "Edit Profile"}
+        onBack={() => navigate("/dashboard")}
+      />
 
       {/* Profile Photo Upload Section */}
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "32px" }}>
@@ -373,28 +345,6 @@ const ProfileEditor: React.FC = () => {
           />
         </Box>
 
-        {/* Email (Read-Only) */}
-        <Box sx={{ width: "100%" }}>
-          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#94A3B8", marginBottom: "6px" }}>
-            {language === "tl" ? "Email (Hindi pwedeng baguhin)" : "Email Address (Read-only)"}
-          </Typography>
-          <TextField
-            value={email}
-            disabled
-            slotProps={{
-              input: {
-                sx: {
-                  height: "56px",
-                  backgroundColor: "#F1F5F9",
-                  borderRadius: "14px",
-                  color: "#64748B",
-                  "& fieldset": { borderColor: "#E2E8F0" },
-                },
-              },
-            }}
-            fullWidth
-          />
-        </Box>
 
         {/* Address */}
         <Box sx={{ width: "100%" }}>

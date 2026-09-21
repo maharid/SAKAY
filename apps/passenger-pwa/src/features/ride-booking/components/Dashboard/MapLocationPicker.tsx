@@ -156,6 +156,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
           center={centerCoords}
           recenterTrigger={recenterTrigger}
           onCenterChange={(coords) => setCenterCoords(coords)}
+          onMapClick={(coords) => setCenterCoords(coords)}
         />
 
         {/* 2. Top Header Bar: ← Bumalik / Back + Centered "Pumili sa Mapa" Title */}

@@ -618,12 +618,13 @@ export const DriverStatusMonitor: React.FC = () => {
         open={snackbarOpen}
         autoHideDuration={3000}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ top: "calc(var(--safe-area-top) + 16px) !important" }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
           severity={notifyEnabled ? 'success' : 'info'}
-          sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, fontSize: '13px' }}
+          sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, fontSize: '13px', boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)" }}
         >
           {snackbarMsg}
         </Alert>

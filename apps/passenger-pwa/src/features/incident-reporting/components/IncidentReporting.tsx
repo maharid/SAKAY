@@ -5,7 +5,6 @@ import {
   Typography,
   Paper,
   Button,
-  IconButton,
   TextField,
   FormControl,
   InputLabel,
@@ -16,15 +15,15 @@ import {
   Tab,
   Alert,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
+import PageHeader from '../../../common/components/PageHeader';
 
-interface IncidentReportItem {
+export interface IncidentReportItem {
   id: string;
   incidentType: string;
   franchiseNo: string;
@@ -47,8 +46,17 @@ export const IncidentReporting: React.FC = () => {
   const [incidentType, setIncidentType] = useState('Overcharging Attempt');
   const [franchiseNo, setFranchiseNo] = useState(navState?.franchiseNo || '');
   const [description, setDescription] = useState(navState?.bookingId ? `Booking ref: ${navState.bookingId}. ` : '');
-  const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
 
   // Exact categories matching apps/admin-portal/src/features/incidents/pages/IncidentReportsPage.tsx
   const incidentCategories = [
@@ -125,16 +133,11 @@ export const IncidentReporting: React.FC = () => {
   };
 
   return (
-    <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-      {/* Top Header */}
-      <Box sx={{ padding: 'calc(var(--safe-area-top) + 16px) 20px 12px', display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid #F1F5F9', backgroundColor: '#FFFFFF' }}>
-        <IconButton onClick={() => navigate(returnPath)} sx={{ color: '#0F172A' }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-          {language === 'tl' ? 'Pag-uulat ng Insidente' : 'Incident Report'}
-        </Typography>
-      </Box>
+    <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <PageHeader
+        title={language === 'tl' ? 'Pag-uulat ng Insidente' : 'Incident Report'}
+        onBack={() => navigate(returnPath)}
+      />
 
       {/* Tabs */}
       <Box sx={{ backgroundColor: '#FFFFFF', px: 2, borderBottom: '1px solid #E2E8F0' }}>
@@ -145,8 +148,8 @@ export const IncidentReporting: React.FC = () => {
       </Box>
 
       {tab === 0 ? (
-        <Box component="form" onSubmit={handleSubmit} sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Typography sx={{ fontSize: '13.5px', color: '#64748B' }}>
+        <Box component="form" onSubmit={handleSubmit} className="hide-scrollbar" sx={{ p: 2.5, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2.5, pb: 'calc(var(--safe-area-bottom) + 90px)' }}>
+          <Typography sx={{ fontSize: '13.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl'
               ? 'Direktang ipinapadala ang ulat na ito sa LGU Transport Board at TODA Grievance Committee para sa kaukulang imbestigasyon.'
               : 'This report is forwarded directly to the LGU Transport Board and TODA Grievance Committee for official investigation.'}
@@ -159,10 +162,10 @@ export const IncidentReporting: React.FC = () => {
               value={incidentType}
               label={language === 'tl' ? 'Uri ng Insidente' : 'Incident Category'}
               onChange={(e) => setIncidentType(e.target.value)}
-              sx={{ borderRadius: '14px', backgroundColor: '#FFFFFF' }}
+              sx={{ borderRadius: '14px', backgroundColor: '#FFFFFF', fontFamily: 'Poppins, sans-serif' }}
             >
               {incidentCategories.map((cat) => (
-                <MenuItem key={cat.value} value={cat.value}>
+                <MenuItem key={cat.value} value={cat.value} sx={{ fontFamily: 'Poppins, sans-serif' }}>
                   {language === 'tl' ? cat.labelTl : cat.labelEn}
                 </MenuItem>
               ))}
@@ -176,7 +179,7 @@ export const IncidentReporting: React.FC = () => {
             placeholder={language === 'tl' ? 'hal. CAL-2025-0773 o TODA-104' : 'e.g. CAL-2025-0773 or TODA-104'}
             value={franchiseNo}
             onChange={(e) => setFranchiseNo(e.target.value)}
-            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '14px' } }}
+            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '14px', fontFamily: 'Poppins, sans-serif' } }}
           />
 
           {/* Written Description */}
@@ -193,17 +196,26 @@ export const IncidentReporting: React.FC = () => {
             }
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '14px' } }}
+            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '14px', fontFamily: 'Poppins, sans-serif' } }}
           />
 
-          {/* Photo Evidence Upload Button */}
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+
+          {/* Photo Evidence Upload Card */}
           <Paper
-            onClick={() => setPhotoUploaded(true)}
+            onClick={() => fileInputRef.current?.click()}
             sx={{
               p: 2,
               borderRadius: '14px',
-              border: photoUploaded ? '1px solid #1E8E3E' : '1px dashed #CBD5E1',
-              backgroundColor: photoUploaded ? '#E6F4EA' : '#FFFFFF',
+              border: selectedFile ? '1px solid #1E8E3E' : '1px dashed #CBD5E1',
+              backgroundColor: selectedFile ? '#E6F4EA' : '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -211,49 +223,70 @@ export const IncidentReporting: React.FC = () => {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              {photoUploaded ? <CheckCircleIcon sx={{ color: '#1E8E3E' }} /> : <UploadFileIcon sx={{ color: '#64748B' }} />}
+              {selectedFile ? <CheckCircleIcon sx={{ color: '#1E8E3E' }} /> : <UploadFileIcon sx={{ color: '#64748B' }} />}
               <Box>
-                <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
-                  {photoUploaded
-                    ? (language === 'tl' ? 'Nai-upload ang Larawan/Katibayan' : 'Photo / Evidence Attached')
+                <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                  {selectedFile
+                    ? selectedFile.name
                     : (language === 'tl' ? 'Mag-upload ng Larawan / Katibayan (Optional)' : 'Upload Photo / Evidence (Optional)')}
                 </Typography>
-                <Typography sx={{ fontSize: '11px', color: '#64748B' }}>
-                  {language === 'tl' ? 'Screenshot, resibo, o litrato ng tricycle' : 'Screenshot, receipt, or photo of tricycle'}
+                <Typography sx={{ fontSize: '11px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+                  {selectedFile
+                    ? (language === 'tl' ? 'Nai-attach na ang larawan' : 'Photo attached successfully')
+                    : (language === 'tl' ? 'Screenshot, resibo, o litrato ng tricycle' : 'Screenshot, receipt, or photo of tricycle')}
                 </Typography>
               </Box>
             </Box>
             <Chip
-              label={photoUploaded ? (language === 'tl' ? 'Nai-attach' : 'Attached') : (language === 'tl' ? 'I-upload' : 'Upload')}
+              label={selectedFile ? (language === 'tl' ? 'Nai-attach' : 'Attached') : (language === 'tl' ? 'Pumili File' : 'Browse File')}
               size="small"
-              color={photoUploaded ? 'success' : 'default'}
+              color={selectedFile ? 'success' : 'default'}
             />
           </Paper>
 
-          {submitted ? (
-            <Alert severity="success" sx={{ borderRadius: '14px' }}>
-              {language === 'tl'
-                ? 'Matagumpay na naitala ang iyong ulat. May magsasagawang imbestigasyon ang LGU.'
-                : 'Your report has been successfully recorded. The LGU will conduct an investigation.'}
-            </Alert>
-          ) : (
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              startIcon={<ReportProblemIcon />}
-              sx={{
-                height: 52,
-                borderRadius: '16px',
-                backgroundColor: '#DC2626',
-                fontWeight: 800,
-                fontSize: '15px',
-                '&:hover': { backgroundColor: '#B91C1C' },
-              }}
-            >
-              {language === 'tl' ? 'Isumite ang Reklamo' : 'Submit Report'}
-            </Button>
-          )}
+          {/* Bottom Fixed Action Button Bar */}
+          <Paper
+            elevation={3}
+            sx={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              p: 2,
+              pb: 'calc(var(--safe-area-bottom) + 16px)',
+              backgroundColor: '#FFFFFF',
+              borderTop: '1px solid #E2E8F0',
+              zIndex: 10,
+            }}
+          >
+            {submitted ? (
+              <Alert severity="success" sx={{ borderRadius: '14px', fontFamily: 'Poppins, sans-serif' }}>
+                {language === 'tl'
+                  ? 'Matagumpay na naitala ang iyong ulat. May magsasagawang imbestigasyon ang LGU.'
+                  : 'Your report has been successfully recorded. The LGU will conduct an investigation.'}
+              </Alert>
+            ) : (
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                startIcon={<ReportProblemIcon />}
+                sx={{
+                  height: 48,
+                  borderRadius: '14px',
+                  backgroundColor: '#DC2626',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  fontFamily: 'Poppins, sans-serif',
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  '&:hover': { backgroundColor: '#B91C1C', boxShadow: 'none' },
+                }}
+              >
+                {language === 'tl' ? 'Isumite ang Reklamo' : 'Submit Report'}
+              </Button>
+            )}
+          </Paper>
         </Box>
       ) : (
         /* Status Tracker Tab */

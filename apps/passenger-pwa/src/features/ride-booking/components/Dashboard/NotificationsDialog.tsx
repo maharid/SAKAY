@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -8,7 +8,7 @@ import IconButton from "@mui/material/IconButton";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined";
+import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
@@ -23,10 +23,44 @@ export interface NotificationItem {
   titleEn: string;
   bodyTl: string;
   bodyEn: string;
-  timeTl: string;
-  timeEn: string;
-  isRead: boolean;
+  timeTl?: string;
+  timeEn?: string;
+  createdAt?: string;
+  isRead?: boolean;
   category?: 'trips' | 'promos' | 'advisories' | 'all';
+}
+
+export function getRelativeTime(
+  createdAt?: string,
+  fallbackTimeTl?: string,
+  fallbackTimeEn?: string,
+  language: 'tl' | 'en' = 'tl'
+): string {
+  if (!createdAt) {
+    return language === 'tl' ? (fallbackTimeTl || 'Ngayon') : (fallbackTimeEn || 'Just now');
+  }
+  const date = new Date(createdAt);
+  if (isNaN(date.getTime())) {
+    return language === 'tl' ? (fallbackTimeTl || 'Ngayon') : (fallbackTimeEn || 'Just now');
+  }
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) {
+    return language === 'tl' ? 'Ngayon' : 'Just now';
+  } else if (diffMins < 60) {
+    return language === 'tl' ? `${diffMins}m ang nakalipas` : `${diffMins}m ago`;
+  } else if (diffHours < 24) {
+    return language === 'tl' ? `${diffHours}h ang nakalipas` : `${diffHours}h ago`;
+  } else if (diffDays === 1) {
+    return language === 'tl' ? 'Kahapon' : 'Yesterday';
+  } else {
+    return language === 'tl' ? `${diffDays}d ang nakalipas` : `${diffDays}d ago`;
+  }
 }
 
 const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
@@ -34,12 +68,11 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
     id: "n1",
     titleTl: "Maligayang Pagdating sa SAKAY!",
     titleEn: "Welcome to SAKAY!",
-    bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City.",
-    bodyEn: "Fast and fair tricycle fares anywhere in Calapan City.",
-    timeTl: "Ngayon",
-    timeEn: "Just now",
+    bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City. Mag-book ng iyong unang biyahe ngayon!",
+    bodyEn: "Fast and fair tricycle fares anywhere in Calapan City. Start booking your ride today!",
+    createdAt: new Date().toISOString(),
     isRead: false,
-    category: "advisories",
+    category: "promos",
   },
 ];
 
@@ -60,8 +93,41 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 }) => {
   const { language } = useLanguage();
   const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'promos' | 'advisories'>('all');
+  const [localReadIds, setLocalReadIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("sakay_read_notifications");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  useEffect(() => {
+    try {
+      localStorage.setItem("sakay_read_notifications", JSON.stringify(localReadIds));
+    } catch (e) {
+      console.warn("Failed to persist read notifications:", e);
+    }
+  }, [localReadIds]);
+
+  const mergedNotifications = notifications.map((n) => ({
+    ...n,
+    isRead: n.isRead || localReadIds.includes(n.id),
+  }));
+
+  const handleMarkAsRead = (id: string) => {
+    if (!localReadIds.includes(id)) {
+      setLocalReadIds((prev) => [...prev, id]);
+    }
+    onMarkAsRead(id);
+  };
+
+  const handleMarkAllAsRead = () => {
+    const allIds = notifications.map((n) => n.id);
+    setLocalReadIds(Array.from(new Set([...localReadIds, ...allIds])));
+    onMarkAllAsRead();
+  };
+  const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
 
   const filters = [
     { key: 'all', labelTl: 'Lahat', labelEn: 'All' },
@@ -70,7 +136,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     { key: 'advisories', labelTl: 'Mga Paalala', labelEn: 'Advisories' },
   ];
 
-  const filteredNotifications = notifications.filter((item) => {
+  const filteredNotifications = mergedNotifications.filter((item) => {
     if (activeFilter === 'all') return true;
     return item.category === activeFilter;
   });
@@ -78,7 +144,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'trips':
-        return <DirectionsCarOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <LocalTaxiIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
       case 'promos':
         return <LocalOfferOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
       case 'advisories':
@@ -219,7 +285,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           {unreadCount > 0 && (
             <Button
               size="small"
-              onClick={onMarkAllAsRead}
+              onClick={handleMarkAllAsRead}
               sx={{
                 fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                 fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
@@ -258,14 +324,14 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             {filteredNotifications.map((item, index) => {
               const title = language === "tl" ? item.titleTl : item.titleEn;
               const body = language === "tl" ? item.bodyTl : item.bodyEn;
-              const time = language === "tl" ? item.timeTl : item.timeEn;
+              const time = getRelativeTime(item.createdAt, item.timeTl, item.timeEn, language);
 
               return (
                 <React.Fragment key={item.id}>
                   {index > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
                   <Box
                     onClick={() => {
-                      if (!item.isRead) onMarkAsRead(item.id);
+                      if (!item.isRead) handleMarkAsRead(item.id);
                     }}
                     sx={{
                       py: 1.5,
