@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  IconButton,
   Collapse,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
-import Logo from '../../../../common/components/Logo';
-import PrimaryButton from '../../../../common/components/PrimaryButton';
+import PageHeader from '../../../../common/components/PageHeader';
 import { useLanguage } from '../../../../utils/LanguageContext';
 
 interface AccordionItem {
@@ -22,9 +19,7 @@ interface AccordionItem {
 
 export const PassengerPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { language } = useLanguage();
-  const state = location.state as { phone?: string; passengerName?: string; isRecovery?: boolean; fromRegister?: boolean } | undefined;
 
   const isTagalog = language === 'tl';
   const contentRef = React.useRef<HTMLDivElement | null>(null);
@@ -32,19 +27,6 @@ export const PassengerPrivacyPolicy: React.FC = () => {
 
   const toggleAccordion = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
-  };
-
-  const handleAgree = () => {
-    if (state?.fromRegister) {
-      navigate(-1);
-    } else {
-      navigate('/registration-success', {
-        state: {
-          name: state?.passengerName || 'Passenger',
-          role: 'passenger',
-        },
-      });
-    }
   };
 
   const tagalogItems: AccordionItem[] = [
@@ -117,35 +99,10 @@ export const PassengerPrivacyPolicy: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* 1. Header with Rounded Back Button and SAKAY Logo */}
-      <Box
-        sx={{
-          padding: 'calc(var(--safe-area-top) + 16px) 24px 12px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#FFFFFF',
-          flexShrink: 0,
-          zIndex: 20,
-        }}
-      >
-        <IconButton
-          onClick={() => navigate(-1)}
-          sx={{
-            color: '#0F172A',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            width: 44,
-            height: 44,
-            '&:hover': { backgroundColor: '#F8FAFC' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-        </IconButton>
-        <Logo color="orange" width={110} />
-      </Box>
+      <PageHeader
+        title={isTagalog ? 'Patakaran sa Privacy' : 'Privacy Policy'}
+        onBack={() => navigate(-1)}
+      />
 
       {/* 2. Scrollable Content */}
       <Box
@@ -153,7 +110,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
-          padding: '16px 24px calc(var(--safe-area-bottom) + 96px) 24px',
+          padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
           scrollbarWidth: 'none',
@@ -261,37 +218,6 @@ export const PassengerPrivacyPolicy: React.FC = () => {
               : 'Trip records and incident reports may be reviewed by TODA officers and Calapan City LGU CPSD in the event of formal disputes, lost property claims, or safety investigations.'}
           </Typography>
         </Box>
-      </Box>
-
-      {/* 3. Pinned Bottom Action Bar with Agree Button */}
-      <Box
-        sx={{
-          padding: '12px 24px calc(var(--safe-area-bottom) + 16px) 24px',
-          backgroundColor: '#FFFFFF',
-          borderTop: '1px solid #F1F5F9',
-          flexShrink: 0,
-          zIndex: 30,
-        }}
-      >
-        <PrimaryButton
-          onClick={handleAgree}
-          fullWidth
-          sx={{
-            height: '56px',
-            borderRadius: '16px',
-            fontSize: '16px',
-            fontWeight: 800,
-            backgroundColor: '#FF6B00',
-            color: '#FFFFFF',
-            boxShadow: 'none',
-            '&:hover': {
-              backgroundColor: '#E66000',
-              boxShadow: 'none',
-            },
-          }}
-        >
-          {isTagalog ? 'Sumasang-ayon Ako' : 'I Agree'}
-        </PrimaryButton>
       </Box>
     </Box>
   );

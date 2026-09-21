@@ -12,11 +12,9 @@ import Divider from "@mui/material/Divider";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import HeadsetMicIcon from "@mui/icons-material/HeadsetMic";
-import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import LogoutConfirmDialog from "../../../../common/components/LogoutConfirmDialog";
 
@@ -216,56 +214,6 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
                     sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
                     {language === "tl" ? "Tulong at Suporta" : "Support"}
-                  </Typography>
-                }
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
-
-          {/* Item 4: Feedback */}
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => handleNavigate("/app-feedback")}
-              sx={{
-                padding: "14px 22px",
-                "&:hover": { backgroundColor: "#FFF7ED" },
-              }}
-            >
-              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
-                <ChatOutlinedIcon sx={{ fontSize: "21px" }} />
-              </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Typography
-                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
-                  >
-                    {language === "tl" ? "Puna at Rating (Feedback)" : "Feedback & Rating"}
-                  </Typography>
-                }
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
-
-          {/* Item 5: I-ulat ang Insidente */}
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => handleNavigate("/incident-report")}
-              sx={{
-                padding: "14px 22px",
-                "&:hover": { backgroundColor: "#FFF7ED" },
-              }}
-            >
-              <ListItemIcon sx={{ color: "#DC2626", minWidth: "40px" }}>
-                <ReportProblemOutlinedIcon sx={{ fontSize: "21px" }} />
-              </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Typography
-                    sx={{ fontSize: "15px", fontWeight: 600, color: "#DC2626", fontFamily: "Poppins, sans-serif" }}
-                  >
-                    {language === "tl" ? "I-ulat ang Insidente" : "Report Incident"}
                   </Typography>
                 }
               />

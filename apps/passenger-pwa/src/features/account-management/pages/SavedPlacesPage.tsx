@@ -5,44 +5,18 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import TextField from "@mui/material/TextField";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import AddIcon from "@mui/icons-material/Add";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import WorkOutlinedIcon from "@mui/icons-material/WorkOutlined";
-import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
-import LocalMallOutlinedIcon from "@mui/icons-material/LocalMallOutlined";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
-import MapIcon from "@mui/icons-material/Map";
 import NavigationIcon from "@mui/icons-material/Navigation";
 
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
-import MapLocationPicker from "../../ride-booking/components/Dashboard/MapLocationPicker";
+import SavedPlaceModal, { ICON_OPTIONS } from "../components/SavedPlaceModal";
+import type { SavedPlaceItem } from "../components/SavedPlaceModal";
 
-export interface SavedPlace {
-  id: string;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  icon?: string;
-}
-
-const ICON_OPTIONS = [
-  { key: "home", labelTl: "Bahay", labelEn: "Home", icon: HomeOutlinedIcon },
-  { key: "work", labelTl: "Trabaho", labelEn: "Work", icon: WorkOutlinedIcon },
-  { key: "school", labelTl: "Paaralan", labelEn: "School", icon: SchoolOutlinedIcon },
-  { key: "mall", labelTl: "Mall", labelEn: "Mall", icon: LocalMallOutlinedIcon },
-  { key: "favorite", labelTl: "Paborito", labelEn: "Favorite", icon: FavoriteBorderIcon },
-  { key: "other", labelTl: "Iba pa", labelEn: "Other", icon: LocationOnOutlinedIcon },
-];
+export type SavedPlace = SavedPlaceItem;
 
 const SavedPlacesPage: React.FC = () => {
   const { language } = useLanguage();
@@ -58,12 +32,7 @@ const SavedPlacesPage: React.FC = () => {
   });
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
-  const [placeName, setPlaceName] = useState("");
-  const [placeAddress, setPlaceAddress] = useState("");
-  const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number }>({ lat: 13.4124, lng: 121.1834 });
-  const [selectedIcon, setSelectedIcon] = useState<string>("other");
+  const [editingPlace, setEditingPlace] = useState<SavedPlace | null>(null);
 
   useEffect(() => {
     try {
@@ -74,20 +43,12 @@ const SavedPlacesPage: React.FC = () => {
   }, [savedPlaces]);
 
   const handleOpenAdd = () => {
-    setEditingPlaceId(null);
-    setPlaceName("");
-    setPlaceAddress("");
-    setPlaceCoords({ lat: 13.4124, lng: 121.1834 });
-    setSelectedIcon("other");
+    setEditingPlace(null);
     setModalOpen(true);
   };
 
   const handleOpenEdit = (place: SavedPlace) => {
-    setEditingPlaceId(place.id);
-    setPlaceName(place.name);
-    setPlaceAddress(place.address);
-    setPlaceCoords({ lat: place.lat, lng: place.lng });
-    setSelectedIcon(place.icon || "other");
+    setEditingPlace(place);
     setModalOpen(true);
   };
 
@@ -95,20 +56,18 @@ const SavedPlacesPage: React.FC = () => {
     setSavedPlaces((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleSaveModal = () => {
-    if (!placeName.trim() || !placeAddress.trim()) return;
-
-    if (editingPlaceId) {
+  const handleSaveModal = (data: { id?: string; name: string; address: string; lat: number; lng: number; icon: string }) => {
+    if (data.id) {
       setSavedPlaces((prev) =>
         prev.map((p) =>
-          p.id === editingPlaceId
+          p.id === data.id
             ? {
                 ...p,
-                name: placeName.trim(),
-                address: placeAddress.trim(),
-                lat: placeCoords.lat,
-                lng: placeCoords.lng,
-                icon: selectedIcon,
+                name: data.name,
+                address: data.address,
+                lat: data.lat,
+                lng: data.lng,
+                icon: data.icon,
               }
             : p
         )
@@ -116,15 +75,14 @@ const SavedPlacesPage: React.FC = () => {
     } else {
       const newPlace: SavedPlace = {
         id: `sp_${Date.now()}`,
-        name: placeName.trim(),
-        address: placeAddress.trim(),
-        lat: placeCoords.lat,
-        lng: placeCoords.lng,
-        icon: selectedIcon,
+        name: data.name,
+        address: data.address,
+        lat: data.lat,
+        lng: data.lng,
+        icon: data.icon,
       };
       setSavedPlaces((prev) => [...prev, newPlace]);
     }
-    setModalOpen(false);
   };
 
   const handleBookRideTo = (place: SavedPlace) => {
@@ -140,7 +98,7 @@ const SavedPlacesPage: React.FC = () => {
   };
 
   const renderPlaceIcon = (iconKey?: string) => {
-    const item = ICON_OPTIONS.find((o) => o.key === iconKey) || ICON_OPTIONS[5];
+    const item = ICON_OPTIONS.find((o) => o.key === iconKey) || ICON_OPTIONS[4];
     const IconComp = item.icon;
     return <IconComp sx={{ fontSize: 22, color: "#FF6B00" }} />;
   };
@@ -321,125 +279,12 @@ const SavedPlacesPage: React.FC = () => {
         )}
       </Box>
 
-      {/* Add / Edit Place Dialog */}
-      <Dialog
+      {/* Saved Place Modal */}
+      <SavedPlaceModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        slotProps={{
-          paper: {
-            sx: { borderRadius: "20px", p: 1, width: "92%", maxWidth: "400px" },
-          },
-        }}
-      >
-        <DialogTitle sx={{ fontSize: "16px", fontWeight: 700, fontFamily: "Poppins, sans-serif" }}>
-          {editingPlaceId
-            ? language === "tl"
-              ? "I-edit ang Lugar"
-              : "Edit Place"
-            : language === "tl"
-            ? "Magdagdag ng Lugar"
-            : "Add Place"}
-        </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-          <TextField
-            label={language === "tl" ? "Pangalan ng Lugar (hal. Bahay, Trabaho)" : "Place Name (e.g. Home, Work)"}
-            fullWidth
-            size="small"
-            value={placeName}
-            onChange={(e) => setPlaceName(e.target.value)}
-          />
-
-          <TextField
-            label={language === "tl" ? "Address / Lokasyon" : "Address / Location"}
-            fullWidth
-            size="small"
-            multiline
-            rows={2}
-            value={placeAddress}
-            onChange={(e) => setPlaceAddress(e.target.value)}
-          />
-
-          <Button
-            variant="outlined"
-            startIcon={<MapIcon />}
-            onClick={() => setMapPickerOpen(true)}
-            sx={{
-              borderColor: "#CBD5E1",
-              color: "#0F172A",
-              borderRadius: "12px",
-              textTransform: "none",
-              fontSize: "13px",
-              fontWeight: 600,
-              fontFamily: "Poppins, sans-serif",
-            }}
-          >
-            {language === "tl" ? "Pumili sa Mapa" : "Pick on Map"}
-          </Button>
-
-          <Box>
-            <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#64748B", mb: 1, fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Pumili ng Icon:" : "Select Icon:"}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              {ICON_OPTIONS.map((opt) => {
-                const IconComponent = opt.icon;
-                const isSel = selectedIcon === opt.key;
-                return (
-                  <Box
-                    key={opt.key}
-                    onClick={() => setSelectedIcon(opt.key)}
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "12px",
-                      backgroundColor: isSel ? "#FF6B00" : "#F1F5F9",
-                      color: isSel ? "#FFFFFF" : "#64748B",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <IconComponent sx={{ fontSize: 20 }} />
-                  </Box>
-                );
-              })}
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setModalOpen(false)} sx={{ color: "#64748B" }}>
-            {language === "tl" ? "Kanselahin" : "Cancel"}
-          </Button>
-          <Button
-            onClick={handleSaveModal}
-            variant="contained"
-            disabled={!placeName.trim() || !placeAddress.trim()}
-            sx={{
-              backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
-              borderRadius: "10px",
-              fontWeight: 700,
-              textTransform: "none",
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-            }}
-          >
-            {language === "tl" ? "I-save" : "Save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Map Picker Integration */}
-      <MapLocationPicker
-        open={mapPickerOpen}
-        onClose={() => setMapPickerOpen(false)}
-        initialCoords={placeCoords}
-        onConfirmLocation={(loc) => {
-          setPlaceAddress(loc.address);
-          setPlaceCoords({ lat: loc.lat, lng: loc.lng });
-        }}
+        initialPlace={editingPlace}
+        onSave={handleSaveModal}
       />
     </Box>
   );

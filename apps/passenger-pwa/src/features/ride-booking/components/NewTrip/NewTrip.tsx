@@ -21,6 +21,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 
 import MapView from "../../../../common/components/MapView";
 import PassengerCancelModal from "../../../../common/components/PassengerCancelModal";
@@ -302,6 +304,8 @@ const NewTrip: React.FC = () => {
     fetchProfile();
   }, []);
 
+  const [sharedDisclaimerAgreed, setSharedDisclaimerAgreed] = useState<boolean>(false);
+
   // Recalculate distance, road coordinates, and fare dynamically when pickup or dropoff changes
   const calculateDistanceAndFare = useCallback(async () => {
     if (!pickup.lat || !dropoff.lat || pickup.lat === 0 || dropoff.lat === 0) {
@@ -328,20 +332,23 @@ const NewTrip: React.FC = () => {
     roadDist = Math.max(0.5, Number(roadDist.toFixed(2)));
     setTripDistanceKm(roadDist);
 
-    // Calculate official fare from active tariff
-    let fare = activeTariff.baseFare;
+    // Calculate official fare from active tariff (Calapan City Ordinance No. 110, S. 2022)
+    // Base Seat Fare = ₱15 (first 2 km), Succeeding distance = ₱1/km
+    let seatFare = activeTariff.baseFare;
     if (roadDist > activeTariff.baseKm) {
-      fare += (roadDist - activeTariff.baseKm) * activeTariff.succRate;
+      seatFare += (roadDist - activeTariff.baseKm) * activeTariff.succRate;
     }
 
-    if (tripType === "Shared") {
-      fare = Math.round(fare * 0.6);
+    let fare = 0;
+    if (tripType === "Solo") {
+      fare = seatFare * 4; // Reserving full 4 seats (Solo Charter)
+    } else {
+      fare = seatFare * passengers; // Shared seat fare * declared passenger count
     }
 
-    // Reference minimum fare
-    fare = Math.max(fare, 20.0);
+    fare = Math.round(fare);
     setEstimatedFare(fare);
-  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, tripType, activeTariff]);
+  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, tripType, passengers, activeTariff]);
 
   useEffect(() => {
     calculateDistanceAndFare();
@@ -855,8 +862,8 @@ const NewTrip: React.FC = () => {
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "14px",
-                    fontWeight: 700,
+                    fontSize: "13px",
+                    fontWeight: 600,
                     color: "#0F172A",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -921,8 +928,8 @@ const NewTrip: React.FC = () => {
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "14px",
-                    fontWeight: dropoff.address ? 700 : 400,
+                    fontSize: "13px",
+                    fontWeight: dropoff.address ? 600 : 400,
                     color: dropoff.address ? "#0F172A" : "#94A3B8",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -1031,7 +1038,7 @@ const NewTrip: React.FC = () => {
                   <Box
                     onClick={() => {
                       setTripType("Shared");
-                      if (passengers > 2) setPassengers(2);
+                      if (passengers > 3) setPassengers(3);
                     }}
                     sx={{
                       flex: 1,
@@ -1119,9 +1126,9 @@ const NewTrip: React.FC = () => {
 
                   <IconButton
                     size="small"
-                    disabled={tripType === "Shared" ? passengers >= 2 : passengers >= 4}
+                    disabled={tripType === "Shared" ? passengers >= 3 : passengers >= 4}
                     onClick={() => {
-                      const max = tripType === "Shared" ? 2 : 4;
+                      const max = tripType === "Shared" ? 3 : 4;
                       if (passengers < max) {
                         setPassengers((prev) => prev + 1);
                       }
@@ -1203,61 +1210,134 @@ const NewTrip: React.FC = () => {
               </Box>
             </Box>
 
+            {/* Shared Trip Disclaimer & Agreement */}
+            {tripType === "Shared" && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  borderRadius: "14px",
+                  backgroundColor: "#EFF6FF",
+                  border: "1px solid #BFDBFE",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                  <InfoOutlinedIcon sx={{ color: "#2563EB", fontSize: 18, mt: 0.25, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: "12px", color: "#1E40AF", lineHeight: 1.4, fontFamily: "Poppins, sans-serif" }}>
+                    {language === "tl"
+                      ? "Paunawa sa Shared Trip: Ang pamasahe mo ay mahahati kung may kasabay na ma-match sa iyong ruta. Kung walang mahanap na kasabay, ang buong Solo fare ang sisingilin."
+                      : "Shared Trip Notice: Your fare may be shared if another compatible booking is matched with your trip. If no match is found, the full Solo fare will apply."}
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={sharedDisclaimerAgreed}
+                      onChange={(e) => setSharedDisclaimerAgreed(e.target.checked)}
+                      size="small"
+                      sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" }, py: 0 }}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 600, color: "#1E3A8A", fontFamily: "Poppins, sans-serif" }}>
+                      {language === "tl"
+                        ? "Naiintindihan ko na babayaran ko ang buong Solo fare kung walang mahanap na kasabay."
+                        : "I understand that I will pay the full Solo fare if no shared match is found."}
+                    </Typography>
+                  }
+                  sx={{ m: 0 }}
+                />
+              </Paper>
+            )}
+
             {/* 4. ESTIMATED FARE Section */}
             <Box
               sx={{
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                gap: 1,
                 pt: "12px",
                 pb: "4px",
                 borderTop: "1px solid #F1F5F9",
               }}
             >
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <Typography
+                      sx={{
+                        fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+                        fontWeight: 700,
+                        color: "#64748B",
+                        letterSpacing: "0.5px",
+                        fontFamily: "Poppins, sans-serif",
+                      }}
+                    >
+                      {language === "tl" ? "TINATAYANG PAMASAHE" : "ESTIMATED FARE"}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => setTariffInfoOpen(true)}
+                      title={language === "tl" ? "Taripa at Detalye ng Pamasahe" : "Tariff & Fare Details"}
+                      sx={{ p: 0, color: "#94A3B8", "&:hover": { color: "#64748B" } }}
+                    >
+                      <InfoOutlinedIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </Box>
                   <Typography
                     sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                      fontWeight: 700,
+                      fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                       color: "#64748B",
-                      letterSpacing: "0.5px",
+                      mt: "1px",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {language === "tl" ? "TINATAYANG PAMASAHE" : "ESTIMATED FARE"}
+                    {language === "tl" ? "Bayad sa Cash" : "Cash Payment"}
                   </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => setTariffInfoOpen(true)}
-                    title={language === "tl" ? "Taripa at Detalye ng Pamasahe" : "Tariff & Fare Details"}
-                    sx={{ p: 0, color: "#94A3B8", "&:hover": { color: "#64748B" } }}
-                  >
-                    <InfoOutlinedIcon sx={{ fontSize: 13 }} />
-                  </IconButton>
                 </Box>
+
                 <Typography
                   sx={{
-                    fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
-                    color: "#64748B",
-                    mt: "1px",
+                    fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
+                    fontWeight: 800,
+                    color: "#0F172A",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  {language === "tl" ? "Bayad sa Cash" : "Cash Payment"}
+                  ₱{estimatedFare.toFixed(2)}
                 </Typography>
               </Box>
 
-              <Typography
+              {/* Compact Fare Breakdown */}
+              <Box
                 sx={{
-                  fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
-                  fontWeight: 800,
-                  color: "#0F172A",
-                  fontFamily: "Poppins, sans-serif",
+                  p: 1.25,
+                  borderRadius: "12px",
+                  backgroundColor: "#F8FAFC",
+                  border: "1px solid #F1F5F9",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
                 }}
               >
-                ₱{estimatedFare.toFixed(2)}
-              </Typography>
+                <Typography sx={{ fontSize: "11px", color: "#475569", fontWeight: 600, fontFamily: "Poppins, sans-serif" }}>
+                  {language === "tl"
+                    ? `• Distansya: ${tripDistanceKm.toFixed(1)} km | Base (unang 2 km): ₱15.00/upuan`
+                    : `• Distance: ${tripDistanceKm.toFixed(1)} km | Base (first 2 km): ₱15.00/seat`}
+                </Typography>
+                <Typography sx={{ fontSize: "11px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                  {tripType === "Solo"
+                    ? language === "tl"
+                      ? "• Solo Charter: Reserba ang buong 4-seat capacity ng tricycle"
+                      : "• Solo Charter: Reserves full 4-seat capacity of tricycle"
+                    : language === "tl"
+                      ? `• Shared Fare Estimate: Hati para sa ${passengers} pasahero`
+                      : `• Shared Fare Estimate: Proportional fare for ${passengers} passenger${passengers > 1 ? 's' : ''}`}
+                </Typography>
+              </Box>
             </Box>
 
             {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
@@ -1267,7 +1347,14 @@ const NewTrip: React.FC = () => {
                 variant="contained"
                 fullWidth
                 onClick={handleBookTrip}
-                disabled={bookingSubmitting}
+                disabled={
+                  bookingSubmitting ||
+                  !dropoff.address ||
+                  dropoff.lat === 0 ||
+                  !pickup.lat ||
+                  pickup.lat === 0 ||
+                  (tripType === "Shared" && !sharedDisclaimerAgreed)
+                }
                 sx={{
                   height: "52px",
                   borderRadius: "16px",

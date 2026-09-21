@@ -6,47 +6,22 @@ import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Divider from "@mui/material/Divider";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
-import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import WorkOutlinedIcon from "@mui/icons-material/WorkOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
-import { searchPlaces } from "../../../../services/locationService";
-import type { PlaceSuggestion } from "../../../../services/locationService";
-import MapLocationPicker from "./MapLocationPicker";
+import SakayToast from "../../../../common/components/SakayToast";
+import SavedPlaceModal from "../../../account-management/components/SavedPlaceModal";
+import type { SavedPlaceItem } from "../../../account-management/components/SavedPlaceModal";
 
-export interface SavedPlace {
-  id: string;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  icon?: string;
-  isHome?: boolean;
-}
-
-const ICON_OPTIONS = [
-  { key: "home", labelTl: "Bahay", labelEn: "Home", icon: HomeOutlinedIcon },
-  { key: "work", labelTl: "Trabaho", labelEn: "Work", icon: WorkOutlinedIcon },
-  { key: "school", labelTl: "Paaralan", labelEn: "School", icon: SchoolOutlinedIcon },
-  { key: "favorite", labelTl: "Paborito", labelEn: "Favorite", icon: FavoriteBorderOutlinedIcon },
-  { key: "other", labelTl: "Iba pa", labelEn: "Other", icon: PlaceOutlinedIcon },
-];
+export type SavedPlace = SavedPlaceItem & { isHome?: boolean };
 
 interface HomeBottomSheetProps {
   firstName: string;
@@ -89,14 +64,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
 
   // Unified Saved Location Modal State (Add & Edit)
   const [modalOpen, setModalOpen] = useState(false);
-  const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
-  const [placeName, setPlaceName] = useState("");
-  const [placeAddress, setPlaceAddress] = useState("");
-  const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number }>({ lat: 13.4124, lng: 121.1834 });
-  const [selectedIcon, setSelectedIcon] = useState<string>("other");
-  const [addressSearchQuery, setAddressSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [editingPlace, setEditingPlace] = useState<SavedPlace | null>(null);
 
   // Long press & Action Dialog State for Saved Places
   const [actionPlace, setActionPlace] = useState<SavedPlace | null>(null);
@@ -169,24 +137,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     }
   }, [isDragging, onDragStateChange]);
 
-  // Search Places autocomplete
-  useEffect(() => {
-    if (!addressSearchQuery || addressSearchQuery.trim().length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        const results = await searchPlaces(addressSearchQuery, 13.4124, 121.1834);
-        setSuggestions(results);
-      } catch (e) {
-        console.warn("Place search error", e);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [addressSearchQuery]);
-
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartY(e.touches[0].clientY);
     dragStartTimeRef.current = Date.now();
@@ -223,38 +173,23 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
 
   // Open Unified Modal for Adding a Place
   const handleOpenAddModal = () => {
-    setEditingPlaceId(null);
-    setPlaceName("");
-    setPlaceAddress("");
-    setAddressSearchQuery("");
-    setSelectedIcon("other");
+    setEditingPlace(null);
     setModalOpen(true);
   };
 
   // Open Unified Modal for Editing a Saved Place
   const handleOpenEditPlace = (e: React.MouseEvent, place: SavedPlace) => {
     e.stopPropagation();
-    setEditingPlaceId(place.id);
-    setPlaceName(place.name);
-    setPlaceAddress(place.address);
-    setAddressSearchQuery(place.address);
-    setPlaceCoords({ lat: place.lat, lng: place.lng });
-    setSelectedIcon(place.icon || "other");
+    setEditingPlace(place);
     setModalOpen(true);
   };
 
   // Save Handler for Unified Modal
-  const handleSavePlace = () => {
-    const finalAddress = placeAddress.trim() || addressSearchQuery.trim();
-    if (!placeName.trim() || !finalAddress) {
-      setToastMessage(language === "tl" ? "Kumpletuhin ang pangalan at lokasyon." : "Please complete place name and location.");
-      return;
-    }
-
-    if (editingPlaceId) {
+  const handleSavePlace = (data: { id?: string; name: string; address: string; lat: number; lng: number; icon: string }) => {
+    if (data.id) {
       const updated = savedPlaces.map((p) =>
-        p.id === editingPlaceId
-          ? { ...p, name: placeName.trim(), address: finalAddress, lat: placeCoords.lat, lng: placeCoords.lng, icon: selectedIcon }
+        p.id === data.id
+          ? { ...p, name: data.name, address: data.address, lat: data.lat, lng: data.lng, icon: data.icon }
           : p
       );
       setSavedPlaces(updated);
@@ -264,11 +199,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     } else {
       const newPlace: SavedPlace = {
         id: `place_${Date.now()}`,
-        name: placeName.trim(),
-        address: finalAddress,
-        lat: placeCoords.lat,
-        lng: placeCoords.lng,
-        icon: selectedIcon,
+        name: data.name,
+        address: data.address,
+        lat: data.lat,
+        lng: data.lng,
+        icon: data.icon,
       };
       const updated = [...savedPlaces, newPlace];
       setSavedPlaces(updated);
@@ -276,23 +211,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
         localStorage.setItem("sakay_passenger_saved_places", JSON.stringify(updated));
       } catch {}
     }
-
-    setModalOpen(false);
-  };
-
-  const handleSelectSuggestion = (s: PlaceSuggestion) => {
-    setPlaceAddress(s.address);
-    setAddressSearchQuery(s.address);
-    setPlaceCoords({ lat: s.lat, lng: s.lng });
-    setSuggestions([]);
-  };
-
-  // Callback from MapLocationPicker when location is confirmed
-  const handleConfirmMapLocation = (loc: { address: string; lat: number; lng: number }) => {
-    setPlaceAddress(loc.address);
-    setAddressSearchQuery(loc.address);
-    setPlaceCoords({ lat: loc.lat, lng: loc.lng });
-    setModalOpen(true);
   };
 
   return (
@@ -628,214 +546,12 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           </Box>
       </Paper>
 
-      {/* UNIFIED SAVED PLACE CREATION & EDITING MODAL */}
-      <Dialog
+      {/* UNIFIED SAVED PLACE MODAL */}
+      <SavedPlaceModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        slotProps={{
-          paper: {
-            sx: { borderRadius: '20px', padding: '12px', maxWidth: '370px', width: '92%' },
-          },
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '18px', color: '#0F172A', fontFamily: 'Poppins, sans-serif', pb: 1 }}>
-          {editingPlaceId
-            ? (language === 'tl' ? 'I-edit ang Lugar' : 'Edit Saved Location')
-            : (language === 'tl' ? 'Magdagdag ng Lugar' : 'Add Saved Location')}
-        </DialogTitle>
-        <DialogContent sx={{ py: 1 }}>
-          {/* Field 1: Pangalan ng Lugar */}
-          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Pangalan ng Lugar' : 'Place Name'}
-          </Typography>
-          <TextField
-            fullWidth
-            value={placeName}
-            onChange={(e) => setPlaceName(e.target.value)}
-            placeholder={language === 'tl' ? 'Hal. Bahay, Paaralan, Trabaho' : 'e.g. Home, School, Work'}
-            variant="outlined"
-            size="small"
-            sx={{
-              mb: 1.5,
-              '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '14px' },
-            }}
-          />
-
-          {/* Field 1.5: Simbolo / Icon Selection */}
-          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#475569', mb: 0.75, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Simbolo / Icon' : 'Location Icon'}
-          </Typography>
-          <Box
-            sx={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              borderRadius: '16px',
-              p: '10px 8px',
-              mb: 2,
-            }}
-          >
-            {ICON_OPTIONS.map((opt) => {
-              const isSelected = selectedIcon === opt.key;
-              const IconComp = opt.icon;
-              return (
-                <Box
-                  key={opt.key}
-                  onClick={() => setSelectedIcon(opt.key)}
-                  sx={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '12px',
-                      backgroundColor: isSelected ? '#FF6B00' : '#FFFFFF',
-                      color: isSelected ? '#FFFFFF' : '#64748B',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: isSelected ? '1.5px solid #FF6B00' : '1px solid #CBD5E1',
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        backgroundColor: isSelected ? '#E66000' : '#F1F5F9',
-                      },
-                    }}
-                  >
-                    <IconComp sx={{ fontSize: 20 }} />
-                  </Box>
-                  <Typography
-                    sx={{
-                      fontSize: '10px',
-                      fontWeight: isSelected ? 700 : 500,
-                      color: isSelected ? '#FF6B00' : '#64748B',
-                      fontFamily: 'Poppins, sans-serif',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {language === 'tl' ? opt.labelTl : opt.labelEn}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-
-          {/* Field 2: Lokasyon with Clear Two-Way Entry: Option A vs Option B */}
-          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Lokasyon' : 'Location'}
-          </Typography>
-
-          {/* Option A: Search / type address */}
-          <TextField
-            fullWidth
-            value={addressSearchQuery}
-            onChange={(e) => {
-              setAddressSearchQuery(e.target.value);
-              setPlaceAddress(e.target.value);
-            }}
-            placeholder={language === 'tl' ? 'Ilagay ang address o landmark' : 'Enter address or landmark'}
-            variant="outlined"
-            size="small"
-            sx={{
-              mb: 1,
-              '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '14px' },
-            }}
-          />
-
-          {/* Search Autocomplete Suggestions */}
-          {suggestions.length > 0 && (
-            <Paper elevation={2} sx={{ borderRadius: '12px', maxHeight: '140px', overflowY: 'auto', mb: 2 }}>
-              <List dense disablePadding>
-                {suggestions.map((s, idx) => (
-                  <ListItem
-                    key={idx}
-                    component="div"
-                    onClick={() => handleSelectSuggestion(s)}
-                    sx={{ cursor: 'pointer', '&:hover': { backgroundColor: '#FFF7ED' } }}
-                  >
-                    <ListItemText
-                      primary={<Typography sx={{ fontSize: '14px', fontWeight: 600 }}>{s.name || s.address}</Typography>}
-                      secondary={<Typography sx={{ fontSize: '12px', color: '#64748B' }}>{s.address}</Typography>}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          )}
-
-          {/* Divider "o" / "or" */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 1.5 }}>
-            <Divider sx={{ flex: 1, borderColor: '#E2E8F0' }} />
-            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8' }}>
-              {language === 'tl' ? 'o' : 'or'}
-            </Typography>
-            <Divider sx={{ flex: 1, borderColor: '#E2E8F0' }} />
-          </Box>
-
-          {/* Option B: Pumili sa Mapa (Opens dedicated MapLocationPicker overlay) */}
-          <Button
-            fullWidth
-            variant="outlined"
-            startIcon={<MapOutlinedIcon sx={{ color: '#FF6B00' }} />}
-            onClick={() => {
-              setModalOpen(false);
-              setMapPickerOpen(true);
-            }}
-            sx={{
-              borderColor: '#E2E8F0',
-              color: '#0F172A',
-              textTransform: 'none',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 600,
-              py: '8px',
-              fontFamily: 'Poppins, sans-serif',
-              '&:hover': { backgroundColor: '#F8FAFC', borderColor: '#CBD5E1' },
-            }}
-          >
-            {language === 'tl' ? 'Pumili sa Mapa' : 'Select on Map'}
-          </Button>
-        </DialogContent>
-
-        <DialogActions sx={{ px: 2, pb: 2, pt: 1, display: 'flex', gap: '8px' }}>
-          <Button onClick={() => setModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontFamily: 'Poppins, sans-serif', width: '50%', fontSize: '14px' }}>
-            {language === 'tl' ? 'Kanselahin' : 'Cancel'}
-          </Button>
-          <Button
-            onClick={handleSavePlace}
-            variant="contained"
-            sx={{
-              width: '50%',
-              backgroundColor: '#FF6B00',
-              textTransform: 'none',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: '14px',
-              fontFamily: 'Poppins, sans-serif',
-              boxShadow: 'none',
-              '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
-            }}
-          >
-            {language === 'tl' ? 'I-save' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* DEDICATED MAP LOCATION PICKER OVERLAY */}
-      <MapLocationPicker
-        open={mapPickerOpen}
-        onClose={() => setMapPickerOpen(false)}
-        initialCoords={placeCoords}
-        onConfirmLocation={handleConfirmMapLocation}
+        initialPlace={editingPlace}
+        onSave={handleSavePlace}
       />
 
       {/* Long-Press Action Dialog (Edit & Delete options) */}
@@ -904,17 +620,12 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
       </Dialog>
 
       {/* Transient Validation Toast */}
-      <Snackbar
+      <SakayToast
         open={Boolean(toastMessage)}
-        autoHideDuration={4000}
+        message={toastMessage}
+        severity="warning"
         onClose={() => setToastMessage(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ top: "calc(var(--safe-area-top) + 16px) !important" }}
-      >
-        <Alert onClose={() => setToastMessage(null)} severity="warning" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)" }}>
-          {toastMessage}
-        </Alert>
-      </Snackbar>
+      />
     </>
   );
 };

@@ -9,7 +9,6 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import Switch from "@mui/material/Switch";
 import Divider from "@mui/material/Divider";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -162,30 +161,89 @@ const SettingsPage: React.FC = () => {
             }}
           >
             <List disablePadding>
-              <ListItem sx={{ py: 1.5, px: 2 }}>
-                <ListItemIcon sx={{ minWidth: 38, color: "#FF6B00" }}>
-                  <TranslateIcon sx={{ fontSize: 20 }} />
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl" ? "Wika (Language)" : "Language"}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl" ? "Tagalog" : "English"}
-                    </Typography>
-                  }
-                />
-                <Switch
-                  checked={language === "en"}
-                  onChange={(e) => setLanguage(e.target.checked ? "en" : "tl")}
+              <ListItem sx={{ py: 1.5, px: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6B00" }}>
+                    <TranslateIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                        {language === "tl" ? "Wika (Language)" : "Language"}
+                      </Typography>
+                    }
+                  />
+                </Box>
+
+                {/* Segmented 2-Option Selector */}
+                <Box
                   sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: "#FF6B00" },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#FF6B00" },
+                    width: "100%",
+                    display: "flex",
+                    backgroundColor: "#F1F5F9",
+                    borderRadius: "12px",
+                    p: "3px",
+                    gap: "4px",
                   }}
-                />
+                >
+                  <Box
+                    onClick={() => setLanguage("tl")}
+                    sx={{
+                      flex: 1,
+                      py: 1,
+                      borderRadius: "9px",
+                      backgroundColor: language === "tl" ? "#FF6B00" : "transparent",
+                      color: language === "tl" ? "#FFFFFF" : "#64748B",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 1,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: language === "tl" ? "0 2px 8px rgba(255,107,0,0.25)" : "none",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: "14px" }}>🇵🇭</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "13px",
+                        fontWeight: language === "tl" ? 700 : 500,
+                        fontFamily: "Poppins, sans-serif",
+                      }}
+                    >
+                      Tagalog
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    onClick={() => setLanguage("en")}
+                    sx={{
+                      flex: 1,
+                      py: 1,
+                      borderRadius: "9px",
+                      backgroundColor: language === "en" ? "#FF6B00" : "transparent",
+                      color: language === "en" ? "#FFFFFF" : "#64748B",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 1,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: language === "en" ? "0 2px 8px rgba(255,107,0,0.25)" : "none",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: "14px" }}>🇺🇸</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "13px",
+                        fontWeight: language === "en" ? 700 : 500,
+                        fontFamily: "Poppins, sans-serif",
+                      }}
+                    >
+                      English
+                    </Typography>
+                  </Box>
+                </Box>
               </ListItem>
             </List>
           </Paper>

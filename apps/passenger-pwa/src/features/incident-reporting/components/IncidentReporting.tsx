@@ -16,6 +16,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -196,6 +197,7 @@ export const IncidentReporting: React.FC = () => {
                 onBlur={() => setSelectFocused(false)}
                 variant="standard"
                 disableUnderline
+                IconComponent={(props) => <KeyboardArrowDownIcon {...props} sx={{ color: '#64748B', fontSize: 20 }} />}
                 sx={{
                   fontSize: '14px',
                   fontWeight: 600,

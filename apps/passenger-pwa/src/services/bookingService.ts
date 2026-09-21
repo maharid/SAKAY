@@ -120,7 +120,10 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     estimated_fare: payload.estimated_fare,
     actual_fare: payload.estimated_fare,
     is_shared_trip: Boolean(payload.is_shared_trip),
-    passenger_count: Math.min(Math.max(Number(payload.passenger_count) || 1, 1), 4),
+    passenger_count: Math.min(
+      Math.max(Number(payload.passenger_count) || 1, 1),
+      payload.is_shared_trip ? 3 : 4
+    ),
     booking_type: payload.booking_type || 'Immediate',
     booking_status: 'Pending',
     fare_confirmation_status: 'Matched',

@@ -14,6 +14,7 @@ import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 
+import Divider from "@mui/material/Divider";
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 
@@ -229,6 +230,9 @@ const SupportPage: React.FC = () => {
             </Typography>
           </Box>
         </Paper>
+
+        {/* Separator between App Feedback and FAQs with 12px margin */}
+        <Divider sx={{ my: 1.5, borderColor: "#E2E8F0" }} />
 
         {/* FAQs Section */}
         <Box>
