@@ -377,7 +377,6 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
 
       {/* Tricycle Illustration */}
       <Box
-        className="anim-float-tricycle"
         sx={{
           mt: "30px",
           zIndex: 2,
