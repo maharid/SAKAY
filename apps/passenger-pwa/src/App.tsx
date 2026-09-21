@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import theme from "./styles/theme";
 import { LanguageProvider } from "./utils/LanguageContext";
@@ -6,7 +6,6 @@ import MobileAppShell from "./common/layouts/MobileAppShell";
 
 // Pages
 import Splash from "./features/account-management/components/Splash/Splash";
-import AccountSelection from "./features/account-management/components/AccountSelection/AccountSelection";
 import Login from "./features/account-management/components/Login/Login";
 import Register from "./features/account-management/components/Register/Register";
 import VerifyOtp from "./features/account-management/components/VerifyOtp/VerifyOtp";
@@ -45,7 +44,7 @@ function App() {
               <Route path="/splash" element={<Splash />} />
               <Route path="/get-started" element={<Splash initialStep={8} />} />
               <Route path="/welcome" element={<Splash initialStep={8} />} />
-              <Route path="/account-selection" element={<AccountSelection />} />
+              <Route path="/account-selection" element={<Navigate to="/register" replace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify-otp" element={<VerifyOtp />} />

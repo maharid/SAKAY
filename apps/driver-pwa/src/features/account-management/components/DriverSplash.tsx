@@ -417,7 +417,7 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
       >
         <PrimaryButton
           fullWidth
-          onClick={() => navigate("/account-selection")}
+          onClick={() => navigate("/driver/register")}
         >
           {t.start}
         </PrimaryButton>

@@ -4,7 +4,6 @@ import {
   Box,
   Typography,
   IconButton,
-  Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -13,6 +12,7 @@ import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import SuccessModal from '../../../common/components/SuccessModal';
+import SakayToast from '../../../common/components/SakayToast';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -53,23 +53,43 @@ export const DriverLogin: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const [error, setError] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  // Toast and Modal State
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const cleanPhoneDigits = phone.replace(/\D/g, '');
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith('09');
+  const showPhoneError = phoneTouched && !isValidPhone;
+
+  // Disabled if mobile number or password is empty or loading
+  const isLoginDisabled = !phone.trim() || !password.trim() || loading;
+
+  const handleBack = () => {
+    if (window.history.length > 1 && window.history.state?.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/driver/get-started');
+    }
+  };
+
+  const triggerErrorToast = (msg: string) => {
+    setToastMessage(msg);
+    setToastOpen(true);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setHasAttemptedSubmit(true);
+    if (isLoginDisabled) return;
+
     const rawDigits = phone.replace(/\D/g, '');
-    if (!rawDigits || !password) {
-      setError(
-        t.enterPhoneAndPassword ||
-          (language === 'tl'
-            ? 'Mangyaring ilagay ang iyong numero at password.'
-            : 'Please enter your mobile number and password.')
+    if (!rawDigits || !isValidPhone) {
+      triggerErrorToast(
+        language === 'tl'
+          ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.'
+          : 'Please enter a valid 10-digit mobile number starting with 9.'
       );
       return;
     }
@@ -79,7 +99,6 @@ export const DriverLogin: React.FC = () => {
     const phone63 = candidates.phone63WithPlus;
 
     setLoading(true);
-    setError('');
 
     // Instant Verified Test Driver Login (Option A for live map & ride testing)
     const isTestDriver =
@@ -128,7 +147,7 @@ export const DriverLogin: React.FC = () => {
 
       if (!driverData) {
         setLoading(false);
-        setError(
+        triggerErrorToast(
           language === 'tl'
             ? 'Walang nahanap na account para sa numerong ito. Mangyaring mag-register muna o suriin ang inyong numero.'
             : 'No account found for this mobile number. Please register first or check your mobile number.'
@@ -139,7 +158,6 @@ export const DriverLogin: React.FC = () => {
       // 2. Driver exists! Attempt authentication with Supabase Auth
       let sessionUser: any = null;
 
-      // Prepare candidate credentials
       const authCandidates = [...candidates.authCandidates];
       if (driverData.email && !authCandidates.some((c: any) => c.email === driverData.email)) {
         authCandidates.unshift({ email: driverData.email });
@@ -160,10 +178,10 @@ export const DriverLogin: React.FC = () => {
       // 3. If password was incorrect:
       if (!sessionUser) {
         setLoading(false);
-        setError(
+        triggerErrorToast(
           language === 'tl'
-            ? 'Mali ang password para sa account na ito. Pakisubukang muli.'
-            : 'Incorrect password for this account. Please check your password and try again.'
+            ? 'Mali ang numero o password. Pakisubukang muli.'
+            : 'Invalid mobile number or password.'
         );
         return;
       }
@@ -267,20 +285,12 @@ export const DriverLogin: React.FC = () => {
     } catch (err: any) {
       setLoading(false);
       console.error('[DriverLogin] Login exception:', err);
-      setError(
+      triggerErrorToast(
         err?.message ||
           (language === 'tl'
             ? 'Hindi makakonekta sa database. Pakisubukang muli.'
             : 'Unable to connect to the database. Please try again.')
       );
-    }
-  };
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/welcome');
     }
   };
 
@@ -295,6 +305,14 @@ export const DriverLogin: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {/* Toast Error Notification */}
+      <SakayToast
+        open={toastOpen}
+        message={toastMessage}
+        severity="error"
+        onClose={() => setToastOpen(false)}
+      />
+
       {/* Fixed Sticky Header matching Passenger PWA */}
       <Box
         sx={{
@@ -370,12 +388,6 @@ export const DriverLogin: React.FC = () => {
             </Typography>
           </Box>
 
-          {error && (
-            <Alert severity="error" sx={{ width: '100%', marginTop: '16px', borderRadius: '12px' }}>
-              {error}
-            </Alert>
-          )}
-
           <Box
             sx={{
               marginTop: '24px',
@@ -388,14 +400,13 @@ export const DriverLogin: React.FC = () => {
             <SakayPhoneInput
               label={language === 'tl' ? 'NUMERO NG TELEPONO' : 'MOBILE NUMBER'}
               value={phone}
-              onChange={(val) => {
-                setPhone(val);
-                if (error) setError('');
-              }}
+              onChange={(val) => setPhone(val)}
+              onFocus={() => setPhoneTouched(true)}
+              onBlur={() => setPhoneTouched(true)}
               required
-              error={hasAttemptedSubmit && !isValidPhone}
+              error={showPhoneError}
               helperText={
-                hasAttemptedSubmit && !isValidPhone
+                showPhoneError
                   ? language === 'tl'
                     ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.'
                     : 'Please enter a valid 10-digit mobile number starting with 9.'
@@ -405,14 +416,10 @@ export const DriverLogin: React.FC = () => {
 
             <RegisterInput
               label="PASSWORD"
+              required
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(val) => {
-                setPassword(val);
-                if (error) setError('');
-              }}
-              error={hasAttemptedSubmit && !password}
-              helperText={hasAttemptedSubmit && !password ? t.passwordRequired : ''}
+              onChange={(val) => setPassword(val)}
               endAdornment={
                 <IconButton
                   onClick={() => setShowPassword(!showPassword)}
@@ -456,7 +463,7 @@ export const DriverLogin: React.FC = () => {
             gap: '16px',
           }}
         >
-          <PrimaryButton type="submit" fullWidth loading={loading}>
+          <PrimaryButton type="submit" fullWidth disabled={isLoginDisabled} loading={loading}>
             {t.loginTitle}
           </PrimaryButton>
 
@@ -471,7 +478,7 @@ export const DriverLogin: React.FC = () => {
             {t.dontHaveAccount || 'Wala ka pang account?'}{' '}
             <Box
               component="span"
-              onClick={() => navigate('/account-selection')}
+              onClick={() => navigate('/driver/register')}
               sx={{
                 color: '#FF6B00',
                 fontWeight: 700,

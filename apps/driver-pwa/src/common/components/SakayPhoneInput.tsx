@@ -5,6 +5,8 @@ export interface SakayPhoneInputProps {
   label?: string;
   value: string;
   onChange: (fullNumber: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   error?: boolean;
   helperText?: string;
   required?: boolean;
@@ -48,6 +50,8 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
   label = 'Numero ng Telepono',
   value,
   onChange,
+  onFocus,
+  onBlur,
   error = false,
   helperText = '',
   required = false,
@@ -175,12 +179,18 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
           {/* Editable text input */}
           <input
             type="tel"
-            placeholder={focused ? '9XX XXX XXXX' : ''}
+            placeholder="9XX XXX XXXX"
             value={displayInputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onFocus={() => {
+              setFocused(true);
+              if (onFocus) onFocus();
+            }}
+            onBlur={() => {
+              setFocused(false);
+              if (onBlur) onBlur();
+            }}
             readOnly={readOnly}
             style={{
               width: '100%',

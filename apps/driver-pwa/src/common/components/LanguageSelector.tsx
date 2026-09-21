@@ -1,7 +1,6 @@
 import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import LanguageIcon from "@mui/icons-material/Language";
 import { useLanguage } from "../../utils/LanguageContext";
 
 export const LanguageSelector: React.FC = () => {
@@ -16,7 +15,7 @@ export const LanguageSelector: React.FC = () => {
         backdropFilter: "blur(12px)",
         borderRadius: "30px",
         padding: "4px",
-        border: "1px solid rgba(255, 255, 255, 0.15)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
         userSelect: "none",
       }}
     >
@@ -25,11 +24,13 @@ export const LanguageSelector: React.FC = () => {
         onClick={() => setLanguage("tl")}
         sx={{
           display: "flex",
+          flexDirection: "row",
           alignItems: "center",
           gap: "6px",
-          padding: "6px 16px",
+          padding: "8px 16px",
           borderRadius: "24px",
           cursor: "pointer",
+          whiteSpace: "nowrap",
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           ...(language === "tl"
             ? {
@@ -46,8 +47,8 @@ export const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        {language === "tl" && <LanguageIcon sx={{ fontSize: 16, color: "#FF6B00" }} />}
-        <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
+        <Box component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>🇵🇭</Box>
+        <Typography sx={{ fontSize: "14px", fontWeight: 700, whiteSpace: "nowrap", lineHeight: 1 }}>
           Tagalog
         </Typography>
       </Box>
@@ -57,11 +58,13 @@ export const LanguageSelector: React.FC = () => {
         onClick={() => setLanguage("en")}
         sx={{
           display: "flex",
+          flexDirection: "row",
           alignItems: "center",
           gap: "6px",
-          padding: "6px 16px",
+          padding: "8px 16px",
           borderRadius: "24px",
           cursor: "pointer",
+          whiteSpace: "nowrap",
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           ...(language === "en"
             ? {
@@ -78,8 +81,8 @@ export const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        {language === "en" && <LanguageIcon sx={{ fontSize: 16, color: "#FF6B00" }} />}
-        <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
+        <Box component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>🇺🇸</Box>
+        <Typography sx={{ fontSize: "14px", fontWeight: 700, whiteSpace: "nowrap", lineHeight: 1 }}>
           English
         </Typography>
       </Box>

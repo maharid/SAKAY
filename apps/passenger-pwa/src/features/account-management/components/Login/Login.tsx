@@ -6,12 +6,12 @@ import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
-import Alert from "@mui/material/Alert";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import SakayToast from "../../../../common/components/SakayToast";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { supabase } from "../../../../services/supabaseClient";
@@ -21,36 +21,48 @@ const Login: React.FC = () => {
   const { language, t } = useLanguage();
   const navigate = useNavigate();
 
-  // Form State - Mobile Number and Password only (consistent with Sign Up)
+  // Form State
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
-  // Validation / Message State
-  const [error, setError] = useState<string | null>(null);
+  // Toast and Modal State
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const cleanPhoneDigits = phone.replace(/\D/g, "");
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith("09");
+  const showPhoneError = phoneTouched && !isValidPhone;
+
+  // Disabled if mobile number or password is empty or loading
+  const isLoginDisabled = !phone.trim() || !password.trim() || loading;
+
+  const handleBack = () => {
+    if (window.history.length > 1 && window.history.state?.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate("/get-started");
+    }
+  };
+
+  const triggerErrorToast = (msg: string) => {
+    setToastMessage(msg);
+    setToastOpen(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setHasAttemptedSubmit(true);
+    if (isLoginDisabled) return;
 
-    // Form Validations
-    if (!phone.trim() || !isValidPhone) {
-      setError(
+    if (!isValidPhone) {
+      triggerErrorToast(
         language === "tl"
           ? "Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9."
           : "Please enter a valid 10-digit mobile number starting with 9."
       );
-      return;
-    }
-    if (!password) {
-      setError(t.passwordRequired);
       return;
     }
 
@@ -100,7 +112,7 @@ const Login: React.FC = () => {
 
       if (signInResponse.error) {
         console.warn("Supabase signIn warning:", signInResponse.error.message);
-        setError(
+        triggerErrorToast(
           language === "tl"
             ? "Mali ang numero o password. Pakisubukang muli."
             : "Invalid mobile number or password."
@@ -148,8 +160,7 @@ const Login: React.FC = () => {
                   p_contact_number: user.phone || user.user_metadata?.contact_number || formattedPhone,
                 }).then(() => {}, () => {});
               } else {
-                // Show error clearly without automatic hijacking/redirect
-                setError(
+                triggerErrorToast(
                   language === "tl"
                     ? "Kailangan munang ma-verify ang inyong numero gamit ang OTP bago makapag-login."
                     : "Your mobile number needs to be verified with OTP before logging in."
@@ -161,7 +172,7 @@ const Login: React.FC = () => {
             }
 
             if (profile.account_status === "Suspended" || profile.account_status === "Deactivated") {
-              setError(
+              triggerErrorToast(
                 language === "tl"
                   ? "Ang inyong account ay suspendido o na-deactivate."
                   : "Your account has been suspended or deactivated."
@@ -180,7 +191,7 @@ const Login: React.FC = () => {
 
           if (profile) {
             if (profile.account_status === "Suspended" || profile.account_status === "Deactivated") {
-              setError(
+              triggerErrorToast(
                 language === "tl"
                   ? "Ang inyong account ay suspendido o na-deactivate."
                   : "Your account has been suspended or deactivated."
@@ -196,11 +207,9 @@ const Login: React.FC = () => {
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
-        // Reset location permission cache for fresh login prompt
         localStorage.removeItem("gps_permission");
         sessionStorage.removeItem("gps_permission_session");
 
-        // Redirect to dashboard with history replacement
         navigate("/dashboard", {
           replace: true,
           state: {
@@ -212,7 +221,7 @@ const Login: React.FC = () => {
     } catch (err: unknown) {
       const errMsg =
         err instanceof Error ? err.message : "An unexpected error occurred during login.";
-      setError(errMsg);
+      triggerErrorToast(errMsg);
       setLoading(false);
     }
   };
@@ -228,6 +237,14 @@ const Login: React.FC = () => {
         overflow: "hidden",
       }}
     >
+      {/* Toast Error Notification */}
+      <SakayToast
+        open={toastOpen}
+        message={toastMessage}
+        severity="error"
+        onClose={() => setToastOpen(false)}
+      />
+
       {/* Sticky Fixed Header */}
       <Box
         sx={{
@@ -244,7 +261,7 @@ const Login: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate("/get-started")}
+          onClick={handleBack}
           sx={{
             backgroundColor: "#FFFFFF",
             border: "1px solid #E2E8F0",
@@ -307,13 +324,6 @@ const Login: React.FC = () => {
             </Typography>
           </Box>
 
-          {/* Error Alert */}
-          {error && (
-            <Alert severity="error" sx={{ width: "100%", marginTop: "16px", borderRadius: "12px" }}>
-              {error}
-            </Alert>
-          )}
-
           {/* Form Fields */}
           <Box
             sx={{
@@ -328,14 +338,13 @@ const Login: React.FC = () => {
             <SakayPhoneInput
               label={language === "tl" ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
               value={phone}
-              onChange={(fullVal) => {
-                setPhone(fullVal);
-                if (error) setError(null);
-              }}
+              onChange={(fullVal) => setPhone(fullVal)}
+              onFocus={() => setPhoneTouched(true)}
+              onBlur={() => setPhoneTouched(true)}
               required
-              error={hasAttemptedSubmit && !isValidPhone}
+              error={showPhoneError}
               helperText={
-                hasAttemptedSubmit && !isValidPhone
+                showPhoneError
                   ? language === "tl"
                     ? "Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9."
                     : "Please enter a valid 10-digit mobile number starting with 9."
@@ -346,14 +355,10 @@ const Login: React.FC = () => {
             {/* Password Input with RegisterInput */}
             <RegisterInput
               label="PASSWORD"
+              required
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(val) => {
-                setPassword(val);
-                if (error) setError(null);
-              }}
-              error={hasAttemptedSubmit && !password}
-              helperText={hasAttemptedSubmit && !password ? t.passwordRequired : ""}
+              onChange={(val) => setPassword(val)}
               endAdornment={
                 <IconButton
                   onClick={() => setShowPassword(!showPassword)}
@@ -402,7 +407,7 @@ const Login: React.FC = () => {
             gap: "16px",
           }}
         >
-          <PrimaryButton type="submit" fullWidth loading={loading}>
+          <PrimaryButton type="submit" fullWidth disabled={isLoginDisabled} loading={loading}>
             {t.loginLink.trim()}
           </PrimaryButton>
 
@@ -417,7 +422,7 @@ const Login: React.FC = () => {
             {t.dontHaveAccount}
             <Box
               component="span"
-              onClick={() => navigate("/account-selection")}
+              onClick={() => navigate("/register")}
               sx={{
                 color: "#FF6B00",
                 fontWeight: 700,

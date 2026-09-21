@@ -415,7 +415,7 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
       >
         <PrimaryButton
           fullWidth
-          onClick={() => navigate("/account-selection")}
+          onClick={() => navigate("/register")}
         >
           {t.start}
         </PrimaryButton>

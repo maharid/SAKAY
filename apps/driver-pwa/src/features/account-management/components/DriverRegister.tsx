@@ -69,6 +69,7 @@ export const DriverRegister: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [todaFocused, setTodaFocused] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   useEffect(() => {
     try {
@@ -469,10 +470,12 @@ export const DriverRegister: React.FC = () => {
             label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
             value={phone}
             onChange={(fullVal) => setPhone(fullVal)}
+            onFocus={() => setPhoneTouched(true)}
+            onBlur={() => setPhoneTouched(true)}
             required
-            error={hasAttemptedSubmit && !isValidPhone}
+            error={(hasAttemptedSubmit || phoneTouched) && !isValidPhone}
             helperText={
-              hasAttemptedSubmit && !isValidPhone
+              (hasAttemptedSubmit || phoneTouched) && !isValidPhone
                 ? (language === 'tl' ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.' : 'Please enter a valid 10-digit mobile number starting with 9.')
                 : ''
             }
@@ -480,6 +483,7 @@ export const DriverRegister: React.FC = () => {
 
           <RegisterInput
             label="PASSWORD"
+            required
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(val) => setPassword(val)}

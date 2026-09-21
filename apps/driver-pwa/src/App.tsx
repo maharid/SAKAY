@@ -7,7 +7,6 @@ import theme from './styles/theme';
 import { LanguageProvider } from './utils/LanguageContext';
 import DriverMobileAppShell from './common/layouts/DriverMobileAppShell';
 import { DriverSplash } from './features/account-management/components/DriverSplash';
-import { AccountSelection } from './features/account-management/components/AccountSelection';
 import { DriverLogin } from './features/account-management/components/DriverLogin';
 import { DriverRegister } from './features/account-management/components/DriverRegister';
 import { DriverVerifyOtp } from './features/account-management/components/DriverVerifyOtp';
@@ -63,7 +62,7 @@ export const App: React.FC = () => {
             <Route path="/get-started" element={<DriverSplash initialStep={8} />} />
             <Route path="/welcome" element={<DriverSplash initialStep={8} />} />
             <Route path="/driver/get-started" element={<DriverSplash initialStep={8} />} />
-            <Route path="/account-selection" element={<AccountSelection />} />
+            <Route path="/account-selection" element={<Navigate to="/driver/register" replace />} />
 
             {/* Authentication & Onboarding Routes */}
             <Route path="/login" element={<DriverLogin />} />
