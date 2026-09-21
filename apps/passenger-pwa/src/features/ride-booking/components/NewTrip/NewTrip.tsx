@@ -993,7 +993,7 @@ const NewTrip: React.FC = () => {
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    TRIP TYPE
+                    {language === "tl" ? "URI NG BIYAHE" : "TRIP TYPE"}
                   </Typography>
                   <IconButton
                     size="small"
@@ -1037,7 +1037,7 @@ const NewTrip: React.FC = () => {
                         fontFamily: "Poppins, sans-serif",
                       }}
                     >
-                      Solo
+                      {language === "tl" ? "Solo" : "Solo"}
                     </Typography>
                   </Box>
 
@@ -1066,7 +1066,7 @@ const NewTrip: React.FC = () => {
                         fontFamily: "Poppins, sans-serif",
                       }}
                     >
-                      Share
+                      {language === "tl" ? "Share" : "Share"}
                     </Typography>
                   </Box>
                 </Box>
@@ -1094,7 +1094,7 @@ const NewTrip: React.FC = () => {
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    PASSENGERS
+                    {language === "tl" ? "PASAHERO" : "PASSENGERS"}
                   </Typography>
                 </Box>
 
@@ -1168,7 +1168,7 @@ const NewTrip: React.FC = () => {
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    NOTES
+                    {language === "tl" ? "TALA" : "NOTES"}
                   </Typography>
                 </Box>
 
@@ -1209,14 +1209,14 @@ const NewTrip: React.FC = () => {
                         ? "May tala"
                         : "Has note"
                       : language === "tl"
-                      ? "Add notes"
+                      ? "Magdagdag ng tala"
                       : "Add notes"}
                   </Typography>
                 </Box>
               </Box>
             </Box>
 
-            {/* 4. ESTIMATED FARE Section matching BOOK - SOLO.png */}
+            {/* 4. ESTIMATED FARE Section */}
             <Box
               sx={{
                 display: "flex",
@@ -1237,7 +1237,7 @@ const NewTrip: React.FC = () => {
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {language === "tl" ? "ESTIMATED FARE" : "ESTIMATED FARE"}
+                    {language === "tl" ? "TINATAYANG PAMASAHE" : "ESTIMATED FARE"}
                   </Typography>
                   <IconButton
                     size="small"
@@ -1256,7 +1256,7 @@ const NewTrip: React.FC = () => {
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  {language === "tl" ? "Cash Payment" : "Cash Payment"}
+                  {language === "tl" ? "Bayad sa Cash" : "Cash Payment"}
                 </Typography>
               </Box>
 
@@ -1444,13 +1444,19 @@ const NewTrip: React.FC = () => {
                   : "City Ordinance No. 110, Series of 2022"}
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                • Base Fare: ₱{activeTariff.baseFare.toFixed(2)} (unang {activeTariff.baseKm} km)
+                {language === "tl"
+                  ? `• Pundasyong Pamasahe (Base Fare): ₱${activeTariff.baseFare.toFixed(2)} (unang ${activeTariff.baseKm} km)`
+                  : `• Base Fare: ₱${activeTariff.baseFare.toFixed(2)} (first ${activeTariff.baseKm} km)`}
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                • Kada Karagdagang Kilometro: +₱{activeTariff.succRate.toFixed(2)}/km
+                {language === "tl"
+                  ? `• Kada Karagdagang Kilometro: +₱${activeTariff.succRate.toFixed(2)}/km`
+                  : `• Per Succeeding Kilometer: +₱${activeTariff.succRate.toFixed(2)}/km`}
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                • Tinatayang Distansya: {tripDistanceKm} km
+                {language === "tl"
+                  ? `• Tinatayang Distansya: ${tripDistanceKm} km`
+                  : `• Estimated Distance: ${tripDistanceKm} km`}
               </Typography>
             </Paper>
             <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: "#64748B", px: 0.5 }}>

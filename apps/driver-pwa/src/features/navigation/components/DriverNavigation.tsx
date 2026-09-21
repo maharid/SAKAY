@@ -21,8 +21,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MapView from '../../../common/components/MapView';
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
 import { supabase } from '../../../services/supabaseClient';
+import { useLanguage } from '../../../utils/LanguageContext';
 
 export const DriverNavigation: React.FC = () => {
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || 'BKG-9011';
@@ -263,11 +265,17 @@ export const DriverNavigation: React.FC = () => {
         {/* ETA & Distance */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: '10px 14px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
           <Box>
-            <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>ESTIMATED ARRIVAL (ETA)</Typography>
-            <Typography sx={{ fontSize: '17px', fontWeight: 900, color: '#0F172A' }}>{eta} mins</Typography>
+            <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>
+              {language === 'tl' ? 'TINATAYANG DATING (ETA)' : 'ESTIMATED ARRIVAL (ETA)'}
+            </Typography>
+            <Typography sx={{ fontSize: '17px', fontWeight: 900, color: '#0F172A' }}>
+              {eta} {language === 'tl' ? 'min' : 'mins'}
+            </Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>FARE</Typography>
+            <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>
+              {language === 'tl' ? 'PAMASAHE' : 'FARE'}
+            </Typography>
             <Typography sx={{ fontSize: '17px', fontWeight: 900, color: '#FF6B00' }}>₱{fare.toFixed(2)}</Typography>
           </Box>
         </Box>
@@ -288,7 +296,7 @@ export const DriverNavigation: React.FC = () => {
             '&:hover': { backgroundColor: '#E66000' },
           }}
         >
-          Driver Arrived at Pickup
+          {language === 'tl' ? 'Nakarating na ang Drayber sa Pickup' : 'Driver Arrived at Pickup'}
         </Button>
       </Paper>
 
@@ -316,11 +324,17 @@ export const DriverNavigation: React.FC = () => {
         }}
       >
         <DialogTitle sx={{ fontWeight: 800, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
-          Active Navigation En Route
+          {language === 'tl' ? 'Aktibong Navigasyon' : 'Active Navigation En Route'}
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', py: 1 }}>
           <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.5 }}>
-            You are currently en route to the pickup point of <strong>{passengerName}</strong>. Do you wish to cancel this navigation and return to Home?
+            {language === 'tl'
+              ? `Kasalukuyan kang papunta sa pickup point ni `
+              : `You are currently en route to the pickup point of `}
+            <strong>{passengerName}</strong>
+            {language === 'tl'
+              ? `. Nais mo bang kanselahin ang navigasyon at bumalik sa Home?`
+              : `. Do you wish to cancel this navigation and return to Home?`}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -337,7 +351,7 @@ export const DriverNavigation: React.FC = () => {
               '&:hover': { backgroundColor: '#E66000' },
             }}
           >
-            Stay in Navigation
+            {language === 'tl' ? 'Manatili sa Navigasyon' : 'Stay in Navigation'}
           </Button>
           <Button
             fullWidth
@@ -351,7 +365,7 @@ export const DriverNavigation: React.FC = () => {
               textTransform: 'none',
             }}
           >
-            Cancel and Return to Home
+            {language === 'tl' ? 'Kanselahin at Bumalik sa Home' : 'Cancel and Return to Home'}
           </Button>
         </DialogActions>
       </Dialog>

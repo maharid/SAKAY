@@ -56,9 +56,6 @@ export const DriverVerifyOtp: React.FC = () => {
         const res = await sendDriverOtp(targetPhone);
         if (res.success) {
           setResendTimer(60);
-          setInfoNotice(t.otpResentSuccess || 'Verification code sent to your mobile number.');
-          if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
-          resendNoticeTimerRef.current = setTimeout(() => setInfoNotice(null), 5000);
         } else {
           setError(res.error || 'Failed to send OTP SMS.');
         }

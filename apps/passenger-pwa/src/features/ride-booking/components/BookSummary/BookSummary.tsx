@@ -501,7 +501,7 @@ const BookSummary: React.FC = () => {
                 <AccountBalanceWalletIcon sx={{ color: "#FF6B00" }} />
                 <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#94A3B8" }}>
                   {tripType === "Shared"
-                    ? language === "tl" ? "SHARED FARE ESTIMATE" : "SHARED FARE ESTIMATE"
+                    ? language === "tl" ? "ESTIMASYON NG SHARED FARE" : "SHARED FARE ESTIMATE"
                     : language === "tl" ? "ESTIMASYON NG PAMASAHE" : "ESTIMATED FARE"}
                 </Typography>
               </Box>
@@ -545,7 +545,7 @@ const BookSummary: React.FC = () => {
                     <Typography sx={{ color: "#34A853", fontWeight: 700 }}>₱{(seatFare * passengers).toFixed(2)}</Typography>
                   </Box>
                   <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#94A3B8" }}>
-                    <Typography>{language === "tl" ? "Maximum Unmatched Fare (Solo Rate):" : "Maximum Unmatched Fare (Solo Rate):"}</Typography>
+                    <Typography>{language === "tl" ? "Pinakamataas na Pamasahe Kapag Walang Kapares (Solo Rate):" : "Maximum Unmatched Fare (Solo Rate):"}</Typography>
                     <Typography sx={{ color: "#FFA726", fontWeight: 700 }}>₱{(seatFare * 4).toFixed(2)}</Typography>
                   </Box>
                   <Box sx={{ display: "flex", gap: "6px", alignItems: "flex-start", marginTop: "4px", backgroundColor: "rgba(52, 168, 83, 0.08)", padding: "10px", borderRadius: "12px" }}>

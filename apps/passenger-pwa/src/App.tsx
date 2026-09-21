@@ -36,8 +36,8 @@ function App() {
             <Route element={<MobileAppShell />}>
               <Route path="/" element={<Splash />} />
               <Route path="/splash" element={<Splash />} />
-              <Route path="/get-started" element={<Splash initialStep={7} />} />
-              <Route path="/welcome" element={<Splash initialStep={7} />} />
+              <Route path="/get-started" element={<Splash initialStep={8} />} />
+              <Route path="/welcome" element={<Splash initialStep={8} />} />
               <Route path="/account-selection" element={<AccountSelection />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />

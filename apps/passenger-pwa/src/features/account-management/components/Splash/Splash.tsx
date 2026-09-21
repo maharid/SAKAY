@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -35,7 +35,7 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
   // 8: Main welcome landing page ("Get Started" screen)
   const [step, setStep] = useState<number>(() => {
     if (initialStep) return initialStep;
-    if (location.pathname === "/get-started") return 8;
+    if (location.pathname === "/get-started" || location.pathname === "/welcome") return 8;
     const navStep = (location.state as { step?: number })?.step;
     if (navStep) return navStep;
     return 1;
@@ -53,6 +53,36 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
     else if (step === 5) setStep(6);
     else if (step === 6) setStep(7);
     else if (step === 7) setStep(8);
+  };
+
+  const handlePrevOnboarding = () => {
+    if (step === 7) setStep(6);
+    else if (step === 6) setStep(5);
+    else if (step === 5) setStep(4);
+  };
+
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX < 0) {
+        handleNextOnboarding();
+      } else {
+        handlePrevOnboarding();
+      }
+    }
   };
 
   const handleSkip = () => {
@@ -131,6 +161,8 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
 
     return (
       <Box
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         sx={{
           width: "100%",
           height: "100%",

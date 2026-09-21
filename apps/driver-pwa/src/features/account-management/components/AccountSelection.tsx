@@ -36,10 +36,28 @@ export const AccountSelection: React.FC = () => {
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           width: "100%",
         }}
       >
+        <IconButton
+          onClick={() => navigate("/get-started")}
+          sx={{
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            boxShadow: "none",
+            color: "#1A1A1A",
+            borderRadius: "14px",
+            width: "44px",
+            height: "44px",
+            "&:hover": {
+              backgroundColor: "#F8FAFC",
+            },
+          }}
+        >
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+
         <Logo color="orange" />
       </Box>
 

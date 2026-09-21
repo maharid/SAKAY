@@ -79,13 +79,6 @@ export const VerifyOtp: React.FC = () => {
 
         if (result.success) {
           setResendTimer(60);
-          setInfoNotice(
-            language === 'tl'
-              ? 'Naipadala na ang verification code.'
-              : 'The verification code has already been sent.'
-          );
-          if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
-          resendNoticeTimerRef.current = setTimeout(() => setInfoNotice(null), 4000);
         } else {
           setError(
             result.error ||

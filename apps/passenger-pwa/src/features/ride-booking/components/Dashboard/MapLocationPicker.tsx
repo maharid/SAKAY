@@ -7,12 +7,14 @@ import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import MapView from "../../../../common/components/MapView";
 import {
   reverseGeocodeCoordinates,
   DEFAULT_CALAPAN_CENTER,
+  getCurrentDevicePosition,
 } from "../../../../services/locationService";
 import { useLanguage } from "../../../../utils/LanguageContext";
 
@@ -30,6 +32,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
   onConfirmLocation,
 }) => {
   const { language } = useLanguage();
+  const [recenterTrigger, setRecenterTrigger] = useState<number>(1);
 
   const [centerCoords, setCenterCoords] = useState<{ lat: number; lng: number }>(() => {
     if (initialCoords && initialCoords.lat !== 0) return initialCoords;
@@ -43,6 +46,26 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
       lng: DEFAULT_CALAPAN_CENTER.longitude,
     };
   });
+
+  const handleRecenterGps = async () => {
+    try {
+      const coords = await getCurrentDevicePosition();
+      setCenterCoords({ lat: coords.latitude, lng: coords.longitude });
+      setRecenterTrigger((prev) => prev + 1);
+    } catch {
+      const savedLat = localStorage.getItem("user_lat");
+      const savedLng = localStorage.getItem("user_lng");
+      if (savedLat && savedLng) {
+        setCenterCoords({ lat: parseFloat(savedLat), lng: parseFloat(savedLng) });
+      } else {
+        setCenterCoords({
+          lat: DEFAULT_CALAPAN_CENTER.latitude,
+          lng: DEFAULT_CALAPAN_CENTER.longitude,
+        });
+      }
+      setRecenterTrigger((prev) => prev + 1);
+    }
+  };
 
   // Re-sync initial center when dialog opens
   useEffect(() => {
@@ -131,7 +154,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
         <MapView
           userLocation={centerCoords}
           center={centerCoords}
-          recenterTrigger={1}
+          recenterTrigger={recenterTrigger}
           onCenterChange={(coords) => setCenterCoords(coords)}
         />
 
@@ -224,6 +247,34 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             }}
           />
         </Box>
+
+        {/* 4. Floating Recenter GPS Location Button matching Dashboard/Home */}
+        <IconButton
+          onClick={handleRecenterGps}
+          aria-label={language === "tl" ? "Bumalik sa kasalukuyang lokasyon" : "Recenter map location"}
+          sx={{
+            position: "absolute",
+            bottom: "calc(var(--safe-area-bottom) + 140px)",
+            right: "16px",
+            backgroundColor: "#FFFFFF",
+            color: "#0F172A",
+            boxShadow: "0 4px 16px rgba(15, 23, 42, 0.15)",
+            border: "1px solid #E2E8F0",
+            borderRadius: "50%",
+            width: "44px",
+            height: "44px",
+            zIndex: 25,
+            transition: "all 0.15s ease",
+            "&:hover": {
+              backgroundColor: "#F8FAFC",
+            },
+            "&:active": {
+              transform: "scale(0.95)",
+            },
+          }}
+        >
+          <MyLocationIcon sx={{ fontSize: 20, color: "#0F172A" }} />
+        </IconButton>
 
         {/* 4. Bottom Confirmation Card: Napiling Lokasyon & Gamitin ang Lokasyong Ito */}
         <Paper

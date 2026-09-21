@@ -17,9 +17,16 @@ import driver03 from "@sakay/shared/src/assets/icons/driver-onboarding-03.png";
 import driver04 from "@sakay/shared/src/assets/icons/driver-onboarding-04.png";
 import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
-export const DriverSplash: React.FC = () => {
+import { useLocation } from "react-router-dom";
+
+interface DriverSplashProps {
+  initialStep?: number;
+}
+
+export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
   const { language, t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // State to manage onboarding steps:
   // 1: Animated splash sequence (tricycle rides in/out, logo fades in)
@@ -28,7 +35,13 @@ export const DriverSplash: React.FC = () => {
   // 6: Onboarding Slide 3 — Pick Up and Go
   // 7: Onboarding Slide 4 — Track Your Earnings
   // 8: Main welcome landing page
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<number>(() => {
+    if (initialStep) return initialStep;
+    if (location.pathname === "/get-started" || location.pathname === "/welcome" || location.pathname === "/driver/get-started") return 8;
+    const navStep = (location.state as { step?: number })?.step;
+    if (navStep) return navStep;
+    return 1;
+  });
 
   useEffect(() => {
     if (step === 1) {
@@ -42,6 +55,36 @@ export const DriverSplash: React.FC = () => {
     else if (step === 5) setStep(6);
     else if (step === 6) setStep(7);
     else if (step === 7) setStep(8);
+  };
+
+  const handlePrevOnboarding = () => {
+    if (step === 7) setStep(6);
+    else if (step === 6) setStep(5);
+    else if (step === 5) setStep(4);
+  };
+
+  const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX < 0) {
+        handleNextOnboarding();
+      } else {
+        handlePrevOnboarding();
+      }
+    }
   };
 
   const handleSkip = () => {
@@ -120,6 +163,8 @@ export const DriverSplash: React.FC = () => {
 
     return (
       <Box
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         sx={{
           width: "100%",
           height: "100%",

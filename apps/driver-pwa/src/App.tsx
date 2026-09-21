@@ -57,6 +57,9 @@ export const App: React.FC = () => {
             <Route path="/" element={<DriverSplash />} />
             <Route path="/splash" element={<DriverSplash />} />
             <Route path="/driver/splash" element={<DriverSplash />} />
+            <Route path="/get-started" element={<DriverSplash initialStep={8} />} />
+            <Route path="/welcome" element={<DriverSplash initialStep={8} />} />
+            <Route path="/driver/get-started" element={<DriverSplash initialStep={8} />} />
             <Route path="/account-selection" element={<AccountSelection />} />
 
             {/* Authentication & Onboarding Routes */}
