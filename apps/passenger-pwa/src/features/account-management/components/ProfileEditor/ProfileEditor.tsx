@@ -1,26 +1,27 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import Avatar from "@mui/material/Avatar";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
+
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import SuccessModal from "../../../../common/components/SuccessModal";
 import PageHeader from "../../../../common/components/PageHeader";
+import { RegisterInput } from "../../../../common/components/RegisterInput";
+import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { supabase } from "../../../../services/supabaseClient";
 
-const ProfileEditor: React.FC = () => {
+export const ProfileEditor: React.FC = () => {
   const { language, t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const locationState = location.state as { phoneUpdated?: boolean } | null;
 
   // Load States
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -30,9 +31,9 @@ const ProfileEditor: React.FC = () => {
   // Profile Form States
   const [fullName, setFullName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
+  const [initialContactNumber, setInitialContactNumber] = useState("");
   const [address, setAddress] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
-  const [newPassword, setNewPassword] = useState("");
 
   // Feedback State
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,6 @@ const ProfileEditor: React.FC = () => {
 
   const fetchUserProfile = useCallback(async (showLoading = false) => {
     try {
-      // Get current authenticated user (first async step)
       const { data: { user }, error: authErr } = await supabase.auth.getUser();
 
       if (showLoading) {
@@ -55,12 +55,14 @@ const ProfileEditor: React.FC = () => {
         return;
       }
 
-      setContactNumber(user.phone || "");
+      const storedPhone = localStorage.getItem("sakay_passenger_phone") || user.phone || "";
+      setContactNumber(storedPhone);
+      setInitialContactNumber(storedPhone);
 
       // Fetch passenger profile from database
       const { data: profile, error: dbErr } = await supabase
         .from("passenger")
-        .select("full_name, residential_address, profile_photo_url")
+        .select("full_name, residential_address, profile_photo_url, contact_number")
         .eq("auth_user_id", user.id)
         .maybeSingle();
 
@@ -72,8 +74,11 @@ const ProfileEditor: React.FC = () => {
         setFullName(profile.full_name || user.user_metadata?.full_name || "");
         setAddress(profile.residential_address || "");
         setProfilePhotoUrl(profile.profile_photo_url || "");
+        if (profile.contact_number) {
+          setContactNumber(profile.contact_number);
+          setInitialContactNumber(profile.contact_number);
+        }
       } else {
-        // Fallback to auth metadata if profile doesn't exist
         setFullName(user.user_metadata?.full_name || "");
       }
 
@@ -88,6 +93,13 @@ const ProfileEditor: React.FC = () => {
   useEffect(() => {
     fetchUserProfile();
   }, [fetchUserProfile]);
+
+  useEffect(() => {
+    if (locationState?.phoneUpdated) {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  }, [locationState]);
 
   // Upload Profile Picture to Supabase Storage
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +117,6 @@ const ProfileEditor: React.FC = () => {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // Upload file to 'profiles' storage bucket
       const { error: uploadErr } = await supabase.storage
         .from("profiles")
         .upload(filePath, file, { upsert: true });
@@ -114,14 +125,12 @@ const ProfileEditor: React.FC = () => {
         throw new Error(uploadErr.message);
       }
 
-      // Retrieve public URL
       const { data: { publicUrl } } = supabase.storage
         .from("profiles")
         .getPublicUrl(filePath);
 
       setProfilePhotoUrl(publicUrl);
-      
-      // Update database profile photo URL immediately
+
       const { error: updateErr } = await supabase
         .from("passenger")
         .update({ profile_photo_url: publicUrl })
@@ -131,18 +140,21 @@ const ProfileEditor: React.FC = () => {
         throw new Error(updateErr.message);
       }
 
-      // Also update auth user metadata
       await supabase.auth.updateUser({
-        data: { profile_photo_url: publicUrl }
+        data: { profile_photo_url: publicUrl },
       });
-
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : "Failed to upload photo. Make sure a public storage bucket named 'profiles' is configured.";
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : "Failed to upload photo. Make sure a public storage bucket named 'profiles' is configured.";
       setError(errMsg);
     } finally {
       setUploadingPhoto(false);
     }
   };
+
+  const cleanDigits = (num: string) => num.replace(/\D/g, "");
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +171,7 @@ const ProfileEditor: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No active user session.");
 
-      // 1. Update passenger details in public schema
+      // 1. Update name and address in DB
       const { error: dbUpdateErr } = await supabase
         .from("passenger")
         .update({
@@ -172,35 +184,35 @@ const ProfileEditor: React.FC = () => {
         throw new Error(dbUpdateErr.message);
       }
 
-      // 2. Update metadata in Auth
-      const { error: authUpdateErr } = await supabase.auth.updateUser({
+      await supabase.auth.updateUser({
         data: {
           full_name: fullName.trim(),
-        }
+        },
       });
 
-      if (authUpdateErr) {
-        throw new Error(authUpdateErr.message);
-      }
+      const cleanNewPhone = cleanDigits(contactNumber);
+      const cleanOldPhone = cleanDigits(initialContactNumber);
 
-      // 3. Update password if provided
-      if (newPassword.trim()) {
-        if (newPassword.length < 6) {
-          throw new Error(language === "tl" ? "Dapat hindi bababa sa 6 na karakter ang password" : "Password must be at least 6 characters");
-        }
-        const { error: passErr } = await supabase.auth.updateUser({
-          password: newPassword,
+      // Check if mobile number changed
+      if (cleanNewPhone && cleanNewPhone !== cleanOldPhone) {
+        setSaving(false);
+        // Navigate to OTP verification for mobile number change
+        navigate("/verify-otp", {
+          state: {
+            phone: contactNumber,
+            fullName: fullName.trim(),
+            isPhoneChange: true,
+            oldPhone: initialContactNumber,
+            returnTo: "/profile",
+          },
         });
-        if (passErr) {
-          throw new Error(passErr.message);
-        }
-        setNewPassword(""); // Reset password field on success
+        return;
       }
 
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
-        fetchUserProfile(); // Refresh profile state
+        fetchUserProfile();
       }, 1500);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Failed to update profile.";
@@ -224,7 +236,7 @@ const ProfileEditor: React.FC = () => {
         }}
       >
         <CircularProgress sx={{ color: "#FF6B00" }} />
-        <Typography sx={{ marginTop: "16px", color: "#64748B", fontWeight: 500 }}>
+        <Typography sx={{ marginTop: "16px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
           {language === "tl" ? "Kinukuha ang profile..." : "Loading profile..."}
         </Typography>
       </Box>
@@ -236,181 +248,109 @@ const ProfileEditor: React.FC = () => {
       sx={{
         width: "100%",
         height: "100%",
-        padding: "24px",
-        paddingTop: "calc(var(--safe-area-top) + 16px)",
-        paddingBottom: "calc(var(--safe-area-bottom) + 24px)",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "#FAFAFA",
         display: "flex",
         flexDirection: "column",
-        overflowY: "auto",
       }}
-      className="hide-scrollbar"
     >
-      {/* Header */}
+      {/* Header matching Settings header style */}
       <PageHeader
-        title={language === "tl" ? "I-edit ang Profile" : "Edit Profile"}
-        onBack={() => navigate("/dashboard")}
+        title={language === "tl" ? "Impormasyon ng Profile" : "Profile Information"}
+        onBack={() => navigate("/settings")}
       />
 
-      {/* Profile Photo Upload Section */}
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "32px" }}>
-        <Box sx={{ position: "relative" }}>
-          <Avatar
-            src={profilePhotoUrl}
-            sx={{
-              width: "96px",
-              height: "96px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-              border: "3px solid #FFF",
-              outline: "2px solid #E2E8F0"
-            }}
-          >
-            {fullName.charAt(0).toUpperCase()}
-          </Avatar>
-          <IconButton
-            component="label"
-            disabled={uploadingPhoto}
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              right: 0,
-              backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
-              "&:hover": { backgroundColor: "#E05300" },
-              width: "32px",
-              height: "32px",
-              boxShadow: "none"
-            }}
-          >
-            {uploadingPhoto ? (
-              <CircularProgress size={16} sx={{ color: "#FFF" }} />
-            ) : (
-              <PhotoCameraIcon sx={{ fontSize: 16 }} />
-            )}
-            <input type="file" accept="image/*" hidden onChange={handlePhotoUpload} />
-          </IconButton>
-        </Box>
-        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#475569", marginTop: "12px" }}>
-          {contactNumber}
-        </Typography>
-      </Box>
-
-      {/* Feedback Alert */}
-      {error && (
-        <Alert severity="error" sx={{ width: "100%", marginTop: "24px", borderRadius: "12px" }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Profile Edit Form */}
       <Box
         component="form"
         onSubmit={handleSave}
+        className="hide-scrollbar"
         sx={{
-          marginTop: "32px",
+          flexGrow: 1,
+          overflowY: "auto",
+          p: 2.5,
           display: "flex",
           flexDirection: "column",
-          gap: "20px",
-          flexGrow: 1,
+          gap: 2,
         }}
       >
+        {/* Profile Avatar */}
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", my: 1 }}>
+          <Box sx={{ position: "relative" }}>
+            <Avatar
+              src={profilePhotoUrl}
+              sx={{
+                width: "90px",
+                height: "90px",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                border: "3px solid #FFF",
+                outline: "2px solid #E2E8F0",
+              }}
+            >
+              {fullName.charAt(0).toUpperCase()}
+            </Avatar>
+            <IconButton
+              component="label"
+              disabled={uploadingPhoto}
+              sx={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                backgroundColor: "#FF6B00",
+                color: "#FFFFFF",
+                "&:hover": { backgroundColor: "#E05300" },
+                width: "30px",
+                height: "30px",
+                boxShadow: "none",
+              }}
+            >
+              {uploadingPhoto ? (
+                <CircularProgress size={14} sx={{ color: "#FFF" }} />
+              ) : (
+                <PhotoCameraIcon sx={{ fontSize: 15 }} />
+              )}
+              <input type="file" accept="image/*" hidden onChange={handlePhotoUpload} />
+            </IconButton>
+          </Box>
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
+            {error}
+          </Alert>
+        )}
+
         {/* Full Name */}
-        <Box sx={{ width: "100%" }}>
-          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#64748B", marginBottom: "6px" }}>
-            {language === "tl" ? "Buong Pangalan" : "Full Name"}
-          </Typography>
-          <TextField
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            disabled={saving}
-            placeholder="E.g. Juan Dela Cruz"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonOutlinedIcon sx={{ color: "#94A3B8" }} />
-                  </InputAdornment>
-                ),
-                sx: {
-                  height: "56px",
-                  backgroundColor: "#F8FAFC",
-                  borderRadius: "14px",
-                  "& fieldset": { borderColor: "#F1F5F9" },
-                  "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
-                },
-              },
-            }}
-            fullWidth
+        <RegisterInput
+          label={language === "tl" ? "Buong Pangalan" : "Full Name"}
+          value={fullName}
+          onChange={(val) => setFullName(val)}
+          required
+          placeholder="e.g. Juan Dela Cruz"
+        />
+
+        {/* Mobile Number with OTP Note */}
+        <Box>
+          <SakayPhoneInput
+            value={contactNumber}
+            onChange={(val) => setContactNumber(val)}
+            error={false}
           />
+          <Typography sx={{ fontSize: "11px", color: "#64748B", mt: 0.5, ml: 1, fontFamily: "Poppins, sans-serif" }}>
+            {language === "tl"
+              ? "Ang pagpapalit ng numero ay nangangailangan ng OTP verification."
+              : "Changing your mobile number requires OTP verification."}
+          </Typography>
         </Box>
 
-
-        {/* Address */}
-        <Box sx={{ width: "100%" }}>
-          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#64748B", marginBottom: "6px" }}>
-            {language === "tl" ? "Residential Address" : "Residential Address"}
-          </Typography>
-          <TextField
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            disabled={saving}
-            placeholder="Barangay, Calapan City, Oriental Mindoro"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <HomeOutlinedIcon sx={{ color: "#94A3B8" }} />
-                  </InputAdornment>
-                ),
-                sx: {
-                  height: "56px",
-                  backgroundColor: "#F8FAFC",
-                  borderRadius: "14px",
-                  "& fieldset": { borderColor: "#F1F5F9" },
-                  "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
-                },
-              },
-            }}
-            fullWidth
-          />
-        </Box>
-
-        {/* Change Password */}
-        <Box sx={{ width: "100%" }}>
-          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#64748B", marginBottom: "6px" }}>
-            {language === "tl" ? "Bagong Password (Iwanang bakante kung walang babaguhin)" : "New Password (Leave blank to keep current)"}
-          </Typography>
-          <TextField
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            disabled={saving}
-            placeholder="••••••"
-            type="password"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#94A3B8" }} />
-                  </InputAdornment>
-                ),
-                sx: {
-                  height: "56px",
-                  backgroundColor: "#F8FAFC",
-                  borderRadius: "14px",
-                  "& fieldset": { borderColor: "#F1F5F9" },
-                  "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
-                },
-              },
-            }}
-            fullWidth
-          />
-        </Box>
+        {/* Residential Address */}
+        <RegisterInput
+          label={language === "tl" ? "Residential Address" : "Residential Address"}
+          value={address}
+          onChange={(val) => setAddress(val)}
+          placeholder="Barangay, Calapan City, Oriental Mindoro"
+        />
 
         {/* Save Button */}
-        <Box sx={{ marginTop: "auto", paddingTop: "24px" }}>
+        <Box sx={{ mt: 2 }}>
           <PrimaryButton type="submit" loading={saving} fullWidth>
             {language === "tl" ? "I-save ang mga Pagbabago" : "Save Changes"}
           </PrimaryButton>
@@ -420,7 +360,11 @@ const ProfileEditor: React.FC = () => {
       <SuccessModal
         open={success}
         title={language === "tl" ? "Tagumpay!" : "Success!"}
-        message={language === "tl" ? "Matagumpay na na-update ang iyong profile." : "Your profile details have been successfully updated."}
+        message={
+          language === "tl"
+            ? "Matagumpay na na-update ang iyong profile."
+            : "Your profile details have been successfully updated."
+        }
       />
     </Box>
   );

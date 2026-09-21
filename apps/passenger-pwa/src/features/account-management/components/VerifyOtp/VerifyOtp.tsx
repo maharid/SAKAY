@@ -40,6 +40,8 @@ export const VerifyOtp: React.FC = () => {
     identifier?: string;
     password?: string;
     isRecovery?: boolean;
+    isPhoneChange?: boolean;
+    returnTo?: string;
     passengerName?: string;
     fullName?: string;
     debugOtp?: string;
@@ -239,7 +241,12 @@ export const VerifyOtp: React.FC = () => {
         setLoading(false);
 
         const isRecovery = Boolean(state?.isRecovery || (state as any)?.type === 'recovery');
-        if (isRecovery) {
+        const isPhoneChange = Boolean(state?.isPhoneChange);
+        const returnTo = state?.returnTo || '/profile';
+
+        if (isPhoneChange) {
+          navigate(returnTo, { state: { phoneUpdated: true }, replace: true });
+        } else if (isRecovery) {
           navigate('/reset-password', { state: { phone: e164Phone, identifier: e164Phone } });
         } else {
           // Flow: Terms of Service -> Privacy Policy -> Registration Success
@@ -417,7 +424,8 @@ export const VerifyOtp: React.FC = () => {
       >
         <IconButton
           onClick={() => {
-            if (state?.isRecovery) navigate('/forgot-password');
+            if (state?.returnTo) navigate(state.returnTo);
+            else if (state?.isRecovery) navigate('/forgot-password');
             else if (window.history.length > 1) navigate(-1);
             else navigate('/register');
           }}

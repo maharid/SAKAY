@@ -3,15 +3,14 @@ import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 
 import PageHeader from "../../../common/components/PageHeader";
+import { RegisterInput } from "../../../common/components/RegisterInput";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { supabase } from "../../../services/supabaseClient";
 
@@ -106,7 +105,7 @@ const ChangePasswordPage: React.FC = () => {
           p: 2.5,
           display: "flex",
           flexDirection: "column",
-          gap: 2.5,
+          gap: 2,
         }}
       >
         <Paper
@@ -133,82 +132,54 @@ const ChangePasswordPage: React.FC = () => {
             </Alert>
           )}
 
-          <TextField
-            fullWidth
-            type={showCurrentPassword ? "text" : "password"}
+          <RegisterInput
             label={language === "tl" ? "Kasalukuyang Password" : "Current Password"}
             value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowCurrentPassword(!showCurrentPassword)} edge="end">
-                      {showCurrentPassword ? <VisibilityOffIcon sx={{ fontSize: 20 }} /> : <VisibilityIcon sx={{ fontSize: 20 }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "14px",
-                fontSize: "13px",
-                fontFamily: "Poppins, sans-serif",
-              },
-            }}
+            onChange={(val) => setCurrentPassword(val)}
+            type={showCurrentPassword ? "text" : "password"}
+            endAdornment={
+              <IconButton size="small" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                {showCurrentPassword ? (
+                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
+                ) : (
+                  <VisibilityOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
+                )}
+              </IconButton>
+            }
           />
 
-          <TextField
-            fullWidth
-            type={showNewPassword ? "text" : "password"}
+          <RegisterInput
             label={language === "tl" ? "Bagong Password" : "New Password"}
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end">
-                      {showNewPassword ? <VisibilityOffIcon sx={{ fontSize: 20 }} /> : <VisibilityIcon sx={{ fontSize: 20 }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "14px",
-                fontSize: "13px",
-                fontFamily: "Poppins, sans-serif",
-              },
-            }}
+            onChange={(val) => setNewPassword(val)}
+            type={showNewPassword ? "text" : "password"}
+            required
+            endAdornment={
+              <IconButton size="small" onClick={() => setShowNewPassword(!showNewPassword)}>
+                {showNewPassword ? (
+                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
+                ) : (
+                  <VisibilityOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
+                )}
+              </IconButton>
+            }
           />
 
-          <TextField
-            fullWidth
-            type={showConfirmPassword ? "text" : "password"}
+          <RegisterInput
             label={language === "tl" ? "Kumpirmahin ang Bagong Password" : "Confirm New Password"}
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
-                      {showConfirmPassword ? <VisibilityOffIcon sx={{ fontSize: 20 }} /> : <VisibilityIcon sx={{ fontSize: 20 }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "14px",
-                fontSize: "13px",
-                fontFamily: "Poppins, sans-serif",
-              },
-            }}
+            onChange={(val) => setConfirmPassword(val)}
+            type={showConfirmPassword ? "text" : "password"}
+            required
+            endAdornment={
+              <IconButton size="small" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                {showConfirmPassword ? (
+                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
+                ) : (
+                  <VisibilityOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
+                )}
+              </IconButton>
+            }
           />
 
           <Button
@@ -228,6 +199,7 @@ const ChangePasswordPage: React.FC = () => {
               boxShadow: "none",
               mt: 1,
               "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:disabled": { backgroundColor: "#F1F5F9", color: "#94A3B8" },
             }}
           >
             {loading ? (

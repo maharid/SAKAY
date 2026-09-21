@@ -2,28 +2,16 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
+import Divider from "@mui/material/Divider";
 import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
-
-export interface IncidentReportItem {
-  id: string;
-  incidentType: string;
-  franchiseNo: string;
-  description: string;
-  status: "Submitted" | "Under Investigation (LGU & TODA)" | "Resolved" | "Action Taken";
-  submittedAt: string;
-  officialResponse?: string;
-}
+import type { IncidentReportItem } from "./TrackReportDetailPage";
 
 const STORAGE_KEY = "sakay_passenger_incident_reports";
 
@@ -31,7 +19,7 @@ const TrackReportsPage: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
 
-  const [selectedReport, setSelectedReport] = useState<IncidentReportItem | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "resolved" | "cancelled">("all");
 
   const getReports = (): IncidentReportItem[] => {
     try {
@@ -65,13 +53,24 @@ const TrackReportsPage: React.FC = () => {
 
   const reports = getReports();
 
+  const filteredReports = reports.filter((r) => {
+    if (activeTab === "all") return true;
+    if (activeTab === "pending") return r.status === "Submitted" || r.status === "Under Investigation (LGU & TODA)";
+    if (activeTab === "resolved") return r.status === "Resolved" || r.status === "Action Taken";
+    if (activeTab === "cancelled") return r.status === "Cancelled";
+    return true;
+  });
+
   const getStatusChipProps = (status: string) => {
     switch (status) {
       case "Resolved":
       case "Action Taken":
-        return { backgroundColor: "#E6F4EA", color: "#10B981" };
+        return { backgroundColor: "#ECFDF5", color: "#10B981" };
       case "Under Investigation (LGU & TODA)":
+      case "Submitted":
         return { backgroundColor: "#FEF3C7", color: "#D97706" };
+      case "Cancelled":
+        return { backgroundColor: "#FEF2F2", color: "#EF4444" };
       default:
         return { backgroundColor: "#F1F5F9", color: "#64748B" };
     }
@@ -82,7 +81,7 @@ const TrackReportsPage: React.FC = () => {
       sx={{
         width: "100%",
         height: "100%",
-        backgroundColor: "#FAFAFA",
+        backgroundColor: "#FFFFFF",
         display: "flex",
         flexDirection: "column",
       }}
@@ -92,17 +91,190 @@ const TrackReportsPage: React.FC = () => {
         onBack={() => navigate("/support")}
       />
 
+      {/* History-Style Segmented Pill Tabs */}
+      <Box sx={{ px: 2, pt: 1.5, pb: 0.5, backgroundColor: "#FFFFFF" }}>
+        <Box
+          sx={{
+            display: "flex",
+            backgroundColor: "#F1F5F9",
+            borderRadius: "14px",
+            p: 0.5,
+            gap: 0.5,
+          }}
+        >
+          {[
+            { key: "all", labelTl: "Lahat", labelEn: "All" },
+            { key: "pending", labelTl: "Imbestigasyon", labelEn: "Pending" },
+            { key: "resolved", labelTl: "Naresolba", labelEn: "Resolved" },
+            { key: "cancelled", labelTl: "Kanselado", labelEn: "Cancelled" },
+          ].map((tab) => {
+            const isSelected = activeTab === tab.key;
+            return (
+              <Button
+                key={tab.key}
+                fullWidth
+                disableRipple
+                onClick={() => setActiveTab(tab.key as any)}
+                sx={{
+                  py: 0.75,
+                  px: 0.5,
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: isSelected ? 700 : 500,
+                  fontFamily: "Poppins, sans-serif",
+                  textTransform: "none",
+                  backgroundColor: isSelected ? "#FFFFFF" : "transparent",
+                  color: isSelected ? "#FF6B00" : "#64748B",
+                  boxShadow: isSelected ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  "&:hover": { backgroundColor: isSelected ? "#FFFFFF" : "rgba(0,0,0,0.02)" },
+                }}
+              >
+                {language === "tl" ? tab.labelTl : tab.labelEn}
+              </Button>
+            );
+          })}
+        </Box>
+      </Box>
+
+      {/* Flat Notification-Style List with Dividers */}
       <Box
         className="hide-scrollbar"
         sx={{
           flexGrow: 1,
           overflowY: "auto",
-          p: 2.5,
           display: "flex",
           flexDirection: "column",
-          gap: 2,
         }}
       >
+        {filteredReports.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: "center" }}>
+            <TrackChangesOutlinedIcon sx={{ fontSize: 48, color: "#CBD5E1", mb: 1 }} />
+            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              {language === "tl" ? "Wala pang ulat sa kategoryang ito" : "No reports in this category"}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate("/incident-report")}
+              sx={{
+                mt: 2,
+                backgroundColor: "#FF6B00",
+                color: "#FFFFFF",
+                borderRadius: "12px",
+                height: "40px",
+                fontSize: "13px",
+                fontWeight: 700,
+                textTransform: "none",
+                fontFamily: "Poppins, sans-serif",
+                boxShadow: "none",
+                "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              }}
+            >
+              {language === "tl" ? "+ Magsumite ng Reklamo" : "+ Submit Report"}
+            </Button>
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
+            {filteredReports.map((report, idx) => {
+              const chipProps = getStatusChipProps(report.status);
+              return (
+                <React.Fragment key={report.id}>
+                  {idx > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
+                  <Box
+                    onClick={() => navigate(`/track-reports/${report.id}`)}
+                    sx={{
+                      py: 1.75,
+                      px: 2.5,
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 1.5,
+                      backgroundColor: "#FFFFFF",
+                      cursor: "pointer",
+                      transition: "background-color 0.15s ease",
+                      "&:hover": { backgroundColor: "#F8FAFC" },
+                    }}
+                  >
+                    {/* Category Icon Badge */}
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        backgroundColor: "#FFF2E9",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        mt: 0.25,
+                      }}
+                    >
+                      <ReportProblemOutlinedIcon sx={{ color: "#FF6B00", fontSize: 20 }} />
+                    </Box>
+
+                    {/* Report Content Hierarchy */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.25 }}>
+                        <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                          {report.id}
+                        </Typography>
+                        <Chip
+                          label={report.status}
+                          size="small"
+                          sx={{
+                            fontSize: "10.5px",
+                            fontWeight: 700,
+                            fontFamily: "Poppins, sans-serif",
+                            height: "22px",
+                            ...chipProps,
+                          }}
+                        />
+                      </Box>
+
+                      <Typography
+                        sx={{
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "#FF6B00",
+                          fontFamily: "Poppins, sans-serif",
+                          lineHeight: 1.25,
+                          mb: 0.25,
+                        }}
+                      >
+                        {report.incidentType}
+                      </Typography>
+
+                      <Typography
+                        sx={{
+                          fontSize: "12px",
+                          color: "#64748B",
+                          fontFamily: "Poppins, sans-serif",
+                          lineHeight: 1.35,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          mb: 0.25,
+                        }}
+                      >
+                        Unit: <strong>{report.franchiseNo}</strong> • {report.description}
+                      </Typography>
+
+                      <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                        {report.submittedAt}
+                      </Typography>
+                    </Box>
+
+                    <ChevronRightIcon sx={{ color: "#94A3B8", fontSize: 20, mt: 1, flexShrink: 0 }} />
+                  </Box>
+                </React.Fragment>
+              );
+            })}
+          </Box>
+        )}
+      </Box>
+
+      {/* Floating Add Report Button */}
+      <Box sx={{ p: 2, borderTop: "1px solid #F1F5F9", backgroundColor: "#FFFFFF" }}>
         <Button
           fullWidth
           variant="contained"
@@ -111,8 +283,8 @@ const TrackReportsPage: React.FC = () => {
             backgroundColor: "#FF6B00",
             color: "#FFFFFF",
             borderRadius: "14px",
-            height: "46px",
-            fontSize: "14px",
+            height: "44px",
+            fontSize: "13.5px",
             fontWeight: 700,
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",
@@ -122,167 +294,7 @@ const TrackReportsPage: React.FC = () => {
         >
           {language === "tl" ? "+ Magsumite ng Bagong Reklamo" : "+ Submit New Incident Report"}
         </Button>
-
-        {reports.length === 0 ? (
-          <Paper
-            elevation={0}
-            sx={{
-              p: 4,
-              textAlign: "center",
-              borderRadius: "20px",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #F1F5F9",
-              mt: 2,
-            }}
-          >
-            <TrackChangesOutlinedIcon sx={{ fontSize: 48, color: "#CBD5E1", mb: 1 }} />
-            <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Wala pang naipasa na ulat" : "No reports submitted yet"}
-            </Typography>
-            <Typography sx={{ fontSize: "13px", color: "#64748B", mt: 0.5, fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl"
-                ? "Dito mo makikita ang status ng iyong mga isinumitang reklamo sa LGU."
-                : "Your submitted incident reports and official LGU responses will appear here."}
-            </Typography>
-          </Paper>
-        ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {reports.map((report) => {
-              const chipProps = getStatusChipProps(report.status);
-              return (
-                <Paper
-                  key={report.id}
-                  elevation={0}
-                  onClick={() => setSelectedReport(report)}
-                  sx={{
-                    p: 2,
-                    borderRadius: "16px",
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid #F1F5F9",
-                    cursor: "pointer",
-                    boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 1.5,
-                    transition: "transform 0.15s ease",
-                    "&:active": { transform: "scale(0.99)" },
-                  }}
-                >
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                      <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {report.id}
-                      </Typography>
-                      <Chip
-                        label={report.status}
-                        size="small"
-                        sx={{
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          fontFamily: "Poppins, sans-serif",
-                          ...chipProps,
-                        }}
-                      />
-                    </Box>
-
-                    <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
-                      {report.incidentType}
-                    </Typography>
-
-                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
-                      Unit: <strong>{report.franchiseNo}</strong> • {report.submittedAt}
-                    </Typography>
-                  </Box>
-
-                  <ChevronRightIcon sx={{ color: "#94A3B8", fontSize: 20 }} />
-                </Paper>
-              );
-            })}
-          </Box>
-        )}
       </Box>
-
-      {/* Report Detail Modal */}
-      <Dialog
-        open={Boolean(selectedReport)}
-        onClose={() => setSelectedReport(null)}
-        slotProps={{
-          paper: { sx: { borderRadius: "20px", p: 1, width: "90%", maxWidth: "380px" } },
-        }}
-      >
-        {selectedReport && (
-          <>
-            <DialogTitle sx={{ fontWeight: 700, fontSize: "16px", color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Detalye ng Ulat" : "Report Details"} — {selectedReport.id}
-            </DialogTitle>
-            <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                  {language === "tl" ? "Petsa ng Pagpasa:" : "Date Submitted:"} <strong>{selectedReport.submittedAt}</strong>
-                </Typography>
-                <Chip
-                  label={selectedReport.status}
-                  size="small"
-                  sx={{
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    fontFamily: "Poppins, sans-serif",
-                    ...getStatusChipProps(selectedReport.status),
-                  }}
-                />
-              </Box>
-
-              <Box sx={{ p: 1.5, borderRadius: "12px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
-                  {language === "tl" ? "Kategorya at Inirereklamong Unit" : "Category & Reported Unit"}
-                </Typography>
-                <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", mt: 0.25 }}>
-                  {selectedReport.incidentType} ({selectedReport.franchiseNo})
-                </Typography>
-              </Box>
-
-              <Box sx={{ p: 1.5, borderRadius: "12px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
-                  {language === "tl" ? "Salaysay ng Insidente" : "Narrative"}
-                </Typography>
-                <Typography sx={{ fontSize: "12px", color: "#334155", mt: 0.5, lineHeight: 1.4 }}>
-                  {selectedReport.description}
-                </Typography>
-              </Box>
-
-              {selectedReport.officialResponse && (
-                <Box sx={{ p: 1.5, borderRadius: "12px", backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#1D4ED8", fontWeight: 700, textTransform: "uppercase" }}>
-                    {language === "tl" ? "Tugon mula sa LGU & TODA" : "Official LGU & TODA Response"}
-                  </Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#1E3A8A", mt: 0.5, lineHeight: 1.4 }}>
-                    {selectedReport.officialResponse}
-                  </Typography>
-                </Box>
-              )}
-            </DialogContent>
-            <DialogActions sx={{ px: 2, pb: 2 }}>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={() => setSelectedReport(null)}
-                sx={{
-                  backgroundColor: "#FF6B00",
-                  color: "#FFFFFF",
-                  borderRadius: "12px",
-                  fontWeight: 700,
-                  textTransform: "none",
-                  boxShadow: "none",
-                  "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-                }}
-              >
-                {language === "tl" ? "Isara" : "Close"}
-              </Button>
-            </DialogActions>
-          </>
-        )}
-      </Dialog>
     </Box>
   );
 };

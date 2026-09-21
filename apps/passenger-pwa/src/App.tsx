@@ -21,6 +21,7 @@ import SupportPage from "./features/account-management/pages/SupportPage";
 import AppFeedbackPage from "./features/account-management/pages/AppFeedbackPage";
 import ChangePasswordPage from "./features/account-management/pages/ChangePasswordPage";
 import TrackReportsPage from "./features/account-management/pages/TrackReportsPage";
+import TrackReportDetailPage from "./features/account-management/pages/TrackReportDetailPage";
 import SettingsPage from "./features/account-management/pages/SettingsPage";
 import Dashboard from "./features/ride-booking/components/Dashboard/Dashboard";
 import LocationPermission from "./features/ride-booking/components/LocationPermission/LocationPermission";
@@ -65,6 +66,7 @@ function App() {
               <Route path="/app-feedback" element={<AppFeedbackPage />} />
               <Route path="/change-password" element={<ChangePasswordPage />} />
               <Route path="/track-reports" element={<TrackReportsPage />} />
+              <Route path="/track-reports/:reportId" element={<TrackReportDetailPage />} />
               <Route path="/location-permission" element={<LocationPermission />} />
               <Route path="/new-trip" element={<NewTrip />} />
               <Route path="/set-place" element={<SetPlace />} />
