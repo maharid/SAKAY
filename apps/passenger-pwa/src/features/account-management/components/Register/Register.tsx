@@ -245,11 +245,7 @@ export const Register: React.FC = () => {
   };
 
   const handleBack = () => {
-    if (window.history.length > 1 && window.history.state?.idx > 0) {
-      navigate(-1);
-    } else {
-      navigate('/get-started');
-    }
+    navigate('/get-started');
   };
 
   return (

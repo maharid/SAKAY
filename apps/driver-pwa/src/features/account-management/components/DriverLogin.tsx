@@ -68,11 +68,7 @@ export const DriverLogin: React.FC = () => {
   const isLoginDisabled = !phone.trim() || !password.trim() || loading;
 
   const handleBack = () => {
-    if (window.history.length > 1 && window.history.state?.idx > 0) {
-      navigate(-1);
-    } else {
-      navigate('/driver/get-started');
-    }
+    navigate('/driver/get-started');
   };
 
   const triggerErrorToast = (msg: string) => {

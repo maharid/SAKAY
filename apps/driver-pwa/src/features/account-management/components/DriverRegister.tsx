@@ -179,11 +179,7 @@ export const DriverRegister: React.FC = () => {
   );
 
   const handleBack = () => {
-    if (window.history.length > 1 && window.history.state?.idx > 0) {
-      navigate(-1);
-    } else {
-      navigate('/driver/get-started');
-    }
+    navigate('/driver/get-started');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -12,7 +12,7 @@ import LocalPhoneOutlinedIcon from '@mui/icons-material/LocalPhoneOutlined';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
-import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
+import RegisterInput from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { sendDriverOtp, getPhoneLookupCandidates } from '../../../services/driverApiService';
 
@@ -54,7 +54,7 @@ export const formatMobileNumber = (value: string): string => {
 
 export const DriverForgotPassword: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
@@ -218,11 +218,12 @@ export const DriverForgotPassword: React.FC = () => {
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <SakayPhoneInput
-            label={t.mobileNumber || 'Numero ng Telepono'}
+          <RegisterInput
+            label={t.mobileNumber || (language === 'tl' ? 'Numero ng Telepono' : 'Mobile Number')}
             value={phone}
-            onChange={(val) => setPhone(val)}
+            onChange={(val) => setPhone(formatMobileNumber(val))}
             required
+            readOnly={loading}
           />
 
 

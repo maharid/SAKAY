@@ -3,15 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import Alert from "@mui/material/Alert";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
+import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { supabase } from "../../../../services/supabaseClient";
 import { formatPhoneToE164 } from "../../../../utils/phone";
 
@@ -179,29 +177,13 @@ const ForgotPassword: React.FC = () => {
         }}
       >
         <Box sx={{ width: "100%" }}>
-          <TextField
+          <RegisterInput
+            label={language === "tl" ? "Email o Mobile Number" : "Email or Mobile Number"}
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            disabled={loading}
-            placeholder={t.phoneOrEmail}
-            type="text"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailOutlinedIcon sx={{ color: "#94A3B8" }} />
-                  </InputAdornment>
-                ),
-                sx: {
-                  height: "56px",
-                  backgroundColor: "#F8FAFC",
-                  borderRadius: "14px",
-                  "& fieldset": { borderColor: "#F1F5F9" },
-                  "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
-                },
-              },
-            }}
+            onChange={(val) => setIdentifier(val)}
+            required
+            error={Boolean(error)}
+            readOnly={loading}
           />
         </Box>
 

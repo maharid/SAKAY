@@ -91,7 +91,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
         >
           {label}
           {required && (
-            <Box component="span" sx={{ color: '#FF6B00', ml: '3px', fontWeight: 800 }}>
+            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 800 }}>
               *
             </Box>
           )}
