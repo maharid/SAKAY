@@ -10,11 +10,11 @@ import Logo from "../../../../common/components/Logo";
 
 // Shared branding assets
 import background from "@sakay/shared/src/assets/images/splash-bg.png";
-import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.png";
-import splash01 from "@sakay/shared/src/assets/icons/passenger-onboarding-01.png";
-import splash02 from "@sakay/shared/src/assets/icons/passenger-onboarding-02.png";
-import splash03 from "@sakay/shared/src/assets/icons/passenger-onboarding-03.png";
-import splash04 from "@sakay/shared/src/assets/icons/passenger-onboarding-04.png";
+import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
+import splash01 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-01.webp";
+import splash02 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-02.webp";
+import splash03 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-03.webp";
+import splash04 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-04.webp";
 import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 interface SplashProps {

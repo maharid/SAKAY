@@ -18,7 +18,7 @@ import StarRateIcon from '@mui/icons-material/StarRate';
 import PaidIcon from '@mui/icons-material/Paid';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 
-import appIcon from '@sakay/shared/assets/icons/app-icon.png';
+import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
 import logoTextOrange from '@sakay/shared/assets/images/logo-text-orange.png';
 import { MacTooltip } from '../common/MacTooltip';
 import { fetchTodaApplications, fetchDrivers } from '../../services/adminApiService';

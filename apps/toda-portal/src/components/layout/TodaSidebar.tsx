@@ -12,7 +12,7 @@ import SecurityIcon from '@mui/icons-material/Security';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 
-import appIcon from '@sakay/shared/assets/icons/app-icon.png';
+import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
 import logoTextOrange from '@sakay/shared/assets/images/logo-text-orange.png';
 import { MacTooltip } from '../common/MacTooltip';
 import { StatusBadge } from '../common/StatusBadge';

@@ -17,7 +17,7 @@ import {
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
-import appIconDriver from '@sakay/shared/assets/icons/app-icon-driver.png';
+import appIconDriver from '@sakay/shared/assets/icons/app-icon-driver.webp';
 import logoTextOrange from '@sakay/shared/assets/images/logo-text-orange.png';
 import splashBg from '@sakay/shared/assets/images/splash-bg.png';
 import { useAuth } from '../contexts/AuthContext';

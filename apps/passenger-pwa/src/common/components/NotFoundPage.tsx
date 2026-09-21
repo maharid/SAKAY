@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useLanguage } from "../../utils/LanguageContext";
 import PrimaryButton from "./PrimaryButton";
-import somethingWentWrongToto from "@sakay/shared/src/assets/icons/something-went-wrong-toto.png";
+import somethingWentWrongToto from "@sakay/shared/src/assets/icons/something-went-wrong-toto.webp";
 
 export const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();

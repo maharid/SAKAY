@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 
-import totoHead from "@sakay/shared/src/assets/icons/toto_head.png";
+import totoHead from "@sakay/shared/src/assets/icons/toto-head.webp";
 
 const RegistrationSuccess: React.FC = () => {
   const { language } = useLanguage();

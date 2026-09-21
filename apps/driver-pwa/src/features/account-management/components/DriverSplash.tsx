@@ -10,11 +10,11 @@ import Logo from "../../../common/components/Logo";
 
 // Shared branding assets
 import background from "@sakay/shared/src/assets/images/splash-bg.png";
-import tricycle from "@sakay/shared/src/assets/icons/app-icon.png";
-import driver01 from "@sakay/shared/src/assets/icons/driver-onboarding-01.png";
-import driver02 from "@sakay/shared/src/assets/icons/driver-onboarding-02.png";
-import driver03 from "@sakay/shared/src/assets/icons/driver-onboarding-03.png";
-import driver04 from "@sakay/shared/src/assets/icons/driver-onboarding-04.png";
+import tricycle from "@sakay/shared/src/assets/icons/app-icon.webp";
+import driver01 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-01.webp";
+import driver02 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-02.webp";
+import driver03 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-03.webp";
+import driver04 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-04.webp";
 import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 import { useLocation } from "react-router-dom";

@@ -28,7 +28,7 @@ import {
   captureRawFrame,
   ImageQualityAssessment,
 } from '../../../services/imageEnhancementService';
-import appIcon from '../../../../../../packages/shared/src/assets/icons/app-icon.png';
+import appIcon from '../../../../../../packages/shared/src/assets/icons/app-icon.webp';
 
 export const DriverScanLicenseFront: React.FC = () => {
   const navigate = useNavigate();

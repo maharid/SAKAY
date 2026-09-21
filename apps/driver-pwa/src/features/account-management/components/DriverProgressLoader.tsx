@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import appIcon from '../../../../../../packages/shared/src/assets/icons/app-icon.png';
+import appIcon from '../../../../../../packages/shared/src/assets/icons/app-icon.webp';
 import { useLanguage } from '../../../utils/LanguageContext';
 
 export type FlowType = 'license' | 'mtop' | 'face';
