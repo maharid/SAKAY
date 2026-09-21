@@ -12,6 +12,7 @@ import Divider from "@mui/material/Divider";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import HeadsetMicIcon from "@mui/icons-material/HeadsetMic";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -214,6 +215,31 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
                     sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
                   >
                     {language === "tl" ? "Tulong at Suporta" : "Support"}
+                  </Typography>
+                }
+              />
+            </ListItemButton>
+          </ListItem>
+          <Divider sx={{ borderColor: "#F1F5F9", marginX: "22px" }} />
+
+          {/* Item 4: Rate the App */}
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => handleNavigate("/app-feedback")}
+              sx={{
+                padding: "14px 22px",
+                "&:hover": { backgroundColor: "#FFF7ED" },
+              }}
+            >
+              <ListItemIcon sx={{ color: "#0F172A", minWidth: "40px" }}>
+                <StarBorderIcon sx={{ fontSize: "21px" }} />
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  <Typography
+                    sx={{ fontSize: "15px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}
+                  >
+                    {language === "tl" ? "I-rate ang App" : "Rate the App"}
                   </Typography>
                 }
               />

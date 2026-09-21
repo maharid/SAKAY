@@ -129,26 +129,60 @@ const SavedPlacesPage: React.FC = () => {
           gap: 2,
         }}
       >
-        <Button
-          fullWidth
-          variant="contained"
-          startIcon={<AddIcon />}
+        {/* Home-style Add Place Card */}
+        <Paper
+          elevation={0}
           onClick={handleOpenAdd}
           sx={{
-            backgroundColor: "#FF6B00",
-            color: "#FFFFFF",
-            borderRadius: "14px",
-            height: "46px",
-            fontSize: "14px",
-            fontWeight: 700,
-            textTransform: "none",
-            fontFamily: "Poppins, sans-serif",
-            boxShadow: "none",
-            "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+            p: 2,
+            borderRadius: "18px",
+            backgroundColor: "#F4FBF7",
+            border: "1.5px dashed #A7F3D0",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            cursor: "pointer",
+            transition: "all 0.2s ease-in-out",
+            "&:active": { transform: "scale(0.98)" },
+            "&:hover": { backgroundColor: "#E6F4EA" },
           }}
         >
-          {language === "tl" ? "Magdagdag ng Bagong Lugar" : "Add New Place"}
-        </Button>
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: "12px",
+              backgroundColor: "rgba(15, 23, 42, 0.05)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AddIcon sx={{ color: "#0F172A", fontSize: 24 }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{
+                fontSize: "14px",
+                fontWeight: 800,
+                color: "#0F172A",
+                fontFamily: "Poppins, sans-serif",
+              }}
+            >
+              {language === "tl" ? "Magdagdag ng Lugar" : "Add Saved Location"}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: "12px",
+                color: "#64748B",
+                fontFamily: "Poppins, sans-serif",
+                mt: 0.25,
+              }}
+            >
+              {language === "tl" ? "I-save ang lokasyon para sa mabilis na pag-book" : "Save location for quick one-tap booking"}
+            </Typography>
+          </Box>
+        </Paper>
 
         {savedPlaces.length === 0 ? (
           <Paper

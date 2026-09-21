@@ -6,7 +6,6 @@ import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Rating from "@mui/material/Rating";
-import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -16,27 +15,16 @@ import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 
-const CATEGORIES = [
-  { key: "usability", labelTl: "Gamit ng App", labelEn: "App Usability" },
-  { key: "speed", labelTl: "Bilis ng Booking", labelEn: "Booking Speed" },
-  { key: "map", labelTl: "Mapa at Lokasyon", labelEn: "Map & Navigation" },
-  { key: "driver", labelTl: "Pakikitungo ng Drayber", labelEn: "Driver Behavior" },
-  { key: "general", labelTl: "Pangkalahatan", labelEn: "General Feedback" },
-];
-
 const AppFeedbackPage: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
 
   const [rating, setRating] = useState<number | null>(5);
-  const [selectedCategory, setSelectedCategory] = useState<string>("usability");
   const [feedbackText, setFeedbackText] = useState("");
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!feedbackText.trim()) return;
-
     setSuccessDialogOpen(true);
   };
 
@@ -51,7 +39,7 @@ const AppFeedbackPage: React.FC = () => {
       }}
     >
       <PageHeader
-        title={language === "tl" ? "App & Service Feedback" : "App & Service Feedback"}
+        title={language === "tl" ? "I-rate ang App" : "Rate the App"}
         onBack={() => navigate(-1)}
       />
 
@@ -63,15 +51,16 @@ const AppFeedbackPage: React.FC = () => {
           flexGrow: 1,
           overflowY: "auto",
           p: 2.5,
+          pb: "calc(var(--safe-area-bottom) + 24px)",
           display: "flex",
           flexDirection: "column",
-          gap: 2.5,
+          gap: 2,
         }}
       >
         <Paper
           elevation={0}
           sx={{
-            p: 2.5,
+            p: 3,
             borderRadius: "20px",
             backgroundColor: "#FFFFFF",
             border: "1px solid #F1F5F9",
@@ -79,15 +68,15 @@ const AppFeedbackPage: React.FC = () => {
             flexDirection: "column",
             alignItems: "center",
             textAlign: "center",
-            gap: 1,
+            gap: 1.5,
           }}
         >
-          <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl"
               ? "Kamusta ang iyong karanasan sa SAKAY?"
               : "How was your experience using SAKAY?"}
           </Typography>
-          <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl"
               ? "Tulungan kaming mapabuti ang serbisyo para sa buong Calapan City."
               : "Help us improve our service for all of Calapan City."}
@@ -96,8 +85,14 @@ const AppFeedbackPage: React.FC = () => {
           <Rating
             value={rating}
             onChange={(_, newValue) => setRating(newValue)}
-            size="large"
-            sx={{ my: 1, color: "#FF6B00" }}
+            sx={{
+              my: 1.5,
+              color: "#FF6B00",
+              "& .MuiRating-icon": {
+                fontSize: "44px",
+                mx: 0.5,
+              },
+            }}
           />
         </Paper>
 
@@ -110,35 +105,12 @@ const AppFeedbackPage: React.FC = () => {
             border: "1px solid #F1F5F9",
             display: "flex",
             flexDirection: "column",
-            gap: 2,
+            gap: 1.5,
           }}
         >
-          <Box>
-            <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", mb: 1, fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Kategorya ng Feedback:" : "Feedback Category:"}
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {CATEGORIES.map((cat) => {
-                const isSelected = selectedCategory === cat.key;
-                return (
-                  <Chip
-                    key={cat.key}
-                    label={language === "tl" ? cat.labelTl : cat.labelEn}
-                    onClick={() => setSelectedCategory(cat.key)}
-                    sx={{
-                      fontSize: "12px",
-                      fontWeight: isSelected ? 700 : 500,
-                      fontFamily: "Poppins, sans-serif",
-                      backgroundColor: isSelected ? "#FF6B00" : "#F1F5F9",
-                      color: isSelected ? "#FFFFFF" : "#64748B",
-                      cursor: "pointer",
-                      "&:hover": { backgroundColor: isSelected ? "#E66000" : "#E2E8F0" },
-                    }}
-                  />
-                );
-              })}
-            </Box>
-          </Box>
+          <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+            {language === "tl" ? "Karagdagang Komento (Opsyonal)" : "Additional Comments (Optional)"}
+          </Typography>
 
           <TextField
             fullWidth
@@ -159,28 +131,30 @@ const AppFeedbackPage: React.FC = () => {
               },
             }}
           />
+        </Paper>
 
+        {/* Submit Button at Bottom */}
+        <Box sx={{ mt: "auto", pt: 1 }}>
           <Button
             type="submit"
             fullWidth
             variant="contained"
-            disabled={!feedbackText.trim()}
             sx={{
               backgroundColor: "#FF6B00",
               color: "#FFFFFF",
               borderRadius: "14px",
-              height: "46px",
-              fontSize: "14px",
-              fontWeight: 700,
+              height: "52px",
+              fontSize: "15px",
+              fontWeight: 800,
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
               boxShadow: "none",
               "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
             }}
           >
-            {language === "tl" ? "Ipadala ang Feedback" : "Submit Feedback"}
+            {language === "tl" ? "Isumite ang Rating" : "Submit Rating"}
           </Button>
-        </Paper>
+        </Box>
       </Box>
 
       {/* Success Dialog */}
@@ -197,7 +171,7 @@ const AppFeedbackPage: React.FC = () => {
         <DialogTitle sx={{ pt: 3 }}>
           <CheckCircleOutlinedIcon sx={{ fontSize: 56, color: "#10B981" }} />
           <Typography sx={{ fontSize: "18px", fontWeight: 700, color: "#0F172A", mt: 1, fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Salamat sa Feedback!" : "Thank You for Your Feedback!"}
+            {language === "tl" ? "Salamat sa Rating!" : "Thank You for Your Rating!"}
           </Typography>
         </DialogTitle>
         <DialogContent>

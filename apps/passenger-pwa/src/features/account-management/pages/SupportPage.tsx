@@ -12,7 +12,6 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
-import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 
 import Divider from "@mui/material/Divider";
 import PageHeader from "../../../common/components/PageHeader";
@@ -206,32 +205,7 @@ const SupportPage: React.FC = () => {
           </Paper>
         </Box>
 
-        <Paper
-          elevation={0}
-          onClick={() => navigate("/app-feedback")}
-          sx={{
-            p: 2,
-            borderRadius: "16px",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #F1F5F9",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-          }}
-        >
-          <FeedbackOutlinedIcon sx={{ color: "#FF6B00", fontSize: 24 }} />
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Magbigay ng App Feedback" : "Give App Feedback"}
-            </Typography>
-            <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Ibahagi ang iyong karanasan sa paggamit ng SAKAY" : "Share your experience using SAKAY app"}
-            </Typography>
-          </Box>
-        </Paper>
-
-        {/* Separator between App Feedback and FAQs with 12px margin */}
+        {/* Separator before FAQs */}
         <Divider sx={{ my: 1.5, borderColor: "#E2E8F0" }} />
 
         {/* FAQs Section */}
