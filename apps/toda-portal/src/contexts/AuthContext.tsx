@@ -223,6 +223,60 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         password,
       });
 
+      // Try candidates if primary email failed
+      if (signInError) {
+        const candidates = [
+          cleanInput.includes('@') ? cleanInput : `${cleanInput.toLowerCase()}@toda.sakay.internal`,
+          `${cleanInput.toUpperCase()}@toda.sakay.internal`,
+        ];
+
+        for (const cand of candidates) {
+          if (cand === authEmail) continue;
+          const candRes = await supabase.auth.signInWithPassword({ email: cand, password });
+          if (!candRes.error && candRes.data.user) {
+            data = candRes.data;
+            signInError = null;
+            break;
+          }
+        }
+      }
+
+      // If still error, lookup TODA table by acronym
+      if (signInError) {
+        const { data: matchedToda } = await supabase
+          .from('toda')
+          .select('toda_id, toda_acronym, email')
+          .ilike('toda_acronym', cleanInput)
+          .maybeSingle();
+
+        if (matchedToda) {
+          const todaEmail = matchedToda.email || `${matchedToda.toda_acronym.toLowerCase()}@toda.sakay.internal`;
+          const todaRes = await supabase.auth.signInWithPassword({ email: todaEmail, password });
+          if (!todaRes.error && todaRes.data.user) {
+            data = todaRes.data;
+            signInError = null;
+          }
+        }
+      }
+
+      // If still error, lookup toda_admin table
+      if (signInError) {
+        const { data: matchedAdmin } = await supabase
+          .from('toda_admin')
+          .select('email')
+          .or(`toda_acronym.ilike.${cleanInput},email.ilike.${cleanInput}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (matchedAdmin?.email) {
+          const adminRes = await supabase.auth.signInWithPassword({ email: matchedAdmin.email, password });
+          if (!adminRes.error && adminRes.data.user) {
+            data = adminRes.data;
+            signInError = null;
+          }
+        }
+      }
+
       // Seamless fallback for CCTODA if hosted database user is provisioned as admin@gmail.com
       if (signInError && (cleanInput.toUpperCase() === 'CCTODA' || cleanInput.toLowerCase() === 'cctoda')) {
         const fallbackRes = await supabase.auth.signInWithPassword({
