@@ -53,9 +53,11 @@ export interface LguAdminProfile {
   email: string;
   contact_number?: string | null;
   position?: string | null;
+  role?: string | null;
+  department?: string | null;
   account_status: 'Active' | 'Suspended';
   last_login?: string | null;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface FareMatrixItem {

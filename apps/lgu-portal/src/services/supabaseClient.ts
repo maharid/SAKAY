@@ -5,22 +5,19 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIU
 
 const customStorage = {
   getItem: (key: string) => {
-    const rememberMe = window.localStorage.getItem('sakay_remember_me') === 'true';
-    return rememberMe ? window.localStorage.getItem(key) : window.sessionStorage.getItem(key);
+    return window.localStorage.getItem(key) || window.sessionStorage.getItem(key) || null;
   },
   setItem: (key: string, value: string) => {
-    const rememberMe = window.localStorage.getItem('sakay_remember_me') === 'true';
-    if (rememberMe) {
+    try {
       window.localStorage.setItem(key, value);
-      window.sessionStorage.removeItem(key);
-    } else {
       window.sessionStorage.setItem(key, value);
-      window.localStorage.removeItem(key);
-    }
+    } catch {}
   },
   removeItem: (key: string) => {
-    window.localStorage.removeItem(key);
-    window.sessionStorage.removeItem(key);
+    try {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+    } catch {}
   }
 };
 
