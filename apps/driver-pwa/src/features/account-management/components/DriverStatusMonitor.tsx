@@ -14,6 +14,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
@@ -226,31 +227,18 @@ export const DriverStatusMonitor: React.FC = () => {
       }}
     >
       {/* Sticky Top Bar */}
+      {/* Pinned Header with Centered SAKAY Orange Logo */}
       <Box
         sx={{
           padding: 'calc(var(--safe-area-top) + 16px) 24px 16px 24px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           borderBottom: '1px solid #F1F5F9',
           backgroundColor: '#FFFFFF',
           flexShrink: 0,
         }}
       >
-        <IconButton
-          onClick={() => navigate('/')}
-          sx={{
-            color: '#0F172A',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid #E2E8F0',
-            width: 44,
-            height: 44,
-            '&:hover': { backgroundColor: '#F8FAFC' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-        </IconButton>
         <Logo color="orange" width={110} />
       </Box>
 
@@ -681,18 +669,37 @@ export const DriverStatusMonitor: React.FC = () => {
           sx={{
             mt: 1.5,
             width: '100%',
-            py: 1,
-            background: 'none',
-            border: 'none',
-            color: '#64748B',
-            fontSize: '13.5px',
-            fontWeight: 600,
+            height: '48px',
+            borderRadius: '14px',
+            backgroundColor: '#F8FAFC',
+            border: '1.5px solid #E2E8F0',
+            color: '#475569',
+            fontSize: '14px',
+            fontWeight: 700,
             cursor: 'pointer',
-            textAlign: 'center',
-            '&:hover': { color: '#0F172A', textDecoration: 'underline' },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            outline: 'none',
+            fontFamily: 'inherit',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              backgroundColor: '#F1F5F9',
+              borderColor: '#CBD5E1',
+              color: '#0F172A',
+              transform: 'translateY(-1px)',
+            },
+            '&:active': {
+              backgroundColor: '#E2E8F0',
+              transform: 'translateY(0)',
+            },
           }}
         >
-          {isTagalog ? 'Mag-sign out / Gumawa ng Bagong Aplikasyon' : 'Sign Out / New Application'}
+          <LogoutIcon sx={{ fontSize: 18, color: 'inherit' }} />
+          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'inherit' }}>
+            {isTagalog ? 'Mag-sign out / Gumawa ng Bagong Aplikasyon' : 'Sign Out / New Application'}
+          </Typography>
         </Box>
       </Box>
     </Box>

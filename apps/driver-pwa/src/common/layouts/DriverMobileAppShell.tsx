@@ -50,6 +50,26 @@ export const DriverMobileAppShell: React.FC = () => {
     '/driver/active-trip'
   ].includes(currentPath);
 
+  const [hasUnread, setHasUnread] = React.useState<boolean>(true);
+
+  React.useEffect(() => {
+    const checkUnread = () => {
+      try {
+        const stored = localStorage.getItem('sakay_driver_read_notifications');
+        const localReadIds: string[] = stored ? JSON.parse(stored) : [];
+        const defaultIds = ['dn1', 'dn2'];
+        const unreadExists = defaultIds.some((id) => !localReadIds.includes(id));
+        setHasUnread(unreadExists);
+      } catch {
+        setHasUnread(true);
+      }
+    };
+
+    checkUnread();
+    const interval = setInterval(checkUnread, 1000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
+
   const tabs: NavTabItem[] = [
     {
       key: 'home',
@@ -68,7 +88,7 @@ export const DriverMobileAppShell: React.FC = () => {
       label: language === 'tl' ? 'Abiso' : 'Alerts',
       path: '/driver/notifications',
       icon: (
-        <Badge badgeContent={1} color="error" variant="dot">
+        <Badge badgeContent={hasUnread ? 1 : 0} invisible={!hasUnread} color="error" variant="dot">
           <NotificationsIcon sx={{ fontSize: 22 }} />
         </Badge>
       ),

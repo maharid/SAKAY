@@ -13,7 +13,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import NorthEastIcon from "@mui/icons-material/NorthEast";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
-import splashBg from "@sakay/shared/src/assets/images/splash-bg.png";
+import splashBg from "@sakay/shared/src/assets/images/webp/splash-bg.webp";
 import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
 
 import type { PlaceSuggestion } from "../../../../services/locationService";

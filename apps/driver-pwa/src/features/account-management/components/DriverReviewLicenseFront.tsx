@@ -15,7 +15,7 @@ import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { assessImageQuality, rotateImage } from '../../../services/imageEnhancementService';
-import defaultFrontSample from '../../../../../../packages/shared/src/assets/images/drivers_license_front.png';
+import defaultFrontSample from '../../../../../../packages/shared/src/assets/images/webp/drivers-license-front.webp';
 
 export const DriverReviewLicenseFront: React.FC = () => {
   const navigate = useNavigate();

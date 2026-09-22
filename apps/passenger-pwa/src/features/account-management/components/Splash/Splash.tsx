@@ -9,7 +9,7 @@ import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 
 // Shared branding assets
-import background from "@sakay/shared/src/assets/images/splash-bg.png";
+import background from "@sakay/shared/src/assets/images/webp/splash-bg.webp";
 import tricycle from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 import splash01 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-01.webp";
 import splash02 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-02.webp";

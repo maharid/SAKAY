@@ -139,6 +139,8 @@ export const DriverNotifications: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
+
   const mergedNotifications = fetchedNotifs.map((n) => ({
     ...n,
     isRead: n.isRead || localReadIds.includes(n.id),
@@ -153,6 +155,11 @@ export const DriverNotifications: React.FC = () => {
   const handleMarkAllAsRead = () => {
     const allIds = fetchedNotifs.map((n) => n.id);
     setLocalReadIds(Array.from(new Set([...localReadIds, ...allIds])));
+  };
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    handleMarkAsRead(item.id);
+    setSelectedNotif(item);
   };
 
   const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
@@ -181,6 +188,91 @@ export const DriverNotifications: React.FC = () => {
         return <NotificationsOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
     }
   };
+
+  if (selectedNotif) {
+    const title = isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn;
+    const time = getRelativeTime(selectedNotif.createdAt, selectedNotif.timeTl, selectedNotif.timeEn, language);
+
+    const detailedBodyTl = selectedNotif.id === 'dn2'
+      ? `Manatiling maingat sa pagmamaneho at siguraduhing updated ang inyong lisensya at MTOP permit.\n\nMula sa TODA Administration:\n1. Laging magsuot ng tamang kasuotan at helmet o pananggalang kung kinakailangan.\n2. Siguraduhing malinis at ligtas ang sasakyan para sa mga pasahero.\n3. Sumunod sa mga alituntunin sa trapiko ng Calapan City at igalang ang tamang pamasahe.`
+      : selectedNotif.bodyTl;
+
+    const detailedBodyEn = selectedNotif.id === 'dn2'
+      ? `Drive safely and keep your driver license and MTOP permit updated.\n\nFrom TODA Administration:\n1. Always wear proper attire and safety equipment.\n2. Ensure your tricycle is clean, safe, and comfortable for passengers.\n3. Follow Calapan City traffic regulations and adhere strictly to authorized fare matrix.`
+      : selectedNotif.bodyEn;
+
+    const body = isTagalog ? detailedBodyTl : detailedBodyEn;
+
+    return (
+      <Box
+        sx={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#FFFFFF',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <PageHeader
+          title={isTagalog ? 'Detalye ng Abiso' : 'Notice Details'}
+          onBack={() => setSelectedNotif(null)}
+        />
+
+        <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
+          {/* Header info */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                backgroundColor: '#FFF2E9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {getCategoryIcon(selectedNotif.category)}
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#FF6B00' }}>
+                TODA Administrator
+              </Typography>
+              <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>
+                {time}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Typography
+            sx={{
+              fontSize: '18px',
+              fontWeight: 800,
+              color: '#0F172A',
+              lineHeight: 1.3,
+              mb: 2,
+            }}
+          >
+            {title}
+          </Typography>
+
+          <Divider sx={{ mb: 2.5, borderColor: '#F1F5F9' }} />
+
+          <Typography
+            sx={{
+              fontSize: '14px',
+              color: '#334155',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-line',
+            }}
+          >
+            {body}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -309,9 +401,7 @@ export const DriverNotifications: React.FC = () => {
                 <React.Fragment key={item.id}>
                   {index > 0 && <Divider sx={{ borderColor: '#F1F5F9' }} />}
                   <Box
-                    onClick={() => {
-                      if (!item.isRead) handleMarkAsRead(item.id);
-                    }}
+                    onClick={() => handleNotificationClick(item)}
                     sx={{
                       py: 1.5,
                       px: 2,
@@ -394,9 +484,7 @@ export const DriverNotifications: React.FC = () => {
                       </Typography>
                     </Box>
 
-                    {item.category === 'advisories' && (
-                      <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20, mt: 0.5, flexShrink: 0 }} />
-                    )}
+                    <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20, mt: 0.5, flexShrink: 0 }} />
                   </Box>
                 </React.Fragment>
               );

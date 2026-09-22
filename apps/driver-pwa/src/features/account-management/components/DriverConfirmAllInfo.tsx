@@ -467,29 +467,34 @@ export const DriverConfirmAllInfo: React.FC = () => {
         </Box>
 
         {/* Confirmation Checkbox */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2, mb: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                sx={{
-                  color: '#FF6B00',
-                  '&.Mui-checked': { color: '#FF6B00' },
-                  '& .MuiSvgIcon-root': { fontSize: 24 },
-                  p: 0.5,
-                }}
-              />
-            }
-            label={
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: '#0F172A', lineHeight: 1.35 }}>
-                {isTagalog
-                  ? 'Kinukumpirma kong tama ang lahat ng impormasyong aking isinumite.'
-                  : 'I confirm that all the information I submitted is correct.'}
-              </Typography>
-            }
-            sx={{ m: 0, alignItems: 'flex-start' }}
+        <Box
+          onClick={() => setConfirmed(!confirmed)}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            mt: 2,
+            mb: 1,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
+          <Checkbox
+            checked={confirmed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+            sx={{
+              color: '#FF6B00',
+              '&.Mui-checked': { color: '#FF6B00' },
+              '& .MuiSvgIcon-root': { fontSize: 22 },
+              p: 0,
+              flexShrink: 0,
+            }}
           />
+          <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', lineHeight: 1.35 }}>
+            {isTagalog
+              ? 'Kinukumpirma kong tama ang lahat ng impormasyong aking isinumite.'
+              : 'I confirm that all the information I submitted is correct.'}
+          </Typography>
         </Box>
       </Box>
 

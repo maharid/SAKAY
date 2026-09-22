@@ -11,8 +11,8 @@ import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
 
-import driversLicenseFront from '../../../../../../packages/shared/src/assets/images/drivers_license_front.png';
-import driversLicenseBack from '../../../../../../packages/shared/src/assets/images/drivers_license_back.png';
+import driversLicenseFront from '../../../../../../packages/shared/src/assets/images/webp/drivers-license-front.webp';
+import driversLicenseBack from '../../../../../../packages/shared/src/assets/images/webp/drivers-license-back.webp';
 
 export const DriverPrepareLicense: React.FC = () => {
   const navigate = useNavigate();

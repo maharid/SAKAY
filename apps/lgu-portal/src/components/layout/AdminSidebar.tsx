@@ -19,7 +19,7 @@ import PaidIcon from '@mui/icons-material/Paid';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 
 import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
-import logoTextOrange from '@sakay/shared/assets/images/logo-text-orange.png';
+import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
 import { fetchTodaApplications, fetchDrivers } from '../../services/adminApiService';
 

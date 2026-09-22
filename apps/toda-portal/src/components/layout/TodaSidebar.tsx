@@ -13,7 +13,7 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 
 import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
-import logoTextOrange from '@sakay/shared/assets/images/logo-text-orange.png';
+import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
 import { StatusBadge } from '../common/StatusBadge';
 import { MacCenterModal } from '../admin/MacCenterModal';

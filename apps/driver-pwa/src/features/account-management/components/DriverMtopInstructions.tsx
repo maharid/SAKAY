@@ -10,7 +10,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
-import mtopImg from '../../../../../../packages/shared/src/assets/images/mtop.png';
+import mtopImg from '../../../../../../packages/shared/src/assets/images/webp/driver-mtop.webp';
 
 export const DriverMtopInstructions: React.FC = () => {
   const navigate = useNavigate();

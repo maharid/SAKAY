@@ -1,8 +1,8 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import logoTextWhite from '@sakay/shared/src/assets/images/logo-text-white.png';
-import logoTextOrange from '@sakay/shared/src/assets/images/logo-text-orange.png';
-import logoTextBlack from '@sakay/shared/src/assets/images/logo-text-black.png';
+import logoTextWhite from '@sakay/shared/src/assets/images/webp/logo-text-white.webp';
+import logoTextOrange from '@sakay/shared/src/assets/images/webp/logo-text-orange.webp';
+import logoTextBlack from '@sakay/shared/src/assets/images/webp/logo-text-black.webp';
 
 interface LogoProps {
   color?: 'white' | 'orange' | 'black';
