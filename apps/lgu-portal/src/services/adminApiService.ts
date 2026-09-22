@@ -490,36 +490,76 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
   const acronym = todaInfo?.toda_acronym || (applicationId.length <= 15 ? applicationId : undefined);
   const name = todaInfo?.toda_name;
 
-  setTodaStatusOverride(applicationId, 'Active', acronym, name);
+  let updatedData: any = null;
 
-  let updatedData: any = todaInfo;
-
-  // 1. Primary: Backend API endpoint using Supabase Service Role (bypasses RLS to guarantee PostgreSQL update)
+  // 1. Primary: RPC function via Supabase (SECURITY DEFINER)
   try {
-    const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/approve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ remarks, actor_name: 'City Administrator', acronym, name }),
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('approve_toda_accreditation', {
+      p_toda_id: applicationId,
+      p_remarks: remarks || null,
     });
-    if (res.ok) {
-      const apiJson = await res.json();
-      if (apiJson.data) updatedData = apiJson.data;
+    if (!rpcErr && rpcRes && rpcRes.success && rpcRes.data) {
+      updatedData = rpcRes.data;
     }
-  } catch (apiErr) {
-    console.warn('[adminApiService] Server approve API endpoint warning:', apiErr);
+  } catch (rpcErr) {
+    console.warn('[adminApiService] approve RPC warning:', rpcErr);
   }
 
-  // 2. Direct Supabase client update on public.toda (updating all status column variations)
+  // 2. Secondary: Backend API endpoint using Supabase Service Role
+  if (!updatedData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remarks, actor_name: 'City Administrator', acronym, name }),
+      });
+      if (res.ok) {
+        const apiJson = await res.json();
+        if (apiJson.data) updatedData = apiJson.data;
+      }
+    } catch (apiErr) {
+      console.warn('[adminApiService] Server approve API endpoint warning:', apiErr);
+    }
+  }
+
+  // 3. Tertiary: Direct Supabase client update on public.toda
+  if (!updatedData) {
+    try {
+      const { data: d1 } = await supabase
+        .from('toda')
+        .update({ toda_status: 'Active', account_status: 'Active' })
+        .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
+        .select();
+      if (d1 && d1.length > 0) updatedData = d1[0];
+    } catch {}
+  }
+
+  // 4. Verification Check: Verify actual database row status
+  let isVerifiedInDb = false;
   try {
-    const { data: d1 } = await supabase
+    const { data: checkRow } = await supabase
       .from('toda')
-      .update({ toda_status: 'Active', account_status: 'Active' })
+      .select('toda_id, toda_name, toda_acronym, toda_status, account_status')
       .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
-      .select();
-    if (d1 && d1.length > 0) updatedData = d1[0];
+      .maybeSingle();
+
+    if (
+      checkRow &&
+      (String(checkRow.toda_status).toLowerCase() === 'active' ||
+        String(checkRow.account_status).toLowerCase() === 'active')
+    ) {
+      isVerifiedInDb = true;
+      updatedData = updatedData || checkRow;
+    }
   } catch {}
 
-  // 3. Update associated toda_admin accounts to Active
+  if (!isVerifiedInDb && !updatedData) {
+    throw new Error(
+      `Database update failed for TODA '${acronym || name || applicationId}'. Supabase database status could not be saved to Active.`
+    );
+  }
+
+  // Update associated toda_admin accounts to Active
   try {
     await supabase
       .from('toda_admin')
@@ -527,7 +567,9 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
       .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`);
   } catch {}
 
-  // 4. Record audit log entry
+  setTodaStatusOverride(applicationId, 'Active', acronym, name);
+
+  // Record audit log entry
   await recordAdminAuditAction({
     actionType: 'TODA_ACCREDITATION_APPROVED',
     targetId: applicationId,
@@ -540,33 +582,51 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
 }
 
 export async function returnTodaApplicationForCorrection(applicationId: string, reason: string) {
-  setTodaStatusOverride(applicationId, 'Resubmission Required');
+  let updatedData: any = null;
 
-  // 1. Backend API endpoint using Supabase Service Role
+  // 1. Primary: RPC function via Supabase (SECURITY DEFINER)
   try {
-    await fetch(`${API_BASE_URL}/toda/${applicationId}/return-correction`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('return_toda_accreditation', {
+      p_toda_id: applicationId,
+      p_reason: reason || null,
     });
-  } catch (apiErr) {
-    console.warn('[adminApiService] Server return-correction API endpoint warning:', apiErr);
+    if (!rpcErr && rpcRes && rpcRes.success && rpcRes.data) {
+      updatedData = rpcRes.data;
+    }
+  } catch (rpcErr) {
+    console.warn('[adminApiService] return RPC warning:', rpcErr);
   }
 
-  // 2. Direct Supabase client update
-  try {
-    await supabase
-      .from('toda')
-      .update({ toda_status: 'Resubmission Required' })
-      .eq('toda_id', applicationId);
-  } catch {}
+  // 2. Secondary: Backend API endpoint
+  if (!updatedData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/return-correction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
+      });
+      if (res.ok) {
+        const apiJson = await res.json();
+        if (apiJson.data) updatedData = apiJson.data;
+      }
+    } catch (apiErr) {
+      console.warn('[adminApiService] Server return-correction API endpoint warning:', apiErr);
+    }
+  }
 
-  try {
-    await supabase
-      .from('toda')
-      .update({ account_status: 'Resubmission Required' })
-      .eq('toda_id', applicationId);
-  } catch {}
+  // 3. Tertiary: Direct Supabase client update
+  if (!updatedData) {
+    try {
+      const { data: d1 } = await supabase
+        .from('toda')
+        .update({ toda_status: 'Resubmission Required', account_status: 'Resubmission Required' })
+        .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
+        .select();
+      if (d1 && d1.length > 0) updatedData = d1[0];
+    } catch {}
+  }
+
+  setTodaStatusOverride(applicationId, 'Resubmission Required');
 
   await recordAdminAuditAction({
     actionType: 'TODA_APPLICATION_RETURNED_FOR_CORRECTION',
@@ -576,59 +636,65 @@ export async function returnTodaApplicationForCorrection(applicationId: string, 
     category: 'Verification',
   });
 
-  return { success: true, reason };
+  return { success: true, reason, data: updatedData };
 }
 
 export async function rejectTodaApplication(applicationId: string, reason: string) {
-  setTodaStatusOverride(applicationId, 'Deactivated');
-
   let updatedData: any = null;
 
-  // 1. Backend API endpoint using Supabase Service Role
+  // 1. Primary: RPC function via Supabase (SECURITY DEFINER)
   try {
-    const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/reject`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('deactivate_toda_accreditation', {
+      p_toda_id: applicationId,
+      p_reason: reason || null,
     });
-    if (res.ok) {
-      const apiJson = await res.json();
-      if (apiJson.data) updatedData = apiJson.data;
+    if (!rpcErr && rpcRes && rpcRes.success && rpcRes.data) {
+      updatedData = rpcRes.data;
     }
-  } catch (apiErr) {
-    console.warn('[adminApiService] Server reject API endpoint warning:', apiErr);
+  } catch (rpcErr) {
+    console.warn('[adminApiService] deactivate RPC warning:', rpcErr);
   }
 
-  // 2. Direct Supabase client update
-  try {
-    const { data: d1 } = await supabase
-      .from('toda')
-      .update({ toda_status: 'Deactivated' })
-      .eq('toda_id', applicationId)
-      .select()
-      .maybeSingle();
-    if (d1) updatedData = d1;
-  } catch {}
+  // 2. Secondary: Backend API endpoint
+  if (!updatedData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
+      });
+      if (res.ok) {
+        const apiJson = await res.json();
+        if (apiJson.data) updatedData = apiJson.data;
+      }
+    } catch (apiErr) {
+      console.warn('[adminApiService] Server reject API endpoint warning:', apiErr);
+    }
+  }
 
-  try {
-    const { data: d2 } = await supabase
-      .from('toda')
-      .update({ account_status: 'Deactivated' })
-      .eq('toda_id', applicationId)
-      .select()
-      .maybeSingle();
-    if (d2) updatedData = updatedData || d2;
-  } catch {}
+  // 3. Tertiary: Direct Supabase client update
+  if (!updatedData) {
+    try {
+      const { data: d1 } = await supabase
+        .from('toda')
+        .update({ toda_status: 'Deactivated', account_status: 'Deactivated' })
+        .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
+        .select();
+      if (d1 && d1.length > 0) updatedData = d1[0];
+    } catch {}
+  }
+
+  setTodaStatusOverride(applicationId, 'Deactivated');
 
   await recordAdminAuditAction({
     actionType: 'TODA_APPLICATION_REJECTED',
     targetId: applicationId,
-    targetName: updatedData?.toda_name || applicationId,
-    details: `Permanently declined accreditation application for '${updatedData?.toda_name || applicationId}'. Reason: ${reason}`,
+    targetName: applicationId,
+    details: `Deactivated/Rejected TODA accreditation application. Reason: ${reason}`,
     category: 'Verification',
   });
 
-  return { success: true, data: updatedData };
+  return { success: true, reason, data: updatedData };
 }
 
 export const declineTodaApplication = rejectTodaApplication;
