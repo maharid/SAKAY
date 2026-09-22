@@ -366,11 +366,12 @@ router.post('/:id/return-correction', async (req: Request, res: Response) => {
     }
 
     if (supabase) {
-      // 1. Fetch current TODA details
+      // 1. Fetch and update TODA record status
       const { data: toda } = await supabase
         .from('toda')
-        .select('toda_name')
+        .update({ account_status: 'Resubmission Required' })
         .eq('toda_id', id)
+        .select('toda_id, toda_name')
         .maybeSingle();
 
       // 2. Insert audit log record
@@ -386,7 +387,7 @@ router.post('/:id/return-correction', async (req: Request, res: Response) => {
       return res.json({
         success: true,
         message: `Application for ${toda?.toda_name || id} has been returned for correction.`,
-        data: { id, reason, status: 'Returned for Correction' },
+        data: { id, reason, status: 'Resubmission Required' },
       });
     }
 

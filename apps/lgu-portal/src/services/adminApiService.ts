@@ -442,40 +442,45 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
 export async function approveTodaApplication(applicationId: string, remarks?: string) {
   setTodaStatusOverride(applicationId, 'Active');
 
-  let updatePayload: Record<string, any> = {
-    toda_status: 'Active',
-    account_status: 'Active',
-  };
-
   let updatedData: any = null;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const { data, error } = await supabase
+
+  // 1. Primary: Backend API endpoint using Supabase Service Role (bypasses RLS to guarantee PostgreSQL update)
+  try {
+    const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ remarks, actor_name: 'City Administrator' }),
+    });
+    if (res.ok) {
+      const apiJson = await res.json();
+      if (apiJson.data) updatedData = apiJson.data;
+    }
+  } catch (apiErr) {
+    console.warn('[adminApiService] Server approve API endpoint warning:', apiErr);
+  }
+
+  // 2. Direct Supabase client update on public.toda (account_status = 'Active')
+  try {
+    const { data: directData } = await supabase
       .from('toda')
-      .update(updatePayload)
+      .update({ account_status: 'Active' })
       .eq('toda_id', applicationId)
       .select()
       .maybeSingle();
 
-    if (!error) {
-      updatedData = data;
-      break;
+    if (directData) {
+      updatedData = directData;
     }
-
-    const errMsg = (error.message || '') + ' ' + (error.details || '');
-    const match = errMsg.match(/Could not find the '([^']+)' column/i) || errMsg.match(/column [^.]*\.?([a-zA-Z0-9_]+) does not exist/i);
-    if (match && match[1] && match[1] in updatePayload) {
-      delete updatePayload[match[1]];
-    } else {
-      console.warn('[adminApiService] approveToda error:', error.message);
-      break;
-    }
+  } catch (dbErr) {
+    console.warn('[adminApiService] Direct Supabase update warning:', dbErr);
   }
 
-  // Update associated toda_admin accounts to Active
+  // 3. Update associated toda_admin accounts to Active
   try {
     await supabase.from('toda_admin').update({ account_status: 'Active' }).eq('toda_id', applicationId);
   } catch {}
 
+  // 4. Record audit log entry
   await recordAdminAuditAction({
     actionType: 'TODA_ACCREDITATION_APPROVED',
     targetId: applicationId,
@@ -490,26 +495,25 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
 export async function returnTodaApplicationForCorrection(applicationId: string, reason: string) {
   setTodaStatusOverride(applicationId, 'Resubmission Required');
 
-  let updatePayload: Record<string, any> = {
-    toda_status: 'Resubmission Required',
-    account_status: 'Resubmission Required',
-  };
+  // 1. Backend API endpoint using Supabase Service Role
+  try {
+    await fetch(`${API_BASE_URL}/toda/${applicationId}/return-correction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
+    });
+  } catch (apiErr) {
+    console.warn('[adminApiService] Server return-correction API endpoint warning:', apiErr);
+  }
 
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const { error } = await supabase
+  // 2. Direct Supabase client update
+  try {
+    await supabase
       .from('toda')
-      .update(updatePayload)
+      .update({ account_status: 'Resubmission Required' })
       .eq('toda_id', applicationId);
-
-    if (!error) break;
-
-    const errMsg = (error.message || '') + ' ' + (error.details || '');
-    const match = errMsg.match(/Could not find the '([^']+)' column/i) || errMsg.match(/column [^.]*\.?([a-zA-Z0-9_]+) does not exist/i);
-    if (match && match[1] && match[1] in updatePayload) {
-      delete updatePayload[match[1]];
-    } else {
-      break;
-    }
+  } catch (dbErr) {
+    console.warn('[adminApiService] Direct Supabase update warning:', dbErr);
   }
 
   await recordAdminAuditAction({
@@ -526,32 +530,35 @@ export async function returnTodaApplicationForCorrection(applicationId: string, 
 export async function rejectTodaApplication(applicationId: string, reason: string) {
   setTodaStatusOverride(applicationId, 'Deactivated');
 
-  let updatePayload: Record<string, any> = {
-    toda_status: 'Deactivated',
-    account_status: 'Deactivated',
-  };
-
   let updatedData: any = null;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const { data, error } = await supabase
+
+  // 1. Backend API endpoint using Supabase Service Role
+  try {
+    const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
+    });
+    if (res.ok) {
+      const apiJson = await res.json();
+      if (apiJson.data) updatedData = apiJson.data;
+    }
+  } catch (apiErr) {
+    console.warn('[adminApiService] Server reject API endpoint warning:', apiErr);
+  }
+
+  // 2. Direct Supabase client update
+  try {
+    const { data: directData } = await supabase
       .from('toda')
-      .update(updatePayload)
+      .update({ account_status: 'Deactivated' })
       .eq('toda_id', applicationId)
       .select()
       .maybeSingle();
 
-    if (!error) {
-      updatedData = data;
-      break;
-    }
-
-    const errMsg = (error.message || '') + ' ' + (error.details || '');
-    const match = errMsg.match(/Could not find the '([^']+)' column/i) || errMsg.match(/column [^.]*\.?([a-zA-Z0-9_]+) does not exist/i);
-    if (match && match[1] && match[1] in updatePayload) {
-      delete updatePayload[match[1]];
-    } else {
-      break;
-    }
+    if (directData) updatedData = directData;
+  } catch (dbErr) {
+    console.warn('[adminApiService] Direct Supabase update warning:', dbErr);
   }
 
   await recordAdminAuditAction({
