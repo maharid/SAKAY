@@ -138,24 +138,14 @@ export const DriverLogin: React.FC = () => {
     }
 
     try {
-      // 1. Verify if driver account exists in database first using secure lookup
-      const driverData = await lookupDriverByPhoneSecure(phone63);
+      // 1. Pre-fetch driver record if available
+      let driverData = await lookupDriverByPhoneSecure(phone63);
 
-      if (!driverData) {
-        setLoading(false);
-        triggerErrorToast(
-          language === 'tl'
-            ? 'Walang nahanap na account para sa numerong ito. Mangyaring mag-register muna o suriin ang inyong numero.'
-            : 'No account found for this mobile number. Please register first or check your mobile number.'
-        );
-        return;
-      }
-
-      // 2. Driver exists! Attempt authentication with Supabase Auth
+      // 2. Attempt authentication with Supabase Auth across candidate credentials
       let sessionUser: any = null;
 
       const authCandidates = [...candidates.authCandidates];
-      if (driverData.email && !authCandidates.some((c: any) => c.email === driverData.email)) {
+      if (driverData?.email && !authCandidates.some((c: any) => c.email === driverData.email)) {
         authCandidates.unshift({ email: driverData.email });
       }
 
@@ -171,19 +161,78 @@ export const DriverLogin: React.FC = () => {
         }
       }
 
-      // 3. If password was incorrect:
+      // 3. If Supabase Auth succeeded but pre-lookup didn't find driverData:
+      if (sessionUser && !driverData) {
+        driverData = await lookupDriverByPhoneSecure(phone63);
+        if (!driverData) {
+          const { data: userRows } = await supabase
+            .from('driver')
+            .select(`
+              driver_id,
+              auth_user_id,
+              full_name,
+              contact_number,
+              email,
+              plate_number,
+              license_number,
+              franchise_number,
+              account_status,
+              toda:toda_id (
+                toda_id,
+                toda_name,
+                toda_acronym
+              )
+            `)
+            .or(`auth_user_id.eq.${sessionUser.id},contact_number.eq.${phone63},contact_number.eq.${phone09}`)
+            .limit(1);
+
+          if (userRows && userRows.length > 0) {
+            driverData = userRows[0];
+          }
+        }
+      }
+
+      // 4. If password was incorrect or user not found:
       if (!sessionUser) {
         setLoading(false);
-        triggerErrorToast(
-          language === 'tl'
-            ? 'Mali ang numero o password. Pakisubukang muli.'
-            : 'Invalid mobile number or password.'
-        );
+        if (driverData) {
+          triggerErrorToast(
+            language === 'tl'
+              ? 'Mali ang numero o password. Pakisubukang muli.'
+              : 'Invalid mobile number or password.'
+          );
+        } else {
+          triggerErrorToast(
+            language === 'tl'
+              ? 'Walang nahanap na account para sa numerong ito. Mangyaring mag-register muna o suriin ang inyong numero.'
+              : 'No account found for this mobile number. Please register first or check your mobile number.'
+          );
+        }
         return;
       }
 
-      // 4. Session established! Link driver record to sessionUser if unlinked
-      if (sessionUser?.id && !driverData.auth_user_id) {
+      // 5. Session established! Link driver record to sessionUser if unlinked or provision if missing
+      if (!driverData) {
+        const newDriverObj = {
+          auth_user_id: sessionUser.id,
+          contact_number: phone63,
+          full_name: sessionUser.user_metadata?.full_name || 'Driver Applicant',
+          account_status: 'Pending Verification',
+        };
+        const { data: createdDriver } = await supabase
+          .from('driver')
+          .insert([newDriverObj])
+          .select('*, toda:toda_id(*)')
+          .maybeSingle();
+
+        driverData = createdDriver || {
+          driver_id: sessionUser.id,
+          auth_user_id: sessionUser.id,
+          full_name: sessionUser.user_metadata?.full_name || 'Driver Applicant',
+          contact_number: phone63,
+          account_status: 'Pending Verification',
+        };
+      } else if (sessionUser?.id && !driverData.auth_user_id) {
         await supabase
           .from('driver')
           .update({ auth_user_id: sessionUser.id, contact_number: phone63 })

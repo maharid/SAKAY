@@ -119,41 +119,78 @@ export async function lookupDriverByPhoneSecure(phone: string): Promise<any | nu
   const pRaw = candidates.phoneRaw;
   const p63NoPlus = candidates.phone63NoPlus;
 
+  const selectFields = `
+    driver_id,
+    auth_user_id,
+    full_name,
+    contact_number,
+    email,
+    plate_number,
+    license_number,
+    franchise_number,
+    account_status,
+    toda:toda_id (
+      toda_id,
+      toda_name,
+      toda_acronym
+    )
+  `;
+
   try {
     const client = await getSecureLookupClient();
-    const { data: rows, error } = await client
-      .from('driver')
-      .select(`
-        driver_id,
-        auth_user_id,
-        full_name,
-        contact_number,
-        email,
-        plate_number,
-        license_number,
-        franchise_number,
-        account_status,
-        toda:toda_id (
-          toda_id,
-          toda_name,
-          toda_acronym
-        )
-      `)
-      .or(`contact_number.eq.${p63},contact_number.eq.${p09},contact_number.eq.${pRaw},contact_number.eq.${p63NoPlus}`)
-      .limit(1);
+    let rows: any[] | null = null;
+    let err: any = null;
 
-    if (error || !rows || rows.length === 0) {
+    try {
+      const res = await client
+        .from('driver')
+        .select(selectFields)
+        .or(`contact_number.eq.${p63},contact_number.eq.${p09},contact_number.eq.${pRaw},contact_number.eq.${p63NoPlus}`)
+        .limit(1);
+      rows = res.data;
+      err = res.error;
+    } catch (e) {
+      err = e;
+    }
+
+    if ((err || !rows || rows.length === 0) && client !== supabase) {
+      const fallbackRes = await supabase
+        .from('driver')
+        .select(selectFields)
+        .or(`contact_number.eq.${p63},contact_number.eq.${p09},contact_number.eq.${pRaw},contact_number.eq.${p63NoPlus}`)
+        .limit(1);
+      if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+        rows = fallbackRes.data;
+      }
+    }
+
+    if (!rows || rows.length === 0) {
       return null;
     }
 
     const driver = rows[0];
 
     // Check verification status
-    const { data: verif } = await client
-      .from('driver_verification')
-      .select('verification_status, submitted_license_number, remarks')
-      .eq('driver_id', driver.driver_id)
-      .maybeSingle();
+    let verif: any = null;
+    try {
+      const { data: vData } = await client
+        .from('driver_verification')
+        .select('verification_status, submitted_license_number, remarks')
+        .eq('driver_id', driver.driver_id)
+        .maybeSingle();
+      verif = vData;
+    } catch {}
+
+    if (!verif) {
+      try {
+        const { data: vFallback } = await supabase
+          .from('driver_verification')
+          .select('verification_status, submitted_license_number, remarks')
+          .eq('driver_id', driver.driver_id)
+          .maybeSingle();
+        verif = vFallback;
+      } catch {}
+    }
 
     return {
       ...driver,
