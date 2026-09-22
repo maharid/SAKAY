@@ -17,7 +17,7 @@ import {
   enhanceLicenseDocument,
   captureRawFrame,
 } from '../../../services/imageEnhancementService';
-import defaultMtopSample from '../../../../../../packages/shared/src/assets/images/mtop_sample.jpg';
+import defaultMtopSample from '../../../../../../packages/shared/src/assets/images/webp/driver-mtop.webp';
 
 export const DriverScanMtop: React.FC = () => {
   const navigate = useNavigate();

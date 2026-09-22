@@ -201,8 +201,8 @@ export const Register: React.FC = () => {
     const existing = await lookupPassengerByPhone(cleanPhoneDigits);
     if (existing && (existing.account_status === 'Active' || existing.account_status === 'Verified')) {
       const msg = language === 'tl'
-        ? 'Nakapagrehistro na ang account na ito.'
-        : 'This account is already registered.';
+        ? 'Ang mobile number na ito ay nakarehistro na. Mangyaring gumamit ng ibang numero o mag-log in.'
+        : 'This mobile number is already registered. Please use another number or log in.';
       setPhoneRegisteredError(msg);
       setAccountError(msg);
       setToastMessage(msg);

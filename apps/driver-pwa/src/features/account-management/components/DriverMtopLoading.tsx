@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { parseMtopImage } from '../../../services/mtopOcrService';
 import { saveMtopScanData, getCachedLicenseData, MtopExtractedData } from '../../../services/driverOnboardingCache';
-import defaultMtopSample from '../../../../../../packages/shared/src/assets/images/mtop_sample.jpg';
+import defaultMtopSample from '../../../../../../packages/shared/src/assets/images/webp/driver-mtop.webp';
 import DriverProgressLoader from './DriverProgressLoader';
 
 export const DriverMtopLoading: React.FC = () => {

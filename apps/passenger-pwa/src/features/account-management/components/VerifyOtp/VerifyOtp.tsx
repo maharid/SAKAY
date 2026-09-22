@@ -5,16 +5,14 @@ import {
   Typography,
   IconButton,
   TextField,
-  Alert,
   CircularProgress,
-  Snackbar,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 
 import Logo from '../../../../common/components/Logo';
 import PrimaryButton from '../../../../common/components/PrimaryButton';
+import SakayToast from '../../../../common/components/SakayToast';
 import { useLanguage } from '../../../../utils/LanguageContext';
 import {
   sendPassengerOtp,
@@ -25,9 +23,17 @@ import { supabase } from '../../../../services/supabaseClient';
 
 const formatDisplayPhone = (raw: string = ''): string => {
   const digits = raw.replace(/\D/g, '');
-  if (digits.length <= 4) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
-  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`;
+  let norm = digits;
+  if (norm.startsWith('639') && norm.length === 12) {
+    norm = '0' + norm.slice(2);
+  } else if (norm.startsWith('63') && norm.length >= 11) {
+    norm = '0' + norm.slice(2);
+  } else if (norm.startsWith('9') && norm.length === 10) {
+    norm = '0' + norm;
+  }
+  if (norm.length <= 4) return norm;
+  if (norm.length <= 7) return `${norm.slice(0, 4)} ${norm.slice(4)}`;
+  return `${norm.slice(0, 4)} ${norm.slice(4, 7)} ${norm.slice(7, 11)}`;
 };
 
 export const VerifyOtp: React.FC = () => {
@@ -51,13 +57,12 @@ export const VerifyOtp: React.FC = () => {
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [infoNotice, setInfoNotice] = useState<string | null>(null);
+  const [toastError, setToastError] = useState<string | null>(null);
+  const [toastInfo, setToastInfo] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(60);
   const [resendKey, setResendKey] = useState(0);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const resendNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAutoApprovedRef = useRef(false);
   const hasDispatchedInitialOtpRef = useRef(false);
   const isComplete = otp.every((digit) => digit !== '');
@@ -68,12 +73,10 @@ export const VerifyOtp: React.FC = () => {
     hasDispatchedInitialOtpRef.current = true;
 
     const dispatchInitialOtp = async () => {
-      setError('');
+      setToastError(null);
       try {
         let result = await sendPassengerOtp(resolvedPhone);
-        // If initial radio wake-up glitched, auto-retry once after 1s
         if (!result.success && result.error && result.error.toLowerCase().includes('unreachable')) {
-          console.log('[VerifyOtp] Initial SMS Gateway wake-up radio retry...');
           await new Promise((resolve) => setTimeout(resolve, 1000));
           result = await sendPassengerOtp(resolvedPhone);
         }
@@ -81,7 +84,7 @@ export const VerifyOtp: React.FC = () => {
         if (result.success) {
           setResendTimer(60);
         } else {
-          setError(
+          setToastError(
             result.error ||
               (language === 'tl'
                 ? 'Hindi maipadala ang OTP code. Pakisubukang muli.'
@@ -90,7 +93,7 @@ export const VerifyOtp: React.FC = () => {
         }
       } catch (err: any) {
         console.warn('[VerifyOtp] Initial OTP dispatch error:', err);
-        setError(
+        setToastError(
           language === 'tl'
             ? 'Nagkaroon ng aberya sa koneksyon sa SMS server.'
             : 'Connection error reaching the SMS server.'
@@ -101,7 +104,7 @@ export const VerifyOtp: React.FC = () => {
     dispatchInitialOtp();
   }, [resolvedPhone, language]);
 
-  // Countdown timer for resend
+  // Countdown timer for resend (continues running every second until timer reaches 0)
   useEffect(() => {
     if (resendTimer <= 0) return;
     const timer = setInterval(() => {
@@ -109,13 +112,6 @@ export const VerifyOtp: React.FC = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, [resendTimer]);
-
-  // Clean up timers on unmount
-  useEffect(() => {
-    return () => {
-      if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
-    };
-  }, []);
 
   const [isResending, setIsResending] = useState(false);
 
@@ -125,7 +121,7 @@ export const VerifyOtp: React.FC = () => {
       if (enteredCode.length < 6 || loading) return;
 
       setLoading(true);
-      setError('');
+      setToastError(null);
 
       try {
         const activeAuthUser = (await supabase.auth.getUser()).data.user;
@@ -133,7 +129,7 @@ export const VerifyOtp: React.FC = () => {
         if (!result.success) {
           hasAutoApprovedRef.current = false;
           setLoading(false);
-          setError(result.error || (language === 'tl' ? 'Maling OTP code. Pakisubukang muli.' : 'Incorrect OTP code. Please try again.'));
+          setToastError(result.error || (language === 'tl' ? 'Maling OTP code. Pakisubukang muli.' : 'Incorrect OTP code. Please try again.'));
           return;
         }
 
@@ -181,14 +177,12 @@ export const VerifyOtp: React.FC = () => {
 
             const existing = existingRows?.[0] || null;
 
-            // 1. Invoke activate_passenger_otp RPC (SECURITY DEFINER)
             try {
               await supabase.rpc('activate_passenger_otp', { p_contact_number: e164Phone });
             } catch (rpcErr) {
               console.debug('[PassengerVerifyOtp] activate_passenger_otp RPC note:', rpcErr);
             }
 
-            // 2. Update Supabase Auth user metadata to mark OTP as verified
             try {
               await supabase.auth.updateUser({
                 data: {
@@ -248,7 +242,6 @@ export const VerifyOtp: React.FC = () => {
         } else if (isRecovery) {
           navigate('/reset-password', { state: { phone: e164Phone, identifier: e164Phone } });
         } else {
-          // Flow: Terms of Service -> Privacy Policy -> Registration Success
           navigate('/terms-of-service', {
             state: {
               phone: e164Phone,
@@ -261,13 +254,12 @@ export const VerifyOtp: React.FC = () => {
         console.error('[PassengerVerifyOtp] Verification exception:', err);
         hasAutoApprovedRef.current = false;
         setLoading(false);
-        setError(language === 'tl' ? 'Hindi makumpleto ang pagpapatunay. Pakisubukang muli.' : 'Verification could not be completed. Please try again.');
+        setToastError(language === 'tl' ? 'Hindi makumpleto ang pagpapatunay. Pakisubukang muli.' : 'Verification could not be completed. Please try again.');
       }
     },
     [loading, resolvedPhone, state, language, resolvedName, navigate]
   );
 
-  // Auto-fill OTP as soon as SMS is received, without focusing inputs or showing soft keyboard
   const handleIncomingSmsOtp = useCallback(
     (incomingCode: string) => {
       const cleaned = (incomingCode || '').replace(/\D/g, '').slice(0, 6);
@@ -276,13 +268,8 @@ export const VerifyOtp: React.FC = () => {
       hasAutoApprovedRef.current = true;
       const digits = cleaned.split('');
       setOtp(digits);
-      setError('');
+      setToastError(null);
 
-      // CRITICAL FOR CLEAN & SMOOTH FLOW:
-      // We do NOT call inputRefs.current[...].focus() here!
-      // Keeping focus off the input ensures the virtual keyboard never opens unless the user taps a field.
-
-      // Automatically execute verification with a gentle delay so the user sees the filled numbers
       setTimeout(() => {
         executeVerification(cleaned);
       }, 400);
@@ -290,8 +277,6 @@ export const VerifyOtp: React.FC = () => {
     [loading, executeVerification]
   );
 
-  // Background listener for incoming SMS via the browser's native Web OTP API
-  // This strictly triggers ONLY when THIS physical device actually receives the SMS over the cellular network.
   useEffect(() => {
     let isMounted = true;
     const abortController = new AbortController();
@@ -308,9 +293,7 @@ export const VerifyOtp: React.FC = () => {
             handleIncomingSmsOtp(content.code);
           }
         })
-        .catch(() => {
-          // Normal when aborted or dismissed
-        });
+        .catch(() => {});
     }
 
     return () => {
@@ -346,7 +329,7 @@ export const VerifyOtp: React.FC = () => {
 
     newOtp[index] = rawChar.slice(-1);
     setOtp(newOtp);
-    setError('');
+    setToastError(null);
 
     if (rawChar && index < 5) {
       inputRefs.current[index + 1]?.focus();
@@ -371,8 +354,8 @@ export const VerifyOtp: React.FC = () => {
 
   const handleResendOtp = async () => {
     if (resendTimer > 0 || isResending || loading) return;
-    setError('');
-    setInfoNotice(null);
+    setToastError(null);
+    setToastInfo(null);
     setIsResending(true);
 
     try {
@@ -383,15 +366,13 @@ export const VerifyOtp: React.FC = () => {
         setResendTimer(60);
         setOtp(['', '', '', '', '', '']);
         setResendKey((prev) => prev + 1);
-        setInfoNotice(language === 'tl' ? 'Matagumpay na naipadala muli ang bagong verification code.' : 'Verification code re-sent successfully.');
-        if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
-        resendNoticeTimerRef.current = setTimeout(() => setInfoNotice(null), 5000);
+        setToastInfo(language === 'tl' ? 'Matagumpay na naipadala ang bagong OTP code sa iyong numero.' : 'New OTP sent to your number.');
       } else {
-        setError(result.error || (language === 'tl' ? 'Hindi maipadala ang OTP code. Pakisubukang muli.' : 'Failed to resend OTP. Please try again.'));
+        setToastError(result.error || (language === 'tl' ? 'Hindi maipadala ang OTP code. Pakisubukang muli.' : 'Failed to resend OTP. Please try again.'));
       }
     } catch {
       setIsResending(false);
-      setError(language === 'tl' ? 'Nagkaroon ng aberya sa koneksyon. Pakisubukang muli.' : 'Network connection error. Please try again.');
+      setToastError(language === 'tl' ? 'Nagkaroon ng aberya sa koneksyon. Pakisubukang muli.' : 'Network connection error. Please try again.');
     }
   };
 
@@ -410,6 +391,20 @@ export const VerifyOtp: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {/* Toast Feedback for Errors (Incorrect OTP) and Resend Info */}
+      <SakayToast
+        open={Boolean(toastError)}
+        message={toastError}
+        severity="error"
+        onClose={() => setToastError(null)}
+      />
+      <SakayToast
+        open={Boolean(toastInfo)}
+        message={toastInfo}
+        severity="success"
+        onClose={() => setToastInfo(null)}
+      />
+
       {/* Pinned Top Navigation Bar with Back Button and Logo */}
       <Box
         sx={{
@@ -480,28 +475,12 @@ export const VerifyOtp: React.FC = () => {
             {language === 'tl'
               ? `Nagpadala kami ng 6-digit code sa `
               : `We sent a 6-digit verification code to `}
-            <Box component="span" sx={{ fontWeight: 700, color: '#0F172A' }}>
+            <Box component="span" sx={{ fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
               {displayPhone || 'iyong numero'}
             </Box>
             .
           </Typography>
         </Box>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
-            {error}
-          </Alert>
-        )}
-
-        {infoNotice && (
-          <Alert
-            icon={<CheckCircleRoundedIcon fontSize="inherit" />}
-            severity="success"
-            sx={{ mb: 2.5, borderRadius: '12px' }}
-          >
-            {infoNotice}
-          </Alert>
-        )}
 
         {/* 6 OTP Input Boxes */}
         <Box
@@ -641,18 +620,6 @@ export const VerifyOtp: React.FC = () => {
           {language === 'tl' ? 'Kumpirmahin' : 'Confirm'}
         </PrimaryButton>
       </Box>
-
-      {/* Transient feedback toast */}
-      <Snackbar
-        open={Boolean(infoNotice)}
-        autoHideDuration={4000}
-        onClose={() => setInfoNotice(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setInfoNotice(null)} severity="info" sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}>
-          {infoNotice}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

@@ -5,23 +5,30 @@ import {
   Typography,
   IconButton,
   TextField,
-  Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
+import SakayToast from '../../../common/components/SakayToast';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { sendDriverOtp, verifyDriverOtp, formatPhoneToE164, getPhoneLookupCandidates, lookupDriverByPhoneSecure } from '../../../services/driverApiService';
 import { supabase } from '../../../services/supabaseClient';
 
 const formatDisplayPhone = (raw: string = ''): string => {
   const digits = raw.replace(/\D/g, '');
-  if (digits.length <= 4) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
-  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`;
+  let norm = digits;
+  if (norm.startsWith('639') && norm.length === 12) {
+    norm = '0' + norm.slice(2);
+  } else if (norm.startsWith('63') && norm.length >= 11) {
+    norm = '0' + norm.slice(2);
+  } else if (norm.startsWith('9') && norm.length === 10) {
+    norm = '0' + norm;
+  }
+  if (norm.length <= 4) return norm;
+  if (norm.length <= 7) return `${norm.slice(0, 4)} ${norm.slice(4)}`;
+  return `${norm.slice(0, 4)} ${norm.slice(4, 7)} ${norm.slice(7, 11)}`;
 };
 
 export const DriverVerifyOtp: React.FC = () => {
@@ -32,13 +39,12 @@ export const DriverVerifyOtp: React.FC = () => {
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [infoNotice, setInfoNotice] = useState<string | null>(null);
+  const [toastError, setToastError] = useState<string | null>(null);
+  const [toastInfo, setToastInfo] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(60);
   const [resendKey, setResendKey] = useState(0);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const resendNoticeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasAutoApprovedRef = useRef(false);
   const hasDispatchedInitialOtpRef = useRef(false);
   const isComplete = otp.every((digit) => digit !== '');
@@ -51,38 +57,31 @@ export const DriverVerifyOtp: React.FC = () => {
     hasDispatchedInitialOtpRef.current = true;
 
     const dispatchInitialOtp = async () => {
-      setError('');
+      setToastError(null);
       try {
         const res = await sendDriverOtp(targetPhone);
         if (res.success) {
           setResendTimer(60);
         } else {
-          setError(res.error || 'Failed to send OTP SMS.');
+          setToastError(res.error || (language === 'tl' ? 'Hindi maipadala ang OTP SMS.' : 'Failed to send OTP SMS.'));
         }
       } catch (err: any) {
         console.warn('[DriverVerifyOtp] Initial OTP dispatch error:', err);
-        setError('Network error while requesting OTP.');
+        setToastError(language === 'tl' ? 'Nagkaroon ng aberya sa koneksyon.' : 'Network error while requesting OTP.');
       }
     };
 
     dispatchInitialOtp();
-  }, [targetPhone, t]);
+  }, [targetPhone, t, language]);
 
-  // Countdown timer for resend (stops immediately if OTP is completely filled)
+  // Countdown timer for resend (continues running every second until timer reaches 0)
   useEffect(() => {
-    if (resendTimer <= 0 || isComplete) return;
+    if (resendTimer <= 0) return;
     const timer = setInterval(() => {
       setResendTimer((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [resendTimer, isComplete]);
-
-  // Clean up timers on unmount
-  useEffect(() => {
-    return () => {
-      if (resendNoticeTimerRef.current) clearTimeout(resendNoticeTimerRef.current);
-    };
-  }, []);
+  }, [resendTimer]);
 
   // Core verification function
   const executeVerification = useCallback(
@@ -90,13 +89,13 @@ export const DriverVerifyOtp: React.FC = () => {
       if (enteredCode.length < 6 || loading) return;
 
       setLoading(true);
-      setError('');
+      setToastError(null);
 
       try {
         const result = await verifyDriverOtp(state?.phone || '', enteredCode);
         if (!result.success) {
           setLoading(false);
-          setError(result.error || 'Incorrect OTP code. Please try again.');
+          setToastError(result.error || (language === 'tl' ? 'Maling OTP code. Pakisubukang muli.' : 'Incorrect OTP code. Please try again.'));
           return;
         }
 
@@ -166,7 +165,6 @@ export const DriverVerifyOtp: React.FC = () => {
 
             if (authUser) {
               console.log('[DriverVerifyOtp] Authenticated user session established:', authUser.id);
-              // Link or update driver record in public.driver
               const { data: driverRows } = await supabase
                 .from('driver')
                 .select('driver_id, auth_user_id, contact_number')
@@ -281,7 +279,7 @@ export const DriverVerifyOtp: React.FC = () => {
             }
             return;
           } else {
-            setError(
+            setToastError(
               language === 'tl'
                 ? 'Walang nahanap na account para sa numerong ito. Mangyaring mag-register muna.'
                 : 'No account found for this mobile number. Please register first.'
@@ -305,13 +303,12 @@ export const DriverVerifyOtp: React.FC = () => {
         }
       } catch {
         setLoading(false);
-        setError('Verification service unavailable. Please check your connection.');
+        setToastError(language === 'tl' ? 'Hindi makumpleto ang verification.' : 'Verification service unavailable. Please check your connection.');
       }
     },
-    [loading, navigate, state]
+    [loading, navigate, state, language]
   );
 
-  // Auto-fill OTP as soon as SMS is received, without focusing inputs or showing soft keyboard
   const handleIncomingSmsOtp = useCallback(
     (incomingCode: string) => {
       const cleaned = (incomingCode || '').replace(/\D/g, '').slice(0, 6);
@@ -320,13 +317,8 @@ export const DriverVerifyOtp: React.FC = () => {
       hasAutoApprovedRef.current = true;
       const digits = cleaned.split('');
       setOtp(digits);
-      setError('');
+      setToastError(null);
 
-      // CRITICAL FOR CLEAN & SMOOTH FLOW:
-      // We do NOT call inputRefs.current[...].focus() here!
-      // Keeping focus off the input ensures the virtual keyboard never opens unless the user taps a field.
-
-      // Automatically execute verification with a gentle delay so the user sees the filled numbers
       setTimeout(() => {
         executeVerification(cleaned);
       }, 400);
@@ -334,8 +326,6 @@ export const DriverVerifyOtp: React.FC = () => {
     [loading, executeVerification]
   );
 
-  // Background listener for incoming SMS via the browser's native Web OTP API
-  // This strictly waits until the physical device actually receives the SMS over the cellular network.
   useEffect(() => {
     let isMounted = true;
     const abortController = new AbortController();
@@ -352,9 +342,7 @@ export const DriverVerifyOtp: React.FC = () => {
             handleIncomingSmsOtp(content.code);
           }
         })
-        .catch(() => {
-          // Normal when aborted or dismissed
-        });
+        .catch(() => {});
     }
 
     return () => {
@@ -364,12 +352,11 @@ export const DriverVerifyOtp: React.FC = () => {
   }, [handleIncomingSmsOtp, resendKey]);
 
   const handleOtpChange = (index: number, val: string) => {
-    // If user pasted a 6-digit code
     const cleaned = val.replace(/\D/g, '');
     if (cleaned.length >= 6) {
       const pasted = cleaned.slice(0, 6).split('');
       setOtp(pasted);
-      setError('');
+      setToastError(null);
       inputRefs.current[5]?.focus();
       return;
     }
@@ -378,9 +365,8 @@ export const DriverVerifyOtp: React.FC = () => {
     const next = [...otp];
     next[index] = singleDigit;
     setOtp(next);
-    setError('');
+    setToastError(null);
 
-    // Advance to next input
     if (singleDigit && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -395,12 +381,8 @@ export const DriverVerifyOtp: React.FC = () => {
   const handleResend = async () => {
     if (resendTimer > 0) return;
     setResendTimer(60);
-    setError('');
-
-    // Clear previous notice timer if active
-    if (resendNoticeTimerRef.current) {
-      clearTimeout(resendNoticeTimerRef.current);
-    }
+    setToastError(null);
+    setToastInfo(null);
 
     try {
       const res = await sendDriverOtp(state?.phone || '');
@@ -408,16 +390,12 @@ export const DriverVerifyOtp: React.FC = () => {
         hasAutoApprovedRef.current = false;
         setOtp(['', '', '', '', '', '']);
         setResendKey((prev) => prev + 1);
-        setInfoNotice(t.otpResentSuccess);
-        // Automatically disappear after 5 seconds
-        resendNoticeTimerRef.current = setTimeout(() => {
-          setInfoNotice(null);
-        }, 5000);
+        setToastInfo(language === 'tl' ? 'Matagumpay na naipadala ang bagong OTP code sa iyong numero.' : 'New OTP sent to your number.');
       } else {
-        setError(res.error || 'Failed to resend SMS OTP.');
+        setToastError(res.error || (language === 'tl' ? 'Hindi maipadala ang OTP SMS.' : 'Failed to resend SMS OTP.'));
       }
     } catch {
-      setError('Network error while requesting new OTP.');
+      setToastError(language === 'tl' ? 'Nagkaroon ng aberya sa koneksyon.' : 'Network error while requesting new OTP.');
     }
   };
 
@@ -425,11 +403,14 @@ export const DriverVerifyOtp: React.FC = () => {
     e.preventDefault();
     const enteredCode = otp.join('');
     if (enteredCode.length < 6) {
-      setError('Please enter all 6 digits of the OTP code.');
+      setToastError(language === 'tl' ? 'Mangyaring ilagay ang 6-digit OTP code.' : 'Please enter all 6 digits of the OTP code.');
       return;
     }
     executeVerification(enteredCode);
   };
+
+  const phoneCandidates = getPhoneLookupCandidates(state?.phone || '09181234567');
+  const displayPhone = formatDisplayPhone(phoneCandidates.phone09);
 
   return (
     <Box
@@ -443,6 +424,20 @@ export const DriverVerifyOtp: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {/* Toast Feedback for Errors (Incorrect OTP) and Resend Info */}
+      <SakayToast
+        open={Boolean(toastError)}
+        message={toastError}
+        severity="error"
+        onClose={() => setToastError(null)}
+      />
+      <SakayToast
+        open={Boolean(toastInfo)}
+        message={toastInfo}
+        severity="success"
+        onClose={() => setToastInfo(null)}
+      />
+
       {/* 1. Header with Rounded Back Button and SAKAY Logo */}
       <Box
         sx={{
@@ -506,15 +501,9 @@ export const DriverVerifyOtp: React.FC = () => {
             {t.verifyOtpTitle}
           </Typography>
           <Typography sx={{ fontSize: '15px', color: '#64748B', fontWeight: 500 }}>
-            {t.otpSentTo} <strong style={{ color: '#0F172A' }}>{formatDisplayPhone(state?.phone || '09181234567')}</strong>.
+            {t.otpSentTo} <Box component="span" sx={{ fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>{displayPhone}</Box>.
           </Typography>
         </Box>
-
-        {error && (
-          <Alert severity="error" sx={{ width: '100%', mb: 2.5, borderRadius: '12px', textAlign: 'left' }}>
-            {error}
-          </Alert>
-        )}
 
         {/* 6 Digit Inputs */}
         <Box sx={{ display: 'flex', gap: 1.2, justifyContent: 'center', width: '100%', mb: 2.5 }}>
@@ -567,32 +556,32 @@ export const DriverVerifyOtp: React.FC = () => {
           component="button"
           type="button"
           onClick={handleResend}
-          disabled={resendTimer > 0 || isComplete}
+          disabled={resendTimer > 0}
           sx={{
             width: '100%',
             height: '48px',
             borderRadius: '14px',
-            backgroundColor: (resendTimer > 0 || isComplete) ? '#F8FAFC' : '#FFFFFF',
-            border: (resendTimer > 0 || isComplete) ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
-            color: (resendTimer > 0 || isComplete) ? '#94A3B8' : '#FF6B00',
+            backgroundColor: resendTimer > 0 ? '#F8FAFC' : '#FFFFFF',
+            border: resendTimer > 0 ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
+            color: resendTimer > 0 ? '#94A3B8' : '#FF6B00',
             boxShadow: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 1,
-            cursor: (resendTimer > 0 || isComplete) ? 'not-allowed' : 'pointer',
+            cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
             outline: 'none',
             fontSize: '14.5px',
             fontWeight: 700,
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': (resendTimer > 0 || isComplete) ? {} : {
+            '&:hover': resendTimer > 0 ? {} : {
               backgroundColor: 'rgba(255, 107, 0, 0.06)',
               borderColor: '#E66000',
               color: '#E66000',
               transform: 'translateY(-1px)',
             },
-            '&:active': (resendTimer > 0 || isComplete) ? {} : {
+            '&:active': resendTimer > 0 ? {} : {
               backgroundColor: 'rgba(255, 107, 0, 0.12)',
               transform: 'translateY(0)',
             },
@@ -610,31 +599,6 @@ export const DriverVerifyOtp: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Resend Code Feedback Notice (appears below button, auto-disappears after 5s, no X icon) */}
-        {infoNotice && (
-          <Box
-            sx={{
-              mt: 1.5,
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 0.85,
-              py: 1,
-              px: 2,
-              borderRadius: '10px',
-              backgroundColor: '#F0FDF4',
-              border: '1px solid #DCFCE7',
-            }}
-          >
-            <CheckCircleRoundedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#15803D' }}>
-              {infoNotice}
-            </Typography>
-          </Box>
-        )}
-
-        {/* Space pusher */}
         <Box sx={{ flexGrow: 1 }} />
 
         <PrimaryButton

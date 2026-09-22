@@ -7,13 +7,10 @@ import {
   Button,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import RotateLeftIcon from '@mui/icons-material/RotateLeft';
-import RotateRightIcon from '@mui/icons-material/RotateRight';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { rotateImage } from '../../../services/imageEnhancementService';
 
 export const DriverReviewMtop: React.FC = () => {
   const navigate = useNavigate();
@@ -28,19 +25,7 @@ export const DriverReviewMtop: React.FC = () => {
   } | undefined;
 
   const initialPhoto = state?.mtopPhoto || state?.rawMtopPhoto || '';
-  const [currentPhoto, setCurrentPhoto] = useState<string>(initialPhoto);
-
-  const handleRotateLeft = async () => {
-    if (!currentPhoto) return;
-    const rotated = await rotateImage(currentPhoto, -90);
-    setCurrentPhoto(rotated);
-  };
-
-  const handleRotateRight = async () => {
-    if (!currentPhoto) return;
-    const rotated = await rotateImage(currentPhoto, 90);
-    setCurrentPhoto(rotated);
-  };
+  const [currentPhoto] = useState<string>(initialPhoto);
 
   const handleConfirmImage = () => {
     navigate('/driver/mtop-loading', {
@@ -186,61 +171,6 @@ export const DriverReviewMtop: React.FC = () => {
               {isTagalog ? 'Walang nahanap na larawan ng MTOP' : 'No MTOP photo found'}
             </Box>
           )}
-
-          {/* Rotate Controls in the same container */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 1.5,
-              mt: 2,
-              pt: 1.5,
-              borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-              width: '100%',
-            }}
-          >
-            <Button
-              size="small"
-              startIcon={<RotateLeftIcon sx={{ color: '#FF6B00' }} />}
-              onClick={handleRotateLeft}
-              sx={{
-                flex: 1,
-                color: '#0F172A',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                textTransform: 'none',
-                backgroundColor: '#FFFFFF',
-                borderRadius: '10px',
-                py: 0.85,
-                border: '1px solid #CBD5E1',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                '&:hover': { backgroundColor: '#F8FAFC' },
-              }}
-            >
-              {isTagalog ? 'I-rotate Pakaliwa' : 'Rotate Left'}
-            </Button>
-            <Button
-              size="small"
-              startIcon={<RotateRightIcon sx={{ color: '#FF6B00' }} />}
-              onClick={handleRotateRight}
-              sx={{
-                flex: 1,
-                color: '#0F172A',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                textTransform: 'none',
-                backgroundColor: '#FFFFFF',
-                borderRadius: '10px',
-                py: 0.85,
-                border: '1px solid #CBD5E1',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                '&:hover': { backgroundColor: '#F8FAFC' },
-              }}
-            >
-              {isTagalog ? 'I-rotate Pakanan' : 'Rotate Right'}
-            </Button>
-          </Box>
         </Box>
       </Box>
 

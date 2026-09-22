@@ -468,7 +468,8 @@ export const DriverConfirmMtopInfo: React.FC = () => {
           <SakayMtopInput
             label={isTagalog ? "REHISTRADONG MAY-ARI / OPERATOR" : "REGISTERED OWNER / OPERATOR"}
             value={formData.operatorName}
-            onChange={(val) => handleFieldChange('operatorName', val)}
+            onChange={(val) => handleFieldChange('operatorName', val.toUpperCase())}
+            placeholder="Dela Cruz, Juan G."
             error={hasAttemptedSubmit && isFieldEmpty(formData.operatorName)}
             helperText={hasAttemptedSubmit && isFieldEmpty(formData.operatorName) ? (isTagalog ? 'Kinakailangan ang impormasyong ito.' : 'This information is required.') : ''}
           />

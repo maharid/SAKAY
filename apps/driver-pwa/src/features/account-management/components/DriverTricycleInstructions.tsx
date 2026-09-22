@@ -10,7 +10,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
-import mtopImg from '../../../../../../packages/shared/src/assets/images/webp/driver-mtop.webp';
+import tricycleImg from '../../../../../../packages/shared/src/assets/images/webp/driver-tricycle.webp';
 
 export const DriverTricycleInstructions: React.FC = () => {
   const navigate = useNavigate();
@@ -134,7 +134,7 @@ export const DriverTricycleInstructions: React.FC = () => {
         >
           <Box
             component="img"
-            src={mtopImg}
+            src={tricycleImg}
             alt="Tricycle Unit Sample"
             loading="eager"
             decoding="sync"

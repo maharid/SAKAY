@@ -21,7 +21,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164 } from '../../../services/driverApiService';
+import { ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164, lookupDriverByPhoneSecure } from '../../../services/driverApiService';
 
 export const formatMobileNumber = (value: string): string => {
   const digits = value.replace(/\D/g, '');
@@ -193,10 +193,26 @@ export const DriverRegister: React.FC = () => {
 
     setSubmitted(true);
 
+    const existing = await lookupDriverByPhoneSecure(cleanPhoneDigits);
+    if (existing && (existing.account_status === 'Active' || existing.account_status === 'Verified' || existing.account_status === 'Approved')) {
+      const msg = language === 'tl'
+        ? 'Ang mobile number na ito ay nakarehistro na. Mangyaring gumamit ng ibang numero o mag-log in.'
+        : 'This mobile number is already registered. Please use another number or log in.';
+      setAccountError(msg);
+      setSubmitted(false);
+      return;
+    }
+
     const sessionResult = await ensureDriverAuthSession(e164Phone, password, fullName, selectedTodaId);
     if (!sessionResult.success) {
       setSubmitted(false);
-      setAccountError(sessionResult.error || (language === 'tl' ? 'Hindi maihanda ang inyong account. Pakisubukang muli.' : 'Unable to prepare your account. Please try again.'));
+      const isAlreadyReg = sessionResult.error?.toLowerCase().includes('already') || sessionResult.error?.toLowerCase().includes('registered') || sessionResult.error?.toLowerCase().includes('exists');
+      const errToastMsg = isAlreadyReg
+        ? (language === 'tl'
+            ? 'Ang mobile number na ito ay nakarehistro na. Mangyaring gumamit ng ibang numero o mag-log in.'
+            : 'This mobile number is already registered. Please use another number or log in.')
+        : (sessionResult.error || (language === 'tl' ? 'Hindi maihanda ang inyong account. Pakisubukang muli.' : 'Unable to prepare your account. Please try again.'));
+      setAccountError(errToastMsg);
       return;
     }
 

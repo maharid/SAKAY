@@ -7,14 +7,12 @@ import {
   Button,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import RotateLeftIcon from '@mui/icons-material/RotateLeft';
-import RotateRightIcon from '@mui/icons-material/RotateRight';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { assessImageQuality, rotateImage } from '../../../services/imageEnhancementService';
+import { assessImageQuality } from '../../../services/imageEnhancementService';
 import { saveTricycleScanData } from '../../../services/driverOnboardingCache';
 import { saveDriverTricycleVerification } from '../../../services/driverApiService';
 
@@ -49,8 +47,8 @@ export const DriverReviewTricycle: React.FC = () => {
         if (!res.isAcceptable && res.issues.length > 0) {
           setQualityWarning(
             isTagalog
-              ? 'Medyo malabo o madilim ang larawan. Maaari itong i-rotate o kuhanan muli para sa mas mabilis na pagbasa.'
-              : 'The image may be slightly dark or blurry. You can rotate or retake the photo for best results.'
+              ? 'Medyo malabo o madilim ang larawan. Maaari itong kuhanan muli para sa mas mabilis na pagbasa.'
+              : 'The image may be slightly dark or blurry. You can retake the photo for best results.'
           );
         } else {
           setQualityWarning(null);
@@ -58,24 +56,6 @@ export const DriverReviewTricycle: React.FC = () => {
       });
     }
   }, [currentPhoto, isTagalog]);
-
-  const handleRotateLeft = async () => {
-    const rotated = await rotateImage(currentPhoto, -90);
-    setCurrentPhoto(rotated);
-    if (rawPhoto) {
-      const rotatedRaw = await rotateImage(rawPhoto, -90);
-      setRawPhoto(rotatedRaw);
-    }
-  };
-
-  const handleRotateRight = async () => {
-    const rotated = await rotateImage(currentPhoto, 90);
-    setCurrentPhoto(rotated);
-    if (rawPhoto) {
-      const rotatedRaw = await rotateImage(rawPhoto, 90);
-      setRawPhoto(rotatedRaw);
-    }
-  };
 
   const handleUsePhoto = async () => {
     if (submitting || !currentPhoto) return;
@@ -200,7 +180,7 @@ export const DriverReviewTricycle: React.FC = () => {
           {t.reviewPhotoSubtitle || 'Siguraduhing malinaw at kita ang buong tricycle.'}
         </Typography>
 
-        {/* Captured Photo Container with Light Gray Background & Rotate Controls (Matching Driver's License) */}
+        {/* Captured Photo Container */}
         <Box
           sx={{
             width: '100%',
@@ -247,63 +227,6 @@ export const DriverReviewTricycle: React.FC = () => {
               </Typography>
             )}
           </Box>
-
-          {/* Rotate Controls in the same container */}
-          {currentPhoto && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1.5,
-                mt: 2,
-                pt: 1.5,
-                borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-                width: '100%',
-              }}
-            >
-              <Button
-                size="small"
-                startIcon={<RotateLeftIcon sx={{ color: '#FF6B00' }} />}
-                onClick={handleRotateLeft}
-                sx={{
-                  flex: 1,
-                  color: '#0F172A',
-                  fontSize: '12.5px',
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '10px',
-                  py: 0.85,
-                  border: '1px solid #CBD5E1',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                  '&:hover': { backgroundColor: '#F8FAFC' },
-                }}
-              >
-                {isTagalog ? 'I-rotate Pakaliwa' : 'Rotate Left'}
-              </Button>
-              <Button
-                size="small"
-                startIcon={<RotateRightIcon sx={{ color: '#FF6B00' }} />}
-                onClick={handleRotateRight}
-                sx={{
-                  flex: 1,
-                  color: '#0F172A',
-                  fontSize: '12.5px',
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '10px',
-                  py: 0.85,
-                  border: '1px solid #CBD5E1',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                  '&:hover': { backgroundColor: '#F8FAFC' },
-                }}
-              >
-                {isTagalog ? 'I-rotate Pakanan' : 'Rotate Right'}
-              </Button>
-            </Box>
-          )}
         </Box>
 
         {/* Quality Assessment Feedback */}
