@@ -16,6 +16,8 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
 import GroupsIcon from '@mui/icons-material/Groups';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+
+import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
 
@@ -117,15 +119,11 @@ export const DriverEarnings: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-      {/* Top Header */}
-      <Box sx={{ padding: 'calc(var(--safe-area-top) + 16px) 20px 16px', display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid #F1F5F9', backgroundColor: '#FFFFFF' }}>
-        <IconButton onClick={() => navigate('/driver/home')} sx={{ color: '#0F172A' }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-          {language === 'tl' ? 'Kita at Kasaysayan ng Biyahe' : 'Earnings & Trip History'}
-        </Typography>
-      </Box>
+      {/* Top Header matching Alerts header style */}
+      <PageHeader
+        title={language === 'tl' ? 'Kita at Kasaysayan' : 'Earnings & Trip History'}
+        onBack={() => navigate('/driver/home')}
+      />
 
       <Box sx={{ p: '20px', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         {/* If just completed a trip, show the completed trip fare banner */}

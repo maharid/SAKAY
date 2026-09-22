@@ -15,8 +15,6 @@ import {
   Divider,
 } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
-import PauseCircleIcon from '@mui/icons-material/PauseCircle';
-import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 
@@ -42,7 +40,6 @@ export const DriverAvailabilityHome: React.FC = () => {
 
   const [availableTodas, setAvailableTodas] = useState<Array<{ id: string; name: string; acronym: string; barangay: string; terminalLocation: string }>>([]);
   const [todaModalOpen, setTodaModalOpen] = useState(false);
-  const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [recenterTrigger, setRecenterTrigger] = useState(0);
 
   // Load live Supabase profile and accredited TODAs on mount
@@ -174,11 +171,7 @@ export const DriverAvailabilityHome: React.FC = () => {
 
   const handleToggleOnline = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canGoOnline) return;
-    setProfile((prev) => ({ ...prev, isOnline: e.target.checked, isPaused: false }));
-  };
-
-  const handleTogglePause = () => {
-    setProfile((prev) => ({ ...prev, isPaused: !prev.isPaused }));
+    setProfile((prev) => ({ ...prev, isOnline: e.target.checked }));
   };
 
   const handleRecenter = () => {
@@ -327,17 +320,17 @@ export const DriverAvailabilityHome: React.FC = () => {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              backgroundColor: profile.isOnline ? (profile.isPaused ? '#F59E0B' : '#10B981') : '#94A3B8',
+              backgroundColor: profile.isOnline ? '#10B981' : '#94A3B8',
             }}
           />
           <Typography
             sx={{
               fontSize: '12px',
               fontWeight: 800,
-              color: profile.isOnline ? (profile.isPaused ? '#B45309' : '#047857') : '#64748B',
+              color: profile.isOnline ? '#047857' : '#64748B',
             }}
           >
-            {profile.isOnline ? (profile.isPaused ? 'PAUSED' : 'ONLINE') : 'OFFLINE'}
+            {profile.isOnline ? 'ONLINE' : 'OFFLINE'}
           </Typography>
           <Switch
             checked={profile.isOnline}
@@ -360,14 +353,12 @@ export const DriverAvailabilityHome: React.FC = () => {
       <Chip
         label={
           profile.isOnline
-            ? profile.isPaused
-              ? (language === 'tl' ? 'Naka-pause ang Dispatch' : 'Dispatch Paused')
-              : (language === 'tl' ? 'Naghahanap ng mga pasahero...' : 'Searching for nearby passengers...')
+            ? (language === 'tl' ? 'Naghahanap ng mga pasahero...' : 'Searching for nearby passengers...')
             : (language === 'tl' ? 'Offline • Mag-online para makatanggap ng biyahe' : 'Offline • Go online to receive trips')
         }
         sx={{
           position: 'absolute',
-          top: 'calc(var(--safe-area-top) + 82px)',
+          top: 'calc(var(--safe-area-top) + 96px)',
           left: '50%',
           transform: 'translateX(-50%)',
           backgroundColor: '#FFFFFF',
@@ -403,28 +394,6 @@ export const DriverAvailabilityHome: React.FC = () => {
       >
         <MyLocationIcon sx={{ fontSize: 20, color: '#0F172A' }} />
       </IconButton>
-
-      {profile.isOnline && (
-        <IconButton
-          onClick={handleTogglePause}
-          aria-label="Toggle pause"
-          sx={{
-            position: 'absolute',
-            bottom: '220px',
-            left: '16px',
-            backgroundColor: '#FFFFFF',
-            color: '#0F172A',
-            boxShadow: '0 4px 14px rgba(15, 23, 42, 0.15)',
-            width: '44px',
-            height: '44px',
-            borderRadius: '50%',
-            zIndex: 10,
-            '&:hover': { backgroundColor: '#F8FAFC' },
-          }}
-        >
-          {profile.isPaused ? <PlayCircleIcon sx={{ color: '#1E8E3E' }} /> : <PauseCircleIcon sx={{ color: '#F59E0B' }} />}
-        </IconButton>
-      )}
 
       <Paper
         elevation={8}
@@ -493,7 +462,6 @@ export const DriverAvailabilityHome: React.FC = () => {
         </Box>
 
         <Box
-          onClick={() => setVehicleModalOpen(true)}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -502,9 +470,6 @@ export const DriverAvailabilityHome: React.FC = () => {
             borderRadius: '14px',
             backgroundColor: '#F8FAFC',
             border: '1px solid #E2E8F0',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            '&:hover': { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' },
           }}
         >
           <Box>
@@ -514,10 +479,9 @@ export const DriverAvailabilityHome: React.FC = () => {
             <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', mt: '2px' }}>
               {selectedVehicle
                 ? `${language === 'tl' ? 'Plaka' : 'Plate'}: ${selectedVehicle.plateNumber} • Franchise: ${selectedVehicle.franchiseNumber}`
-                : (language === 'tl' ? 'Pumili ng Tricycle Unit...' : 'Select Tricycle Unit...')}
+                : (language === 'tl' ? 'Rehistradong Tricycle Unit' : 'Registered Tricycle Unit')}
             </Typography>
           </Box>
-          <ArrowForwardIosIcon sx={{ fontSize: 14, color: '#94A3B8' }} />
         </Box>
       </Paper>
 
@@ -556,33 +520,6 @@ export const DriverAvailabilityHome: React.FC = () => {
                 </Typography>
               </Box>
             )}
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={vehicleModalOpen} onClose={() => setVehicleModalOpen(false)} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '20px' } } }}>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A' }}>
-          {language === 'tl' ? 'Pumili ng Tricycle Unit' : 'Select Tricycle Unit'}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-            <Box
-              onClick={() => setVehicleModalOpen(false)}
-              sx={{
-                p: 2,
-                borderRadius: '14px',
-                border: '2px solid #FF6B00',
-                backgroundColor: '#FFF8F0',
-                cursor: 'pointer',
-              }}
-            >
-              <Typography sx={{ fontWeight: 700, fontSize: '14.5px', color: '#0F172A' }}>
-                {language === 'tl' ? 'Plaka' : 'Plate'}: {profile.vehiclePlate || 'N/A'} • Franchise: {profile.franchiseNumber || 'N/A'}
-              </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
-                {language === 'tl' ? 'Rehistradong Tricycle Unit ng Drayber' : "Driver's Registered Tricycle Unit"}
-              </Typography>
-            </Box>
           </Box>
         </DialogContent>
       </Dialog>

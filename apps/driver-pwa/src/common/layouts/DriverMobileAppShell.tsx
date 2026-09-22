@@ -11,7 +11,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import HistoryIcon from '@mui/icons-material/History';
-import PersonIcon from '@mui/icons-material/Person';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 import { useLanguage } from '../../utils/LanguageContext';
 import { DriverSessionProvider } from '../../contexts/DriverSessionContext';
@@ -36,7 +36,10 @@ export const DriverMobileAppShell: React.FC = () => {
     '/driver/earnings',
     '/driver/notifications',
     '/driver/history',
+    '/driver/settings',
+    '/settings',
     '/driver/profile',
+    '/profile',
   ].includes(currentPath);
 
   // Routes where we should enable the DriverSessionProvider (authenticated routes)
@@ -46,6 +49,7 @@ export const DriverMobileAppShell: React.FC = () => {
     '/driver/notifications',
     '/driver/history',
     '/driver/profile',
+    '/driver/settings',
     '/driver/navigation',
     '/driver/active-trip'
   ].includes(currentPath);
@@ -100,10 +104,10 @@ export const DriverMobileAppShell: React.FC = () => {
       icon: <HistoryIcon sx={{ fontSize: 22 }} />,
     },
     {
-      key: 'profile',
-      label: 'Profile',
-      path: '/driver/profile',
-      icon: <PersonIcon sx={{ fontSize: 22 }} />,
+      key: 'settings',
+      label: language === 'tl' ? 'Mga Setting' : 'Settings',
+      path: '/driver/settings',
+      icon: <SettingsIcon sx={{ fontSize: 22 }} />,
     },
   ];
 
