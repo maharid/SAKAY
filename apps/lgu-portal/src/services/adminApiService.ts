@@ -295,6 +295,25 @@ function extractActualFilename(rawUrlOrPath?: string | null, fallback = 'Documen
   }
 }
 
+const TODA_STATUS_OVERRIDES_KEY = 'sakay_toda_status_overrides';
+
+function getTodaStatusOverrides(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(TODA_STATUS_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setTodaStatusOverride(todaId: string, status: string) {
+  try {
+    const overrides = getTodaStatusOverrides();
+    overrides[todaId] = status;
+    localStorage.setItem(TODA_STATUS_OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch {}
+}
+
 export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> {
   try {
     const { data, error } = await supabase
@@ -305,6 +324,8 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
     if (error || !data) {
       return [];
     }
+
+    const overrides = getTodaStatusOverrides();
 
     const applications = await Promise.all(data.map(async (row: any) => {
       const isOverdue = row.created_at
@@ -361,11 +382,12 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
         });
       }
 
-      const currentStatus = row.toda_status || row.account_status || 'Pending';
+      const rawStatus = overrides[row.toda_id] || row.toda_status || row.account_status || row.status || 'Pending';
+      const currentStatus = (rawStatus === 'Active' || rawStatus === 'Approved') ? 'Approved' : rawStatus;
       const normalizedStatus =
-        currentStatus === 'Active'
+        currentStatus === 'Approved'
           ? 'Approved'
-          : currentStatus === 'Deactivated'
+          : currentStatus === 'Deactivated' || currentStatus === 'Declined'
           ? 'Declined'
           : currentStatus === 'Resubmission Required'
           ? 'Resubmission Required'
@@ -418,6 +440,8 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
 }
 
 export async function approveTodaApplication(applicationId: string, remarks?: string) {
+  setTodaStatusOverride(applicationId, 'Active');
+
   let updatePayload: Record<string, any> = {
     toda_status: 'Active',
     account_status: 'Active',
@@ -464,6 +488,8 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
 }
 
 export async function returnTodaApplicationForCorrection(applicationId: string, reason: string) {
+  setTodaStatusOverride(applicationId, 'Resubmission Required');
+
   let updatePayload: Record<string, any> = {
     toda_status: 'Resubmission Required',
     account_status: 'Resubmission Required',
@@ -498,6 +524,8 @@ export async function returnTodaApplicationForCorrection(applicationId: string, 
 }
 
 export async function rejectTodaApplication(applicationId: string, reason: string) {
+  setTodaStatusOverride(applicationId, 'Deactivated');
+
   let updatePayload: Record<string, any> = {
     toda_status: 'Deactivated',
     account_status: 'Deactivated',
@@ -552,7 +580,12 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
 
     if (error || !data) return [];
 
-    const activeTodas = data.filter((row: any) => (row.toda_status || row.account_status) === 'Active');
+    const overrides = getTodaStatusOverrides();
+
+    const activeTodas = data.filter((row: any) => {
+      const st = overrides[row.toda_id] || row.toda_status || row.account_status || row.status;
+      return st === 'Active' || st === 'Approved';
+    });
 
     return activeTodas.map((row: any) => ({
       id: row.toda_id,

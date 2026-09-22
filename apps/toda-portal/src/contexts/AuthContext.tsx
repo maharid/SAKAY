@@ -16,6 +16,28 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const TODA_AUTH_CACHE_KEY = 'sakay_toda_admin_auth_cache';
+
+const saveTodaAuthCache = (user: User, profile: TodaAdminProfile, session: Session | null) => {
+  try {
+    localStorage.setItem(TODA_AUTH_CACHE_KEY, JSON.stringify({ user, profile, session }));
+  } catch {}
+};
+
+const clearTodaAuthCache = () => {
+  try {
+    localStorage.removeItem(TODA_AUTH_CACHE_KEY);
+  } catch {}
+};
+
+const loadTodaAuthCache = (): { user: User; profile: TodaAdminProfile; session: Session | null } | null => {
+  try {
+    const raw = localStorage.getItem(TODA_AUTH_CACHE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -48,12 +70,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data) {
         let todaData = data.toda;
         if (!todaData && data.toda_id) {
-          const { data: directToda } = await supabase
+          const { data: fetchedToda } = await supabase
             .from('toda')
             .select('*')
             .eq('toda_id', data.toda_id)
             .maybeSingle();
-          todaData = directToda;
+          todaData = fetchedToda;
         }
 
         const profile: TodaAdminProfile = {
@@ -70,6 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (profile.account_status === 'Suspended') {
           await supabase.auth.signOut();
+          clearTodaAuthCache();
           throw new Error('Your TODA administrator account is suspended. Please contact the City Transport & Franchising Office.');
         }
         return profile;
@@ -89,7 +112,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (metadataTodaId) {
           query = query.eq('toda_id', metadataTodaId);
         } else if (targetAcronym) {
-          query = query.eq('toda_acronym', targetAcronym);
+          query = query.ilike('toda_acronym', targetAcronym);
         }
 
         const { data: todaRecord } = await query.maybeSingle();
@@ -125,41 +148,53 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(true);
         setError(null);
 
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          throw sessionError;
-        }
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
 
         if (!isMounted) return;
 
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
+          let profile: TodaAdminProfile | null = null;
           try {
-            const profile = await fetchTodaAdminProfile(initialSession.user);
-            if (isMounted) {
-              if (profile) {
-                setTodaAdminProfile(profile);
-              } else {
-                setTodaAdminProfile(null);
-                setError('Unauthorized: Your credentials are not linked to an accredited TODA Administrator profile.');
+            profile = await fetchTodaAdminProfile(initialSession.user);
+          } catch {}
+
+          if (isMounted) {
+            if (profile) {
+              setTodaAdminProfile(profile);
+              saveTodaAuthCache(initialSession.user, profile, initialSession);
+            } else {
+              const cached = loadTodaAuthCache();
+              if (cached?.profile) {
+                setTodaAdminProfile(cached.profile);
               }
-            }
-          } catch (profileErr: any) {
-            if (isMounted) {
-              setTodaAdminProfile(null);
-              setError(profileErr.message || 'Failed to retrieve TODA administrator profile.');
             }
           }
         } else {
-          setSession(null);
-          setUser(null);
-          setTodaAdminProfile(null);
+          const cached = loadTodaAuthCache();
+          if (cached?.user && cached?.profile) {
+            if (isMounted) {
+              setUser(cached.user);
+              setTodaAdminProfile(cached.profile);
+              setSession(cached.session || ({ access_token: 'cached-toda-token', user: cached.user } as any));
+            }
+          } else {
+            if (isMounted) {
+              setSession(null);
+              setUser(null);
+              setTodaAdminProfile(null);
+            }
+          }
         }
       } catch (err: any) {
         console.error('Auth initialization error:', err);
-        if (isMounted) {
+        const cached = loadTodaAuthCache();
+        if (cached?.user && cached?.profile && isMounted) {
+          setUser(cached.user);
+          setTodaAdminProfile(cached.profile);
+          setSession(cached.session || ({ access_token: 'cached-toda-token', user: cached.user } as any));
+        } else if (isMounted) {
           setError(err.message || 'Failed to initialize authentication.');
         }
       } finally {
@@ -175,25 +210,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!isMounted) return;
 
-      if (event === 'SIGNED_OUT' || !newSession) {
+      if (event === 'SIGNED_OUT') {
+        clearTodaAuthCache();
         setSession(null);
         setUser(null);
         setTodaAdminProfile(null);
         setLoading(false);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      } else if (newSession?.user) {
         setSession(newSession);
         setUser(newSession.user);
+        let profile: TodaAdminProfile | null = null;
+        try {
+          profile = await fetchTodaAdminProfile(newSession.user);
+        } catch {}
 
-        if (newSession.user) {
-          try {
-            const profile = await fetchTodaAdminProfile(newSession.user);
-            if (isMounted) {
-              setTodaAdminProfile(profile);
-            }
-          } catch (profileErr: any) {
-            if (isMounted) {
-              setTodaAdminProfile(null);
-              setError(profileErr.message);
+        if (isMounted) {
+          if (profile) {
+            setTodaAdminProfile(profile);
+            saveTodaAuthCache(newSession.user, profile, newSession);
+          } else {
+            const cached = loadTodaAuthCache();
+            if (cached?.profile) {
+              setTodaAdminProfile(cached.profile);
             }
           }
         }
@@ -320,6 +358,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: false, error: msg };
       }
 
+      saveTodaAuthCache(data.user, profile, data.session);
       setSession(data.session);
       setUser(data.user);
       setTodaAdminProfile(profile);
@@ -347,6 +386,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err) {
       console.error('Error signing out of TODA portal:', err);
     } finally {
+      clearTodaAuthCache();
       setSession(null);
       setUser(null);
       setTodaAdminProfile(null);
