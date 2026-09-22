@@ -18,7 +18,9 @@ import ShieldIcon from '@mui/icons-material/Shield';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
+import { DateCalendarPopover } from '../components/common/DateCalendarPopover';
 import { TodaProfile, TodaDriverMember, TodaBooking } from '../types/toda';
 import {
   fetchTodaProfile,
@@ -40,6 +42,8 @@ export const TodaOperationsPage: React.FC = () => {
   const [lastRefreshed, setLastRefreshed] = useState<string>(
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarAnchorEl, setCalendarAnchorEl] = useState<HTMLElement | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -122,25 +126,57 @@ export const TodaOperationsPage: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-          <Button
-            size="small"
-            onClick={loadData}
-            startIcon={<RefreshIcon fontSize="small" />}
-            sx={{
-              height: 36,
-              px: 2,
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              textTransform: 'none',
-              color: 'var(--mac-text-secondary)',
-              border: '1px solid var(--mac-border-color)',
-              backgroundColor: '#FFFFFF',
-              '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)' },
-            }}
-          >
-            Refreshed {lastRefreshed}
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Button
+              size="small"
+              onClick={(e) => setCalendarAnchorEl(e.currentTarget)}
+              startIcon={<CalendarTodayIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />}
+              sx={{
+                height: 36,
+                px: 2,
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                textTransform: 'none',
+                color: 'var(--mac-text-primary)',
+                border: '1px solid var(--mac-border-color)',
+                backgroundColor: '#FFFFFF',
+                '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' },
+              }}
+            >
+              {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </Button>
+            <Button
+              size="small"
+              onClick={loadData}
+              startIcon={<RefreshIcon fontSize="small" />}
+              sx={{
+                height: 36,
+                px: 2,
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                textTransform: 'none',
+                color: 'var(--mac-text-secondary)',
+                border: '1px solid var(--mac-border-color)',
+                backgroundColor: '#FFFFFF',
+                '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)' },
+              }}
+            >
+              Refreshed {lastRefreshed}
+            </Button>
+          </Box>
         </Box>
+
+        <DateCalendarPopover
+          open={Boolean(calendarAnchorEl)}
+          anchorEl={calendarAnchorEl}
+          onClose={() => setCalendarAnchorEl(null)}
+          selectedDate={selectedDate}
+          onSelectDate={(date) => {
+            setSelectedDate(date);
+            loadData();
+          }}
+        />
       </Box>
 
       {/* 3. Surface-Level Operations KPIs */}

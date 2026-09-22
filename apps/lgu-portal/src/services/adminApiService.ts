@@ -459,25 +459,40 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
     console.warn('[adminApiService] Server approve API endpoint warning:', apiErr);
   }
 
-  // 2. Direct Supabase client update on public.toda (account_status = 'Active')
+  // 2. Direct Supabase client update on public.toda (updating all status column variations)
   try {
-    const { data: directData } = await supabase
+    const { data: d1 } = await supabase
+      .from('toda')
+      .update({ toda_status: 'Active' })
+      .eq('toda_id', applicationId)
+      .select()
+      .maybeSingle();
+    if (d1) updatedData = d1;
+  } catch {}
+
+  try {
+    const { data: d2 } = await supabase
       .from('toda')
       .update({ account_status: 'Active' })
       .eq('toda_id', applicationId)
       .select()
       .maybeSingle();
+    if (d2) updatedData = updatedData || d2;
+  } catch {}
 
-    if (directData) {
-      updatedData = directData;
-    }
-  } catch (dbErr) {
-    console.warn('[adminApiService] Direct Supabase update warning:', dbErr);
-  }
+  try {
+    const { data: d3 } = await supabase
+      .from('toda')
+      .update({ status: 'Active' })
+      .eq('toda_id', applicationId)
+      .select()
+      .maybeSingle();
+    if (d3) updatedData = updatedData || d3;
+  } catch {}
 
   // 3. Update associated toda_admin accounts to Active
   try {
-    await supabase.from('toda_admin').update({ account_status: 'Active' }).eq('toda_id', applicationId);
+    await supabase.from('toda_admin').update({ account_status: 'Active', toda_status: 'Active' }).eq('toda_id', applicationId);
   } catch {}
 
   // 4. Record audit log entry
@@ -510,11 +525,16 @@ export async function returnTodaApplicationForCorrection(applicationId: string, 
   try {
     await supabase
       .from('toda')
+      .update({ toda_status: 'Resubmission Required' })
+      .eq('toda_id', applicationId);
+  } catch {}
+
+  try {
+    await supabase
+      .from('toda')
       .update({ account_status: 'Resubmission Required' })
       .eq('toda_id', applicationId);
-  } catch (dbErr) {
-    console.warn('[adminApiService] Direct Supabase update warning:', dbErr);
-  }
+  } catch {}
 
   await recordAdminAuditAction({
     actionType: 'TODA_APPLICATION_RETURNED_FOR_CORRECTION',
@@ -549,17 +569,24 @@ export async function rejectTodaApplication(applicationId: string, reason: strin
 
   // 2. Direct Supabase client update
   try {
-    const { data: directData } = await supabase
+    const { data: d1 } = await supabase
+      .from('toda')
+      .update({ toda_status: 'Deactivated' })
+      .eq('toda_id', applicationId)
+      .select()
+      .maybeSingle();
+    if (d1) updatedData = d1;
+  } catch {}
+
+  try {
+    const { data: d2 } = await supabase
       .from('toda')
       .update({ account_status: 'Deactivated' })
       .eq('toda_id', applicationId)
       .select()
       .maybeSingle();
-
-    if (directData) updatedData = directData;
-  } catch (dbErr) {
-    console.warn('[adminApiService] Direct Supabase update warning:', dbErr);
-  }
+    if (d2) updatedData = updatedData || d2;
+  } catch {}
 
   await recordAdminAuditAction({
     actionType: 'TODA_APPLICATION_REJECTED',

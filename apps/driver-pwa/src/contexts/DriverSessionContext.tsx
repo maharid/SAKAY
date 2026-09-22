@@ -36,6 +36,7 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
           totalTrips: typeof parsed.totalTrips === 'number' ? parsed.totalTrips : 0,
           accountStatus: parsed.accountStatus || 'Verified',
           selectedTodaId: parsed.selectedTodaId || '',
+          selectedTodaIds: parsed.selectedTodaIds || (parsed.selectedTodaId ? [parsed.selectedTodaId] : []),
           selectedVehicleId: parsed.selectedVehicleId || '',
           vehiclePlate: parsed.vehiclePlate || '',
           franchiseNumber: parsed.franchiseNumber || '',
@@ -51,7 +52,7 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
     }
     return {
       id: '', name: '', phone: '', email: '', licenseNo: '', licenseExpiry: '', avatarUrl: '',
-      rating: 5.0, totalTrips: 0, accountStatus: 'Verified', selectedTodaId: '', selectedVehicleId: '',
+      rating: 5.0, totalTrips: 0, accountStatus: 'Verified', selectedTodaId: '', selectedTodaIds: [], selectedVehicleId: '',
       vehiclePlate: '', franchiseNumber: '', todaName: '', isOnline: false, isPaused: false,
       currentLat: 13.4117, currentLng: 121.1803,
     };

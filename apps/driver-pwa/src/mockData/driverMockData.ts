@@ -11,6 +11,7 @@ export interface DriverProfile {
   totalTrips: number;
   accountStatus: 'Verified' | 'Pending Verification' | 'Rejected' | 'Suspended' | 'Active';
   selectedTodaId: string;
+  selectedTodaIds?: string[];
   selectedVehicleId: string;
   vehiclePlate?: string;
   franchiseNumber?: string;

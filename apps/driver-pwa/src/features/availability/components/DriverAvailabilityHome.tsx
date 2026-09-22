@@ -11,6 +11,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
+  Checkbox,
   Avatar,
   Divider,
 } from '@mui/material';
@@ -152,12 +154,14 @@ export const DriverAvailabilityHome: React.FC = () => {
     loadLiveDriver();
   }, [navigate, setProfile]);
 
-  const selectedToda = availableTodas.find((t) => t.id === profile.selectedTodaId) || (profile.todaName ? {
-    id: profile.selectedTodaId,
-    name: profile.todaName,
-    acronym: '',
-    terminalLocation: '',
-  } : null);
+  const selectedTodaIds = profile.selectedTodaIds && profile.selectedTodaIds.length > 0 
+    ? profile.selectedTodaIds 
+    : (profile.selectedTodaId ? [profile.selectedTodaId] : []);
+
+  const selectedTodas = availableTodas.filter((t) => selectedTodaIds.includes(t.id));
+  const displayTodaText = selectedTodas.length > 0 
+    ? selectedTodas.map((t) => `${t.name} (${t.acronym})`).join(', ')
+    : (profile.todaName || (language === 'tl' ? 'Pumili ng TODA...' : 'Select TODA...'));
 
   const selectedVehicle = {
     id: profile.selectedVehicleId || profile.id || 'veh-primary',
@@ -455,7 +459,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               {language === 'tl' ? 'Kinabibilangang TODA' : 'Active TODA Affiliation'}
             </Typography>
             <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', mt: '2px' }}>
-              {selectedToda ? `${selectedToda.name} (${selectedToda.acronym})` : (language === 'tl' ? 'Pumili ng TODA...' : 'Select TODA...')}
+              {displayTodaText}
             </Typography>
           </Box>
           <ArrowForwardIosIcon sx={{ fontSize: 14, color: '#94A3B8' }} />
@@ -487,32 +491,63 @@ export const DriverAvailabilityHome: React.FC = () => {
 
       <Dialog open={todaModalOpen} onClose={() => setTodaModalOpen(false)} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '20px' } } }}>
         <DialogTitle sx={{ fontWeight: 800, color: '#0F172A' }}>
-          {language === 'tl' ? 'Pumili ng Aktibong TODA' : 'Select Active TODA'}
+          {language === 'tl' ? 'Pumili ng mga Aktibong TODA' : 'Select Active TODAs'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
             {availableTodas.length > 0 ? (
-              availableTodas.map((toda) => (
-                <Box
-                  key={toda.id}
-                  onClick={() => {
-                    setProfile((prev) => ({ ...prev, selectedTodaId: toda.id, todaName: `${toda.name} (${toda.acronym})` }));
-                    setTodaModalOpen(false);
-                  }}
-                  sx={{
-                    p: 2,
-                    borderRadius: '14px',
-                    border: profile.selectedTodaId === toda.id ? '2px solid #FF6B00' : '1px solid #E2E8F0',
-                    backgroundColor: profile.selectedTodaId === toda.id ? '#FFF8F0' : '#FFFFFF',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    '&:hover': { borderColor: '#FF6B00' },
-                  }}
-                >
-                  <Typography sx={{ fontWeight: 700, fontSize: '14.5px', color: '#0F172A' }}>{toda.name} ({toda.acronym})</Typography>
-                  <Typography sx={{ fontSize: '12px', color: '#64748B' }}>Terminal: {toda.terminalLocation}</Typography>
-                </Box>
-              ))
+              availableTodas.map((toda) => {
+                const isSelected = selectedTodaIds.includes(toda.id);
+                return (
+                  <Box
+                    key={toda.id}
+                    onClick={() => {
+                      setProfile((prev) => {
+                        const current = prev.selectedTodaIds && prev.selectedTodaIds.length > 0
+                          ? prev.selectedTodaIds
+                          : (prev.selectedTodaId ? [prev.selectedTodaId] : []);
+                        let updated: string[];
+                        if (isSelected) {
+                          updated = current.filter((id) => id !== toda.id);
+                        } else {
+                          updated = [...current, toda.id];
+                        }
+                        const firstSelected = availableTodas.find((t) => updated.includes(t.id));
+                        return {
+                          ...prev,
+                          selectedTodaIds: updated,
+                          selectedTodaId: updated[0] || '',
+                          todaName: firstSelected ? `${firstSelected.name} (${firstSelected.acronym})` : '',
+                        };
+                      });
+                    }}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: '14px',
+                      border: isSelected ? '2px solid #FF6B00' : '1px solid #E2E8F0',
+                      backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease',
+                      '&:hover': { borderColor: '#FF6B00' },
+                    }}
+                  >
+                    <Box>
+                      <Typography sx={{ fontWeight: 700, fontSize: '14.5px', color: '#0F172A' }}>{toda.name} ({toda.acronym})</Typography>
+                      <Typography sx={{ fontSize: '12px', color: '#64748B' }}>Terminal: {toda.terminalLocation}</Typography>
+                    </Box>
+                    <Checkbox
+                      checked={isSelected}
+                      sx={{
+                        color: '#CBD5E1',
+                        '&.Mui-checked': { color: '#FF6B00' },
+                      }}
+                    />
+                  </Box>
+                );
+              })
             ) : (
               <Box sx={{ p: 2, textAlign: 'center' }}>
                 <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
@@ -522,6 +557,22 @@ export const DriverAvailabilityHome: React.FC = () => {
             )}
           </Box>
         </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => setTodaModalOpen(false)}
+            sx={{
+              backgroundColor: '#FF6B00',
+              fontWeight: 700,
+              borderRadius: '12px',
+              py: 1.2,
+              '&:hover': { backgroundColor: '#E05300' },
+            }}
+          >
+            {language === 'tl' ? 'Tapos Na' : 'Done'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <Dialog

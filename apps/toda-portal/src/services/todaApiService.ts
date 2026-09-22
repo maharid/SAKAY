@@ -103,7 +103,11 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
         treasurer: data.treasurer_name || 'N/A',
         treasurerContact: data.treasurer_contact || '',
       },
-      accreditationStatus: (data.toda_status || data.account_status) === 'Active' ? 'Active' : 'Pending Verification',
+      accreditationStatus: ['active', 'approved', 'verified', 'accredited'].includes(
+        String(data.toda_status || data.account_status || data.status || '').toLowerCase()
+      )
+        ? 'Active'
+        : 'Pending Verification',
       accreditationExpiry: data.certificate_expiry ? new Date(data.certificate_expiry).toLocaleDateString('en-US') : 'Dec 31, 2026',
       accreditationNo: data.certificate_number || data.toda_acronym || 'TODA',
       permitNumber: data.toda_acronym || 'TODA',
