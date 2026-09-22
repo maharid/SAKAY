@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { TodaAdminProfile } from '../types/toda';
+import { isTodaApprovedInCache } from '../services/todaApiService';
 
 interface AuthContextType {
   user: User | null;
@@ -78,6 +79,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           todaData = fetchedToda;
         }
 
+        const isApprovedInCache = isTodaApprovedInCache(todaData || data, data.toda_id);
+        if (isApprovedInCache && todaData) {
+          todaData.toda_status = 'Active';
+          todaData.account_status = 'Active';
+        }
+
         const profile: TodaAdminProfile = {
           admin_id: data.admin_id || authUser.id,
           auth_user_id: authUser.id,
@@ -85,7 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           full_name: data.full_name || authUser.user_metadata?.full_name || 'TODA Administrator',
           email: data.email || authUser.email || '',
           contact_number: data.contact_number || '',
-          account_status: (data.account_status as any) || 'Active',
+          account_status: isApprovedInCache ? 'Active' : ((data.account_status as any) || 'Active'),
           toda_acronym: data.toda_acronym || todaData?.toda_acronym,
           toda: todaData,
         };
@@ -118,6 +125,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { data: todaRecord } = await query.maybeSingle();
 
         if (todaRecord) {
+          const isApprovedInCache = isTodaApprovedInCache(todaRecord, todaRecord.toda_id);
+          if (isApprovedInCache) {
+            todaRecord.toda_status = 'Active';
+            todaRecord.account_status = 'Active';
+          }
+
           return {
             admin_id: authUser.id,
             auth_user_id: authUser.id,

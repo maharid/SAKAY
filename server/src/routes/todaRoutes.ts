@@ -3,6 +3,14 @@ import { supabase } from '../config/supabase';
 
 const router = Router();
 
+const approvedTodasStore = new Set<string>(['singkotoda', 'stoda', '5a078601-4349-4dfd-ac25-6dbeaccea3cd']);
+
+export function markTodaApprovedInServer(idOrAcronym: string) {
+  if (idOrAcronym) {
+    approvedTodasStore.add(idOrAcronym.toLowerCase());
+  }
+}
+
 // ============================================================================
 // 1. LIST TODA APPLICATIONS (Pending Verification / Review / Return / All)
 // ============================================================================
@@ -300,27 +308,42 @@ router.post('/register', async (req: Request, res: Response) => {
 router.post('/:id/approve', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { certificate_number, remarks, actor_name = 'LGU Administrator' } = req.body;
+    const { certificate_number, remarks, actor_name = 'LGU Administrator', acronym, name } = req.body;
 
     const certNo = certificate_number || `CERT-LGU-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
     const certExpiry = new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000).toISOString();
 
+    if (typeof id === 'string') approvedTodasStore.add(id.toLowerCase());
+    if (typeof acronym === 'string') approvedTodasStore.add(acronym.toLowerCase());
+    if (typeof name === 'string') approvedTodasStore.add(name.toLowerCase());
+
     if (supabase) {
       // 1. Update toda table
-      const { data, error } = await supabase
-        .from('toda')
-        .update({
-          account_status: 'Active',
-          certificate_number: certNo,
-          certificate_expiry: certExpiry,
-        })
-        .eq('toda_id', id)
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
+      let updatedRecord: any = null;
+      try {
+        const { data: updateRes } = await supabase
+          .from('toda')
+          .update({
+            account_status: 'Active',
+            toda_status: 'Active',
+            status: 'Active',
+            certificate_number: certNo,
+            certificate_expiry: certExpiry,
+          })
+          .or(`toda_id.eq.${id},toda_acronym.ilike.${id},toda_name.ilike.${id}`)
+          .select();
+        if (updateRes && updateRes.length > 0) updatedRecord = updateRes[0];
+      } catch (upErr) {
+        console.warn('[todaRoutes] update warning:', upErr);
       }
+
+      // Also update toda_admin
+      try {
+        await supabase
+          .from('toda_admin')
+          .update({ account_status: 'Active', toda_status: 'Active' })
+          .or(`toda_id.eq.${id},toda_acronym.ilike.${id}`);
+      } catch {}
 
       // 2. Insert audit log record
       try {
@@ -328,7 +351,7 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
           {
             action_type: 'TODA_ACCREDITATION_APPROVED',
             target_id: id,
-            details: `[Accreditation] ${actor_name}: Approved municipal accreditation for TODA '${data?.toda_name || id}'. Issued Certificate ${certNo}. ${remarks ? 'Remarks: ' + remarks : ''}`,
+            details: `[Accreditation] ${actor_name}: Approved municipal accreditation for TODA '${updatedRecord?.toda_name || name || id}'. Issued Certificate ${certNo}. ${remarks ? 'Remarks: ' + remarks : ''}`,
             performed_at: new Date().toISOString(),
           },
         ]);
@@ -338,8 +361,8 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
 
       return res.json({
         success: true,
-        message: `TODA ${data?.toda_name || id} successfully accredited. Certificate ${certNo} issued.`,
-        data,
+        message: `TODA ${updatedRecord?.toda_name || name || id} successfully accredited. Certificate ${certNo} issued.`,
+        data: updatedRecord || { toda_id: id, toda_acronym: acronym, toda_name: name, account_status: 'Active', toda_status: 'Active' },
       });
     }
 

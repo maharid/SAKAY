@@ -296,21 +296,58 @@ function extractActualFilename(rawUrlOrPath?: string | null, fallback = 'Documen
 }
 
 const TODA_STATUS_OVERRIDES_KEY = 'sakay_toda_status_overrides';
+const SAKAY_APPROVED_TODAS_KEY = 'sakay_approved_todas';
 
 function getTodaStatusOverrides(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(TODA_STATUS_OVERRIDES_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const lRaw = localStorage.getItem(TODA_STATUS_OVERRIDES_KEY);
+    const sRaw = sessionStorage.getItem(TODA_STATUS_OVERRIDES_KEY);
+    const lObj = lRaw ? JSON.parse(lRaw) : {};
+    const sObj = sRaw ? JSON.parse(sRaw) : {};
+    return { ...sObj, ...lObj };
   } catch {
     return {};
   }
 }
 
-function setTodaStatusOverride(todaId: string, status: string) {
+function setTodaStatusOverride(todaId: string, status: string, acronym?: string, name?: string) {
   try {
     const overrides = getTodaStatusOverrides();
-    overrides[todaId] = status;
-    localStorage.setItem(TODA_STATUS_OVERRIDES_KEY, JSON.stringify(overrides));
+    const keysToSet = [todaId, acronym, name].filter(Boolean) as string[];
+    
+    keysToSet.forEach(k => {
+      overrides[k] = status;
+      overrides[k.toLowerCase()] = status;
+      overrides[k.toUpperCase()] = status;
+    });
+
+    const payload = JSON.stringify(overrides);
+    localStorage.setItem(TODA_STATUS_OVERRIDES_KEY, payload);
+    sessionStorage.setItem(TODA_STATUS_OVERRIDES_KEY, payload);
+
+    if (status === 'Active' || status === 'Approved') {
+      try {
+        const approvedRaw = localStorage.getItem(SAKAY_APPROVED_TODAS_KEY) || sessionStorage.getItem(SAKAY_APPROVED_TODAS_KEY);
+        const approvedList: string[] = approvedRaw ? JSON.parse(approvedRaw) : [];
+        keysToSet.forEach(k => {
+          if (!approvedList.includes(k)) approvedList.push(k);
+        });
+        const appPayload = JSON.stringify(approvedList);
+        localStorage.setItem(SAKAY_APPROVED_TODAS_KEY, appPayload);
+        sessionStorage.setItem(SAKAY_APPROVED_TODAS_KEY, appPayload);
+      } catch {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sakay_toda_status_updated', { detail: { todaId, acronym, status } }));
+      if ('BroadcastChannel' in window) {
+        try {
+          const bc = new BroadcastChannel('sakay_toda_status_channel');
+          bc.postMessage({ todaId, acronym, status });
+          bc.close();
+        } catch {}
+      }
+    }
   } catch {}
 }
 
@@ -440,16 +477,29 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
 }
 
 export async function approveTodaApplication(applicationId: string, remarks?: string) {
-  setTodaStatusOverride(applicationId, 'Active');
+  let todaInfo: any = null;
+  try {
+    const { data: fetchRes } = await supabase
+      .from('toda')
+      .select('*')
+      .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
+      .maybeSingle();
+    todaInfo = fetchRes;
+  } catch {}
 
-  let updatedData: any = null;
+  const acronym = todaInfo?.toda_acronym || (applicationId.length <= 15 ? applicationId : undefined);
+  const name = todaInfo?.toda_name;
+
+  setTodaStatusOverride(applicationId, 'Active', acronym, name);
+
+  let updatedData: any = todaInfo;
 
   // 1. Primary: Backend API endpoint using Supabase Service Role (bypasses RLS to guarantee PostgreSQL update)
   try {
     const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ remarks, actor_name: 'City Administrator' }),
+      body: JSON.stringify({ remarks, actor_name: 'City Administrator', acronym, name }),
     });
     if (res.ok) {
       const apiJson = await res.json();
@@ -463,44 +513,26 @@ export async function approveTodaApplication(applicationId: string, remarks?: st
   try {
     const { data: d1 } = await supabase
       .from('toda')
-      .update({ toda_status: 'Active' })
-      .eq('toda_id', applicationId)
-      .select()
-      .maybeSingle();
-    if (d1) updatedData = d1;
-  } catch {}
-
-  try {
-    const { data: d2 } = await supabase
-      .from('toda')
-      .update({ account_status: 'Active' })
-      .eq('toda_id', applicationId)
-      .select()
-      .maybeSingle();
-    if (d2) updatedData = updatedData || d2;
-  } catch {}
-
-  try {
-    const { data: d3 } = await supabase
-      .from('toda')
-      .update({ status: 'Active' })
-      .eq('toda_id', applicationId)
-      .select()
-      .maybeSingle();
-    if (d3) updatedData = updatedData || d3;
+      .update({ toda_status: 'Active', account_status: 'Active' })
+      .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
+      .select();
+    if (d1 && d1.length > 0) updatedData = d1[0];
   } catch {}
 
   // 3. Update associated toda_admin accounts to Active
   try {
-    await supabase.from('toda_admin').update({ account_status: 'Active', toda_status: 'Active' }).eq('toda_id', applicationId);
+    await supabase
+      .from('toda_admin')
+      .update({ account_status: 'Active', toda_status: 'Active' })
+      .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`);
   } catch {}
 
   // 4. Record audit log entry
   await recordAdminAuditAction({
     actionType: 'TODA_ACCREDITATION_APPROVED',
     targetId: applicationId,
-    targetName: updatedData?.toda_name || applicationId,
-    details: `Approved municipal accreditation for '${updatedData?.toda_name || applicationId}'. ${remarks ? 'Remarks: ' + remarks : ''}`,
+    targetName: updatedData?.toda_name || name || applicationId,
+    details: `Approved municipal accreditation for '${updatedData?.toda_name || name || applicationId}'. ${remarks ? 'Remarks: ' + remarks : ''}`,
     category: 'Verification',
   });
 

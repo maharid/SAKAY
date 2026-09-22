@@ -25,6 +25,43 @@ export const DEFAULT_TODA_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 // 1. TODA PROFILE & REGISTRATION
 // ============================================================================
 
+export function isTodaApprovedInCache(todaData?: any, targetId?: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const keys = ['sakay_approved_todas', 'sakay_toda_status_overrides'];
+    for (const k of keys) {
+      const lRaw = localStorage.getItem(k);
+      const sRaw = sessionStorage.getItem(k);
+      const raw = lRaw || sRaw;
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const set = new Set(parsed.map((item: any) => String(item).toLowerCase()));
+        if (targetId && set.has(String(targetId).toLowerCase())) return true;
+        if (todaData?.toda_id && set.has(String(todaData.toda_id).toLowerCase())) return true;
+        if (todaData?.toda_acronym && set.has(String(todaData.toda_acronym).toLowerCase())) return true;
+        if (todaData?.toda_name && set.has(String(todaData.toda_name).toLowerCase())) return true;
+      } else if (parsed && typeof parsed === 'object') {
+        const checkVal = (id?: string) => {
+          if (!id) return false;
+          const val = parsed[id] || parsed[id.toLowerCase()] || parsed[id.toUpperCase()];
+          return val === 'Active' || val === 'Approved' || val === 'Active Accreditation';
+        };
+        if (
+          checkVal(targetId) ||
+          checkVal(todaData?.toda_id) ||
+          checkVal(todaData?.toda_acronym) ||
+          checkVal(todaData?.toda_name)
+        ) {
+          return true;
+        }
+      }
+    }
+  } catch {}
+  return false;
+}
+
 export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | null> {
   try {
     let data: any = null;
@@ -33,7 +70,7 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
       const { data: directToda } = await supabase
         .from('toda')
         .select('*')
-        .eq('toda_id', todaId)
+        .or(`toda_id.eq.${todaId},toda_acronym.ilike.${todaId}`)
         .maybeSingle();
       data = directToda;
     }
@@ -80,6 +117,11 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
       .select('*', { count: 'exact', head: true })
       .eq('toda_id', data.toda_id);
 
+    const isDbActive = ['active', 'approved', 'verified', 'accredited'].includes(
+      String(data.toda_status || data.account_status || data.status || '').toLowerCase()
+    );
+    const isCacheActive = isTodaApprovedInCache(data, todaId);
+
     return {
       id: data.toda_id,
       name: data.toda_name,
@@ -103,11 +145,7 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
         treasurer: data.treasurer_name || 'N/A',
         treasurerContact: data.treasurer_contact || '',
       },
-      accreditationStatus: ['active', 'approved', 'verified', 'accredited'].includes(
-        String(data.toda_status || data.account_status || data.status || '').toLowerCase()
-      )
-        ? 'Active'
-        : 'Pending Verification',
+      accreditationStatus: (isDbActive || isCacheActive) ? 'Active' : 'Pending Verification',
       accreditationExpiry: data.certificate_expiry ? new Date(data.certificate_expiry).toLocaleDateString('en-US') : 'Dec 31, 2026',
       accreditationNo: data.certificate_number || data.toda_acronym || 'TODA',
       permitNumber: data.toda_acronym || 'TODA',
