@@ -1,5 +1,4 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -13,11 +12,20 @@ import {
 } from '@mui/material';
 
 import PageHeader from '../../../common/components/PageHeader';
+import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
 
 export const DriverTermsOfService: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language, t } = useLanguage();
+
+  const state = location.state as {
+    phone?: string;
+    driverName?: string;
+    fromRegistration?: boolean;
+  } | undefined;
+  const isFromRegistration = Boolean(state?.fromRegistration);
 
   const isTagalog = language === 'tl';
 
@@ -349,6 +357,43 @@ export const DriverTermsOfService: React.FC = () => {
           </Box>
         )}
       </Box>
+
+      {/* Pinned Bottom Action Bar for Registration */}
+      {isFromRegistration && (
+        <Box
+          sx={{
+            padding: '12px 24px calc(var(--safe-area-bottom) + 16px) 24px',
+            backgroundColor: '#FFFFFF',
+            borderTop: '1px solid #F1F5F9',
+            flexShrink: 0,
+            zIndex: 30,
+          }}
+        >
+          <PrimaryButton
+            onClick={() =>
+              navigate('/driver/privacy-policy', {
+                replace: true,
+                state: {
+                  ...state,
+                  fromRegistration: true,
+                },
+              })
+            }
+            fullWidth
+            sx={{
+              height: '56px',
+              borderRadius: '16px',
+              fontSize: '16px',
+              fontWeight: 800,
+              backgroundColor: '#FF6B00',
+              boxShadow: 'none',
+              '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            }}
+          >
+            {isTagalog ? 'Sumasang-ayon Ako' : 'I Agree'}
+          </PrimaryButton>
+        </Box>
+      )}
     </Box>
   );
 };

@@ -6,7 +6,6 @@ import {
   IconButton,
   TextField,
   Alert,
-  Button,
   CircularProgress,
   Snackbar,
 } from '@mui/material';
@@ -254,6 +253,7 @@ export const VerifyOtp: React.FC = () => {
             state: {
               phone: e164Phone,
               passengerName: resolvedName,
+              fromRegistration: true,
             },
           });
         }
@@ -557,53 +557,51 @@ export const VerifyOtp: React.FC = () => {
 
         {/* Resend Code Section */}
         <Box
+          component="button"
+          type="button"
+          onClick={handleResendOtp}
+          disabled={resendTimer > 0 || isResending || loading}
           sx={{
+            width: '100%',
+            height: '48px',
+            borderRadius: '14px',
+            backgroundColor: (resendTimer > 0 || isResending || loading) ? '#F8FAFC' : '#FFFFFF',
+            border: (resendTimer > 0 || isResending || loading) ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
+            color: (resendTimer > 0 || isResending || loading) ? '#94A3B8' : '#FF6B00',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 1,
-            mt: 2,
+            cursor: (resendTimer > 0 || isResending || loading) ? 'not-allowed' : 'pointer',
+            outline: 'none',
+            fontSize: '14.5px',
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': (resendTimer > 0 || isResending || loading) ? {} : {
+              backgroundColor: 'rgba(255, 107, 0, 0.06)',
+              borderColor: '#E66000',
+              color: '#E66000',
+              transform: 'translateY(-1px)',
+            },
+            '&:active': (resendTimer > 0 || isResending || loading) ? {} : {
+              backgroundColor: 'rgba(255, 107, 0, 0.12)',
+              transform: 'translateY(0)',
+            },
           }}
         >
-          {resendTimer > 0 ? (
-            <Typography sx={{ fontSize: '13.5px', color: '#64748B', fontWeight: 500 }}>
-              {language === 'tl'
-                ? `Muling magpadala pagkalipas ng `
-                : `Resend code in `}
-              <Box component="span" sx={{ fontWeight: 700, color: '#FF6B00' }}>
-                {resendTimer}s
-              </Box>
-            </Typography>
+          {isResending ? (
+            <CircularProgress size={18} sx={{ color: '#FF6B00' }} />
           ) : (
-            <Button
-              onClick={handleResendOtp}
-              disabled={isResending || loading}
-              variant="outlined"
-              size="small"
-              startIcon={isResending ? <CircularProgress size={16} sx={{ color: '#FF6B00' }} /> : <RefreshRoundedIcon />}
-              sx={{
-                borderRadius: '20px',
-                borderColor: '#FF6B00',
-                color: '#FF6B00',
-                textTransform: 'none',
-                fontWeight: 700,
-                fontSize: '13.5px',
-                padding: '6px 16px',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 107, 0, 0.08)',
-                  borderColor: '#E66000',
-                },
-                '&.Mui-disabled': {
-                  borderColor: '#CBD5E1',
-                  color: '#94A3B8',
-                },
-              }}
-            >
-              {isResending
-                ? (language === 'tl' ? 'Ipinapadala...' : 'Sending...')
-                : (language === 'tl' ? 'Ipadala Muli ang Code' : 'Resend Code')}
-            </Button>
+            <RefreshRoundedIcon sx={{ fontSize: 19, color: 'inherit' }} />
           )}
+          <Typography sx={{ fontSize: '14.5px', fontWeight: 700, color: 'inherit' }}>
+            {isResending
+              ? (language === 'tl' ? 'Ipinapadala...' : 'Sending...')
+              : resendTimer > 0
+              ? (language === 'tl' ? `Muling magpadala sa (${resendTimer}s)` : `Resend code in (${resendTimer}s)`)
+              : (language === 'tl' ? 'Ipadala Muli ang Code' : 'Resend Code')}
+          </Typography>
         </Box>
       </Box>
 

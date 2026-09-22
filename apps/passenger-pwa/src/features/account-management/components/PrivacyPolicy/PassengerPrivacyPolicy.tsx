@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -9,6 +9,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
 import PageHeader from '../../../../common/components/PageHeader';
+import PrimaryButton from '../../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../../utils/LanguageContext';
 
 interface AccordionItem {
@@ -19,7 +20,15 @@ interface AccordionItem {
 
 export const PassengerPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useLanguage();
+
+  const state = location.state as {
+    phone?: string;
+    passengerName?: string;
+    fromRegistration?: boolean;
+  } | undefined;
+  const isFromRegistration = Boolean(state?.fromRegistration);
 
   const isTagalog = language === 'tl';
   const contentRef = React.useRef<HTMLDivElement | null>(null);
@@ -219,6 +228,41 @@ export const PassengerPrivacyPolicy: React.FC = () => {
           </Typography>
         </Box>
       </Box>
+
+      {/* Pinned Bottom Action Bar for Registration */}
+      {isFromRegistration && (
+        <Box
+          sx={{
+            padding: '12px 24px calc(var(--safe-area-bottom) + 16px) 24px',
+            backgroundColor: '#FFFFFF',
+            borderTop: '1px solid #F1F5F9',
+            flexShrink: 0,
+            zIndex: 30,
+          }}
+        >
+          <PrimaryButton
+            onClick={() =>
+              navigate('/registration-success', {
+                state: {
+                  ...state,
+                },
+              })
+            }
+            fullWidth
+            sx={{
+              height: '56px',
+              borderRadius: '16px',
+              fontSize: '16px',
+              fontWeight: 800,
+              backgroundColor: '#FF6B00',
+              boxShadow: 'none',
+              '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            }}
+          >
+            {isTagalog ? 'Sumasang-ayon Ako' : 'I Agree'}
+          </PrimaryButton>
+        </Box>
+      )}
     </Box>
   );
 };

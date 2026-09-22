@@ -476,8 +476,8 @@ export const DriverRegister: React.FC = () => {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(val) => setPassword(val)}
-            shake={shakeTrigger > 0 && hasAttemptedSubmit && !isPasswordValid}
-            error={hasAttemptedSubmit && !isPasswordValid}
+            shake={shakeTrigger > 0 && hasAttemptedSubmit && (!password || !isPasswordValid)}
+            error={hasAttemptedSubmit && (!password || !isPasswordValid)}
             endAdornment={
               <IconButton
                 onClick={() => setShowPassword(!showPassword)}

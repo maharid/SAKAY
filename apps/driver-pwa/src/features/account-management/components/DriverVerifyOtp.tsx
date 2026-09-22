@@ -299,6 +299,7 @@ export const DriverVerifyOtp: React.FC = () => {
             state: {
               driverName: state?.driverName || 'Bagong Drayber',
               phone: e164Phone,
+              fromRegistration: true,
             },
           });
         }
@@ -528,7 +529,7 @@ export const DriverVerifyOtp: React.FC = () => {
               onKeyDown={(e) => handleKeyDown(i, e)}
               slotProps={{
                 htmlInput: {
-                  maxLength: 1,
+                  maxLength: 6,
                   inputMode: 'numeric',
                   pattern: '[0-9]*',
                   autoComplete: i === 0 ? 'one-time-code' : 'off',
@@ -536,26 +537,32 @@ export const DriverVerifyOtp: React.FC = () => {
                     textAlign: 'center',
                     fontSize: '22px',
                     fontWeight: 800,
-                    padding: '14px 0',
+                    padding: 0,
+                    height: '58px',
                     color: '#0F172A',
                   },
                 },
               }}
               sx={{
-                width: '48px',
+                flex: 1,
+                backgroundColor: digit ? '#FFF8F3' : '#F8FAFC',
+                borderRadius: '16px',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: '#F8FAFC',
-                  '& fieldset': { borderColor: digit ? '#FF6B00' : '#E2E8F0' },
-                  '&:hover fieldset': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6B00' },
+                  borderRadius: '16px',
+                  height: '58px',
+                  border: digit ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                  '&.Mui-focused': {
+                    borderColor: '#FF6B00',
+                    boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)',
+                  },
+                  '& fieldset': { border: 'none' },
                 },
               }}
             />
           ))}
         </Box>
 
-        {/* Resend Code Button Container (matches reference UI layout) */}
+        {/* Resend Code Button Container */}
         <Box
           component="button"
           type="button"
@@ -564,28 +571,29 @@ export const DriverVerifyOtp: React.FC = () => {
           sx={{
             width: '100%',
             height: '48px',
-            borderRadius: '12px',
+            borderRadius: '14px',
             backgroundColor: (resendTimer > 0 || isComplete) ? '#F8FAFC' : '#FFFFFF',
-            border: (resendTimer > 0 || isComplete) ? '1.5px solid #E2E8F0' : '1.5px solid #CBD5E1',
+            border: (resendTimer > 0 || isComplete) ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
+            color: (resendTimer > 0 || isComplete) ? '#94A3B8' : '#FF6B00',
             boxShadow: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 1,
             cursor: (resendTimer > 0 || isComplete) ? 'not-allowed' : 'pointer',
-            color: (resendTimer > 0 || isComplete) ? '#94A3B8' : '#334155',
             outline: 'none',
             fontSize: '14.5px',
-            fontWeight: 600,
+            fontWeight: 700,
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': (resendTimer > 0 || isComplete) ? {} : {
-              backgroundColor: '#F8FAFC',
-              borderColor: '#94A3B8',
+              backgroundColor: 'rgba(255, 107, 0, 0.06)',
+              borderColor: '#E66000',
+              color: '#E66000',
               transform: 'translateY(-1px)',
             },
             '&:active': (resendTimer > 0 || isComplete) ? {} : {
-              backgroundColor: '#F1F5F9',
+              backgroundColor: 'rgba(255, 107, 0, 0.12)',
               transform: 'translateY(0)',
             },
           }}
@@ -593,11 +601,11 @@ export const DriverVerifyOtp: React.FC = () => {
           <RefreshRoundedIcon
             sx={{
               fontSize: 19,
-              color: (resendTimer > 0 || isComplete) ? '#94A3B8' : '#64748B',
+              color: 'inherit',
               transition: 'transform 0.3s ease',
             }}
           />
-          <Typography sx={{ fontSize: '14.5px', fontWeight: 600, color: 'inherit' }}>
+          <Typography sx={{ fontSize: '14.5px', fontWeight: 700, color: 'inherit' }}>
             {resendTimer > 0 ? `${t.resendCode} (${resendTimer}s)` : t.resendCode}
           </Typography>
         </Box>
