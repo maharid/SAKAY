@@ -16,6 +16,7 @@ import {
   Popover,
   Snackbar,
   Dialog,
+  Autocomplete,
 } from '@mui/material';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -41,6 +42,7 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { SakayTextField } from '../components/common/SakayTextField';
 import SakayPhoneInput from '../components/common/SakayPhoneInput';
+import SakayToast from '../components/common/SakayToast';
 
 import { registerToda, uploadTodaDocument, checkAcronymAvailability } from '../services/todaApiService';
 import { DateCalendarPopover } from '../components/popovers/DateCalendarPopover';
@@ -222,6 +224,8 @@ export const TodaRegistrationPage: React.FC = () => {
     open: false,
     message: '',
   });
+
+  const [shakingFieldId, setShakingFieldId] = useState<string | null>(null);
 
   const showToast = (message: string) => {
     setToastState({ open: true, message });
@@ -587,6 +591,9 @@ export const TodaRegistrationPage: React.FC = () => {
     if (!serviceCoverageArea.trim()) {
       emptyRequiredErrors.push({ id: 'field-serviceCoverageArea', message: 'Service Coverage / Terminal Location is required.' });
     }
+    if (!coordinatesText.trim() && (!terminalLatitude || !terminalLongitude)) {
+      emptyRequiredErrors.push({ id: 'field-coordinatesText', message: 'Terminal Coordinates are required.' });
+    }
     if (!presidentName.trim()) {
       emptyRequiredErrors.push({ id: 'field-presidentName', message: 'President Full Name is required.' });
     }
@@ -612,21 +619,6 @@ export const TodaRegistrationPage: React.FC = () => {
       emptyRequiredErrors.push({ id: 'field-confirmPassword', message: 'Confirm Password is required.' });
     }
 
-    // If any required field is empty, highlight and notify
-    if (emptyRequiredErrors.length > 0) {
-      const firstError = emptyRequiredErrors[0];
-      const targetEl = document.getElementById(firstError.id);
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const input = targetEl.querySelector('input, select') as HTMLElement | null;
-        if (input) {
-          input.focus();
-        }
-      }
-      showToast('Please fill in all required fields.');
-      return;
-    }
-
     // 2. Check for value mismatches or password criteria (fields are filled, but invalid)
     if (confirmAcronym.trim() && cleanOrgAcronym !== cleanConfirmAcronym) {
       valueMismatchErrors.push({ id: 'field-confirmAcronym', message: 'TODA Acronym does not match.' });
@@ -638,16 +630,20 @@ export const TodaRegistrationPage: React.FC = () => {
       valueMismatchErrors.push({ id: 'field-confirmPassword', message: 'Passwords do not match.' });
     }
 
-    if (valueMismatchErrors.length > 0) {
-      const firstMismatch = valueMismatchErrors[0];
-      const targetEl = document.getElementById(firstMismatch.id);
+    const firstError = emptyRequiredErrors[0] || valueMismatchErrors[0];
+    if (firstError) {
+      setShakingFieldId(firstError.id);
+      setTimeout(() => setShakingFieldId(null), 800);
+
+      const targetEl = document.getElementById(firstError.id);
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const input = targetEl.querySelector('input, select') as HTMLElement | null;
+        const input = targetEl.querySelector('input, select, textarea') as HTMLElement | null;
         if (input) {
           input.focus();
         }
       }
+      showToast(firstError.message);
       return;
     }
 
@@ -819,6 +815,7 @@ export const TodaRegistrationPage: React.FC = () => {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
                 <SakayTextField
                   id="field-todaName"
+                  className={shakingFieldId === 'field-todaName' ? 'anim-shake' : ''}
                   label="Official TODA Name"
                   value={todaName}
                   onChange={(e) => setTodaName(e.target.value)}
@@ -828,6 +825,7 @@ export const TodaRegistrationPage: React.FC = () => {
                 />
                 <SakayTextField
                   id="field-todaAcronym"
+                  className={shakingFieldId === 'field-todaAcronym' ? 'anim-shake' : ''}
                   label="TODA Acronym"
                   value={todaAcronym}
                   onChange={(e) => setTodaAcronym(e.target.value.replace(/\s+/g, '').toUpperCase())}
@@ -879,102 +877,81 @@ export const TodaRegistrationPage: React.FC = () => {
               </Popover>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
-                <TextField
+                <Autocomplete
                   id="field-barangay"
-                  select
-                  label={
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <span>OPERATING BARANGAY</span>
-                      <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>*</Box>
-                    </Box>
-                  }
-                  value={barangay}
-                  onChange={(e) => setBarangay(e.target.value)}
-                  error={hasAttemptedSubmit && !barangay}
-                  helperText={hasAttemptedSubmit && !barangay ? 'Please select an operating barangay.' : ''}
-                  fullWidth
+                  options={CALAPAN_BARANGAYS}
+                  value={barangay || null}
+                  onChange={(_, newValue) => setBarangay(newValue || '')}
+                  className={shakingFieldId === 'field-barangay' ? 'anim-shake' : ''}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label={
+                        <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <span>OPERATING BARANGAY</span>
+                          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>*</Box>
+                        </Box>
+                      }
+                      placeholder="Type or select barangay..."
+                      error={hasAttemptedSubmit && !barangay}
+                      helperText={hasAttemptedSubmit && !barangay ? 'Please select an operating barangay.' : ''}
+                      fullWidth
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          minHeight: '62px',
+                          borderRadius: '16px',
+                          backgroundColor: barangay ? '#FFFFFF' : '#F1F3F5',
+                          fontSize: '15px',
+                          fontWeight: 600,
+                          border: `1.5px solid ${hasAttemptedSubmit && !barangay ? '#DC2626' : '#E2E8F0'}`,
+                          '&:hover fieldset': { borderColor: '#FF6B00' },
+                          '&.Mui-focused fieldset': { borderColor: '#FF6B00', borderWidth: '1.5px' },
+                          '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)', backgroundColor: '#FFFFFF' },
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontSize: '14.5px',
+                          color: '#94A3B8',
+                          background: 'transparent',
+                          '&.Mui-focused, &.MuiInputLabel-shrink': {
+                            fontSize: '9.5px',
+                            fontWeight: 700,
+                            color: '#FF6B00',
+                            transform: 'translate(14px, 8px) scale(1)',
+                            background: 'transparent',
+                            padding: 0,
+                          },
+                        },
+                        '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+                        '& .MuiInputBase-input': { pt: '20px !important', pb: '6px !important' },
+                      }}
+                    />
+                  )}
                   slotProps={{
-                    select: {
-                      IconComponent: KeyboardArrowDownIcon,
-                      MenuProps: {
-                        slotProps: {
-                          paper: {
-                            sx: {
-                              maxHeight: 180, // Shows max 4 barangays at a time with internal scroll
-                              borderRadius: '12px',
-                              mt: 1,
-                              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                              '& .MuiMenuItem-root': {
-                                fontSize: '14px',
-                                py: 1.2,
-                                px: 2,
-                                fontWeight: 500,
-                                '&.Mui-selected': {
-                                  backgroundColor: '#FFF5EF !important',
-                                  color: '#FF6B00',
-                                  fontWeight: 700,
-                                },
-                                '&:hover': {
-                                  backgroundColor: '#FFF2E9',
-                                  color: '#FF6B00',
-                                },
-                              },
-                            },
+                    paper: {
+                      sx: {
+                        borderRadius: '12px',
+                        mt: 1,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                        maxHeight: 200,
+                        '& .MuiAutocomplete-option': {
+                          fontSize: '14px',
+                          py: 1.2,
+                          px: 2,
+                          fontWeight: 500,
+                          '&[aria-selected="true"]': {
+                            backgroundColor: '#FFF5EF !important',
+                            color: '#FF6B00',
+                            fontWeight: 700,
+                          },
+                          '&:hover': {
+                            backgroundColor: '#FFF2E9',
+                            color: '#FF6B00',
                           },
                         },
                       },
                     },
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      minHeight: '62px',
-                      borderRadius: '16px',
-                      backgroundColor: barangay ? '#FFFFFF' : '#F1F3F5',
-                      fontSize: '15px',
-                      fontWeight: 600,
-                      border: `1.5px solid ${hasAttemptedSubmit && !barangay ? '#DC2626' : '#E2E8F0'}`,
-                      '&:hover fieldset': {
-                        borderColor: '#FF6B00',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#FF6B00',
-                        borderWidth: '1.5px',
-                      },
-                      '&.Mui-focused': {
-                        boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)',
-                        backgroundColor: '#FFFFFF',
-                      },
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontSize: '14.5px',
-                      color: '#94A3B8',
-                      background: 'transparent',
-                      '&.Mui-focused, &.MuiInputLabel-shrink': {
-                        fontSize: '9.5px',
-                        fontWeight: 700,
-                        color: '#FF6B00',
-                        transform: 'translate(14px, 8px) scale(1)',
-                        background: 'transparent',
-                        padding: 0,
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline legend': {
-                      display: 'none',
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      border: 'none',
-                    },
-                    '& .MuiSelect-select': {
-                      pt: '20px',
-                      pb: '6px',
-                    },
-                  }}
-                >
-                  <MenuItem value="" disabled>Select Barangay</MenuItem>
-                  {CALAPAN_BARANGAYS.map((b) => (
-                    <MenuItem key={b} value={b}>{b}</MenuItem>
-                  ))}
-                </TextField>
+                />
 
                 <Box sx={{ position: 'relative' }}>
                   <SakayTextField
@@ -1024,6 +1001,7 @@ export const TodaRegistrationPage: React.FC = () => {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
                 <SakayTextField
                   id="field-serviceCoverageArea"
+                  className={shakingFieldId === 'field-serviceCoverageArea' ? 'anim-shake' : ''}
                   label="Designated Service Coverage / Terminal Location"
                   placeholder="Street, Barangay, City/Municipality"
                   value={serviceCoverageArea}
@@ -1035,6 +1013,7 @@ export const TodaRegistrationPage: React.FC = () => {
 
                 <SakayTextField
                   id="field-coordinatesText"
+                  className={shakingFieldId === 'field-coordinatesText' ? 'anim-shake' : ''}
                   label="Terminal Coordinates"
                   placeholder="Latitude, Longitude"
                   value={coordinatesText}
@@ -1046,6 +1025,9 @@ export const TodaRegistrationPage: React.FC = () => {
                       setTerminalLongitude(parts[1]);
                     }
                   }}
+                  error={hasAttemptedSubmit && (!coordinatesText.trim() && (!terminalLatitude || !terminalLongitude))}
+                  helperText={hasAttemptedSubmit && (!coordinatesText.trim() && (!terminalLatitude || !terminalLongitude)) ? 'Terminal Coordinates are required.' : ''}
+                  required
                   endAdornment={
                     <Button
                       variant="contained"
@@ -1086,6 +1068,7 @@ export const TodaRegistrationPage: React.FC = () => {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
                 <SakayTextField
                   id="field-presidentName"
+                  className={shakingFieldId === 'field-presidentName' ? 'anim-shake' : ''}
                   label="President Full Name"
                   value={presidentName}
                   onChange={(e) => setPresidentName(e.target.value)}
@@ -1093,14 +1076,16 @@ export const TodaRegistrationPage: React.FC = () => {
                   helperText={hasAttemptedSubmit && !presidentName.trim() ? 'President full name is required.' : ''}
                   required
                 />
-                <SakayPhoneInput
-                  label="President Mobile Contact"
-                  value={presidentContact}
-                  onChange={(val) => setPresidentContact(val)}
-                  error={hasAttemptedSubmit && !presidentContact.trim()}
-                  helperText={hasAttemptedSubmit && !presidentContact.trim() ? 'President mobile contact is required.' : ''}
-                  required
-                />
+                <Box id="field-presidentContact" className={shakingFieldId === 'field-presidentContact' ? 'anim-shake' : ''}>
+                  <SakayPhoneInput
+                    label="President Mobile Contact"
+                    value={presidentContact}
+                    onChange={(val) => setPresidentContact(val)}
+                    error={hasAttemptedSubmit && !presidentContact.trim()}
+                    helperText={hasAttemptedSubmit && !presidentContact.trim() ? 'President mobile contact is required.' : ''}
+                    required
+                  />
+                </Box>
               </Box>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
@@ -1730,6 +1715,7 @@ export const TodaRegistrationPage: React.FC = () => {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2 }}>
                 <SakayTextField
                   id="field-password"
+                  className={shakingFieldId === 'field-password' ? 'anim-shake' : ''}
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -1745,6 +1731,7 @@ export const TodaRegistrationPage: React.FC = () => {
 
                 <SakayTextField
                   id="field-confirmPassword"
+                  className={shakingFieldId === 'field-confirmPassword' ? 'anim-shake' : ''}
                   label="Confirm Password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
@@ -1892,44 +1879,14 @@ export const TodaRegistrationPage: React.FC = () => {
         fileObj={reviewModalState.fileObj}
       />
 
-      {/* Bottom Toast Notification */}
-      <Snackbar
+      {/* Bottom Right Toast Notification */}
+      <SakayToast
         open={toastState.open}
-        autoHideDuration={5000}
+        message={toastState.message}
+        severity="error"
         onClose={() => setToastState((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{
-          bottom: { xs: 24, sm: 32 },
-        }}
-      >
-        <Box
-          sx={{
-            backgroundColor: '#EF4444',
-            color: '#000000',
-            fontWeight: 600,
-            fontSize: '13.5px',
-            py: 1.25,
-            px: 2.5,
-            borderRadius: '10px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            border: '1px solid #DC2626',
-          }}
-        >
-          <Typography sx={{ color: '#000000', fontWeight: 600, fontSize: '13.5px' }}>
-            {toastState.message}
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setToastState((prev) => ({ ...prev, open: false }))}
-            sx={{ color: '#000000', p: 0.25, ml: 0.5 }}
-          >
-            <CloseIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Box>
-      </Snackbar>
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      />
 
       {/* Success Modal Pop-up */}
       <Dialog

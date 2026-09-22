@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 
 export interface SakayTextFieldProps {
   id?: string;
+  className?: string;
   label: string;
   value: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -23,6 +24,7 @@ export interface SakayTextFieldProps {
 
 export const SakayTextField: React.FC<SakayTextFieldProps> = ({
   id,
+  className,
   label,
   value,
   onChange,
@@ -57,7 +59,7 @@ export const SakayTextField: React.FC<SakayTextFieldProps> = ({
   }, [onClick, disabled, readOnly]);
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box id={id} className={className} sx={{ width: '100%' }}>
       <Box
         onClick={handleContainerClick}
         sx={{
