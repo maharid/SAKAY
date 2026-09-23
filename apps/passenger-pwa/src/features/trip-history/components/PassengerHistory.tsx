@@ -11,6 +11,7 @@ import DialogActions from "@mui/material/DialogActions";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CircularProgress from "@mui/material/CircularProgress";
 import Rating from "@mui/material/Rating";
+import Divider from "@mui/material/Divider";
 
 import type { HistoryTrip } from "../../../services/tripService";
 import { fetchTripHistory } from "../../../services/tripService";
@@ -141,7 +142,16 @@ const PassengerHistory: React.FC = () => {
             <CircularProgress sx={{ color: "#FF6B00" }} />
           </Box>
         ) : activeTab === "ratings" ? (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #F1F5F9",
+              borderRadius: "20px",
+              overflow: "hidden",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
+            }}
+          >
             {trips.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 6, px: 2 }}>
                 <Typography sx={{ fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
@@ -149,44 +159,48 @@ const PassengerHistory: React.FC = () => {
                 </Typography>
               </Box>
             ) : (
-              trips.map((trip) => (
-                <Paper
-                  key={`rating-${trip.id}`}
-                  elevation={0}
-                  sx={{
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid #F1F5F9",
-                    borderRadius: "20px",
-                    padding: "16px",
-                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                  }}
-                >
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                      {trip.driverName || "Juan Dela Cruz"} ({trip.bodyNumber || "T-1024"})
-                    </Typography>
-                    <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
-                      {trip.dateString}
-                    </Typography>
+              trips.map((trip, idx) => (
+                <React.Fragment key={`rating-${trip.id}`}>
+                  {idx > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
+                  <Box
+                    onClick={() => setSelectedDetails(trip)}
+                    sx={{
+                      p: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 2,
+                      cursor: "pointer",
+                      transition: "background-color 0.15s ease",
+                      "&:hover": { backgroundColor: "#F8FAFC" },
+                    }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {trip.driverName || "Juan Dela Cruz"} ({trip.bodyNumber || "T-1024"})
+                        </Typography>
+                        <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif", flexShrink: 0, ml: 1 }}>
+                          {trip.dateString}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Rating value={5} readOnly size="small" sx={{ color: "#FF6B00", fontSize: 16 }} />
+                        <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
+                          5.0 / 5.0
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif", fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", mt: 0.5 }}>
+                        {language === "tl"
+                          ? '"Ligtas at maayos ang biyahe. Mabait at magalang ang drayber."'
+                          : '"Safe and smooth ride. The driver was kind and courteous."'}
+                      </Typography>
+                    </Box>
                   </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Rating value={5} readOnly size="small" />
-                    <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
-                      5.0 / 5.0
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: "12px", color: "#475569", fontStyle: "italic", fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl"
-                      ? '"Ligtas at maayos ang biyahe. Mabait at magalang ang drayber."'
-                      : '"Safe and smooth ride. The driver was kind and courteous."'}
-                  </Typography>
-                </Paper>
+                </React.Fragment>
               ))
             )}
-          </Box>
+          </Paper>
         ) : (
           <>
             {/* Section 1: NGAYONG ARAW */}
@@ -208,6 +222,7 @@ const PassengerHistory: React.FC = () => {
                   <Paper
                     key={trip.id}
                     elevation={0}
+                    onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
                     sx={{
                       backgroundColor: "#FFFFFF",
                       border: "1px solid #F1F5F9",
@@ -217,24 +232,29 @@ const PassengerHistory: React.FC = () => {
                       display: "flex",
                       flexDirection: "column",
                       gap: "16px",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      "&:hover": { borderColor: "#CBD5E1" },
                     }}
                   >
-                    {/* Upper Details Row */}
+                    {/* Upper Details Row with 16px horizontal spacing */}
                     <Box
                       sx={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
+                        gap: "16px",
                       }}
                     >
                       {/* Left Timeline & Locations */}
-                      <Box sx={{ display: "flex", gap: "12px", flexGrow: 1, overflow: "hidden" }}>
+                      <Box sx={{ display: "flex", gap: "12px", flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
                         <Box
                           sx={{
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                             paddingTop: "4px",
+                            flexShrink: 0,
                           }}
                         >
                           <Box
@@ -264,7 +284,7 @@ const PassengerHistory: React.FC = () => {
                           />
                         </Box>
 
-                        <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
+                        <Box sx={{ flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
                           <Box sx={{ marginBottom: "10px" }}>
                             <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>
                               Pickup
@@ -310,6 +330,7 @@ const PassengerHistory: React.FC = () => {
                           flexDirection: "column",
                           alignItems: "flex-end",
                           gap: "4px",
+                          flexShrink: 0,
                         }}
                       >
                         <Typography
@@ -351,7 +372,7 @@ const PassengerHistory: React.FC = () => {
                     </Box>
 
                     {/* Bottom Buttons Row: Rebook -> & See Details */}
-                    <Box sx={{ display: "flex", gap: "10px" }}>
+                    <Box sx={{ display: "flex", gap: "10px" }} onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="contained"
                         onClick={() => handleRebook(trip)}
@@ -415,6 +436,7 @@ const PassengerHistory: React.FC = () => {
                   <Paper
                     key={trip.id}
                     elevation={0}
+                    onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
                     sx={{
                       backgroundColor: "#FFFFFF",
                       border: "1px solid #F1F5F9",
@@ -424,24 +446,29 @@ const PassengerHistory: React.FC = () => {
                       display: "flex",
                       flexDirection: "column",
                       gap: "16px",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      "&:hover": { borderColor: "#CBD5E1" },
                     }}
                   >
-                    {/* Upper Details Row */}
+                    {/* Upper Details Row with 16px horizontal spacing */}
                     <Box
                       sx={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
+                        gap: "16px",
                       }}
                     >
                       {/* Left Timeline & Locations */}
-                      <Box sx={{ display: "flex", gap: "12px", flexGrow: 1, overflow: "hidden" }}>
+                      <Box sx={{ display: "flex", gap: "12px", flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
                         <Box
                           sx={{
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                             paddingTop: "4px",
+                            flexShrink: 0,
                           }}
                         >
                           <Box
@@ -471,7 +498,7 @@ const PassengerHistory: React.FC = () => {
                           />
                         </Box>
 
-                        <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
+                        <Box sx={{ flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
                           <Box sx={{ marginBottom: "10px" }}>
                             <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>
                               Pickup
@@ -517,6 +544,7 @@ const PassengerHistory: React.FC = () => {
                           flexDirection: "column",
                           alignItems: "flex-end",
                           gap: "4px",
+                          flexShrink: 0,
                         }}
                       >
                         <Typography
@@ -558,7 +586,7 @@ const PassengerHistory: React.FC = () => {
                     </Box>
 
                     {/* Bottom Buttons Row */}
-                    <Box sx={{ display: "flex", gap: "10px" }}>
+                    <Box sx={{ display: "flex", gap: "10px" }} onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="contained"
                         onClick={() => handleRebook(trip)}

@@ -22,7 +22,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
+import Divider from "@mui/material/Divider";
+import Chip from "@mui/material/Chip";
 
 import MapView from "../../../../common/components/MapView";
 import PassengerCancelModal from "../../../../common/components/PassengerCancelModal";
@@ -1210,7 +1211,7 @@ const NewTrip: React.FC = () => {
               </Box>
             </Box>
 
-            {/* Shared Trip Disclaimer & Agreement */}
+            {/* Shared Trip Disclaimer & Agreement (Combined Integrated Card) */}
             {tripType === "Shared" && (
               <Paper
                 elevation={0}
@@ -1220,36 +1221,27 @@ const NewTrip: React.FC = () => {
                   backgroundColor: "#EFF6FF",
                   border: "1px solid #BFDBFE",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
+                  alignItems: "flex-start",
+                  gap: 1.25,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-                  <InfoOutlinedIcon sx={{ color: "#2563EB", fontSize: 18, mt: 0.25, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "12px", color: "#1E40AF", lineHeight: 1.4, fontFamily: "Poppins, sans-serif" }}>
+                <Checkbox
+                  checked={sharedDisclaimerAgreed}
+                  onChange={(e) => setSharedDisclaimerAgreed(e.target.checked)}
+                  size="small"
+                  sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" }, p: 0, mt: 0.25 }}
+                />
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#1E40AF", display: "flex", alignItems: "center", gap: 0.5, mb: 0.25, fontFamily: "Poppins, sans-serif" }}>
+                    <InfoOutlinedIcon sx={{ fontSize: 15, color: "#2563EB" }} />
+                    {language === "tl" ? "Paunawa sa Shared Trip" : "Shared Trip Notice"}
+                  </Typography>
+                  <Typography sx={{ fontSize: "11.5px", color: "#1E3A8A", lineHeight: 1.45, fontFamily: "Poppins, sans-serif" }}>
                     {language === "tl"
-                      ? "Paunawa sa Shared Trip: Ang pamasahe mo ay mahahati kung may kasabay na ma-match sa iyong ruta. Kung walang mahanap na kasabay, ang buong Solo fare ang sisingilin."
-                      : "Shared Trip Notice: Your fare may be shared if another compatible booking is matched with your trip. If no match is found, the full Solo fare will apply."}
+                      ? "Naiintindihan ko na ang aking pamasahe ay mahahati kapag may na-match na kasabay, ngunit babayaran ko ang buong Solo fare kung walang mahanap na kapares."
+                      : "I understand that my fare will be shared if matched with another commuter, but I will pay the full Solo fare if no shared match is found."}
                   </Typography>
                 </Box>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={sharedDisclaimerAgreed}
-                      onChange={(e) => setSharedDisclaimerAgreed(e.target.checked)}
-                      size="small"
-                      sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" }, py: 0 }}
-                    />
-                  }
-                  label={
-                    <Typography sx={{ fontSize: "11.5px", fontWeight: 600, color: "#1E3A8A", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl"
-                        ? "Naiintindihan ko na babayaran ko ang buong Solo fare kung walang mahanap na kasabay."
-                        : "I understand that I will pay the full Solo fare if no shared match is found."}
-                    </Typography>
-                  }
-                  sx={{ m: 0 }}
-                />
               </Paper>
             )}
 
@@ -1311,31 +1303,19 @@ const NewTrip: React.FC = () => {
                 </Typography>
               </Box>
 
-              {/* Compact Fare Breakdown */}
+              {/* Streamlined Distance & Base Fare Text Box */}
               <Box
                 sx={{
                   p: 1.25,
                   borderRadius: "12px",
                   backgroundColor: "#F8FAFC",
                   border: "1px solid #F1F5F9",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
                 }}
               >
-                <Typography sx={{ fontSize: "11px", color: "#475569", fontWeight: 600, fontFamily: "Poppins, sans-serif" }}>
+                <Typography sx={{ fontSize: "11.5px", color: "#475569", fontWeight: 600, fontFamily: "Poppins, sans-serif" }}>
                   {language === "tl"
                     ? `• Distansya: ${tripDistanceKm.toFixed(1)} km | Base (unang 2 km): ₱15.00/upuan`
                     : `• Distance: ${tripDistanceKm.toFixed(1)} km | Base (first 2 km): ₱15.00/seat`}
-                </Typography>
-                <Typography sx={{ fontSize: "11px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                  {tripType === "Solo"
-                    ? language === "tl"
-                      ? "• Solo Charter: Reserba ang buong 4-seat capacity ng tricycle"
-                      : "• Solo Charter: Reserves full 4-seat capacity of tricycle"
-                    : language === "tl"
-                      ? `• Shared Fare Estimate: Hati para sa ${passengers} pasahero`
-                      : `• Shared Fare Estimate: Proportional fare for ${passengers} passenger${passengers > 1 ? 's' : ''}`}
                 </Typography>
               </Box>
             </Box>
@@ -1469,88 +1449,103 @@ const NewTrip: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 7. Official Municipal Tariff Info Modal */}
+      {/* 7. Angkas-Style Fare Breakdown Popup Modal matching media_1790154119178.png */}
       <Dialog
         open={tariffInfoOpen}
         onClose={() => setTariffInfoOpen(false)}
+        fullWidth
+        maxWidth="xs"
         slotProps={{
           paper: {
             sx: {
-              borderRadius: "20px",
-              padding: "10px",
-              maxWidth: "360px",
-              width: "90%",
+              borderRadius: "28px",
+              overflow: "hidden",
+              p: 0,
             },
           },
         }}
       >
-        <DialogTitle
+        {/* Light Blue Top Header Box with Icon */}
+        <Box
           sx={{
+            backgroundColor: "#E6F2F7",
+            p: 3,
+            textAlign: "center",
             display: "flex",
-            justifyContent: "space-between",
+            flexDirection: "column",
             alignItems: "center",
-            fontWeight: 800,
-            fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
-            fontFamily: "Poppins, sans-serif",
+            position: "relative",
           }}
         >
-          {language === "tl" ? "Taripa ng Calapan City" : "Calapan City Tariff"}
-          <IconButton size="small" onClick={() => setTariffInfoOpen(false)}>
-            <CloseIcon />
+          <IconButton
+            onClick={() => setTariffInfoOpen(false)}
+            sx={{ position: "absolute", top: 12, right: 12, color: "#64748B" }}
+            size="small"
+          >
+            <CloseIcon fontSize="small" />
           </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2,
-                backgroundColor: "#FFF7ED",
-                borderRadius: "14px",
-                border: "1px solid #FFEDD5",
-              }}
-            >
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#C2410C" }}>
-                {language === "tl" ? "Opisyal na Taripa ng Lungsod:" : "Official Municipal Matrix:"}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 600, color: "#EA580C", mt: 0.25, mb: 1 }}>
-                {language === "tl"
-                  ? "Ordinansa ng Lungsod Blg. 110, Serye ng 2022"
-                  : "City Ordinance No. 110, Series of 2022"}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                {language === "tl"
-                  ? `• Pundasyong Pamasahe (Base Seat Fare): ₱${activeTariff.baseFare.toFixed(2)} (unang ${activeTariff.baseKm} km)`
-                  : `• Base Seat Fare: ₱${activeTariff.baseFare.toFixed(2)} (first ${activeTariff.baseKm} km)`}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                {language === "tl"
-                  ? `• Solo Trip Multiplier: × 4 na upuan (₱${(activeTariff.baseFare * 4).toFixed(2)} base rate dahil binabayaran ang buong kapasidad ng tricycle)`
-                  : `• Solo Trip Multiplier: × 4 seats (₱${(activeTariff.baseFare * 4).toFixed(2)} base rate as you pay for the full exclusive tricycle capacity)`}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                {language === "tl"
-                  ? `• Shared Trip: Kinukwenta bawat upuan (₱${activeTariff.baseFare.toFixed(2)}/upuan para sa carpool split)`
-                  : `• Shared Trip: Calculated per seat (₱${activeTariff.baseFare.toFixed(2)}/seat for carpool split)`}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                {language === "tl"
-                  ? `• Kada Karagdagang Kilometro: +₱${activeTariff.succRate.toFixed(2)}/km`
-                  : `• Per Succeeding Kilometer: +₱${activeTariff.succRate.toFixed(2)}/km`}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#9A3412" }}>
-                {language === "tl"
-                  ? `• Tinatayang Distansya: ${tripDistanceKm} km`
-                  : `• Estimated Distance: ${tripDistanceKm} km`}
-              </Typography>
-            </Paper>
-            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: "#64748B", px: 0.5 }}>
-              {language === "tl"
-                ? "Lahat ng pamasahe sa SAKAY ay awtomatikong kinukwenta batay sa Ordinansa ng Lungsod Blg. 110, S. 2022 upang maiwasan ang paniningil nang higit sa taripa."
-                : "All fares in SAKAY are automatically calculated based on City Ordinance No. 110, S. 2022 to prevent overcharging."}
+
+          <Typography sx={{ fontSize: "36px", mb: 0.5 }}>🛺</Typography>
+          <Typography sx={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+            {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
+          </Typography>
+          <Typography sx={{ fontSize: "12px", color: "#00A3E0", fontWeight: 700, mt: 0.25, fontFamily: "Poppins, sans-serif" }}>
+            99.9% Safety Rating • Calapan Ordinance No. 110
+          </Typography>
+        </Box>
+
+        {/* Fare Itemized Breakdown Rows */}
+        <Box sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+              Standard Fare (w/ Cash Discount)
+            </Typography>
+            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              ₱{(Math.max(15, estimatedFare - 5)).toFixed(2)}
             </Typography>
           </Box>
-        </DialogContent>
+          <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+              Add-ons
+            </Typography>
+            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              ₱5.00 ∨
+            </Typography>
+          </Box>
+          <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+              Tip
+            </Typography>
+            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              ₱0.00
+            </Typography>
+          </Box>
+          <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed" }} />
+
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 0.5 }}>
+            <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              Total Fare
+            </Typography>
+            <Typography sx={{ fontSize: "18px", fontWeight: 900, color: "#00A3E0", fontFamily: "Poppins, sans-serif" }}>
+              ₱{estimatedFare.toFixed(2)}
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5, pt: 1, borderTop: "1px solid #F1F5F9" }}>
+            <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+              Pay Using
+            </Typography>
+            <Chip
+              label="₱ Cash"
+              size="small"
+              sx={{ backgroundColor: "#00A3E0", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
+            />
+          </Box>
+        </Box>
       </Dialog>
 
       {/* 8. Trip Type Info Modal */}
