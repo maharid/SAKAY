@@ -15,7 +15,7 @@ import SakayToast from "../../../../common/components/SakayToast";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { supabase } from "../../../../services/supabaseClient";
-import { formatPhoneToE164 } from "../../../../utils/phone";
+import { getPhoneLookupCandidates } from "../../../../services/passengerApiService";
 
 const Login: React.FC = () => {
   const { language, t } = useLanguage();
@@ -33,8 +33,8 @@ const Login: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const cleanPhoneDigits = phone.replace(/\D/g, "");
-  const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith("09");
+  const candidates = getPhoneLookupCandidates(phone);
+  const isValidPhone = candidates.phoneRaw.length === 10 && candidates.phoneRaw.startsWith("9");
   const showPhoneError = phoneTouched && !isValidPhone;
 
   // Disabled if mobile number or password is empty or loading
@@ -65,48 +65,46 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      const formattedPhone = formatPhoneToE164(cleanPhoneDigits);
-      const phone63NoPlus = `63${cleanPhoneDigits.slice(1)}`;
-      const passengerEmail = `passenger_${phone63NoPlus}@sakay.ph`;
+      let signInResponse: any = null;
 
-      // 1. Attempt phone sign-in first
-      let signInResponse = await supabase.auth.signInWithPassword({
-        phone: formattedPhone,
-        password: password,
-      });
-
-      // 2. Fallback to generated passenger email
-      if (signInResponse.error) {
-        const emailResponse = await supabase.auth.signInWithPassword({
-          email: passengerEmail,
+      // 1. Traverse generated auth candidates (email variants & phone credentials)
+      for (const authCand of candidates.authCandidates) {
+        const res = await supabase.auth.signInWithPassword({
+          ...(authCand as any),
           password: password,
         });
-        if (!emailResponse.error && emailResponse.data?.user) {
-          signInResponse = emailResponse;
-        } else {
-          // Check if passenger record has custom/aliased email registered
-          const { data: profileRecord } = await supabase
-            .from("passenger")
-            .select("email")
-            .or(
-              `contact_number.eq.${formattedPhone},contact_number.eq.0${cleanPhoneDigits.slice(-10)},contact_number.eq.+63${cleanPhoneDigits.slice(-10)}`
-            )
-            .limit(1)
-            .maybeSingle();
 
-          if (profileRecord?.email && profileRecord.email !== passengerEmail) {
-            const profileEmailResponse = await supabase.auth.signInWithPassword({
-              email: profileRecord.email,
-              password: password,
-            });
-            if (!profileEmailResponse.error && profileEmailResponse.data?.user) {
-              signInResponse = profileEmailResponse;
-            }
+        if (!res.error && res.data?.user) {
+          signInResponse = res;
+          break;
+        } else {
+          if (!signInResponse) signInResponse = res;
+        }
+      }
+
+      // 2. Fallback to custom aliased email from passenger table
+      if (signInResponse?.error) {
+        const { data: profileRecord } = await supabase
+          .from("passenger")
+          .select("email")
+          .or(
+            `contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`
+          )
+          .limit(1)
+          .maybeSingle();
+
+        if (profileRecord?.email) {
+          const profileEmailResponse = await supabase.auth.signInWithPassword({
+            email: profileRecord.email,
+            password: password,
+          });
+          if (!profileEmailResponse.error && profileEmailResponse.data?.user) {
+            signInResponse = profileEmailResponse;
           }
         }
       }
 
-      if (signInResponse.error) {
+      if (signInResponse?.error) {
         console.warn("Supabase signIn warning:", signInResponse.error.message);
         triggerErrorToast(
           language === "tl"
@@ -117,7 +115,7 @@ const Login: React.FC = () => {
         return;
       }
 
-      const user = signInResponse.data?.user;
+      const user = signInResponse?.data?.user;
       const role = user?.user_metadata?.role || "passenger";
 
       if (user?.id) {
@@ -125,7 +123,7 @@ const Login: React.FC = () => {
           let { data: profile } = await supabase
             .from("passenger")
             .select("passenger_id, account_status, full_name, auth_user_id")
-            .or(`auth_user_id.eq.${user.id},contact_number.eq.${formattedPhone},contact_number.eq.0${cleanPhoneDigits.slice(-10)},contact_number.eq.+63${cleanPhoneDigits.slice(-10)}`)
+            .or(`auth_user_id.eq.${user.id},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
             .limit(1)
             .maybeSingle();
 
@@ -138,33 +136,18 @@ const Login: React.FC = () => {
           }
 
           if (profile) {
-            const isVerifiedInAuth = Boolean(
-              user?.user_metadata?.otp_verified ||
-              user?.user_metadata?.account_status === 'Active' ||
-              user?.phone_confirmed_at
-            );
-
             if (profile.account_status === "Pending OTP Verification") {
-              if (isVerifiedInAuth) {
-                // Auto-heal status in database if possible
-                await supabase
-                  .from("passenger")
-                  .update({ account_status: "Active" })
-                  .eq("passenger_id", profile.passenger_id);
-                profile.account_status = "Active";
-                supabase.rpc('activate_passenger_otp', {
-                  p_contact_number: user.phone || user.user_metadata?.contact_number || formattedPhone,
-                }).then(() => {}, () => {});
-              } else {
-                triggerErrorToast(
-                  language === "tl"
-                    ? "Kailangan munang ma-verify ang inyong numero gamit ang OTP bago makapag-login."
-                    : "Your mobile number needs to be verified with OTP before logging in."
-                );
-                setLoading(false);
-                await supabase.auth.signOut();
-                return;
-              }
+              // Auto-heal status in database & Auth
+              await supabase
+                .from("passenger")
+                .update({ account_status: "Active" })
+                .eq("passenger_id", profile.passenger_id);
+              profile.account_status = "Active";
+              try {
+                await supabase.rpc("activate_passenger_otp", {
+                  p_contact_number: user.phone || user.user_metadata?.contact_number || candidates.e164,
+                });
+              } catch {}
             }
 
             if (profile.account_status === "Suspended" || profile.account_status === "Deactivated") {
