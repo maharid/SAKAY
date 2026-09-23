@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import appIcon from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 import { DEFAULT_CALAPAN_CENTER, getOSRMRoute } from "../../services/locationService";
 
 export interface MapViewProps {
@@ -281,8 +282,7 @@ export const MapView: React.FC<MapViewProps> = ({
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-          ">🛺</div>
+          "><img src="${appIcon}" style="width: 22px; height: 22px; object-fit: contain;" alt="Tricycle" /></div>
         `,
         iconSize: [38, 38],
         iconAnchor: [19, 19],

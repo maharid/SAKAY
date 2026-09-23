@@ -13,6 +13,7 @@ import PlaceIcon from "@mui/icons-material/Place";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
+import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 
@@ -128,9 +129,9 @@ export const TripDetailPage: React.FC = () => {
 
           <Divider sx={{ width: "100%", borderColor: "#F1F5F9", mb: 2 }} />
 
-          {/* Vehicle Info */}
+          {/* Vehicle Info with App Icon */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%", mb: 2 }}>
-            <Typography sx={{ fontSize: "24px" }}>🛺</Typography>
+            <Box component="img" src={appIconImg} alt="SAKAY Tricycle" sx={{ width: 36, height: 36, objectFit: "contain" }} />
             <Box>
               <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                 SAKAY Tricycle Service
@@ -183,21 +184,28 @@ export const TripDetailPage: React.FC = () => {
             </Box>
           </Box>
 
-          <Divider sx={{ width: "100%", borderColor: "#F1F5F9", mb: 1.5 }} />
+          <Divider sx={{ width: "100%", borderColor: "#F1F5F9", mb: 2 }} />
 
-          {/* Rebook Button */}
+          {/* Prominent Rebook Button */}
           <Button
+            variant="contained"
+            fullWidth
             onClick={handleRebook}
             sx={{
-              color: "#FF6B00",
+              backgroundColor: "#FF6B00",
+              color: "#FFFFFF",
+              borderRadius: "14px",
+              height: "48px",
               fontWeight: 800,
               fontSize: "15px",
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#FFF7ED" },
+              boxShadow: "0 4px 12px rgba(255, 107, 0, 0.2)",
+              "&:hover": { backgroundColor: "#E66000", boxShadow: "0 6px 16px rgba(255, 107, 0, 0.3)" },
+              "&:active": { transform: "scale(0.98)" },
             }}
           >
-            {language === "tl" ? "Muling mag-book" : "Rebook"}
+            {language === "tl" ? "Muling Mag-book ng Biyahe" : "Rebook Ride"}
           </Button>
         </Paper>
 
