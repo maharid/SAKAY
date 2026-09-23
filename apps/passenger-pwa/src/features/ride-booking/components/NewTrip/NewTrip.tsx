@@ -1465,10 +1465,10 @@ const NewTrip: React.FC = () => {
           },
         }}
       >
-        {/* Light Blue Top Header Box with Icon */}
+        {/* Light Orange Top Header Box with Icon */}
         <Box
           sx={{
-            backgroundColor: "#E6F2F7",
+            backgroundColor: "#FFF5ED",
             p: 3,
             textAlign: "center",
             display: "flex",
@@ -1489,60 +1489,50 @@ const NewTrip: React.FC = () => {
           <Typography sx={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
           </Typography>
-          <Typography sx={{ fontSize: "12px", color: "#00A3E0", fontWeight: 700, mt: 0.25, fontFamily: "Poppins, sans-serif" }}>
-            99.9% Safety Rating • Calapan Ordinance No. 110
+          <Typography sx={{ fontSize: "12px", color: "#FF6B00", fontWeight: 700, mt: 0.25, fontFamily: "Poppins, sans-serif" }}>
+            Official City Tariff Rate • Calapan Ordinance No. 110
           </Typography>
         </Box>
 
-        {/* Fare Itemized Breakdown Rows */}
+        {/* SAKAY Itemized Breakdown Rows */}
         <Box sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              Standard Fare (w/ Cash Discount)
+              {language === "tl" ? "Unang 2.0 km (Base Fare)" : "Base Fare (First 2.0 km)"}
             </Typography>
             <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              ₱{(Math.max(15, estimatedFare - 5)).toFixed(2)}
+              ₱20.00
             </Typography>
           </Box>
           <Divider sx={{ borderColor: "#F1F5F9" }} />
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              Add-ons
+              {language === "tl" ? "Dagdag na Distansya" : "Distance Charge"}
             </Typography>
             <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              ₱5.00 ∨
-            </Typography>
-          </Box>
-          <Divider sx={{ borderColor: "#F1F5F9" }} />
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              Tip
-            </Typography>
-            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              ₱0.00
+              ₱{Math.max(0, estimatedFare - 20).toFixed(2)}
             </Typography>
           </Box>
           <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed" }} />
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 0.5 }}>
             <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              Total Fare
+              {language === "tl" ? "Kabuuan" : "Total Fare"}
             </Typography>
-            <Typography sx={{ fontSize: "18px", fontWeight: 900, color: "#00A3E0", fontFamily: "Poppins, sans-serif" }}>
+            <Typography sx={{ fontSize: "18px", fontWeight: 900, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
               ₱{estimatedFare.toFixed(2)}
             </Typography>
           </Box>
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5, pt: 1, borderTop: "1px solid #F1F5F9" }}>
             <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              Pay Using
+              {language === "tl" ? "Paraan ng Pagbayad" : "Pay Using"}
             </Typography>
             <Chip
               label="₱ Cash"
               size="small"
-              sx={{ backgroundColor: "#00A3E0", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
+              sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
             />
           </Box>
         </Box>

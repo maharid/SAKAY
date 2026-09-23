@@ -12,6 +12,8 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CircularProgress from "@mui/material/CircularProgress";
 import Rating from "@mui/material/Rating";
 import Divider from "@mui/material/Divider";
+import Avatar from "@mui/material/Avatar";
+import Chip from "@mui/material/Chip";
 
 import type { HistoryTrip } from "../../../services/tripService";
 import { fetchTripHistory } from "../../../services/tripService";
@@ -25,6 +27,7 @@ const PassengerHistory: React.FC = () => {
   const [trips, setTrips] = useState<HistoryTrip[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedDetails, setSelectedDetails] = useState<HistoryTrip | null>(null);
+  const [selectedRatingDetail, setSelectedRatingDetail] = useState<HistoryTrip | null>(null);
   const [activeTab, setActiveTab] = useState<"trips" | "ratings">("trips");
 
   useEffect(() => {
@@ -163,7 +166,7 @@ const PassengerHistory: React.FC = () => {
                 <React.Fragment key={`rating-${trip.id}`}>
                   {idx > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
                   <Box
-                    onClick={() => setSelectedDetails(trip)}
+                    onClick={() => setSelectedRatingDetail(trip)}
                     sx={{
                       p: 2,
                       display: "flex",
@@ -757,6 +760,171 @@ const PassengerHistory: React.FC = () => {
               </Button>
             </DialogActions>
           </>
+        )}
+      </Dialog>
+
+      {/* Full-Screen Driver Rating Detail Modal (Rate-the-App format) */}
+      <Dialog
+        fullScreen
+        open={Boolean(selectedRatingDetail)}
+        onClose={() => setSelectedRatingDetail(null)}
+        sx={{ "& .MuiDialog-paper": { backgroundColor: "#FAFAFA" } }}
+      >
+        {selectedRatingDetail && (
+          <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+            <PageHeader
+              title={language === "tl" ? "Rating sa Drayber" : "Driver Rating"}
+              onBack={() => setSelectedRatingDetail(null)}
+            />
+
+            <Box
+              className="hide-scrollbar"
+              sx={{
+                flexGrow: 1,
+                overflowY: "auto",
+                p: 2.5,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                pb: "calc(var(--safe-area-bottom) + 24px)",
+              }}
+            >
+              {/* Card 1: Driver Info & Non-editable Score */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: "20px",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #F1F5F9",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  gap: 1.5,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                  <Avatar sx={{ width: 52, height: 52, backgroundColor: "#FF6B00", fontWeight: 800, fontSize: "20px" }}>
+                    {(selectedRatingDetail.driverName || "Juan Dela Cruz").charAt(0)}
+                  </Avatar>
+                  <Box sx={{ textAlign: "left" }}>
+                    <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                      {selectedRatingDetail.driverName || "Juan Dela Cruz"}
+                    </Typography>
+                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                      Tricycle Body No. {selectedRatingDetail.bodyNumber || "T-1024"} • {selectedRatingDetail.dateString}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ width: "100%", borderColor: "#F1F5F9" }} />
+
+                <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", mt: 0.5 }}>
+                  {language === "tl" ? "Naibigay mong Rating sa Drayber:" : "Your Rating for this Driver:"}
+                </Typography>
+
+                <Rating
+                  value={5}
+                  readOnly
+                  sx={{
+                    my: 1,
+                    color: "#FF6B00",
+                    "& .MuiRating-icon": {
+                      fontSize: "40px",
+                      mx: 0.5,
+                    },
+                  }}
+                />
+
+                <Chip
+                  label="5.0 / 5.0 - Napakahusay (Excellent)"
+                  sx={{
+                    backgroundColor: "#FFF7ED",
+                    color: "#FF6B00",
+                    fontWeight: 800,
+                    fontSize: "13px",
+                    height: "32px",
+                    border: "1px solid #FFD6B3",
+                  }}
+                />
+              </Paper>
+
+              {/* Card 2: Selected Compliments */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: "20px",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #F1F5F9",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.5,
+                }}
+              >
+                <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                  {language === "tl" ? "Naibigay na Komplimento" : "Selected Compliments"}
+                </Typography>
+
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {[
+                    language === "tl" ? "✓ Magalang na Drayber" : "✓ Polite Driver",
+                    language === "tl" ? "✓ Ligtas Magmaneho" : "✓ Safe Driving",
+                    language === "tl" ? "✓ Malinis ang Sakayan" : "✓ Clean Vehicle",
+                    language === "tl" ? "✓ Sa Oras Dumating" : "✓ On-Time Arrival",
+                  ].map((badge, bIdx) => (
+                    <Chip
+                      key={bIdx}
+                      label={badge}
+                      size="small"
+                      sx={{
+                        backgroundColor: "#F8FAFC",
+                        border: "1px solid #E2E8F0",
+                        color: "#0F172A",
+                        fontWeight: 600,
+                        fontSize: "12px",
+                        py: 1.5,
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Paper>
+
+              {/* Card 3: Submitted Feedback Comments */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: "20px",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #F1F5F9",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.5,
+                }}
+              >
+                <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                  {language === "tl" ? "Iyong Komento o Mensahe" : "Your Additional Comments"}
+                </Typography>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: "14px",
+                    backgroundColor: "#F8FAFC",
+                    border: "1px solid #E2E8F0",
+                  }}
+                >
+                  <Typography sx={{ fontSize: "13px", color: "#334155", fontFamily: "Poppins, sans-serif", fontStyle: "italic", lineHeight: 1.5 }}>
+                    {language === "tl"
+                      ? '"Ligtas at maayos ang biyahe. Mabait at magalang ang drayber."'
+                      : '"Safe and smooth ride. The driver was kind and courteous."'}
+                  </Typography>
+                </Box>
+              </Paper>
+            </Box>
+          </Box>
         )}
       </Dialog>
     </Box>
