@@ -126,6 +126,97 @@ const SlideToCancel: React.FC<{ onCancel: () => void; language: string }> = ({ o
   );
 };
 
+const SlideToFinish: React.FC<{ onFinish: () => void; language: string }> = ({ onFinish, language }) => {
+  const [slidePos, setSlidePos] = useState(0);
+  const isDragging = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleStart = () => {
+    isDragging.current = true;
+  };
+
+  const handleMove = (clientX: number) => {
+    if (!isDragging.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const maxOffset = rect.width - 52;
+    const offset = Math.max(0, Math.min(clientX - rect.left - 24, maxOffset));
+    setSlidePos(offset);
+
+    if (offset >= maxOffset * 0.85) {
+      isDragging.current = false;
+      setSlidePos(maxOffset);
+      onFinish();
+    }
+  };
+
+  const handleEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    setSlidePos(0);
+  };
+
+  return (
+    <Box
+      ref={containerRef}
+      onMouseDown={handleStart}
+      onMouseMove={(e) => handleMove(e.clientX)}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onTouchStart={handleStart}
+      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+      onTouchEnd={handleEnd}
+      sx={{
+        position: 'relative',
+        width: '100%',
+        height: '52px',
+        backgroundColor: '#FFF7ED',
+        border: '1.5px solid #FFD6B3',
+        borderRadius: '999px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        cursor: 'grab',
+        userSelect: 'none',
+        touchAction: 'none',
+        mt: 1.5,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: '13.5px',
+          fontWeight: 800,
+          color: '#FF6B00',
+          fontFamily: 'Poppins, sans-serif',
+          pointerEvents: 'none',
+          opacity: Math.max(0.2, 1 - slidePos / 140),
+        }}
+      >
+        {language === 'tl' ? 'Slide to Finish Trip >>>' : 'Slide to Finish Trip >>>'}
+      </Typography>
+
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 4 + slidePos,
+          width: '44px',
+          height: '44px',
+          borderRadius: '50%',
+          backgroundColor: '#FF6B00',
+          color: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(255, 107, 0, 0.4)',
+          transition: isDragging.current ? 'none' : 'left 0.25s ease',
+        }}
+      >
+        <CheckCircleIcon sx={{ fontSize: 24 }} />
+      </Box>
+    </Box>
+  );
+};
+
 export const TripMonitoring: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -175,6 +266,26 @@ export const TripMonitoring: React.FC = () => {
   const [disputeCategory, setDisputeCategory] = useState('Overcharging Attempt');
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+
+  const handlePassengerFinishTrip = async () => {
+    try {
+      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
+      await supabase
+        .from('booking')
+        .update({ passenger_finished: true, booking_status: 'Arrived at Destination' })
+        .eq('booking_id', activeBookingId);
+
+      const channel = supabase.channel(`booking_sync_${activeBookingId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'passenger_finished',
+        payload: { bookingId: activeBookingId, passenger_finished: true },
+      });
+    } catch (err) {
+      console.warn('[TripMonitoring] markPassengerFinished error:', err);
+    }
+    setCompletionFareModalOpen(true);
+  };
 
   // Driver Location Telemetry
   const [driverPos, setDriverPos] = useState({
@@ -673,6 +784,13 @@ export const TripMonitoring: React.FC = () => {
             ₱{passengerPayableFare.toFixed(2)}
           </Typography>
         </Box>
+
+        {/* Slide to Finish Trip for Passenger */}
+        {status !== 'Completed' && (status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
+          <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
+            <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
+          </Box>
+        )}
 
         {/* Scroll Down to Cancel & Slide to Cancel Track */}
         {status !== 'Completed' && (
