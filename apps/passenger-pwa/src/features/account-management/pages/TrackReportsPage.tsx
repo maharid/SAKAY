@@ -8,6 +8,8 @@ import Divider from "@mui/material/Divider";
 import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -76,6 +78,25 @@ const TrackReportsPage: React.FC = () => {
     }
   };
 
+  const getStatusIconAndBg = (status: string) => {
+    if (status === "Resolved" || status === "Action Taken") {
+      return {
+        bg: "#ECFDF5",
+        icon: <CheckCircleOutlinedIcon sx={{ color: "#10B981", fontSize: 22 }} />,
+      };
+    }
+    if (status === "Cancelled") {
+      return {
+        bg: "#FEF2F2",
+        icon: <CancelOutlinedIcon sx={{ color: "#EF4444", fontSize: 22 }} />,
+      };
+    }
+    return {
+      bg: "#FFF7ED",
+      icon: <ReportProblemOutlinedIcon sx={{ color: "#F59E0B", fontSize: 22 }} />,
+    };
+  };
+
   return (
     <Box
       sx={{
@@ -138,7 +159,7 @@ const TrackReportsPage: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Flat Notification-Style List with Dividers */}
+      {/* List Content */}
       <Box
         className="hide-scrollbar"
         sx={{
@@ -178,30 +199,31 @@ const TrackReportsPage: React.FC = () => {
           <Box sx={{ display: "flex", flexDirection: "column" }}>
             {filteredReports.map((report, idx) => {
               const chipProps = getStatusChipProps(report.status);
+              const iconProps = getStatusIconAndBg(report.status);
               return (
                 <React.Fragment key={report.id}>
                   {idx > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
                   <Box
                     onClick={() => navigate(`/track-reports/${report.id}`)}
                     sx={{
-                      py: 1.75,
+                      py: 2,
                       px: 2.5,
                       display: "flex",
                       alignItems: "flex-start",
-                      gap: 1.5,
+                      gap: 1.75,
                       backgroundColor: "#FFFFFF",
                       cursor: "pointer",
                       transition: "background-color 0.15s ease",
                       "&:hover": { backgroundColor: "#F8FAFC" },
                     }}
                   >
-                    {/* Category Icon Badge */}
+                    {/* Status Specific Icon Badge */}
                     <Box
                       sx={{
-                        width: 40,
-                        height: 40,
+                        width: 42,
+                        height: 42,
                         borderRadius: "50%",
-                        backgroundColor: "#FFF2E9",
+                        backgroundColor: iconProps.bg,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -209,13 +231,13 @@ const TrackReportsPage: React.FC = () => {
                         mt: 0.25,
                       }}
                     >
-                      <ReportProblemOutlinedIcon sx={{ color: "#FF6B00", fontSize: 20 }} />
+                      {iconProps.icon}
                     </Box>
 
-                    {/* Report Content Hierarchy */}
+                    {/* Report Info */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.25 }}>
-                        <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, mb: 0.5 }}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                           {report.id}
                         </Typography>
                         <Chip
@@ -225,7 +247,12 @@ const TrackReportsPage: React.FC = () => {
                             fontSize: "10.5px",
                             fontWeight: 700,
                             fontFamily: "Poppins, sans-serif",
-                            height: "22px",
+                            height: "auto",
+                            py: 0.5,
+                            px: 1,
+                            borderRadius: "8px",
+                            whiteSpace: "normal",
+                            maxWidth: "170px",
                             ...chipProps,
                           }}
                         />
@@ -233,12 +260,12 @@ const TrackReportsPage: React.FC = () => {
 
                       <Typography
                         sx={{
-                          fontSize: "13px",
-                          fontWeight: 600,
+                          fontSize: "13.5px",
+                          fontWeight: 700,
                           color: "#FF6B00",
                           fontFamily: "Poppins, sans-serif",
-                          lineHeight: 1.25,
-                          mb: 0.25,
+                          lineHeight: 1.3,
+                          mb: 0.5,
                         }}
                       >
                         {report.incidentType}
@@ -246,14 +273,11 @@ const TrackReportsPage: React.FC = () => {
 
                       <Typography
                         sx={{
-                          fontSize: "12px",
-                          color: "#64748B",
+                          fontSize: "12.5px",
+                          color: "#475569",
                           fontFamily: "Poppins, sans-serif",
-                          lineHeight: 1.35,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          mb: 0.25,
+                          lineHeight: 1.4,
+                          mb: 0.5,
                         }}
                       >
                         Unit: <strong>{report.franchiseNo}</strong> • {report.description}

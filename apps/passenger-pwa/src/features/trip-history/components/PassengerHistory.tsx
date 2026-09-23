@@ -374,7 +374,7 @@ const PassengerHistory: React.FC = () => {
 
                       <Button
                         variant="contained"
-                        onClick={() => setSelectedDetails(trip)}
+                        onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
                         sx={{
                           flexGrow: 1,
                           backgroundColor: "#F1F5F9",
@@ -581,7 +581,7 @@ const PassengerHistory: React.FC = () => {
 
                       <Button
                         variant="contained"
-                        onClick={() => setSelectedDetails(trip)}
+                        onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
                         sx={{
                           flexGrow: 1,
                           backgroundColor: "#F1F5F9",

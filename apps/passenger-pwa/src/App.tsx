@@ -28,6 +28,7 @@ import NewTrip from "./features/ride-booking/components/NewTrip/NewTrip";
 import SetPlace from "./features/ride-booking/components/SetPlace/SetPlace";
 import BookSummary from "./features/ride-booking/components/BookSummary/BookSummary";
 import PassengerHistory from "./features/trip-history/components/PassengerHistory";
+import TripDetailPage from "./features/trip-history/pages/TripDetailPage";
 import { TripMonitoring } from "./features/trip-monitoring/components/TripMonitoring";
 import { PassengerFeedback } from "./features/feedback/components/PassengerFeedback";
 import { IncidentReporting } from "./features/incident-reporting/components/IncidentReporting";
@@ -74,6 +75,8 @@ function App() {
               <Route path="/feedback" element={<PassengerFeedback />} />
               <Route path="/incident-report" element={<IncidentReporting />} />
               <Route path="/history" element={<PassengerHistory />} />
+              <Route path="/trip-details/:id" element={<TripDetailPage />} />
+              <Route path="/trip-details" element={<TripDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

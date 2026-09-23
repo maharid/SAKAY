@@ -10,10 +10,8 @@ import {
   Chip,
   TextField,
   Avatar,
-  Tab,
-  Tabs,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
 
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -41,7 +39,6 @@ export const PassengerFeedback: React.FC = () => {
   const franchiseNo = booking?.franchise_no || 'CAL-2025-0773';
   const todaName = booking?.toda_name || 'Calapan Central TODA';
 
-  const [tab, setTab] = useState<0 | 1>(0); // 0: Submit, 1: Past Feedback
   const [rating, setRating] = useState<number | null>(5);
   const [selectedTags, setSelectedTags] = useState<string[]>(() =>
     language === 'tl' ? ['Magalang na Driver', 'Ligtas Magmaneho'] : ['Courteous Driver', 'Safe Driving']
@@ -118,165 +115,164 @@ export const PassengerFeedback: React.FC = () => {
     }, 1500);
   };
 
-  const getPastFeedback = (): FeedbackItem[] => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [
-        {
-          id: 'FB-001',
-          driverName: 'Pedro Penduko',
-          franchiseNo: 'CAL-2025-0088',
-          todaName: 'Calapan Central TODA',
-          rating: 5,
-          tags: ['Magalang na Driver', 'Ligtas Magmaneho'],
-          comment: 'Napakabait po ng driver at maingat sa lubak.',
-          date: 'Aug 12, 2026',
-        }
-      ];
-    } catch {
-      return [];
-    }
-  };
-
   return (
-    <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-      {/* Top Header */}
-      <Box sx={{ padding: 'calc(var(--safe-area-top) + 16px) 20px 12px', display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid #F1F5F9', backgroundColor: '#FFFFFF' }}>
-        <IconButton onClick={() => navigate('/dashboard', { replace: true })} sx={{ color: '#0F172A' }}>
-          <ArrowBackIcon />
+    <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
+      {/* Top Header: Left X, Right Contact Support, No Title */}
+      <Box
+        sx={{
+          paddingTop: 'calc(var(--safe-area-top) + 12px)',
+          paddingBottom: '12px',
+          paddingX: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #F1F5F9',
+          backgroundColor: '#FFFFFF',
+          flexShrink: 0,
+        }}
+      >
+        <IconButton
+          onClick={() => navigate('/dashboard', { replace: true })}
+          sx={{
+            color: '#0F172A',
+            border: '1px solid #E2E8F0',
+            borderRadius: '12px',
+            width: 40,
+            height: 40,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 20 }} />
         </IconButton>
-        <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-          {language === 'tl' ? 'Puna at Rating' : 'Feedback & Rating'}
-        </Typography>
+
+        <Button
+          onClick={() => navigate('/support')}
+          sx={{
+            color: '#FF6B00',
+            fontWeight: 700,
+            fontSize: '13.5px',
+            textTransform: 'none',
+            fontFamily: 'Poppins, sans-serif',
+          }}
+        >
+          {language === 'tl' ? 'Sumangguni sa Support' : 'Contact Support'}
+        </Button>
       </Box>
 
-      {/* Tabs */}
-      <Box sx={{ backgroundColor: '#FFFFFF', px: 2, borderBottom: '1px solid #E2E8F0' }}>
-        <Tabs value={tab} onChange={(_, val) => setTab(val)} textColor="inherit" indicatorColor="primary">
-          <Tab label={language === 'tl' ? 'I-rate ang Biyahe' : 'Rate Trip'} sx={{ fontWeight: 700, textTransform: 'none' }} />
-          <Tab label={language === 'tl' ? 'Mga Nakaraang Rating' : 'Past Ratings'} sx={{ fontWeight: 700, textTransform: 'none' }} />
-        </Tabs>
-      </Box>
+      {/* Main Form Content */}
+      <Box
+        className="hide-scrollbar"
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          p: 2.5,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2.5,
+        }}
+      >
+        {/* Driver Card */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '22px', margin: '0 auto 12px auto' }}>
+            {driverName.charAt(0)}
+          </Avatar>
+          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+            {driverName}
+          </Typography>
+          <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+            Franchise #{franchiseNo} • {todaName}
+          </Typography>
 
-      {tab === 0 ? (
-        <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          {/* Driver Card */}
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-            <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '22px', margin: '0 auto 12px auto' }}>
-              {driverName.charAt(0)}
-            </Avatar>
-            <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-              {driverName}
+          {/* Star Rating Picker */}
+          <Box sx={{ mt: 2.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#475569', fontFamily: 'Poppins, sans-serif' }}>
+              {language === 'tl' ? 'Kamusta ang inyong naging biyahe?' : 'How was your trip?'}
             </Typography>
-            <Typography sx={{ fontSize: '12.5px', color: '#64748B' }}>
-              Franchise #{franchiseNo} • {todaName}
-            </Typography>
-
-            {/* Star Rating Picker */}
-            <Box sx={{ mt: 2.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
-                {language === 'tl' ? 'Kamusta ang inyong naging biyahe?' : 'How was your trip?'}
-              </Typography>
-              <Rating
-                value={rating}
-                onChange={(_, newValue) => setRating(newValue)}
-                size="large"
-                sx={{ color: '#FF6B00', fontSize: '36px' }}
-              />
-            </Box>
-          </Paper>
-
-          {/* Compliment Tags */}
-          <Box>
-            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
-              {language === 'tl' ? 'Mga Papuri at Katangian (Compliments)' : 'Compliments & Badges'}
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {availableTags.map((tag) => {
-                const isSelected = selectedTags.includes(tag);
-                return (
-                  <Chip
-                    key={tag}
-                    label={tag}
-                    clickable
-                    onClick={() => handleToggleTag(tag)}
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: '12px',
-                      backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
-                      color: isSelected ? '#FF6B00' : '#475569',
-                      border: isSelected ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
-                    }}
-                  />
-                );
-              })}
-            </Box>
-          </Box>
-
-          {/* Written Feedback */}
-          <Box>
-            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
-              {language === 'tl' ? 'Karagdagang Komento (Optional)' : 'Additional Comments (Optional)'}
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder={language === 'tl' ? 'Ibahagi ang iyong opinyon tungkol sa serbisyo...' : 'Share your thoughts about the service...'}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '16px' } }}
+            <Rating
+              value={rating}
+              onChange={(_, newValue) => setRating(newValue)}
+              size="large"
+              sx={{ color: '#FF6B00', fontSize: '38px' }}
             />
           </Box>
+        </Paper>
 
-          {submitted ? (
-            <Paper sx={{ p: 2, borderRadius: '14px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0', textAlign: 'center' }}>
-              <Typography sx={{ color: '#1E8E3E', fontWeight: 800 }}>
-                {language === 'tl' ? '✓ Maraming salamat sa iyong rating at suporta sa TODA!' : '✓ Thank you so much for your rating and supporting TODA!'}
-              </Typography>
-            </Paper>
-          ) : (
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleSubmitFeedback}
-              sx={{
-                height: 52,
-                borderRadius: '16px',
-                backgroundColor: '#FF6B00',
-                fontWeight: 800,
-                fontSize: '15px',
-                '&:hover': { backgroundColor: '#E66000' },
-              }}
-            >
-              {language === 'tl' ? 'Isumite ang Rating' : 'Submit Feedback'}
-            </Button>
-          )}
+        {/* Compliment Tags */}
+        <Box>
+          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1, letterSpacing: '0.5px', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Mga Papuri at Katangian (Compliments)' : 'Compliments & Badges'}
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {availableTags.map((tag) => {
+              const isSelected = selectedTags.includes(tag);
+              return (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  clickable
+                  onClick={() => handleToggleTag(tag)}
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: '12.5px',
+                    fontFamily: 'Poppins, sans-serif',
+                    backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
+                    color: isSelected ? '#FF6B00' : '#475569',
+                    border: isSelected ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                    py: 0.5,
+                  }}
+                />
+              );
+            })}
+          </Box>
         </Box>
-      ) : (
-        /* Past Feedback History */
-        <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {getPastFeedback().map((item) => (
-            <Paper key={item.id} elevation={0} sx={{ p: 2, borderRadius: '16px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>{item.driverName}</Typography>
-                <Rating value={item.rating} readOnly size="small" sx={{ color: '#FF6B00' }} />
-              </Box>
-              <Typography sx={{ fontSize: '11.5px', color: '#64748B' }}>Franchise #{item.franchiseNo} • {item.date}</Typography>
-              {item.comment && (
-                <Typography sx={{ fontSize: '13px', color: '#334155', mt: 1, fontStyle: 'italic' }}>
-                  "{item.comment}"
-                </Typography>
-              )}
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                {item.tags.map((t, idx) => (
-                  <Chip key={idx} label={t} size="small" sx={{ fontSize: '10.5px', backgroundColor: '#F1F5F9' }} />
-                ))}
-              </Box>
-            </Paper>
-          ))}
+
+        {/* Written Feedback */}
+        <Box>
+          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1, letterSpacing: '0.5px', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Karagdagang Komento (Optional)' : 'Additional Comments (Optional)'}
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3.5}
+            placeholder={language === 'tl' ? 'Ibahagi ang iyong opinyon tungkol sa serbisyo...' : 'Share your thoughts about the service...'}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '16px' } }}
+          />
         </Box>
-      )}
+      </Box>
+
+      {/* Pinned Bottom Submit Button */}
+      <Box sx={{ p: 2, borderTop: '1px solid #F1F5F9', backgroundColor: '#FFFFFF', flexShrink: 0, pb: 'calc(var(--safe-area-bottom) + 16px)' }}>
+        {submitted ? (
+          <Paper elevation={0} sx={{ p: 2, borderRadius: '14px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0', textAlign: 'center' }}>
+            <Typography sx={{ color: '#1E8E3E', fontWeight: 800, fontSize: '14px', fontFamily: 'Poppins, sans-serif' }}>
+              {language === 'tl' ? '✓ Maraming salamat sa iyong rating at suporta sa TODA!' : '✓ Thank you so much for your rating and supporting TODA!'}
+            </Typography>
+          </Paper>
+        ) : (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleSubmitFeedback}
+            sx={{
+              height: 52,
+              borderRadius: '16px',
+              backgroundColor: '#FF6B00',
+              fontWeight: 800,
+              fontSize: '15px',
+              textTransform: 'none',
+              fontFamily: 'Poppins, sans-serif',
+              boxShadow: '0 4px 14px rgba(255, 107, 0, 0.3)',
+              '&:hover': { backgroundColor: '#E66000' },
+            }}
+          >
+            {language === 'tl' ? 'Isumite ang Feedback' : 'Submit Feedback'}
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 };
+
+export default PassengerFeedback;

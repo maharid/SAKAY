@@ -26,12 +26,105 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+
 import MapView from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import { getBooking, cancelBooking, updateBookingState } from '../../../services/bookingService';
 import type { BookingRecord } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
+
+const SlideToCancel: React.FC<{ onCancel: () => void; language: string }> = ({ onCancel, language }) => {
+  const [slidePos, setSlidePos] = useState(0);
+  const isDragging = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleStart = () => {
+    isDragging.current = true;
+  };
+
+  const handleMove = (clientX: number) => {
+    if (!isDragging.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const maxOffset = rect.width - 52;
+    const offset = Math.max(0, Math.min(clientX - rect.left - 24, maxOffset));
+    setSlidePos(offset);
+
+    if (offset >= maxOffset * 0.85) {
+      isDragging.current = false;
+      setSlidePos(maxOffset);
+      onCancel();
+    }
+  };
+
+  const handleEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    setSlidePos(0);
+  };
+
+  return (
+    <Box
+      ref={containerRef}
+      onMouseDown={handleStart}
+      onMouseMove={(e) => handleMove(e.clientX)}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onTouchStart={handleStart}
+      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+      onTouchEnd={handleEnd}
+      sx={{
+        position: 'relative',
+        width: '100%',
+        height: '52px',
+        backgroundColor: '#FEF2F2',
+        border: '1.5px solid #FCA5A5',
+        borderRadius: '999px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        cursor: 'grab',
+        userSelect: 'none',
+        touchAction: 'none',
+        mt: 1,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: '13px',
+          fontWeight: 700,
+          color: '#EF4444',
+          fontFamily: 'Poppins, sans-serif',
+          pointerEvents: 'none',
+          opacity: Math.max(0.25, 1 - slidePos / 140),
+        }}
+      >
+        {language === 'tl' ? 'Slide to Cancel >>>' : 'Slide to Cancel >>>'}
+      </Typography>
+
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 4 + slidePos,
+          width: '44px',
+          height: '44px',
+          borderRadius: '50%',
+          backgroundColor: '#EF4444',
+          color: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+          transition: isDragging.current ? 'none' : 'left 0.25s ease',
+        }}
+      >
+        <CloseIcon sx={{ fontSize: 22 }} />
+      </Box>
+    </Box>
+  );
+};
 
 export const TripMonitoring: React.FC = () => {
   const navigate = useNavigate();
@@ -320,47 +413,66 @@ export const TripMonitoring: React.FC = () => {
   const passengerPayableFare = booking?.proportionate_fare || booking?.actual_fare || booking?.estimated_fare || 18.0;
 
   return (
-    <Box sx={{ width: '100%', height: '100%', backgroundColor: '#0F172A', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      {/* 1. Header Bar with Safe Area */}
+    <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      {/* 1. Header Bar matching Settings PageHeader */}
       <Box
         sx={{
-          paddingTop: 'calc(var(--safe-area-top) + 16px)',
-          paddingBottom: '14px',
-          paddingX: '20px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#0F172A',
+          justify: 'space-between',
+          width: '100%',
+          pt: 'calc(var(--safe-area-top) + 12px)',
+          pb: 1.5,
+          px: 2,
+          backgroundColor: '#FFFFFF',
+          borderBottom: '1px solid #F1F5F9',
+          flexShrink: 0,
           zIndex: 20,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton onClick={handleBackRequest} sx={{ color: '#FFFFFF', padding: 0.5 }}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Box>
-            <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#FFFFFF' }}>
-              {language === 'tl' ? 'Pagsubaybay sa Biyahe (Trip Monitoring)' : 'Trip Monitoring'}
-            </Typography>
-            <Typography sx={{ fontSize: '11.5px', color: '#94A3B8' }}>
-              Booking: <strong>{activeBookingId}</strong>
-            </Typography>
-          </Box>
+        <IconButton
+          onClick={handleBackRequest}
+          aria-label="Go back"
+          sx={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+            color: '#1A1A1A',
+            borderRadius: '14px',
+            width: '44px',
+            height: '44px',
+            '&:hover': { backgroundColor: '#F8FAFC' },
+          }}
+        >
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography
+            sx={{
+              fontSize: '16px',
+              fontWeight: 700,
+              color: '#0F172A',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            {language === 'tl' ? 'Pagsubaybay sa Biyahe' : 'Trip Monitoring'}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: '11px',
+              color: '#64748B',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            Booking: <strong>{activeBookingId}</strong>
+          </Typography>
         </Box>
 
-        {status !== 'Completed' && (
-          <Button
-            size="small"
-            onClick={() => setCancelModalOpen(true)}
-            sx={{ color: '#EF4444', fontWeight: 700, fontSize: '12px', textTransform: 'none' }}
-          >
-            {language === 'tl' ? 'Kanselahin' : 'Cancel'}
-          </Button>
-        )}
+        <Box sx={{ width: '44px' }} />
       </Box>
 
-      {/* 2. Live Map Surface (Leaflet OpenStreetMap with Driver, Pickup, and Destination) */}
+      {/* 2. Full Surface Map View */}
       <Box
         sx={{
           flex: 1,
@@ -370,6 +482,7 @@ export const TripMonitoring: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
+          width: '100%',
         }}
       >
         <MapView
@@ -399,7 +512,7 @@ export const TripMonitoring: React.FC = () => {
           }
           sx={{
             position: 'absolute',
-            top: 20,
+            top: 16,
             backgroundColor:
               status === 'Searching Driver'
                 ? '#F59E0B'
@@ -436,11 +549,11 @@ export const TripMonitoring: React.FC = () => {
           />
         )}
 
-        {/* Refresh / Telemetry Badge */}
+        {/* Telemetry Badge */}
         <Typography
           sx={{
             position: 'absolute',
-            bottom: 16,
+            bottom: 12,
             fontSize: '10.5px',
             color: '#FFFFFF',
             backgroundColor: 'rgba(15, 23, 42, 0.82)',
@@ -454,21 +567,22 @@ export const TripMonitoring: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* 3. Driver & Trip Details (Bottom Sheet Card) */}
+      {/* 3. Driver & Trip Details (Bottom Sheet Card with ONLY Top Rounded Corners) */}
       <Paper
-        elevation={6}
+        elevation={8}
         sx={{
           backgroundColor: '#FFFFFF',
-          borderTopLeftRadius: '24px',
-          borderTopRightRadius: '24px',
+          borderRadius: '24px 24px 0 0',
           padding: '20px 20px calc(var(--safe-area-bottom) + 16px) 20px',
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
           zIndex: 20,
+          width: '100%',
+          boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.08)',
         }}
       >
-        {/* Driver Identity Verification Card */}
+        {/* Driver Identity Card */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar sx={{ width: 48, height: 48, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '20px' }}>
@@ -559,9 +673,20 @@ export const TripMonitoring: React.FC = () => {
             ₱{passengerPayableFare.toFixed(2)}
           </Typography>
         </Box>
+
+        {/* Scroll Down to Cancel & Slide to Cancel Track */}
+        {status !== 'Completed' && (
+          <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5, textAlign: 'center' }}>
+            <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: '#94A3B8', mb: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+              <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+              {language === 'tl' ? 'Scroll down to cancel' : 'Scroll down to cancel'}
+            </Typography>
+            <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
+          </Box>
+        )}
       </Paper>
 
-      {/* 4. Cancellation Confirmation Modal matching PASSENGER CANCEL.png */}
+      {/* 4. Cancellation Confirmation Modal */}
       <PassengerCancelModal
         open={cancelModalOpen}
         onClose={() => setCancelModalOpen(false)}
@@ -662,33 +787,33 @@ export const TripMonitoring: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 7. Workflow Step 12: Trip Completion & Simultaneous Fare Check Dialog */}
+      {/* 7. Arrived at Destination! Modal with Expanded Padding, Spacing, and Centered Tariff */}
       <Dialog
         open={completionFareModalOpen}
         fullWidth
         maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '28px', p: 2, textAlign: 'center' } } }}
+        slotProps={{ paper: { sx: { borderRadius: '28px', p: 3, textAlign: 'center' } } }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, mt: 1 }}>
-          <CheckCircleIcon sx={{ fontSize: 54, color: '#10B981' }} />
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5, mt: 0.5 }}>
+          <CheckCircleIcon sx={{ fontSize: 60, color: '#10B981' }} />
         </Box>
-        <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
           {language === 'tl' ? 'Nakarating na sa Destinasyon!' : 'Arrived at Destination!'}
         </Typography>
-        <Typography sx={{ fontSize: '13px', color: '#64748B', mb: 2 }}>
+        <Typography sx={{ fontSize: '13.5px', color: '#64748B', mb: 2.5, px: 1 }}>
           {language === 'tl'
             ? 'Pakisuri ang siningil na pamasahe ng drayber bago magpatuloy.'
             : 'Please verify the fare charged by the driver before proceeding.'}
         </Typography>
 
-        <Paper elevation={0} sx={{ p: 2, borderRadius: '18px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', mb: 2.5 }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#64748B', letterSpacing: '0.5px' }}>
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', mb: 3, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: '#64748B', letterSpacing: '0.5px', textAlign: 'center', display: 'block' }}>
             {language === 'tl' ? 'OPISYAL NA PAMASAHE' : 'OFFICIAL TARIFF FARE'}
           </Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 900, color: '#FF6B00', my: 0.5 }}>
+          <Typography sx={{ fontSize: '34px', fontWeight: 900, color: '#FF6B00', my: 1, textAlign: 'center' }}>
             ₱{passengerPayableFare.toFixed(2)}
           </Typography>
-          <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>
+          <Typography sx={{ fontSize: '11.5px', color: '#94A3B8', textAlign: 'center', display: 'block' }}>
             {language === 'tl' ? 'Batay sa Calapan City Ordinance No. 118' : 'Based on Calapan City Ordinance No. 118'}
           </Typography>
         </Paper>
@@ -702,18 +827,19 @@ export const TripMonitoring: React.FC = () => {
               navigate('/feedback', { replace: true, state: { booking: { ...booking, actual_fare: passengerPayableFare } } });
             }}
             sx={{
-              height: '48px',
-              borderRadius: '14px',
+              height: '52px',
+              borderRadius: '16px',
               backgroundColor: '#10B981',
               fontWeight: 800,
-              fontSize: '14px',
+              fontSize: '14.5px',
               textTransform: 'none',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
               '&:hover': { backgroundColor: '#059669' },
             }}
           >
             {language === 'tl'
-              ? `I Paid ₱${passengerPayableFare.toFixed(2)} (Tama ang Bayad)`
-              : `I Paid ₱${passengerPayableFare.toFixed(2)} (Fare Verified)`}
+              ? `Nagbayad ako ng ₱${passengerPayableFare.toFixed(2)} (Tama ang Bayad)`
+              : `I paid ₱${passengerPayableFare.toFixed(2)} (Fare Verified)`}
           </Button>
 
           <Button
@@ -726,11 +852,13 @@ export const TripMonitoring: React.FC = () => {
             }}
             startIcon={<ReportProblemIcon />}
             sx={{
-              height: '44px',
-              borderRadius: '14px',
+              height: '46px',
+              borderRadius: '16px',
               fontWeight: 700,
-              fontSize: '13px',
+              fontSize: '13.5px',
               textTransform: 'none',
+              borderColor: '#FCA5A5',
+              color: '#EF4444',
             }}
           >
             {language === 'tl' ? "Amount Doesn't Match (May Aberya)" : "Amount Doesn't Match (Dispute Fare)"}
