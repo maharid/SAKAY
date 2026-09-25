@@ -1003,24 +1003,24 @@ export const TripMonitoring: React.FC = () => {
           </Box>
         ) : status !== 'Completed' && (
           <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
-            {/* Initial Collapsed View: Instruction + Slide to Finish Trip */}
-            <Box
-              sx={{
-                opacity: isExpanded ? 0 : 1,
-                maxHeight: isExpanded ? '0px' : '140px',
-                overflow: 'hidden',
-                transition: 'opacity 0.3s ease, max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                pointerEvents: isExpanded ? 'none' : 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                width: '100%',
-              }}
-            >
-              {(status === 'Trip Ongoing') && (
+            {/* Initial Collapsed View: Slide to Finish Trip (Visible ONLY when status === 'Trip Ongoing' after driver clicked both Arrived at Pickup and Start Trip) */}
+            {status === 'Trip Ongoing' && (
+              <Box
+                sx={{
+                  opacity: isExpanded ? 0 : 1,
+                  maxHeight: isExpanded ? '0px' : '140px',
+                  overflow: 'hidden',
+                  transition: 'opacity 0.3s ease, max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                  pointerEvents: isExpanded ? 'none' : 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  width: '100%',
+                }}
+              >
                 <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
-              )}
-            </Box>
+              </Box>
+            )}
 
             {/* Revealed Expanded View: Visually Separated Slide to Cancel */}
             <Box
