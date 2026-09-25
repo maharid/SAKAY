@@ -3,4 +3,8 @@ export * from './types/database';
 export * from './types/booking';
 export * from './components/OnboardingIllustrations';
 export * from './styles/typography';
+export * from './utils/fareCalculator';
+export * from './utils/bookingUtils';
+
+
 

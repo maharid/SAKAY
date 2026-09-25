@@ -49,6 +49,53 @@ export const PassengerFeedback: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
 
+  React.useEffect(() => {
+    let isMounted = true;
+    const checkExistingRating = async () => {
+      if (booking?.booking_id) {
+        try {
+          const { data } = await supabase
+            .from('rating')
+            .select('*')
+            .eq('booking_id', booking.booking_id)
+            .eq('rater_role', 'Passenger')
+            .maybeSingle();
+
+          if (data && isMounted) {
+            setRating(data.stars);
+            if (data.tags && Array.isArray(data.tags)) setSelectedTags(data.tags);
+            if (data.comment) setComment(data.comment);
+            setSubmitted(true);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const history = JSON.parse(raw);
+          const found = history.find((fb: any) => fb.driverName === driverName);
+          if (found && isMounted) {
+            setRating(found.rating);
+            if (found.tags) setSelectedTags(found.tags);
+            if (found.comment) setComment(found.comment);
+            setSubmitted(true);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    checkExistingRating();
+    return () => {
+      isMounted = false;
+    };
+  }, [booking?.booking_id, driverName]);
+
   const availableTags = language === 'tl' ? [
     'Magalang na Driver',
     'Ligtas Magmaneho',

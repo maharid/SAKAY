@@ -182,7 +182,7 @@ export const TodaReportingPage: React.FC = () => {
   const modeOptions: FilterOption[] = [
     { label: 'All Trip Modes', value: 'All' },
     { label: 'Single Commuter', value: 'Single Commuter' },
-    { label: 'Solo Charter', value: 'Solo Charter' },
+    { label: 'Solo Trip', value: 'Solo Trip' },
     { label: 'Shared Ride', value: 'Shared Ride' },
   ];
 

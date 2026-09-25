@@ -14,7 +14,9 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
+import { formatShortBookingId } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
+import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
 
 export const TripDetailPage: React.FC = () => {
@@ -34,6 +36,19 @@ export const TripDetailPage: React.FC = () => {
   const driverPhone = stateTrip?.driverPhone || "+639171234567";
   const price = stateTrip?.price || "₱110.00";
   const status = stateTrip?.status || "Completed";
+
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  const handleCopyTripId = () => {
+    if (tripId) {
+      navigator.clipboard.writeText(tripId);
+      setToastMessage(
+        language === "tl"
+          ? `Na-copy ang Buong Booking ID: ${tripId}`
+          : `Full Booking ID Copied: ${tripId}`
+      );
+    }
+  };
 
   const handleRebook = () => {
     sessionStorage.setItem(
@@ -113,15 +128,18 @@ export const TripDetailPage: React.FC = () => {
             Booking ID
           </Typography>
           <Typography
+            onClick={handleCopyTripId}
             sx={{
               fontSize: "14px",
               fontWeight: 800,
               color: "#0F172A",
               fontFamily: "Poppins, sans-serif",
               mb: 0.5,
+              cursor: "pointer",
+              "&:active": { opacity: 0.7 },
             }}
           >
-            {tripId}
+            {formatShortBookingId(tripId)}
           </Typography>
           <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#64748B", fontFamily: "Poppins, sans-serif", mb: 2 }}>
             {dateString}, {timeString}
@@ -226,23 +244,35 @@ export const TripDetailPage: React.FC = () => {
             {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
           </Typography>
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Unang 2.0 km (Base Fare)" : "Base Fare (First 2.0 km)"}
-            </Typography>
-            <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              ₱20.00
-            </Typography>
-          </Box>
+          {(() => {
+            const numPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 60;
+            const isSolo = stateTrip?.type !== "Share" && numPrice >= 60;
+            const baseFareVal = isSolo ? 60 : 15;
+            const distanceChargeVal = Math.max(0, numPrice - baseFareVal);
+            return (
+              <>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                    {language === "tl"
+                      ? `Unang 2.0 km (Base Fare${isSolo ? " • Solo" : ""})`
+                      : `Base Fare (First 2.0 km${isSolo ? " • Solo" : ""})`}
+                  </Typography>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                    ₱{baseFareVal.toFixed(2)}
+                  </Typography>
+                </Box>
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Dagdag na Distansya" : "Distance Charge"}
-            </Typography>
-            <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              ₱{Math.max(0, (parseFloat(price.replace(/[^0-9.]/g, "")) || 35) - 20).toFixed(2)}
-            </Typography>
-          </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                    {language === "tl" ? "Dagdag na Distansya" : "Distance Charge"}
+                  </Typography>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                    ₱{distanceChargeVal.toFixed(2)}
+                  </Typography>
+                </Box>
+              </>
+            );
+          })()}
 
           <Divider sx={{ borderColor: "#F1F5F9", my: 0.5 }} />
 
@@ -336,6 +366,11 @@ export const TripDetailPage: React.FC = () => {
           </Button>
         </Box>
       </Box>
+
+      {/* Copy Toast */}
+      {toastMessage && (
+        <SakayToast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
     </Box>
   );
 };

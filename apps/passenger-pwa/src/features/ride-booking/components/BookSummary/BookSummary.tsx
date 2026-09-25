@@ -24,6 +24,7 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import { supabase } from "../../../../services/supabaseClient";
 import SuccessModal from "../../../../common/components/SuccessModal";
 import { createBooking } from "../../../../services/bookingService";
+import { calculateFare } from "@sakay/shared";
 
 interface LocationState {
   address: string;
@@ -153,20 +154,17 @@ const BookSummary: React.FC = () => {
       source = "fallback";
     }
 
-    roadDistance = Math.round(roadDistance * 100) / 100;
     setDistance(roadDistance);
     setDistanceSource(source);
 
-    // Compute Seat Fare: base_fare + (max(0, distance - base_distance) * succeeding_rate)
-    const extraDistance = Math.max(0, roadDistance - baseDistance);
-    const computedSeatFare = baseFare + extraDistance * succeedingRate;
-    const roundedSeat = Math.round(computedSeatFare * 100) / 100;
-    setSeatFare(roundedSeat);
+    const result = calculateFare(roadDistance, type, passengerCount, {
+      baseFare,
+      baseDistanceKm: baseDistance,
+      succeedingRate,
+    });
 
-    // Solo Trip: Seat Fare * 4 (exclusive tricycle capacity)
-    // Shared Trip: Seat Fare * passengerCount (proportionately divided by seat count)
-    const computedTotalFare = type === "Solo" ? roundedSeat * 4 : roundedSeat * passengerCount;
-    setFare(Math.round(computedTotalFare * 100) / 100);
+    setSeatFare(result.seatFare);
+    setFare(result.totalFare);
 
     setLoading(false);
   };
@@ -180,10 +178,9 @@ const BookSummary: React.FC = () => {
     }
     sessionStorage.setItem("trip_type", newType);
     sessionStorage.setItem("trip_passengers", newPassengers.toString());
-    if (seatFare > 0) {
-      const newTotal = newType === "Solo" ? seatFare * 4 : seatFare * newPassengers;
-      setFare(Math.round(newTotal * 100) / 100);
-    }
+    const result = calculateFare(distance, newType, newPassengers);
+    setSeatFare(result.seatFare);
+    setFare(result.totalFare);
   };
 
   const handleChangePassengers = (delta: number) => {
@@ -191,10 +188,9 @@ const BookSummary: React.FC = () => {
     const next = Math.max(1, Math.min(max, passengers + delta));
     setPassengers(next);
     sessionStorage.setItem("trip_passengers", next.toString());
-    if (seatFare > 0) {
-      const newTotal = tripType === "Solo" ? seatFare * 4 : seatFare * next;
-      setFare(Math.round(newTotal * 100) / 100);
-    }
+    const result = calculateFare(distance, tripType, next);
+    setSeatFare(result.seatFare);
+    setFare(result.totalFare);
   };
 
   const [createdBookingId, setCreatedBookingId] = useState<string>("");

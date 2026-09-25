@@ -157,7 +157,7 @@ export interface TodaBooking {
   dropoffLocation: string;
   distanceKm: number;
   fareAmount: number;
-  tripMode: 'Single Commuter' | 'Solo Charter' | 'Shared Ride';
+  tripMode: 'Single Commuter' | 'Solo Trip' | 'Shared Ride';
   status: 'Completed' | 'In Progress' | 'Cancelled';
   paymentMethod: 'Cash';
   timestamp: string;

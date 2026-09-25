@@ -185,7 +185,7 @@ export const FareConfigurationPage: React.FC = () => {
           <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Excess distance increment</Typography>
         </Box>
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Solo Charter Base</Typography>
+          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Solo Trip Base</Typography>
           <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#2E7D32' }}>₱{(activeMatrix.base_fare * 4).toFixed(2)}</Typography>
           <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>4-Seat capacity charter</Typography>
         </Box>
@@ -545,7 +545,7 @@ export const FareConfigurationPage: React.FC = () => {
                 <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#1565C0' }}>₱{selectedVersion.succeeding_rate.toFixed(2)} / km</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Solo Charter Base (4 Seats)</Typography>
+                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Solo Trip Base (4 Seats)</Typography>
                 <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#2E7D32' }}>₱{(selectedVersion.base_fare * 4).toFixed(2)}</Typography>
               </Box>
               <Box sx={{ gridColumn: 'span 2' }}>

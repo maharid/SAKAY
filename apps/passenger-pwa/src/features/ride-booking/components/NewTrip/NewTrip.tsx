@@ -25,6 +25,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import totoHeadImg from "@sakay/shared/src/assets/icons/toto-head.webp";
+import { calculateFare } from "@sakay/shared";
 
 import MapView from "../../../../common/components/MapView";
 import PassengerCancelModal from "../../../../common/components/PassengerCancelModal";
@@ -176,11 +177,11 @@ const NewTrip: React.FC = () => {
         return {
           baseFare: Number(parsed.base_fare) || 15.0,
           baseKm: Number(parsed.base_distance_km) || 2.0,
-          succRate: Number(parsed.succeeding_rate) || 1.5,
+          succRate: Number(parsed.succeeding_rate) ?? 1.0,
         };
       }
     } catch {}
-    return { baseFare: 15.0, baseKm: 2.0, succRate: 1.5 };
+    return { baseFare: 15.0, baseKm: 2.0, succRate: 1.0 };
   });
 
   const [tripDistanceKm, setTripDistanceKm] = useState<number>(3.5);
@@ -241,7 +242,7 @@ const NewTrip: React.FC = () => {
           const formatted = {
             baseFare: Number(data.base_fare) || 15.0,
             baseKm: Number(data.base_distance_km) || 2.0,
-            succRate: Number(data.succeeding_rate) || 1.5,
+            succRate: Number(data.succeeding_rate) ?? 1.0,
           };
           setActiveTariff(formatted);
           localStorage.setItem("sakay_active_fare_matrix", JSON.stringify(data));
@@ -334,22 +335,14 @@ const NewTrip: React.FC = () => {
     roadDist = Math.max(0.5, Number(roadDist.toFixed(2)));
     setTripDistanceKm(roadDist);
 
-    // Calculate official fare from active tariff (Calapan City Ordinance No. 110, S. 2022)
-    // Base Seat Fare = ₱15 (first 2 km), Succeeding distance = ₱1/km
-    let seatFare = activeTariff.baseFare;
-    if (roadDist > activeTariff.baseKm) {
-      seatFare += (roadDist - activeTariff.baseKm) * activeTariff.succRate;
-    }
+    // Calculate official SAKAY estimated fare using central fare calculator
+    const result = calculateFare(roadDist, tripType, passengers, {
+      baseFare: activeTariff.baseFare,
+      baseDistanceKm: activeTariff.baseKm,
+      succeedingRate: activeTariff.succRate,
+    });
 
-    let fare = 0;
-    if (tripType === "Solo") {
-      fare = seatFare * 4; // Reserving full 4 seats (Solo Charter)
-    } else {
-      fare = seatFare * passengers; // Shared seat fare * declared passenger count
-    }
-
-    fare = Math.round(fare);
-    setEstimatedFare(fare);
+    setEstimatedFare(result.totalFare);
   }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, tripType, passengers, activeTariff]);
 
   useEffect(() => {
@@ -1233,8 +1226,7 @@ const NewTrip: React.FC = () => {
                   sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" }, p: 0, mt: 0.25 }}
                 />
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#1E40AF", display: "flex", alignItems: "center", gap: 0.5, mb: 0.25, fontFamily: "Poppins, sans-serif" }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 15, color: "#2563EB" }} />
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#1E40AF", display: "flex", alignItems: "center", mb: 0.25, fontFamily: "Poppins, sans-serif" }}>
                     {language === "tl" ? "Paunawa sa Shared Trip" : "Shared Trip Notice"}
                   </Typography>
                   <Typography sx={{ fontSize: "11.5px", color: "#1E3A8A", lineHeight: 1.45, fontFamily: "Poppins, sans-serif" }}>
@@ -1480,75 +1472,98 @@ const NewTrip: React.FC = () => {
         </Box>
 
         {/* Receipt Container Body */}
-        <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: "16px",
-              backgroundColor: "#F8FAFC",
-              border: "1px dashed #CBD5E1",
-              display: "flex",
-              flexDirection: "column",
-              gap: 1.25,
-            }}
-          >
-            {/* Distance Row */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                {language === "tl" ? "Kabuuang Distansya" : "Total Distance"}
-              </Typography>
-              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                {tripDistanceKm.toFixed(1)} km
-              </Typography>
+        {(() => {
+          const breakdown = calculateFare(tripDistanceKm, tripType, passengers, {
+            baseFare: activeTariff.baseFare,
+            baseDistanceKm: activeTariff.baseKm,
+            succeedingRate: activeTariff.succRate,
+          });
+          return (
+            <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: "16px",
+                  backgroundColor: "#F8FAFC",
+                  border: "1px dashed #CBD5E1",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.25,
+                }}
+              >
+                {/* Distance Row */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                    {language === "tl" ? "Kabuuang Distansya" : "Total Distance"}
+                  </Typography>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                    {tripDistanceKm.toFixed(1)} km
+                  </Typography>
+                </Box>
+
+                {/* Base Fare Row */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                      {language === "tl" ? "Unang 2.0 km (Base Fare)" : "Base Fare (First 2.0 km)"}
+                    </Typography>
+                    {tripType === "Solo" && (
+                      <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                        ₱15.00 × 4 {language === "tl" ? "upuan (Solo)" : "seats (Solo)"}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                    ₱{breakdown.baseFareTotal.toFixed(2)}
+                  </Typography>
+                </Box>
+
+                {/* Distance Charge Row */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                      {language === "tl"
+                        ? `Dagdag na Distansya (${breakdown.succeedingDistanceKm.toFixed(1)} km)`
+                        : `Distance Charge (${breakdown.succeedingDistanceKm.toFixed(1)} km)`}
+                    </Typography>
+                    {tripType === "Solo" && breakdown.succeedingDistanceKm > 0 && (
+                      <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                        {breakdown.succeedingDistanceKm.toFixed(1)} km × ₱1.00 × 4
+                      </Typography>
+                    )}
+                  </Box>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                    ₱{breakdown.succeedingChargeTotal.toFixed(2)}
+                  </Typography>
+                </Box>
+
+                <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed", my: 0.5 }} />
+
+                {/* Total Fare Row */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                    {language === "tl" ? "Kabuuan" : "Total Fare"}
+                  </Typography>
+                  <Typography sx={{ fontSize: "17px", fontWeight: 900, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
+                    ₱{breakdown.totalFare.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Payment Method Badge */}
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 0.5 }}>
+                <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                  {language === "tl" ? "Paraan ng Pagbayad" : "Pay Using"}
+                </Typography>
+                <Chip
+                  label="₱ Cash"
+                  size="small"
+                  sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
+                />
+              </Box>
             </Box>
-
-            {/* Base Fare Row */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                {language === "tl" ? "Unang 2.0 km (Base Fare)" : "Base Fare (First 2.0 km)"}
-              </Typography>
-              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                ₱20.00
-              </Typography>
-            </Box>
-
-            {/* Distance Charge Row */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                {language === "tl"
-                  ? `Dagdag na Distansya (${Math.max(0, tripDistanceKm - 2).toFixed(1)} km)`
-                  : `Distance Charge (${Math.max(0, tripDistanceKm - 2).toFixed(1)} km)`}
-              </Typography>
-              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                ₱{Math.max(0, estimatedFare - 20).toFixed(2)}
-              </Typography>
-            </Box>
-
-            <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed", my: 0.5 }} />
-
-            {/* Total Fare Row */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                {language === "tl" ? "Kabuuan" : "Total Fare"}
-              </Typography>
-              <Typography sx={{ fontSize: "17px", fontWeight: 900, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
-                ₱{estimatedFare.toFixed(2)}
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Payment Method Badge */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 0.5 }}>
-            <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Paraan ng Pagbayad" : "Pay Using"}
-            </Typography>
-            <Chip
-              label="₱ Cash"
-              size="small"
-              sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
-            />
-          </Box>
-        </Box>
+          );
+        })()}
       </Dialog>
 
       {/* 8. Trip Type Info Modal */}

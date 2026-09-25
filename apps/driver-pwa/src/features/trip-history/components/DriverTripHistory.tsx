@@ -13,16 +13,20 @@ import {
   DialogActions,
   Button,
   CircularProgress,
+  Rating as MuiRating,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
+import StarIcon from '@mui/icons-material/Star';
 
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { formatShortBookingId } from '@sakay/shared';
+import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
 
 export interface TripRecord {
   id: string;
@@ -44,14 +48,28 @@ export const DriverTripHistory: React.FC = () => {
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState<TripRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<'trips' | 'ratings'>('trips');
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [selectedTripToRate, setSelectedTripToRate] = useState<TripRecord | null>(null);
+  const [givenRatings, setGivenRatings] = useState<any[]>([]);
+
+  const loadGivenRatings = () => {
+    try {
+      const raw = localStorage.getItem('sakay_driver_passenger_ratings');
+      setGivenRatings(raw ? JSON.parse(raw) : []);
+    } catch {
+      setGivenRatings([]);
+    }
+  };
 
   useEffect(() => {
+    loadGivenRatings();
     const driverId = localStorage.getItem('sakay_driver_id') || undefined;
     fetchDriverTrips(driverId)
       .then((data) => {
         const mapped: TripRecord[] = (data || []).map((b: any) => ({
           id: b.id,
-          bookingCode: b.bookingCode || `BKG-${b.id.slice(0, 8)}`,
+          bookingCode: formatShortBookingId(b.bookingCode || b.id),
           passengerName: b.passengerName || 'Calapan Commuter',
           pickupLocation: b.pickupLocation || 'Calapan City',
           dropoffLocation: b.dropoffLocation || 'Calapan City',
@@ -68,6 +86,12 @@ export const DriverTripHistory: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleOpenRateModal = (trip: TripRecord, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedTripToRate(trip);
+    setRatingModalOpen(true);
+  };
+
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
       {/* Header matching Alerts header style */}
@@ -76,10 +100,141 @@ export const DriverTripHistory: React.FC = () => {
         onBack={() => navigate('/driver/home')}
       />
 
-      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {/* Segmented Control / Tabs matching Passenger History */}
+      <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            backgroundColor: '#E2E8F0',
+            borderRadius: '14px',
+            p: 0.5,
+            gap: 0.5,
+          }}
+        >
+          <Button
+            fullWidth
+            disableRipple
+            onClick={() => setActiveTab('trips')}
+            sx={{
+              py: 0.75,
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: activeTab === 'trips' ? 700 : 500,
+              fontFamily: 'Poppins, sans-serif',
+              textTransform: 'none',
+              backgroundColor: activeTab === 'trips' ? '#FFFFFF' : 'transparent',
+              color: activeTab === 'trips' ? '#FF6B00' : '#64748B',
+              boxShadow: activeTab === 'trips' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              '&:hover': { backgroundColor: activeTab === 'trips' ? '#FFFFFF' : 'rgba(0,0,0,0.02)' },
+            }}
+          >
+            {language === 'tl' ? 'Mga Biyahe' : 'Past Rides'}
+          </Button>
+          <Button
+            fullWidth
+            disableRipple
+            onClick={() => {
+              loadGivenRatings();
+              setActiveTab('ratings');
+            }}
+            sx={{
+              py: 0.75,
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: activeTab === 'ratings' ? 700 : 500,
+              fontFamily: 'Poppins, sans-serif',
+              textTransform: 'none',
+              backgroundColor: activeTab === 'ratings' ? '#FFFFFF' : 'transparent',
+              color: activeTab === 'ratings' ? '#FF6B00' : '#64748B',
+              boxShadow: activeTab === 'ratings' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              '&:hover': { backgroundColor: activeTab === 'ratings' ? '#FFFFFF' : 'rgba(0,0,0,0.02)' },
+            }}
+          >
+            {language === 'tl' ? 'Rating sa Pasahero' : 'Passenger Ratings'}
+          </Button>
+        </Box>
+      </Box>
+
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, pb: 4 }}>
         {loading ? (
           <Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <CircularProgress size={32} sx={{ color: '#FF6B00' }} />
+          </Box>
+        ) : activeTab === 'ratings' ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {givenRatings.length === 0 ? (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 4,
+                  borderRadius: '16px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
+                  textAlign: 'center',
+                }}
+              >
+                <StarIcon sx={{ fontSize: 44, color: '#CBD5E1', mb: 1 }} />
+                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.5 }}>
+                  {language === 'tl' ? 'Wala pang naitatalang rating sa pasahero' : 'No passenger ratings submitted yet'}
+                </Typography>
+                <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
+                  {language === 'tl'
+                    ? 'Lilitaw dito ang mga rating at feedback na ibinigay mo sa iyong mga pasahero.'
+                    : 'Ratings and feedback submitted for your passengers will appear here.'}
+                </Typography>
+              </Paper>
+            ) : (
+              givenRatings.map((r, i) => (
+                <Paper
+                  key={i}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: '16px',
+                    border: '1px solid #E2E8F0',
+                    backgroundColor: '#FFFFFF',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                      {r.passengerName || 'Calapan Commuter'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '11px', color: '#94A3B8', fontFamily: 'Poppins, sans-serif' }}>
+                      {r.date}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <MuiRating value={r.stars || 5} readOnly size="small" sx={{ color: '#FF6B00' }} />
+                    <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#FF6B00' }}>
+                      {(r.stars || 5).toFixed(1)} / 5.0
+                    </Typography>
+                  </Box>
+
+                  {r.tags && r.tags.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                      {r.tags.map((t: string) => (
+                        <Chip
+                          key={t}
+                          label={t}
+                          size="small"
+                          sx={{ fontSize: '10.5px', backgroundColor: '#FFF8F0', color: '#FF6B00', height: 22 }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+
+                  {r.comment && (
+                    <Typography sx={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', mt: 0.5 }}>
+                      "{r.comment}"
+                    </Typography>
+                  )}
+                </Paper>
+              ))
+            )}
           </Box>
         ) : trips.length === 0 ? (
           <Paper
@@ -162,6 +317,28 @@ export const DriverTripHistory: React.FC = () => {
                   <Typography sx={{ fontSize: '12px', color: '#334155' }}>{trip.dropoffLocation}</Typography>
                 </Box>
               </Box>
+
+              {/* Action row to rate passenger */}
+              <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  size="small"
+                  startIcon={<StarIcon sx={{ fontSize: 15 }} />}
+                  onClick={(e) => handleOpenRateModal(trip, e)}
+                  sx={{
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    color: '#FF6B00',
+                    textTransform: 'none',
+                    py: 0.5,
+                    px: 1.2,
+                    borderRadius: '8px',
+                    backgroundColor: '#FFF8F0',
+                    '&:hover': { backgroundColor: '#FFE4D6' },
+                  }}
+                >
+                  {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
+                </Button>
+              </Box>
             </Paper>
           ))
         )}
@@ -233,16 +410,37 @@ export const DriverTripHistory: React.FC = () => {
               </Typography>
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
+          <DialogActions sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
             <Button
               fullWidth
               variant="contained"
-              onClick={() => setSelectedTrip(null)}
+              startIcon={<StarIcon />}
+              onClick={() => {
+                const tripToRate = selectedTrip;
+                setSelectedTrip(null);
+                handleOpenRateModal(tripToRate);
+              }}
               sx={{
                 height: 44,
                 borderRadius: '12px',
-                backgroundColor: '#0F172A',
+                backgroundColor: '#FF6B00',
                 fontWeight: 700,
+                textTransform: 'none',
+                '&:hover': { backgroundColor: '#E05000' },
+              }}
+            >
+              {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => setSelectedTrip(null)}
+              sx={{
+                height: 40,
+                borderRadius: '12px',
+                borderColor: '#CBD5E1',
+                color: '#64748B',
+                fontWeight: 600,
                 textTransform: 'none',
               }}
             >
@@ -250,6 +448,23 @@ export const DriverTripHistory: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+      )}
+
+      {/* Driver -> Passenger Feedback Rating Modal */}
+      {selectedTripToRate && (
+        <DriverFeedbackModal
+          open={ratingModalOpen}
+          onClose={() => setRatingModalOpen(false)}
+          booking={{
+            booking_id: selectedTripToRate.id,
+            id: selectedTripToRate.id,
+            passenger_name: selectedTripToRate.passengerName,
+            passengerName: selectedTripToRate.passengerName,
+          }}
+          onSubmitted={() => {
+            loadGivenRatings();
+          }}
+        />
       )}
     </Box>
   );

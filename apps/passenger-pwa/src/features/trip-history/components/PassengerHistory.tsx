@@ -713,7 +713,7 @@ const PassengerHistory: React.FC = () => {
                 </Box>
               )}
               <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FF6B00", marginTop: "6px" }}>
-                {language === 'tl' ? 'Bayad:' : 'Fare:'} {selectedDetails.price} ({selectedDetails.type === "Share" ? (language === 'tl' ? "Shared Ride" : "Shared Ride") : (language === 'tl' ? "Solo Charter" : "Solo Charter")})
+                {language === 'tl' ? 'Bayad:' : 'Fare:'} {selectedDetails.price} ({selectedDetails.type === "Share" ? (language === 'tl' ? "Shared Ride" : "Shared Ride") : (language === 'tl' ? "Solo Trip" : "Solo Trip")})
               </Typography>
 
               {/* Previously Submitted Rating & Feedback */}

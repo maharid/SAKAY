@@ -98,7 +98,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
         <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 800, color: '#0F172A', mt: 1 }}>
           {incomingRequest.is_shared_trip
             ? (language === 'tl' ? 'Shared Commuter Ride' : 'Shared Commuter Ride')
-            : (language === 'tl' ? 'Solo Charter Ride' : 'Solo Charter Ride')}
+            : (language === 'tl' ? 'Solo Trip' : 'Solo Trip')}
         </Typography>
         <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, color: '#64748B' }}>
           {language === 'tl' ? 'Pasahero:' : 'Passenger:'} <strong>{incomingRequest.passenger_name}</strong> • {incomingRequest.passenger_count} {language === 'tl' ? 'pasahero' : 'passenger(s)'}

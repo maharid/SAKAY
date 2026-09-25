@@ -383,7 +383,7 @@ export const MOCK_TODA_BOOKINGS: TodaBooking[] = [
     dropoffLocation: 'Lumangbayan Barangay Hall',
     distanceKm: 4.2,
     fareAmount: 45,
-    tripMode: 'Solo Charter',
+    tripMode: 'Solo Trip',
     status: 'Completed',
     paymentMethod: 'Cash',
     timestamp: 'May 12, 2026 • 08:30 AM',

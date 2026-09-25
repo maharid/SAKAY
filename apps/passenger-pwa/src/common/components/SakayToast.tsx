@@ -6,7 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
 
 export interface SakayToastProps {
-  open: boolean;
+  open?: boolean;
   message: string | null;
   severity?: "success" | "info" | "warning" | "error";
   onClose: () => void;
@@ -18,7 +18,7 @@ export interface SakayToastProps {
 }
 
 export const SakayToast: React.FC<SakayToastProps> = ({
-  open,
+  open = true,
   message,
   severity = "info",
   onClose,

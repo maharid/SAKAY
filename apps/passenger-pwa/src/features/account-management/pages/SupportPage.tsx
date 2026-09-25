@@ -39,7 +39,7 @@ const FAQS_TL = [
 const FAQS_EN = [
   {
     q: "How are SAKAY fares calculated?",
-    a: "Fares strictly adhere to the Official Calapan City TODA Fare Matrix. Solo Charter rides start at a base fare of ₱15 multiplied by 4 (total ₱60 for chartering the full vehicle) plus distance. Shared rides divide the tariff proportionately among passengers.",
+    a: "Fares strictly adhere to the Official Calapan City TODA Fare Matrix. Solo Trip rides start at a base fare of ₱15 multiplied by 4 (total ₱60 for chartering the full vehicle) plus distance. Shared rides divide the tariff proportionately among passengers.",
   },
   {
     q: "How do I report a driver or lost item?",

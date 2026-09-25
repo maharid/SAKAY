@@ -25,13 +25,12 @@ import SendIcon from '@mui/icons-material/Send';
 import GroupsIcon from '@mui/icons-material/Groups';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-
 import MapView from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
+import SakayToast from '../../../common/components/SakayToast';
 import { getBooking, cancelBooking, updateBookingState } from '../../../services/bookingService';
 import type { BookingRecord } from '@sakay/shared';
+import { formatShortBookingId } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 
@@ -254,11 +253,53 @@ export const TripMonitoring: React.FC = () => {
   });
 
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [leaveConfirmModalOpen, setLeaveConfirmModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [customSms, setCustomSms] = useState('');
   const [smsAlert, setSmsAlert] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Draggable Bottom Sheet State
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [dragY, setDragY] = useState(0);
+  const isDraggingRef = useRef(false);
+  const startYRef = useRef(0);
+
+  const handleCopyBookingId = () => {
+    if (activeBookingId) {
+      navigator.clipboard.writeText(activeBookingId);
+      setToastMessage(
+        language === 'tl'
+          ? `Na-copy ang Buong Booking ID: ${activeBookingId}`
+          : `Full Booking ID Copied: ${activeBookingId}`
+      );
+    }
+  };
+
+  const handleDragStart = (e: React.PointerEvent | React.TouchEvent) => {
+    isDraggingRef.current = true;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.PointerEvent).clientY;
+    startYRef.current = clientY;
+  };
+
+  const handleDragMove = (e: React.PointerEvent | React.TouchEvent) => {
+    if (!isDraggingRef.current) return;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.PointerEvent).clientY;
+    const deltaY = clientY - startYRef.current;
+    // Allow dragging up (negative deltaY) or down (positive deltaY)
+    setDragY(deltaY);
+  };
+
+  const handleDragEnd = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    if (dragY < -40) {
+      setIsExpanded(true);
+    } else if (dragY > 40) {
+      setIsExpanded(false);
+    }
+    setDragY(0);
+  };
 
   // Workflow Step 12: Trip Completion & Fare Confirmation State
   const [completionFareModalOpen, setCompletionFareModalOpen] = useState(false);
@@ -577,7 +618,7 @@ export const TripMonitoring: React.FC = () => {
               fontFamily: 'Poppins, sans-serif',
             }}
           >
-            Booking: <strong>{activeBookingId}</strong>
+            Booking: <strong onClick={handleCopyBookingId} style={{ cursor: 'pointer' }} title="Click to copy full Booking ID">{formatShortBookingId(activeBookingId)}</strong>
           </Typography>
         </Box>
 
@@ -679,32 +720,53 @@ export const TripMonitoring: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* 3. Driver & Trip Details (Bottom Sheet Card with ONLY Top Rounded Corners) */}
+      {/* 3. Driver & Trip Details (Mobile Draggable Bottom Sheet) */}
       <Paper
         elevation={8}
-        onScroll={(e) => {
-          const st = e.currentTarget.scrollTop;
-          if (st > 20) {
-            setIsScrolledDown(true);
-          } else {
-            setIsScrolledDown(false);
-          }
-        }}
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onTouchStart={handleDragStart}
+        onTouchMove={handleDragMove}
+        onTouchEnd={handleDragEnd}
         className="hide-scrollbar"
         sx={{
           backgroundColor: '#FFFFFF',
           borderRadius: '24px 24px 0 0',
-          padding: '20px 20px calc(var(--safe-area-bottom) + 16px) 20px',
+          padding: '12px 20px calc(var(--safe-area-bottom) + 16px) 20px',
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
           zIndex: 20,
           width: '100%',
-          maxHeight: '65vh',
-          overflowY: 'auto',
+          maxHeight: isExpanded ? '78vh' : '38vh',
+          transform: dragY !== 0 ? `translateY(${dragY}px)` : 'none',
+          transition: isDraggingRef.current ? 'none' : 'max-height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.2s ease',
           boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.08)',
+          overflowY: isExpanded ? 'auto' : 'hidden',
         }}
       >
+        {/* Drag Handle Bar */}
+        <Box
+          onClick={() => setIsExpanded(!isExpanded)}
+          sx={{
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            cursor: 'grab',
+            py: 0.5,
+            userSelect: 'none',
+          }}
+        >
+          <Box sx={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1', mb: 0.5 }} />
+          <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#94A3B8', fontFamily: 'Poppins, sans-serif' }}>
+            {isExpanded
+              ? (language === 'tl' ? '▼ Drag pababa para i-collapse' : '▼ Drag down to collapse')
+              : (language === 'tl' ? '▲ Drag pataas para sa cancel trip & options' : '▲ Drag up for cancel trip & options')}
+          </Typography>
+        </Box>
+
         {/* Driver Identity Card */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -797,68 +859,21 @@ export const TripMonitoring: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Scroll-Driven Actions (Finish Trip vs Cancel Trip) */}
+        {/* Draggable Sheet Revealed Actions (Finish Trip & Visually Separated Cancel Trip) */}
         {status !== 'Completed' && (
           <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
-            {!isScrolledDown ? (
-              <>
-                {/* Un-scrolled State: Show Slide to Finish Trip & "Scroll down to cancel trip" indicator. Slide to Cancel is hidden */}
-                {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
-                  <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
-                )}
+            {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
+              <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
+            )}
 
-                <Box
-                  onClick={() => setIsScrolledDown(true)}
-                  sx={{
-                    pt: 1.5,
-                    pb: 0.5,
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: '#94A3B8',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 0.5,
-                      fontFamily: 'Poppins, sans-serif',
-                      '&:hover': { color: '#64748B' },
-                    }}
-                  >
-                    <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
-                    {language === 'tl' ? 'Scroll down to cancel trip' : 'Scroll down to cancel trip'}
-                  </Typography>
-                </Box>
-              </>
-            ) : (
-              <>
-                {/* Scrolled Down State: Hide Finish Trip & Indicator, Show Slide to Cancel Trip */}
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography
-                    onClick={() => setIsScrolledDown(false)}
-                    sx={{
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      color: '#64748B',
-                      mb: 0.5,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 0.5,
-                      fontFamily: 'Poppins, sans-serif',
-                    }}
-                  >
-                    ▲ {language === 'tl' ? 'Bumalik sa Finish Trip' : 'Back to Finish Trip'}
-                  </Typography>
-                  <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
-                </Box>
-              </>
+            {/* Revealed Destructive Action when Expanded */}
+            {isExpanded && (
+              <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #FCA5A5', textAlign: 'center' }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
+                  {language === 'tl' ? 'Kanselahin ang Biyahe' : 'Cancel Trip'}
+                </Typography>
+                <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
+              </Box>
             )}
           </Box>
         )}
@@ -1178,6 +1193,8 @@ export const TripMonitoring: React.FC = () => {
           </DialogActions>
         )}
       </Dialog>
+
+      <SakayToast message={toastMessage} onClose={() => setToastMessage(null)} />
     </Box>
   );
 };

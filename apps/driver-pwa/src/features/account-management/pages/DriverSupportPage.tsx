@@ -41,7 +41,7 @@ const FAQS_TL = [
 const FAQS_EN = [
   {
     q: 'How are driver tariffs calculated in SAKAY?',
-    a: 'Fares strictly follow the Official Calapan City TODA Fare Matrix. Solo Charter rides charge a base fare of ₱15 multiplied by 4 (total ₱60 for full vehicle) plus distance fare.',
+    a: 'Fares strictly follow the Official Calapan City TODA Fare Matrix. Solo Trip rides charge a base fare of ₱15 multiplied by 4 (total ₱60 for full vehicle) plus distance fare.',
   },
   {
     q: 'What should I do if a passenger refuses to pay or in case of incident?',
