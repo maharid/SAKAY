@@ -402,7 +402,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           }
           sx={{
             position: 'absolute',
-            top: 'calc(var(--safe-area-top) + 78px)',
+            top: 'calc(var(--safe-area-top) + 94px)',
             left: '50%',
             transform: 'translateX(-50%)',
             backgroundColor: '#FFFFFF',

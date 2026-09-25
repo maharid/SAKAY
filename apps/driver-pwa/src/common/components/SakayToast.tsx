@@ -6,7 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
 
 export interface SakayToastProps {
-  open: boolean;
+  open?: boolean;
   message: string | null;
   severity?: "success" | "info" | "warning" | "error";
   onClose: () => void;
@@ -18,7 +18,7 @@ export interface SakayToastProps {
 }
 
 export const SakayToast: React.FC<SakayToastProps> = ({
-  open,
+  open = true,
   message,
   severity = "info",
   onClose,
@@ -49,6 +49,34 @@ export const SakayToast: React.FC<SakayToastProps> = ({
 
   if (!message) return null;
 
+  const getBackgroundColor = () => {
+    switch (severity) {
+      case "success":
+        return "#10B981";
+      case "warning":
+        return "#F59E0B";
+      case "error":
+        return "#EF4444";
+      case "info":
+      default:
+        return "#FF6B00";
+    }
+  };
+
+  const getShadowColor = () => {
+    switch (severity) {
+      case "success":
+        return "0 10px 28px rgba(16, 185, 129, 0.35)";
+      case "warning":
+        return "0 10px 28px rgba(245, 158, 11, 0.35)";
+      case "error":
+        return "0 10px 28px rgba(239, 68, 68, 0.35)";
+      case "info":
+      default:
+        return "0 10px 28px rgba(255, 107, 0, 0.35)";
+    }
+  };
+
   return (
     <Snackbar
       open={open}
@@ -58,7 +86,7 @@ export const SakayToast: React.FC<SakayToastProps> = ({
       sx={{
         zIndex: 9999,
         width: "calc(100% - 32px)",
-        maxWidth: "400px",
+        maxWidth: "420px",
         left: "50% !important",
         right: "auto !important",
         transform: "translateX(-50%) !important",
@@ -75,25 +103,40 @@ export const SakayToast: React.FC<SakayToastProps> = ({
             aria-label="close"
             color="inherit"
             onClick={onClose}
-            sx={{ p: 0.5 }}
+            sx={{
+              p: 0.5,
+              ml: 1,
+              backgroundColor: "rgba(255, 255, 255, 0.2)",
+              borderRadius: "50%",
+              "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.3)" },
+            }}
           >
-            <CloseIcon sx={{ fontSize: 18 }} />
+            <CloseIcon sx={{ fontSize: 16 }} />
           </IconButton>
         }
         sx={{
           width: "100%",
-          borderRadius: "14px",
+          borderRadius: "16px",
+          backgroundColor: `${getBackgroundColor()} !important`,
+          color: "#FFFFFF !important",
           fontFamily: "Poppins, sans-serif",
-          fontSize: "13px",
-          fontWeight: 600,
-          boxShadow: "0 4px 16px rgba(15, 23, 42, 0.15)",
+          fontSize: "13.5px",
+          fontWeight: 700,
+          boxShadow: getShadowColor(),
           position: "relative",
           overflow: "hidden",
-          pr: 1,
+          py: 1,
+          px: 2,
           alignItems: "center",
+          border: "1px solid rgba(255, 255, 255, 0.25)",
+          "& .MuiAlert-icon": {
+            fontSize: "22px",
+            color: "#FFFFFF",
+            mr: 1.25,
+          },
         }}
       >
-        <Box sx={{ pr: 1 }}>{message}</Box>
+        <Box sx={{ pr: 0.5, lineHeight: 1.35 }}>{message}</Box>
 
         {/* Animated Progress Timer Bar */}
         <Box
@@ -101,9 +144,10 @@ export const SakayToast: React.FC<SakayToastProps> = ({
             position: "absolute",
             bottom: 0,
             left: 0,
-            height: "3px",
+            height: "3.5px",
             width: `${progress}%`,
-            backgroundColor: "rgba(255, 255, 255, 0.7)",
+            backgroundColor: "rgba(255, 255, 255, 0.75)",
+            borderRadius: "0 999px 999px 0",
             transition: open ? `width ${autoHideDuration}ms linear` : "none",
           }}
         />
