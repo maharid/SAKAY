@@ -40,13 +40,20 @@ export const SakayToast: React.FC<SakayToastProps> = ({
     }
   }, [open, message, autoHideDuration]);
 
+  const handleClose = (_event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    onClose();
+  };
+
   if (!message) return null;
 
   return (
     <Snackbar
       open={open}
       autoHideDuration={autoHideDuration}
-      onClose={onClose}
+      onClose={handleClose}
       anchorOrigin={anchorOrigin}
       sx={{
         zIndex: 9999,

@@ -455,14 +455,14 @@ export const DriverAvailabilityHome: React.FC = () => {
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+            <Typography sx={{ fontSize: '10.5px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Kinabibilangang TODA' : 'Active TODA Affiliation'}
             </Typography>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', mt: '2px' }}>
+            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
               {displayTodaText}
             </Typography>
           </Box>
-          <ArrowForwardIosIcon sx={{ fontSize: 14, color: '#94A3B8' }} />
+          <ArrowForwardIosIcon sx={{ fontSize: 13, color: '#94A3B8' }} />
         </Box>
 
         <Box
@@ -477,10 +477,10 @@ export const DriverAvailabilityHome: React.FC = () => {
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+            <Typography sx={{ fontSize: '10.5px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Gamit na Tricycle Unit' : 'Tricycle Unit in Use'}
             </Typography>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', mt: '2px' }}>
+            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
               {selectedVehicle
                 ? `${language === 'tl' ? 'Plaka' : 'Plate'}: ${selectedVehicle.plateNumber} • Franchise: ${selectedVehicle.franchiseNumber}`
                 : (language === 'tl' ? 'Rehistradong Tricycle Unit' : 'Registered Tricycle Unit')}
@@ -489,12 +489,12 @@ export const DriverAvailabilityHome: React.FC = () => {
         </Box>
       </Paper>
 
-      <Dialog open={todaModalOpen} onClose={() => setTodaModalOpen(false)} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '20px' } } }}>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A' }}>
+      <Dialog open={todaModalOpen} onClose={() => setTodaModalOpen(false)} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '24px' } } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A', px: 2.5, pt: 2.5, pb: 1, fontFamily: 'Poppins, sans-serif' }}>
           {language === 'tl' ? 'Pumili ng Aktibong TODA' : 'Select Active TODA'}
         </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+        <DialogContent sx={{ px: 2.5, py: 0 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mt: 0.5 }}>
             {availableTodas.length > 0 ? (
               availableTodas.map((toda) => {
                 const isSelected = selectedTodaIds.includes(toda.id);
@@ -523,13 +523,14 @@ export const DriverAvailabilityHome: React.FC = () => {
                     }}
                   >
                     <Box>
-                      <Typography sx={{ fontWeight: 700, fontSize: '14.5px', color: '#0F172A' }}>{toda.name} ({toda.acronym})</Typography>
-                      <Typography sx={{ fontSize: '12px', color: '#64748B' }}>Terminal: {toda.terminalLocation}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: '13px', color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>{toda.name} ({toda.acronym})</Typography>
+                      <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>Terminal: {toda.terminalLocation}</Typography>
                     </Box>
                     <Radio
                       checked={isSelected}
                       sx={{
                         color: '#CBD5E1',
+                        p: 0.5,
                         '&.Mui-checked': { color: '#FF6B00' },
                       }}
                     />
@@ -538,14 +539,14 @@ export const DriverAvailabilityHome: React.FC = () => {
               })
             ) : (
               <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
+                <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
                   {language === 'tl' ? 'Walang nahanap na TODA sa database' : 'No TODAs found in database'}
                 </Typography>
               </Box>
             )}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
+        <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1.5 }}>
           <Button
             fullWidth
             variant="contained"
@@ -553,8 +554,11 @@ export const DriverAvailabilityHome: React.FC = () => {
             sx={{
               backgroundColor: '#FF6B00',
               fontWeight: 700,
-              borderRadius: '12px',
-              py: 1.2,
+              borderRadius: '14px',
+              height: '46px',
+              fontSize: '14px',
+              textTransform: 'none',
+              fontFamily: 'Poppins, sans-serif',
               '&:hover': { backgroundColor: '#E05300' },
             }}
           >

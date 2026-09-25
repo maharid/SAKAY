@@ -49,18 +49,37 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
   const passengerName = booking?.passenger_name || booking?.passengerName || 'Calapan Commuter';
 
   const [stars, setStars] = useState<number | null>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
-    language === 'tl' ? ['Magalang na Pasahero', 'Handa ang Sukli / Bayad'] : ['Courteous Passenger', 'Exact Payment Ready']
-  );
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [thankYouOpen, setThankYouOpen] = useState(false);
+  const [thankYouProgress, setThankYouProgress] = useState(100);
 
   const availableTags =
     language === 'tl'
       ? ['Magalang na Pasahero', 'Handa ang Sukli / Bayad', 'Nasa Sakayan sa Oras', 'Ligtas sa Biyahe', 'Maingat sa Tricycle']
       : ['Courteous Passenger', 'Exact Payment Ready', 'On Time at Pickup', 'Safe Rider', 'Respectful of Vehicle'];
+
+  // Handle Thank You Auto-Close
+  useEffect(() => {
+    if (thankYouOpen) {
+      setThankYouProgress(100);
+      const timerAnim = setTimeout(() => {
+        setThankYouProgress(0);
+      }, 50);
+
+      const timerClose = setTimeout(() => {
+        setThankYouOpen(false);
+        onClose();
+      }, 4000);
+
+      return () => {
+        clearTimeout(timerAnim);
+        clearTimeout(timerClose);
+      };
+    }
+  }, [thankYouOpen, onClose]);
 
   // Check if booking already rated
   useEffect(() => {
@@ -168,10 +187,10 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
         onClose={onClose}
         fullWidth
         maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
+        slotProps={{ paper: { sx: { borderRadius: '24px' } } }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
-          <Typography sx={{ fontSize: '17px', fontWeight: 800, fontFamily: 'Poppins, sans-serif' }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, pt: 2.5, pb: 1 }}>
+          <Typography sx={{ fontSize: '17px', fontWeight: 800, fontFamily: 'Poppins, sans-serif', color: '#0F172A' }}>
             {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
           </Typography>
           <IconButton onClick={onClose} size="small">
@@ -179,7 +198,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2.5, py: 0 }}>
           {/* Passenger Identity Card */}
           <Paper
             elevation={0}
@@ -271,7 +290,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2, pt: 0 }}>
+        <DialogActions sx={{ px: 2.5, pb: 2.5, pt: 1.5 }}>
           {alreadyRated ? (
             <Button
               fullWidth
@@ -284,6 +303,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                 color: '#10B981',
                 fontWeight: 700,
                 textTransform: 'none',
+                fontFamily: 'Poppins, sans-serif',
               }}
             >
               ✓ {language === 'tl' ? 'Na-rate na ang Pasahero' : 'Passenger Already Rated'}
@@ -300,7 +320,9 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                 backgroundColor: '#FF6B00',
                 color: '#FFFFFF',
                 fontWeight: 700,
+                fontSize: '14px',
                 textTransform: 'none',
+                fontFamily: 'Poppins, sans-serif',
                 boxShadow: 'none',
                 '&:hover': { backgroundColor: '#E05000' },
               }}
@@ -317,41 +339,62 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* Thank You Popup Dialog */}
+      {/* Thank You Popup Dialog with Progress Bar and Auto-close */}
       <Dialog
         open={thankYouOpen}
-        onClose={() => setThankYouOpen(false)}
+        onClose={() => {
+          setThankYouOpen(false);
+          onClose();
+        }}
         maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '24px', p: 2, textAlign: 'center' } } }}
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '24px',
+              p: 2.5,
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            },
+          },
+        }}
       >
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-          <CheckCircleIcon sx={{ fontSize: 52, color: '#10B981' }} />
+        <IconButton
+          size="small"
+          onClick={() => {
+            setThankYouOpen(false);
+            onClose();
+          }}
+          sx={{ position: 'absolute', top: 12, right: 12, color: '#64748B' }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, pt: 2, pb: 2 }}>
+          <CheckCircleIcon sx={{ fontSize: 56, color: '#10B981' }} />
           <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Salamat sa Rating!' : 'Thank You for Rating!'}
           </Typography>
-          <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif', lineHeight: 1.5 }}>
             {language === 'tl'
               ? 'Nai-record na ang iyong feedback para sa pasahero. Nakatutulong ito sa pagpapanatili ng magandang serbisyo ng SAKAY.'
               : 'Your feedback for the passenger has been recorded. This helps maintain SAKAY community quality.'}
           </Typography>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={() => {
-              setThankYouOpen(false);
-              onClose();
-            }}
-            sx={{
-              mt: 1,
-              borderRadius: '12px',
-              backgroundColor: '#FF6B00',
-              fontWeight: 700,
-              textTransform: 'none',
-            }}
-          >
-            {language === 'tl' ? 'Magpatuloy' : 'Continue'}
-          </Button>
         </DialogContent>
+
+        {/* Animated Progress Timer Bar at Bottom of Thank You Dialog */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            height: '4px',
+            width: `${thankYouProgress}%`,
+            backgroundColor: '#10B981',
+            transition: thankYouOpen ? 'width 4000ms linear' : 'none',
+          }}
+        />
       </Dialog>
     </>
   );

@@ -311,7 +311,7 @@ export const DriverTripHistory: React.FC = () => {
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <RadioButtonUncheckedIcon sx={{ color: '#FF6B00', fontSize: 16 }} />
+                  <RadioButtonUncheckedIcon sx={{ color: '#FF6B00', fontSize: 16, stroke: '#FF6B00', strokeWidth: 1.5 }} />
                   <Typography sx={{ fontSize: '12px', color: '#334155' }}>{trip.pickupLocation}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -321,25 +321,49 @@ export const DriverTripHistory: React.FC = () => {
               </Box>
 
               {/* Action row to rate passenger */}
-              <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                  size="small"
-                  startIcon={<StarIcon sx={{ fontSize: 15 }} />}
-                  onClick={(e) => handleOpenRateModal(trip, e)}
-                  sx={{
-                    fontSize: '11.5px',
-                    fontWeight: 700,
-                    color: '#FF6B00',
-                    textTransform: 'none',
-                    py: 0.5,
-                    px: 1.2,
-                    borderRadius: '8px',
-                    backgroundColor: '#FFF8F0',
-                    '&:hover': { backgroundColor: '#FFE4D6' },
-                  }}
-                >
-                  {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
-                </Button>
+              <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                {(() => {
+                  const savedRating = givenRatings.find(
+                    (r: any) => r.bookingId === trip.id || r.bookingId === trip.bookingCode || r.id === trip.id
+                  );
+                  if (savedRating) {
+                    return (
+                      <Chip
+                        icon={<StarIcon sx={{ fontSize: '13px !important', color: '#FF6B00 !important' }} />}
+                        label={`${language === 'tl' ? 'Na-rate:' : 'Rated:'} ${(savedRating.stars || 5).toFixed(1)} ★`}
+                        size="small"
+                        sx={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: '#FFF8F0',
+                          color: '#FF6B00',
+                          height: '24px',
+                          fontFamily: 'Poppins, sans-serif',
+                        }}
+                      />
+                    );
+                  }
+                  return (
+                    <Button
+                      size="small"
+                      startIcon={<StarIcon sx={{ fontSize: 15 }} />}
+                      onClick={(e) => handleOpenRateModal(trip, e)}
+                      sx={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        color: '#FF6B00',
+                        textTransform: 'none',
+                        py: 0.5,
+                        px: 1.2,
+                        borderRadius: '8px',
+                        backgroundColor: '#FFF8F0',
+                        '&:hover': { backgroundColor: '#FFE4D6' },
+                      }}
+                    >
+                      {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
+                    </Button>
+                  );
+                })()}
               </Box>
             </Paper>
           ))

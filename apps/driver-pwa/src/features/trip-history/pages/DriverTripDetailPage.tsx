@@ -217,7 +217,7 @@ export const DriverTripDetailPage: React.FC = () => {
           <Box sx={{ width: "100%", display: "flex", gap: 2, mb: 1 }}>
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.5 }}>
               {/* Pickup location orange circle marker */}
-              <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: "#FF6B00" }} />
+              <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: "#FF6B00", stroke: "#FF6B00", strokeWidth: 1.5 }} />
               <Box
                 sx={{
                   height: 38,
