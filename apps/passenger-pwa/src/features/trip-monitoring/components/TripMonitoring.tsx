@@ -969,7 +969,7 @@ export const TripMonitoring: React.FC = () => {
                 width: '100%',
               }}
             >
-              {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
+              {(status === 'Arrived at Pickup' || status === 'Driver Arrived' || status === 'Trip Ongoing') && (
                 <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
               )}
             </Box>

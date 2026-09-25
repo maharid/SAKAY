@@ -296,7 +296,7 @@ export const DriverNavigation: React.FC = () => {
             '&:hover': { backgroundColor: '#E66000' },
           }}
         >
-          {language === 'tl' ? 'Nakarating na ang Drayber sa Pickup' : 'Driver Arrived at Pickup'}
+          {language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
         </Button>
       </Paper>
 

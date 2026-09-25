@@ -782,7 +782,7 @@ export const DriverActiveTrip: React.FC = () => {
               '&:hover': { backgroundColor: '#D97706' },
             }}
           >
-            Arrived at Pickup
+            {language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
           </Button>
         ) : booking?.booking_status === 'Arrived at Pickup' || booking?.booking_status === 'Driver Arrived' ? (
           <Button
