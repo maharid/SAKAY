@@ -47,6 +47,7 @@ import { DriverActiveTrip } from './features/trip-management/components/DriverAc
 import { DriverEarnings } from './features/earnings/components/DriverEarnings';
 import { DriverNotifications } from './features/notifications/components/DriverNotifications';
 import { DriverTripHistory } from './features/trip-history/components/DriverTripHistory';
+import { DriverTripDetailPage } from './features/trip-history/pages/DriverTripDetailPage';
 
 export const App: React.FC = () => {
   return (
@@ -136,6 +137,9 @@ export const App: React.FC = () => {
             <Route path="/driver/earnings" element={<DriverEarnings />} />
             <Route path="/driver/notifications" element={<DriverNotifications />} />
             <Route path="/driver/history" element={<DriverTripHistory />} />
+            <Route path="/driver/trip-detail/:id" element={<DriverTripDetailPage />} />
+            <Route path="/trip-detail/:id" element={<DriverTripDetailPage />} />
+            <Route path="/trip-history" element={<DriverTripHistory />} />
             <Route path="/driver/profile" element={<DriverProfileEditor />} />
             <Route path="/profile" element={<DriverProfileEditor />} />
             <Route path="/driver/settings" element={<DriverSettingsPage />} />

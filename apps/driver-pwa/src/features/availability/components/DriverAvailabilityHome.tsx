@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Checkbox,
+  Radio,
   Avatar,
   Divider,
 } from '@mui/material';
@@ -491,7 +491,7 @@ export const DriverAvailabilityHome: React.FC = () => {
 
       <Dialog open={todaModalOpen} onClose={() => setTodaModalOpen(false)} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '20px' } } }}>
         <DialogTitle sx={{ fontWeight: 800, color: '#0F172A' }}>
-          {language === 'tl' ? 'Pumili ng mga Aktibong TODA' : 'Select Active TODAs'}
+          {language === 'tl' ? 'Pumili ng Aktibong TODA' : 'Select Active TODA'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
@@ -502,24 +502,12 @@ export const DriverAvailabilityHome: React.FC = () => {
                   <Box
                     key={toda.id}
                     onClick={() => {
-                      setProfile((prev) => {
-                        const current = prev.selectedTodaIds && prev.selectedTodaIds.length > 0
-                          ? prev.selectedTodaIds
-                          : (prev.selectedTodaId ? [prev.selectedTodaId] : []);
-                        let updated: string[];
-                        if (isSelected) {
-                          updated = current.filter((id) => id !== toda.id);
-                        } else {
-                          updated = [...current, toda.id];
-                        }
-                        const firstSelected = availableTodas.find((t) => updated.includes(t.id));
-                        return {
-                          ...prev,
-                          selectedTodaIds: updated,
-                          selectedTodaId: updated[0] || '',
-                          todaName: firstSelected ? `${firstSelected.name} (${firstSelected.acronym})` : '',
-                        };
-                      });
+                      setProfile((prev) => ({
+                        ...prev,
+                        selectedTodaIds: [toda.id],
+                        selectedTodaId: toda.id,
+                        todaName: `${toda.name} (${toda.acronym})`,
+                      }));
                     }}
                     sx={{
                       p: 1.5,
@@ -538,7 +526,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                       <Typography sx={{ fontWeight: 700, fontSize: '14.5px', color: '#0F172A' }}>{toda.name} ({toda.acronym})</Typography>
                       <Typography sx={{ fontSize: '12px', color: '#64748B' }}>Terminal: {toda.terminalLocation}</Typography>
                     </Box>
-                    <Checkbox
+                    <Radio
                       checked={isSelected}
                       sx={{
                         color: '#CBD5E1',

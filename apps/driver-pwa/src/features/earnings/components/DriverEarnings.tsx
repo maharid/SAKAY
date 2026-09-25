@@ -63,7 +63,7 @@ export const DriverEarnings: React.FC = () => {
         let list: TripItem[] = (data || []).map((t: any) => ({
           id: t.id,
           bookingCode: t.bookingCode || `BKG-${t.id.slice(0, 6)}`,
-          passengerName: t.passengerName || 'Calapan Commuter',
+          passengerName: t.passengerName || t.passenger_name || 'Juan Dela Cruz',
           pickupLocation: t.pickupLocation || 'JP Rizal Central Terminal',
           dropoffLocation: t.dropoffLocation || 'Calapan Public Market',
           fareAmount: Number(t.fareAmount) || 0,
@@ -194,9 +194,26 @@ export const DriverEarnings: React.FC = () => {
 
         {/* Recent Completed Trips Breakdown List */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', px: 0.5 }}>
-            {language === 'tl' ? 'Mga Nakaraang Biyahe' : 'Recent Completed Trips'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5 }}>
+            <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
+              {language === 'tl' ? 'Mga Nakaraang Biyahe' : 'Recent Completed Trips'}
+            </Typography>
+            <Button
+              onClick={() => navigate('/driver/history')}
+              sx={{
+                fontSize: '12.5px',
+                fontWeight: 700,
+                color: '#FF6B00',
+                textTransform: 'none',
+                fontFamily: 'Poppins, sans-serif',
+                p: 0,
+                minWidth: 'auto',
+                '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' },
+              }}
+            >
+              {language === 'tl' ? 'Tingnan Lahat >' : 'See All Trips >'}
+            </Button>
+          </Box>
 
           {completedList.length === 0 ? (
             <Paper
@@ -223,6 +240,7 @@ export const DriverEarnings: React.FC = () => {
               <Paper
                 key={trip.id || idx}
                 elevation={0}
+                onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
                 sx={{
                   p: '14px 16px',
                   borderRadius: '16px',
@@ -231,6 +249,12 @@ export const DriverEarnings: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease',
+                  '&:hover': {
+                    transform: 'scale(1.01)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  },
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -272,22 +296,6 @@ export const DriverEarnings: React.FC = () => {
             ))
           )}
         </Box>
-
-        <Button
-          variant="contained"
-          fullWidth
-          onClick={() => navigate('/driver/home')}
-          sx={{
-            height: 50,
-            borderRadius: '14px',
-            backgroundColor: '#0F172A',
-            fontWeight: 700,
-            textTransform: 'none',
-            '&:hover': { backgroundColor: '#1E293B' },
-          }}
-        >
-          {language === 'tl' ? 'Bumalik sa Driver Dashboard' : 'Return to Driver Dashboard'}
-        </Button>
       </Box>
     </Box>
   );

@@ -17,6 +17,8 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PlaceIcon from '@mui/icons-material/Place';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
@@ -70,7 +72,7 @@ export const DriverTripHistory: React.FC = () => {
         const mapped: TripRecord[] = (data || []).map((b: any) => ({
           id: b.id,
           bookingCode: formatShortBookingId(b.bookingCode || b.id),
-          passengerName: b.passengerName || 'Calapan Commuter',
+          passengerName: b.passengerName || b.passenger_name || 'Juan Dela Cruz',
           pickupLocation: b.pickupLocation || 'Calapan City',
           dropoffLocation: b.dropoffLocation || 'Calapan City',
           distanceKm: b.distanceKm || 0,
@@ -263,7 +265,7 @@ export const DriverTripHistory: React.FC = () => {
             <Paper
               key={trip.id}
               elevation={0}
-              onClick={() => setSelectedTrip(trip)}
+              onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
               sx={{
                 p: 2,
                 borderRadius: '16px',
@@ -309,11 +311,11 @@ export const DriverTripHistory: React.FC = () => {
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LocationOnIcon sx={{ color: '#34A853', fontSize: 16 }} />
+                  <RadioButtonUncheckedIcon sx={{ color: '#FF6B00', fontSize: 16 }} />
                   <Typography sx={{ fontSize: '12px', color: '#334155' }}>{trip.pickupLocation}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LocationOnIcon sx={{ color: '#EF4444', fontSize: 16 }} />
+                  <PlaceIcon sx={{ color: '#FF6B00', fontSize: 18 }} />
                   <Typography sx={{ fontSize: '12px', color: '#334155' }}>{trip.dropoffLocation}</Typography>
                 </Box>
               </Box>
