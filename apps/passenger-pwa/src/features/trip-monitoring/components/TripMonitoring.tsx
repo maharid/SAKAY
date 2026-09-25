@@ -15,6 +15,10 @@ import {
   TextField,
   MenuItem,
   Alert,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -257,8 +261,8 @@ export const TripMonitoring: React.FC = () => {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [leaveConfirmModalOpen, setLeaveConfirmModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
+  const [selectedSmsTemplate, setSelectedSmsTemplate] = useState<string>('');
   const [customSms, setCustomSms] = useState('');
-  const [smsAlert, setSmsAlert] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Draggable Bottom Sheet State
@@ -569,18 +573,34 @@ export const TripMonitoring: React.FC = () => {
     navigate('/dashboard');
   };
 
-  const handleSendSms = (msg: string) => {
-    if (!msg.trim()) return;
-    setSmsAlert(
-      language === 'tl'
-        ? `Naipadala ang mensahe sa drayber: "${msg}"`
-        : `Message sent to driver: "${msg}"`
-    );
+  const handleOpenCommModal = () => {
+    setSelectedSmsTemplate('');
     setCustomSms('');
-    setTimeout(() => {
-      setSmsAlert(null);
-      setCommModalOpen(false);
-    }, 1800);
+    setCommModalOpen(true);
+  };
+
+  const handleSendSmsClick = () => {
+    const finalMsg = selectedSmsTemplate === 'custom' ? customSms.trim() : selectedSmsTemplate;
+    if (!finalMsg) return;
+
+    const cleanPhone = driverPhone.replace(/[^\d+]/g, '');
+    const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(finalMsg)}`;
+
+    try {
+      window.location.href = smsUrl;
+    } catch (err) {
+      console.warn('[TripMonitoring] SMS launch error:', err);
+    }
+
+    setToastMessage(
+      language === 'tl'
+        ? `Binubuksan ang SMS app para magpadala ng mensahe...`
+        : `Opening SMS app to send message...`
+    );
+
+    setCommModalOpen(false);
+    setSelectedSmsTemplate('');
+    setCustomSms('');
   };
 
   const driverName = booking?.driver_name || 'Aurelio Bautista';
@@ -846,7 +866,7 @@ export const TripMonitoring: React.FC = () => {
             <IconButton onClick={() => (window.location.href = `tel:${driverPhone}`)} sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E' }}>
               <PhoneIcon fontSize="small" />
             </IconButton>
-            <IconButton onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00' }}>
+            <IconButton onClick={handleOpenCommModal} sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00' }}>
               <MessageIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -949,22 +969,6 @@ export const TripMonitoring: React.FC = () => {
                 width: '100%',
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.25, mb: 0.5 }}>
-                <KeyboardArrowUpIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
-                <Typography
-                  sx={{
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    color: '#94A3B8',
-                    textAlign: 'center',
-                    fontFamily: 'Poppins, sans-serif',
-                  }}
-                >
-                  {language === 'tl' ? 'Scroll up to cancel trip' : 'Scroll up to cancel trip'}
-                </Typography>
-                <KeyboardArrowUpIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
-              </Box>
-
               {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
                 <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
               )}
@@ -1022,40 +1026,82 @@ export const TripMonitoring: React.FC = () => {
           <IconButton onClick={() => setCommModalOpen(false)} size="small"><CloseIcon /></IconButton>
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
-          {smsAlert && (
-            <Box sx={{ p: 1.5, borderRadius: '10px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0' }}>
-              <Typography sx={{ fontSize: '12px', color: '#1E8E3E', fontWeight: 600 }}>{smsAlert}</Typography>
-            </Box>
-          )}
+          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
+            {language === 'tl' ? 'PUMILI NG MENSAHE' : 'SELECT A MESSAGE'}
+          </Typography>
 
-          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>QUICK TEMPLATES</Typography>
-          {(language === 'tl'
-            ? ['Nandito na po ako sa labas.', 'Nasa tapat po ako ng gate.', 'Pakibilisan po ng konti. Salamat!']
-            : ["I'm waiting outside.", "I'm in front of the gate.", "Please hurry if possible. Thank you!"]
-          ).map((tpl, i) => (
-            <Button
-              key={i}
-              variant="outlined"
-              onClick={() => handleSendSms(tpl)}
-              sx={{ justifyContent: 'flex-start', textAlign: 'left', borderRadius: '12px', textTransform: 'none', color: '#0F172A', fontSize: '12.5px', py: 1 }}
+          <FormControl component="fieldset">
+            <RadioGroup
+              value={selectedSmsTemplate}
+              onChange={(e) => setSelectedSmsTemplate(e.target.value)}
             >
-              {tpl}
-            </Button>
-          ))}
+              {(language === 'tl'
+                ? [
+                    'Nandito na po ako sa labas.',
+                    'Nasa tapat po ako ng gate.',
+                    'Pakibilisan po ng konti. Salamat!',
+                  ]
+                : [
+                    "I'm waiting outside.",
+                    "I'm in front of the gate.",
+                    "Please hurry if possible. Thank you!",
+                  ]
+              ).map((tpl, i) => (
+                <FormControlLabel
+                  key={i}
+                  value={tpl}
+                  control={<Radio size="small" sx={{ color: '#FF6B00', '&.Mui-checked': { color: '#FF6B00' } }} />}
+                  label={<Typography sx={{ fontSize: '13px', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>{tpl}</Typography>}
+                  sx={{ py: 0.5 }}
+                />
+              ))}
+              <FormControlLabel
+                value="custom"
+                control={<Radio size="small" sx={{ color: '#FF6B00', '&.Mui-checked': { color: '#FF6B00' } }} />}
+                label={
+                  <Typography sx={{ fontSize: '13px', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
+                    {language === 'tl' ? 'Iba pang mensahe...' : 'Custom message'}
+                  </Typography>
+                }
+                sx={{ py: 0.5 }}
+              />
+            </RadioGroup>
+          </FormControl>
 
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          {selectedSmsTemplate === 'custom' && (
             <TextField
               fullWidth
+              multiline
+              rows={2}
               size="small"
-              placeholder={language === 'tl' ? "I-type ang mensahe..." : "Type a message..."}
+              placeholder={language === 'tl' ? "I-type ang mensahe dito..." : "Type custom message here..."}
               value={customSms}
               onChange={(e) => setCustomSms(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' }, mt: 0.5 }}
             />
-            <Button variant="contained" onClick={() => handleSendSms(customSms)} disabled={!customSms.trim()} sx={{ borderRadius: '12px', backgroundColor: '#FF6B00' }}>
-              <SendIcon fontSize="small" />
-            </Button>
-          </Box>
+          )}
+
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleSendSmsClick}
+            disabled={!selectedSmsTemplate || (selectedSmsTemplate === 'custom' && !customSms.trim())}
+            startIcon={<SendIcon />}
+            sx={{
+              mt: 1,
+              height: '46px',
+              borderRadius: '12px',
+              backgroundColor: '#FF6B00',
+              fontWeight: 700,
+              fontSize: '14px',
+              textTransform: 'none',
+              fontFamily: 'Poppins, sans-serif',
+              '&:hover': { backgroundColor: '#E05000' },
+              '&.Mui-disabled': { backgroundColor: '#CBD5E1', color: '#94A3B8' },
+            }}
+          >
+            {language === 'tl' ? 'Ipadala ang Mensahe' : 'Send Message'}
+          </Button>
         </DialogContent>
       </Dialog>
 
