@@ -969,7 +969,7 @@ export const TripMonitoring: React.FC = () => {
                 width: '100%',
               }}
             >
-              {(status === 'Arrived at Pickup' || status === 'Driver Arrived' || status === 'Trip Ongoing') && (
+              {(status === 'Trip Ongoing') && (
                 <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
               )}
             </Box>
@@ -989,13 +989,6 @@ export const TripMonitoring: React.FC = () => {
                 width: '100%',
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.25, mb: 0.75 }}>
-                <KeyboardArrowDownIcon sx={{ fontSize: 16, color: '#FF6B00' }} />
-                <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
-                  {language === 'tl' ? 'Scroll down to continue trip' : 'Scroll down to continue trip'}
-                </Typography>
-                <KeyboardArrowDownIcon sx={{ fontSize: 16, color: '#FF6B00' }} />
-              </Box>
               <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
             </Box>
           </Box>

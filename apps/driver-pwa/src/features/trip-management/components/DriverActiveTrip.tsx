@@ -636,7 +636,7 @@ export const DriverActiveTrip: React.FC = () => {
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <Box sx={{ p: 1.25, borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                <LocationOnIcon sx={{ color: '#10B981', fontSize: 18, mt: '2px', flexShrink: 0 }} />
+                <LocationOnIcon sx={{ color: '#FF6B00', fontSize: 18, mt: '2px', flexShrink: 0 }} />
                 <Box>
                   <Typography sx={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase' }}>
                     {language === 'tl' ? 'LOKASYON NG PICKUP' : 'PICKUP LOCATION'}

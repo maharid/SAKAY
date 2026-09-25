@@ -172,28 +172,25 @@ export const MapView: React.FC<MapViewProps> = ({
       L.marker([userLocation.lat, userLocation.lng], { icon: userDotIcon }).addTo(markersLayer);
     }
 
-    // 2. Pickup Pin Marker (Green)
+    // 2. Pickup Pin Marker (Orange Circle)
     if (pickupLocation && pickupLocation.lat !== 0) {
       const pickupIcon = L.divIcon({
         className: "leaflet-pickup-marker",
         html: `
           <div style="
-            width: 28px;
-            height: 28px;
-            background-color: #10B981;
+            width: 24px;
+            height: 24px;
+            background-color: #FF6B00;
             border: 3px solid #FFFFFF;
             border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+            box-shadow: 0 4px 12px rgba(255, 107, 0, 0.6);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #FFFFFF;
-            font-size: 11px;
-            font-weight: 800;
-          ">P</div>
+          "></div>
         `,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       });
 
       L.marker([pickupLocation.lat, pickupLocation.lng], { icon: pickupIcon }).addTo(markersLayer);
