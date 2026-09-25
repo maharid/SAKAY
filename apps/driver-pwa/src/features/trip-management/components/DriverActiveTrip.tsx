@@ -31,6 +31,7 @@ import { useLanguage } from '../../../utils/LanguageContext';
 import { calculateHaversineKm, formatDistance } from '@sakay/shared';
 import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
+import { DriverCancelModal } from '../../../common/components/DriverCancelModal';
 
 const SlideToCompleteDriver: React.FC<{
   enabled: boolean;
@@ -154,6 +155,10 @@ export const DriverActiveTrip: React.FC = () => {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
 
+  // Bidirectional Passenger Cancelled Alert State
+  const [passengerCancelledAlertOpen, setPassengerCancelledAlertOpen] = useState(false);
+  const [passengerCancelReason, setPassengerCancelReason] = useState<string>('');
+
   // Collapsible Card State
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
@@ -222,6 +227,9 @@ export const DriverActiveTrip: React.FC = () => {
 
           if (data.booking_status === 'Arrived at Destination') {
             setWaitingForPayment(true);
+          } else if (data.booking_status === 'Cancelled' && data.cancelled_by === 'passenger') {
+            setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ng pasahero ang booking' : 'Passenger cancelled the booking'));
+            setPassengerCancelledAlertOpen(true);
           }
         }
       } catch (e) {
@@ -230,9 +238,9 @@ export const DriverActiveTrip: React.FC = () => {
     };
 
     fetchBookingDetails();
-  }, [bookingId]);
+  }, [bookingId, language]);
 
-  // Listen for Passenger Payment Confirmation
+  // Listen for Passenger Payment Confirmation & Passenger Cancellation Broadcasts
   useEffect(() => {
     if (!bookingId) return;
 
@@ -263,13 +271,19 @@ export const DriverActiveTrip: React.FC = () => {
         setWaitingForPayment(false);
         setFeedbackModalOpen(true);
       })
+      .on('broadcast', { event: 'booking_cancelled' }, (payload: any) => {
+        if (payload.payload?.cancelled_by === 'passenger' || payload.payload?.cancelledBy === 'passenger') {
+          setPassengerCancelReason(payload.payload?.reason || (language === 'tl' ? 'Kinansela ng pasahero ang booking' : 'Passenger cancelled the booking'));
+          setPassengerCancelledAlertOpen(true);
+        }
+      })
       .subscribe();
 
     return () => {
       clearInterval(interval);
       supabase.removeChannel(syncChannel);
     };
-  }, [bookingId, paymentConfirmed]);
+  }, [bookingId, paymentConfirmed, language]);
 
   // Real-time GPS broadcasting during active trip
   useEffect(() => {
@@ -383,12 +397,27 @@ export const DriverActiveTrip: React.FC = () => {
     });
   };
 
-  const handleConfirmCancelTrip = async () => {
+  const handleConfirmCancelTrip = async (reasonText: string) => {
     setCancelModalOpen(false);
     try {
+      const channel = supabase.channel(`booking_sync_${bookingId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'booking_cancelled',
+        payload: {
+          bookingId,
+          cancelled_by: 'driver',
+          reason: reasonText,
+        },
+      });
+
       await supabase
         .from('booking')
-        .update({ booking_status: 'Cancelled' })
+        .update({
+          booking_status: 'Cancelled',
+          cancelled_by: 'driver',
+          cancellation_reason: reasonText,
+        })
         .eq('booking_id', bookingId);
     } catch (err) {
       console.warn('[DriverActiveTrip] Cancel update note:', err);
@@ -835,43 +864,68 @@ export const DriverActiveTrip: React.FC = () => {
         }}
       />
 
-      {/* Driver Cancel Confirmation Dialog */}
-      <Dialog
+      {/* Driver Cancel Confirmation Modal with Reasons */}
+      <DriverCancelModal
         open={cancelModalOpen}
         onClose={() => setCancelModalOpen(false)}
+        onConfirmCancel={handleConfirmCancelTrip}
+        language={language}
+      />
+
+      {/* Bidirectional Passenger Cancellation Realtime Notification Modal */}
+      <Dialog
+        open={passengerCancelledAlertOpen}
+        onClose={() => {
+          setPassengerCancelledAlertOpen(false);
+          navigate('/driver/home', { replace: true });
+        }}
         slotProps={{
           paper: {
-            sx: { borderRadius: '20px', p: 1, backgroundColor: '#FFFFFF' },
+            sx: { borderRadius: '24px', p: 1.5, backgroundColor: '#FFFFFF', maxWidth: '380px', width: '90%' },
           },
         }}
       >
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 800, color: '#EF4444' }}>
-          {language === 'tl' ? 'Ikansela ang Biyahe?' : 'Cancel Trip?'}
-        </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
-            {language === 'tl'
-              ? 'Sigurado ka bang nais mong ikansela ang biyaheng ito?'
-              : 'Are you sure you want to cancel this trip request?'}
+        <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 1 }}>
+          <CancelIcon sx={{ fontSize: 48, color: '#EF4444', mb: 1 }} />
+          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Kanselado ang Biyahe' : 'Trip Cancelled'}
           </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
+          <Typography sx={{ fontSize: '14px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl'
+              ? 'Kinansela ng pasahero ang booking.'
+              : 'The passenger has cancelled the booking.'}
+          </Typography>
+          {passengerCancelReason && (
+            <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
+              <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+                {language === 'tl' ? 'Rason:' : 'Reason:'} "{passengerCancelReason}"
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={() => setCancelModalOpen(false)}
-            sx={{ height: 42, borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
-          >
-            {language === 'tl' ? 'Bumalik' : 'Keep Trip'}
-          </Button>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
           <Button
             fullWidth
             variant="contained"
-            color="error"
-            onClick={handleConfirmCancelTrip}
-            sx={{ height: 42, borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
+            onClick={() => {
+              setPassengerCancelledAlertOpen(false);
+              navigate('/driver/home', { replace: true });
+            }}
+            sx={{
+              height: 46,
+              borderRadius: '14px',
+              backgroundColor: '#FF6B00',
+              fontWeight: 800,
+              fontSize: '14px',
+              textTransform: 'none',
+              fontFamily: 'Poppins, sans-serif',
+              boxShadow: '0 4px 14px rgba(255, 107, 0, 0.25)',
+              '&:hover': { backgroundColor: '#E66000' },
+            }}
           >
-            {language === 'tl' ? 'Ikansela' : 'Confirm Cancel'}
+            {language === 'tl' ? 'OK (Bumalik sa Home)' : 'OK (Return Home)'}
           </Button>
         </DialogActions>
       </Dialog>

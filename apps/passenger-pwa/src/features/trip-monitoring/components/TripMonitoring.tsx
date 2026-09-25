@@ -31,6 +31,7 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import CancelIcon from '@mui/icons-material/Cancel';
 import MapView from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
@@ -265,6 +266,10 @@ export const TripMonitoring: React.FC = () => {
   const [customSms, setCustomSms] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Bidirectional Driver Cancelled Alert State
+  const [driverCancelledAlertOpen, setDriverCancelledAlertOpen] = useState(false);
+  const [driverCancelReason, setDriverCancelReason] = useState<string>('');
+
   // Draggable Bottom Sheet State
   const [isExpanded, setIsExpanded] = useState(false);
   const [dragY, setDragY] = useState(0);
@@ -465,11 +470,16 @@ export const TripMonitoring: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('booking')
-          .select('booking_status, actual_fare, updated_at, driver_id')
+          .select('booking_status, actual_fare, updated_at, driver_id, cancelled_by, cancellation_reason')
           .eq('booking_id', activeBookingId)
           .maybeSingle();
 
         if (!error && data) {
+          if (data.booking_status === 'Cancelled' && (data.cancelled_by === 'driver' || !data.cancelled_by)) {
+            setDriverCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
+            setDriverCancelledAlertOpen(true);
+          }
+
           setBooking((prev) => {
             if (prev?.booking_status === data.booking_status) return prev; // No change
             
@@ -500,6 +510,16 @@ export const TripMonitoring: React.FC = () => {
       }
     }, 5000);
 
+    const syncChannel = supabase.channel(`booking_sync_${activeBookingId}`);
+    syncChannel
+      .on('broadcast', { event: 'booking_cancelled' }, (payload: any) => {
+        if (payload.payload?.cancelled_by === 'driver' || payload.payload?.cancelledBy === 'driver') {
+          setDriverCancelReason(payload.payload?.reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
+          setDriverCancelledAlertOpen(true);
+        }
+      })
+      .subscribe();
+
     const channel = supabase
       .channel(`passenger_trip_${activeBookingId}`)
       .on(
@@ -513,6 +533,11 @@ export const TripMonitoring: React.FC = () => {
         (payload: any) => {
           const row = payload.new;
           if (row && row.booking_id === activeBookingId) {
+            if (row.booking_status === 'Cancelled' && (row.cancelled_by === 'driver' || !row.cancelled_by)) {
+              setDriverCancelReason(row.cancellation_reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
+              setDriverCancelledAlertOpen(true);
+            }
+
             setBooking((prev) => {
               const mappedStatus = row.booking_status === 'Pending' ? 'Searching Driver'
                 : row.booking_status === 'Accepted' || row.booking_status === 'Driver Assigned' ? 'Driver Assigned'
@@ -547,13 +572,20 @@ export const TripMonitoring: React.FC = () => {
           });
         }
       })
+      .on('broadcast', { event: 'booking_cancelled' }, (payload: any) => {
+        if (payload.payload?.cancelled_by === 'driver' || payload.payload?.cancelledBy === 'driver') {
+          setDriverCancelReason(payload.payload?.reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
+          setDriverCancelledAlertOpen(true);
+        }
+      })
       .subscribe();
 
     return () => {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
+      supabase.removeChannel(syncChannel);
     };
-  }, [activeBookingId]);
+  }, [activeBookingId, language]);
 
   const status = booking?.booking_status || 'Searching Driver';
   const isTripActive = status !== 'Completed' && status !== 'Cancelled';
@@ -567,7 +599,23 @@ export const TripMonitoring: React.FC = () => {
   };
 
   const handleCancelTrip = async (reasonText?: string) => {
-    await cancelBooking(activeBookingId, reasonText || 'Passenger cancelled before pickup');
+    const finalReason = reasonText || (language === 'tl' ? 'Kinansela ng pasahero bago ang pickup' : 'Passenger cancelled before pickup');
+    try {
+      const syncChannel = supabase.channel(`booking_sync_${activeBookingId}`);
+      await syncChannel.send({
+        type: 'broadcast',
+        event: 'booking_cancelled',
+        payload: {
+          bookingId: activeBookingId,
+          cancelled_by: 'passenger',
+          reason: finalReason,
+        },
+      });
+    } catch (err) {
+      console.warn('[TripMonitoring] Broadcast cancel note:', err);
+    }
+
+    await cancelBooking(activeBookingId, finalReason);
     setCancelModalOpen(false);
     sessionStorage.removeItem('current_active_booking_id');
     navigate('/dashboard');
@@ -1351,6 +1399,66 @@ export const TripMonitoring: React.FC = () => {
             </Button>
           </DialogActions>
         )}
+      </Dialog>
+
+      {/* Bidirectional Driver Cancellation Realtime Notification Modal */}
+      <Dialog
+        open={driverCancelledAlertOpen}
+        onClose={() => {
+          setDriverCancelledAlertOpen(false);
+          sessionStorage.removeItem('current_active_booking_id');
+          navigate('/dashboard', { replace: true });
+        }}
+        slotProps={{
+          paper: {
+            sx: { borderRadius: '24px', p: 1.5, backgroundColor: '#FFFFFF', maxWidth: '380px', width: '90%' },
+          },
+        }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 1 }}>
+          <CancelIcon sx={{ fontSize: 48, color: '#EF4444', mb: 1 }} />
+          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Kanselado ang Biyahe' : 'Trip Cancelled'}
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
+          <Typography sx={{ fontSize: '14px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl'
+              ? 'Kinansela ng drayber ang booking.'
+              : 'The driver has cancelled the booking.'}
+          </Typography>
+          {driverCancelReason && (
+            <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
+              <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+                {language === 'tl' ? 'Rason:' : 'Reason:'} "{driverCancelReason}"
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => {
+              setDriverCancelledAlertOpen(false);
+              sessionStorage.removeItem('current_active_booking_id');
+              navigate('/dashboard', { replace: true });
+            }}
+            sx={{
+              height: 46,
+              borderRadius: '14px',
+              backgroundColor: '#FF6B00',
+              fontWeight: 800,
+              fontSize: '14px',
+              textTransform: 'none',
+              fontFamily: 'Poppins, sans-serif',
+              boxShadow: '0 4px 14px rgba(255, 107, 0, 0.25)',
+              '&:hover': { backgroundColor: '#E66000' },
+            }}
+          >
+            {language === 'tl' ? 'OK (Mag-book Ulit)' : 'OK (Book Another Ride)'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <SakayToast message={toastMessage} onClose={() => setToastMessage(null)} />

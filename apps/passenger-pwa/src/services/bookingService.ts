@@ -5,6 +5,7 @@
 
 import { supabase } from './supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
+import { saveTripToHistory } from './tripService';
 
 export type { BookingRecord };
 
@@ -56,6 +57,34 @@ const notifyBookingListeners = (booking: BookingRecord) => {
       } catch (e) {
         console.error('Error notifying booking subscriber:', e);
       }
+    });
+  }
+};
+
+const persistToHistoryIfTerminal = (b: BookingRecord) => {
+  if (b.booking_status === 'Completed' || b.booking_status === 'Cancelled') {
+    const createdDate = b.created_at ? new Date(b.created_at) : new Date();
+    const isToday = new Date().toDateString() === createdDate.toDateString();
+    const fareVal = b.actual_fare || b.estimated_fare || 0;
+
+    saveTripToHistory({
+      id: b.booking_id,
+      pickup: b.pickup_address || 'Calapan City',
+      pickupLat: Number(b.pickup_latitude) || 13.4124,
+      pickupLng: Number(b.pickup_longitude) || 121.1834,
+      dropoff: b.dropoff_address || 'Calapan City Public Market',
+      dropoffLat: Number(b.dropoff_latitude) || 13.4150,
+      dropoffLng: Number(b.dropoff_longitude) || 121.1810,
+      price: `₱${parseFloat(String(fareVal)).toFixed(2)}`,
+      type: b.is_shared_trip ? 'Share' : 'Solo',
+      distanceKm: Number(b.estimated_distance_km) || 1.5,
+      time: createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      dateGroup: isToday ? 'NGAYONG ARAW' : 'NAKARAANG ARAW',
+      dateString: createdDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      driverName: b.driver_name || 'Aurelio Bautista',
+      bodyNumber: b.franchise_no || 'CAL-2025-0773',
+      isLiveRecord: true,
+      status: b.booking_status,
     });
   }
 };
@@ -194,7 +223,7 @@ export const getBooking = (bookingId: string): BookingRecord | null => {
 /**
  * Cancels a booking
  */
-export const cancelBooking = async (bookingId: string, _reason?: string): Promise<boolean> => {
+export const cancelBooking = async (bookingId: string, reason?: string): Promise<boolean> => {
   const store = loadBookings();
   if (store[bookingId]) {
     store[bookingId] = {
@@ -204,12 +233,17 @@ export const cancelBooking = async (bookingId: string, _reason?: string): Promis
     };
     saveBookings(store);
     notifyBookingListeners(store[bookingId]);
+    persistToHistoryIfTerminal(store[bookingId]);
 
     // Update in Supabase
     try {
       await supabase
         .from('booking')
-        .update({ booking_status: 'Cancelled' })
+        .update({
+          booking_status: 'Cancelled',
+          cancellation_reason: reason || 'Cancelled by user',
+          cancelled_by: 'passenger',
+        })
         .eq('booking_id', bookingId);
     } catch (err) {
       console.warn('[bookingService] cancelBooking DB sync note:', err);
@@ -258,14 +292,16 @@ export const updateBooking = (
 ): BookingRecord | null => {
   const store = loadBookings();
   if (store[bookingId]) {
-    store[bookingId] = {
+    const updated = {
       ...store[bookingId],
       ...updates,
       updated_at: new Date().toISOString(),
     };
+    store[bookingId] = updated;
     saveBookings(store);
-    notifyBookingListeners(store[bookingId]);
-    return store[bookingId];
+    notifyBookingListeners(updated);
+    persistToHistoryIfTerminal(updated);
+    return updated;
   }
   return null;
 };
