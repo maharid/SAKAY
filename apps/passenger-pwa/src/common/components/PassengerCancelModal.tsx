@@ -5,6 +5,7 @@ import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useLanguage } from "../../utils/LanguageContext";
 
 export interface PassengerCancelModalProps {
@@ -50,8 +51,8 @@ const CANCEL_OPTIONS: CancelOption[] = [
 ];
 
 /**
- * PassengerCancelModal - Directly replicates PASSENGER CANCEL.png
- * Matches colors, layout, close button, radio options, and warning notice.
+ * PassengerCancelModal - Refined aesthetic cancel booking modal for Passenger PWA
+ * Features balanced typography sizing, smooth option highlights, and Apple/SAKAY styling.
  */
 export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
   open,
@@ -63,7 +64,6 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
   const { language: contextLanguage } = useLanguage();
   const effectiveLanguage = propLanguage || contextLanguage || "tl";
 
-  // Default to 'Hindi ko na kailangan ang biyahe' as shown in PASSENGER CANCEL.png
   const [selectedOptionId, setSelectedOptionId] = useState<string>("no_longer_needed");
 
   if (!open) return null;
@@ -82,75 +82,83 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
   return (
     <Box
       sx={{
-        position: "absolute",
+        position: "fixed",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "#FFEBD8",
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        backdropFilter: "blur(6px)",
         zIndex: 2500,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        p: "20px 20px 28px 20px",
+        p: "calc(var(--safe-area-top) + 16px) 16px calc(var(--safe-area-bottom) + 20px) 16px",
         boxSizing: "border-box",
         overflowY: "auto",
         animation: "fadeIn 0.2s ease-out",
       }}
     >
-      {/* 1. Top-Left Close Button matching PASSENGER CANCEL.png */}
-      <Box sx={{ display: "flex", justifyContent: "flex-start", width: "100%", pt: 1 }}>
+      {/* 1. Top-Left Close Button */}
+      <Box sx={{ display: "flex", justifyContent: "flex-start", width: "100%", pt: 0.5 }}>
         <IconButton
           onClick={onClose}
           disabled={loading}
           aria-label="close"
           sx={{
-            width: 48,
-            height: 48,
-            borderRadius: "16px",
+            width: 42,
+            height: 42,
+            borderRadius: "14px",
             backgroundColor: "#FFFFFF",
-            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
             color: "#0F172A",
+            border: "1px solid #F1F5F9",
             transition: "all 0.15s ease",
             "&:hover": {
               backgroundColor: "#F8FAFC",
+              transform: "scale(1.02)",
+            },
+            "&:active": {
+              transform: "scale(0.96)",
             },
           }}
         >
-          <CloseIcon sx={{ fontSize: 24 }} />
+          <CloseIcon sx={{ fontSize: 20 }} />
         </IconButton>
       </Box>
 
-      {/* 2. White Reasons Card matching PASSENGER CANCEL.png */}
+      {/* 2. Aesthetic White Reasons Card */}
       <Box
         sx={{
           backgroundColor: "#FFFFFF",
-          borderRadius: "28px",
-          p: "28px 22px 22px 22px",
+          borderRadius: "24px",
+          p: { xs: "22px 18px", sm: "24px 22px" },
           width: "100%",
-          maxWidth: "400px",
+          maxWidth: "380px",
           mx: "auto",
           my: "auto",
-          boxShadow: "0 14px 40px rgba(0, 0, 0, 0.07)",
+          boxShadow: "0 20px 45px rgba(15, 23, 42, 0.12)",
+          border: "1px solid #F1F5F9",
           boxSizing: "border-box",
         }}
       >
-        {/* Title */}
+        {/* Header Title */}
         <Typography
           sx={{
-            fontSize: "18px",
-            fontWeight: 700,
+            fontSize: "16.5px",
+            fontWeight: 800,
             color: "#0F172A",
             textAlign: "center",
             fontFamily: "Poppins, sans-serif",
-            mb: "20px",
+            mb: "16px",
+            letterSpacing: "-0.2px",
           }}
         >
-          {effectiveLanguage === "tl" ? "Bakit mo ika-cancel?" : "Why do you want to cancel?"}
+          {effectiveLanguage === "tl" ? "Bakit mo gustong i-cancel?" : "Why do you want to cancel?"}
         </Typography>
 
-        {/* Top Divider */}
-        <Box sx={{ height: "1px", backgroundColor: "#F1F5F9", mb: "14px" }} />
+        {/* Divider */}
+        <Box sx={{ height: "1px", backgroundColor: "#F1F5F9", mb: "12px" }} />
 
         {/* Radio Options List */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -166,37 +174,44 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  py: "12px",
-                  px: "4px",
+                  py: "10px",
+                  px: "14px",
                   cursor: loading ? "default" : "pointer",
                   userSelect: "none",
-                  borderRadius: "8px",
+                  borderRadius: "14px",
+                  backgroundColor: isSelected ? "#FFF7ED" : "#FFFFFF",
+                  border: isSelected ? "1.5px solid #FF6B00" : "1px solid #F1F5F9",
+                  transition: "all 0.15s ease",
                   "&:hover": {
-                    backgroundColor: "#FDF8F6",
+                    backgroundColor: isSelected ? "#FFF7ED" : "#F8FAFC",
+                  },
+                  "&:active": {
+                    transform: loading ? "none" : "scale(0.99)",
                   },
                 }}
               >
                 {/* Option Text */}
                 <Typography
                   sx={{
-                    fontSize: "14.5px",
-                    fontWeight: isSelected ? 600 : 500,
-                    color: isSelected ? "#0F172A" : "#334155",
+                    fontSize: "13.5px",
+                    fontWeight: isSelected ? 700 : 500,
+                    color: isSelected ? "#0F172A" : "#475569",
                     fontFamily: "Poppins, sans-serif",
                     pr: 1,
+                    lineHeight: 1.35,
                   }}
                 >
                   {label}
                 </Typography>
 
-                {/* Custom Radio Button matching PASSENGER CANCEL.png */}
+                {/* Styled Radio Indicator */}
                 {isSelected ? (
                   <Box
                     sx={{
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       borderRadius: "50%",
-                      border: "2.5px solid #FF5500",
+                      border: "2px solid #FF6B00",
                       backgroundColor: "#FFFFFF",
                       display: "flex",
                       alignItems: "center",
@@ -209,17 +224,17 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        backgroundColor: "#FF5500",
+                        backgroundColor: "#FF6B00",
                       }}
                     />
                   </Box>
                 ) : (
                   <Box
                     sx={{
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       borderRadius: "50%",
-                      border: "2.5px solid #0F172A",
+                      border: "2px solid #CBD5E1",
                       backgroundColor: "transparent",
                       flexShrink: 0,
                     }}
@@ -230,75 +245,71 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
           })}
         </Box>
 
-        {/* Bottom Divider */}
-        <Box sx={{ height: "1px", backgroundColor: "#F1F5F9", mt: "14px", mb: "16px" }} />
+        {/* Divider */}
+        <Box sx={{ height: "1px", backgroundColor: "#F1F5F9", mt: "14px", mb: "14px" }} />
 
-        {/* Reminder / PAALALA Warning */}
-        <Typography
+        {/* Reminder Box */}
+        <Box
           sx={{
-            fontSize: "12px",
-            color: "#64748B",
-            textAlign: "center",
-            lineHeight: 1.45,
-            mb: "22px",
-            fontFamily: "Poppins, sans-serif",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.25,
+            p: "10px 12px",
+            borderRadius: "12px",
+            backgroundColor: "#F8FAFC",
+            border: "1px solid #F1F5F9",
+            mb: "18px",
           }}
         >
-          <Box
-            component="span"
+          <InfoOutlinedIcon sx={{ fontSize: 18, color: "#64748B", flexShrink: 0 }} />
+          <Typography
             sx={{
-              fontWeight: 700,
+              fontSize: "11.5px",
               color: "#64748B",
+              lineHeight: 1.4,
               fontFamily: "Poppins, sans-serif",
             }}
           >
-            {effectiveLanguage === "tl" ? "PAALALA:" : "REMINDER:"}
-          </Box>{" "}
-          {effectiveLanguage === "tl" ? (
-            <>
-              Nakakataas ng cancellation rate
-              <br />
-              ang pag-cancel ng iyong booking.
-            </>
-          ) : (
-            <>
-              Cancelling your booking increases
-              <br />
-              your cancellation rate.
-            </>
-          )}
-        </Typography>
+            <Box component="span" sx={{ fontWeight: 700, color: "#475569" }}>
+              {effectiveLanguage === "tl" ? "PAALALA:" : "REMINDER:"}
+            </Box>{" "}
+            {effectiveLanguage === "tl"
+              ? "Ang pag-cancel ay maaaring makaapekto sa iyong passenger rating."
+              : "Cancelling your booking increases your cancellation rate."}
+          </Typography>
+        </Box>
 
-        {/* Large Orange Action Button */}
+        {/* Action Button */}
         <Button
           fullWidth
           onClick={handleConfirm}
           disabled={loading}
           sx={{
-            height: "54px",
-            borderRadius: "16px",
-            backgroundColor: "#FF5500",
+            height: "48px",
+            borderRadius: "14px",
+            backgroundColor: "#FF6B00",
             color: "#FFFFFF",
-            fontWeight: 700,
-            fontSize: "16px",
+            fontWeight: 800,
+            fontSize: "14.5px",
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",
-            boxShadow: "none",
+            boxShadow: "0 4px 14px rgba(255, 107, 0, 0.25)",
+            transition: "all 0.15s ease",
             "&:hover": {
-              backgroundColor: "#E04800",
-              boxShadow: "none",
+              backgroundColor: "#E66000",
+              boxShadow: "0 6px 18px rgba(255, 107, 0, 0.35)",
             },
             "&:active": {
-              backgroundColor: "#CC4000",
+              transform: "scale(0.98)",
             },
             "&.Mui-disabled": {
-              backgroundColor: "#FFA366",
+              backgroundColor: "#FFB380",
               color: "#FFFFFF",
             },
           }}
         >
           {loading ? (
-            <CircularProgress size={24} sx={{ color: "#FFFFFF" }} />
+            <CircularProgress size={22} sx={{ color: "#FFFFFF" }} />
           ) : effectiveLanguage === "tl" ? (
             "Ikansela ang booking"
           ) : (
@@ -307,8 +318,8 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
         </Button>
       </Box>
 
-      {/* Spacer matching reference layout proportions */}
-      <Box sx={{ height: 20 }} />
+      {/* Bottom Spacer */}
+      <Box sx={{ height: 12 }} />
     </Box>
   );
 };
