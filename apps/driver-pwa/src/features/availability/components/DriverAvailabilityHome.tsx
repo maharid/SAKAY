@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -19,8 +19,10 @@ import {
 import StarIcon from '@mui/icons-material/Star';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import MapView from '../../../common/components/MapView';
+import SakayToast from '../../../common/components/SakayToast';
 import { supabase } from '../../../services/supabaseClient';
 import { fetchAccreditedTodas } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -29,7 +31,29 @@ import { useDriverSession } from '../../../contexts/DriverSessionContext';
 export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, setProfile } = useDriverSession();
+
+  const [toastOpen, setToastOpen] = useState(false);
+  const [earnedAmount, setEarnedAmount] = useState<number | null>(null);
+  const [searchingPillVisible, setSearchingPillVisible] = useState(() => !location.state?.showEarningsAnimation);
+
+  useEffect(() => {
+    if (location.state?.showEarningsAnimation) {
+      setEarnedAmount(location.state.completedFare || 35.0);
+      setToastOpen(true);
+      setSearchingPillVisible(false);
+    }
+  }, [location.state]);
+
+  const handleToastClose = () => {
+    setToastOpen(false);
+    setTimeout(() => {
+      setSearchingPillVisible(true);
+    }, 150);
+  };
+
+
 
   // Location Permission Modal State (matching iOS permission prompt)
   const [locationPermissionOpen, setLocationPermissionOpen] = useState(() => {
@@ -259,6 +283,21 @@ export const DriverAvailabilityHome: React.FC = () => {
         recenterTrigger={recenterTrigger}
       />
 
+      <SakayToast
+        open={toastOpen}
+        message={
+          earnedAmount
+            ? (language === 'tl'
+                ? `🎉 Kumpleto na ang biyahe! +₱${earnedAmount.toFixed(2)} naidagdag sa kita ngayong araw.`
+                : `🎉 Trip Completed! +₱${earnedAmount.toFixed(2)} added to today's earnings.`)
+            : null
+        }
+        severity="success"
+        autoHideDuration={4500}
+        onClose={handleToastClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      />
+
       <Paper
         elevation={4}
         sx={{
@@ -354,26 +393,37 @@ export const DriverAvailabilityHome: React.FC = () => {
         </Box>
       </Paper>
 
-      <Chip
-        label={
-          profile.isOnline
-            ? (language === 'tl' ? 'Naghahanap ng mga pasahero...' : 'Searching for nearby passengers...')
-            : (language === 'tl' ? 'Offline • Mag-online para makatanggap ng biyahe' : 'Offline • Go online to receive trips')
-        }
-        sx={{
-          position: 'absolute',
-          top: 'calc(var(--safe-area-top) + 96px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: '#FFFFFF',
-          color: profile.isOnline ? '#0F172A' : '#64748B',
-          fontWeight: 700,
-          fontSize: '11.5px',
-          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #E2E8F0',
-          zIndex: 10,
-        }}
-      />
+      {searchingPillVisible && (
+        <Chip
+          label={
+            profile.isOnline
+              ? (language === 'tl' ? 'Naghahanap ng mga pasahero...' : 'Searching for nearby passengers...')
+              : (language === 'tl' ? 'Offline • Mag-online para makatanggap ng biyahe' : 'Offline • Go online to receive trips')
+          }
+          sx={{
+            position: 'absolute',
+            top: 'calc(var(--safe-area-top) + 78px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#FFFFFF',
+            color: profile.isOnline ? '#0F172A' : '#64748B',
+            fontWeight: 700,
+            fontSize: '11.5px',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #E2E8F0',
+            zIndex: 10,
+            animation: 'fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            '@media (prefers-reduced-motion: reduce)': {
+              animation: 'none',
+            },
+            '@keyframes fadeInUp': {
+              from: { opacity: 0, transform: 'translate(-50%, 8px)' },
+              to: { opacity: 1, transform: 'translate(-50%, 0)' },
+            },
+          }}
+        />
+      )}
+
 
       <IconButton
         onClick={handleRecenter}

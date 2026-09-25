@@ -5,6 +5,8 @@ export * from './components/OnboardingIllustrations';
 export * from './styles/typography';
 export * from './utils/fareCalculator';
 export * from './utils/bookingUtils';
+export * from './utils/locationUtils';
+
 
 
 

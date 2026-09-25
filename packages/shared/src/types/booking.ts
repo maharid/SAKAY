@@ -35,6 +35,7 @@ export interface BookingRecord {
     | 'Driver Arrived'
     | 'In Transit'
     | 'Trip Ongoing'
+    | 'Arrived at Destination'
     | 'Completed'
     | 'Cancelled'
     | 'No Driver Found';

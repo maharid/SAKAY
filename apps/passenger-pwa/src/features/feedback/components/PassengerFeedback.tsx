@@ -44,17 +44,17 @@ export const PassengerFeedback: React.FC = () => {
   const franchiseNo = booking?.franchise_no || 'CAL-2025-0773';
   const todaName = booking?.toda_name || 'Calapan Central TODA';
 
-  const [rating, setRating] = useState<number | null>(5);
-  // Requirement 3: RATING CHOICES MUST START UNSELECTED
+  const [rating, setRating] = useState<number | null>(null);
+  // RATING CHOICES MUST START UNSELECTED
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  // Requirement 4: OPTIONAL TEXT FEEDBACK MUST START EMPTY
+  // OPTIONAL TEXT FEEDBACK MUST START EMPTY
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
 
-  // Requirement 2: RATING STATE MUST BE SAVED AND LOADED CORRECTLY
+  // RATING STATE MUST BE SAVED AND LOADED CORRECTLY
   React.useEffect(() => {
     let isMounted = true;
     const checkExistingRating = async () => {
@@ -85,11 +85,10 @@ export const PassengerFeedback: React.FC = () => {
           const history = JSON.parse(raw);
           const found = history.find(
             (fb: any) =>
-              (booking?.booking_id && fb.booking_id === booking.booking_id) ||
-              fb.driverName === driverName
+              booking?.booking_id && fb.booking_id === booking.booking_id
           );
           if (found && isMounted) {
-            setRating(found.rating || found.stars || 5);
+            setRating(found.rating || found.stars || null);
             setSelectedTags(found.tags || []);
             setComment(found.comment || '');
             setSubmitted(true);
@@ -105,6 +104,7 @@ export const PassengerFeedback: React.FC = () => {
       isMounted = false;
     };
   }, [booking?.booking_id, driverName]);
+
 
   const availableTags = language === 'tl' ? [
     'Magalang na Driver',

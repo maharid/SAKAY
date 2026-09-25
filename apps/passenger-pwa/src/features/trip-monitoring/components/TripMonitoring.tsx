@@ -288,8 +288,9 @@ export const TripMonitoring: React.FC = () => {
     if (!isDraggingRef.current) return;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.PointerEvent).clientY;
     const deltaY = clientY - startYRef.current;
-    // Allow dragging up (negative deltaY) or down (positive deltaY)
-    setDragY(deltaY);
+    // Strict drag bounds (maxDrag = 180px) so bottom sheet never pulls off-screen
+    const clamped = Math.max(-180, Math.min(180, deltaY));
+    setDragY(clamped);
   };
 
   const handleDragEnd = () => {
@@ -330,6 +331,28 @@ export const TripMonitoring: React.FC = () => {
     }
     setCompletionFareModalOpen(true);
   };
+
+  const handlePassengerPaid = async () => {
+    try {
+      localStorage.setItem(`payment_confirmed_${activeBookingId}`, 'true');
+      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
+      await supabase
+        .from('booking')
+        .update({ passenger_finished: true, booking_status: 'Completed' })
+        .eq('booking_id', activeBookingId);
+
+      const channel = supabase.channel(`booking_sync_${activeBookingId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'payment_confirmed',
+        payload: { bookingId: activeBookingId, payment_confirmed: true },
+      });
+    } catch (err) {
+      console.warn('[TripMonitoring] handlePassengerPaid error:', err);
+    }
+    setCompletionFareModalOpen(true);
+  };
+
 
   // Driver Location Telemetry
   const [driverPos, setDriverPos] = useState({
@@ -585,24 +608,28 @@ export const TripMonitoring: React.FC = () => {
           zIndex: 20,
         }}
       >
-        <IconButton
-          onClick={handleBackRequest}
-          aria-label="Go back"
-          sx={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-            color: '#1A1A1A',
-            borderRadius: '14px',
-            width: '44px',
-            height: '44px',
-            '&:hover': { backgroundColor: '#F8FAFC' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-        </IconButton>
+        {!isTripActive ? (
+          <IconButton
+            onClick={handleBackRequest}
+            aria-label="Go back"
+            sx={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+              color: '#1A1A1A',
+              borderRadius: '14px',
+              width: '44px',
+              height: '44px',
+              '&:hover': { backgroundColor: '#F8FAFC' },
+            }}
+          >
+            <ArrowBackIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        ) : (
+          <Box sx={{ width: '44px' }} />
+        )}
 
-        <Box sx={{ textAlign: 'center' }}>
+        <Box sx={{ textAlign: 'center', flex: 1 }}>
           <Typography
             sx={{
               fontSize: '16px',
@@ -625,6 +652,7 @@ export const TripMonitoring: React.FC = () => {
         </Box>
 
         <Box sx={{ width: '44px' }} />
+
       </Box>
 
       {/* 2. Full Surface Map View */}
@@ -884,7 +912,28 @@ export const TripMonitoring: React.FC = () => {
         </Box>
 
         {/* Draggable Sheet Revealed Actions (Finish Trip & Visually Separated Cancel Trip) */}
-        {status !== 'Completed' && (
+        {status === 'Arrived at Destination' ? (
+          <Box sx={{ pt: 1, mt: 0.5 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handlePassengerPaid}
+              sx={{
+                height: 50,
+                borderRadius: '14px',
+                backgroundColor: '#10B981',
+                fontWeight: 800,
+                fontSize: '15px',
+                textTransform: 'none',
+                fontFamily: 'Poppins, sans-serif',
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                '&:hover': { backgroundColor: '#059669' },
+              }}
+            >
+              {language === 'tl' ? 'Nabayaran Ko Na (I Paid)' : 'I Paid'}
+            </Button>
+          </Box>
+        ) : status !== 'Completed' && (
           <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
             {/* Initial Collapsed View: Instruction + Slide to Finish Trip */}
             <Box
@@ -947,6 +996,7 @@ export const TripMonitoring: React.FC = () => {
             </Box>
           </Box>
         )}
+
       </Paper>
 
       {/* 4. Cancellation Confirmation Modal */}

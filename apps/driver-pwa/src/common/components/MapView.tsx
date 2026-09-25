@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getOSRMRoute } from "@sakay/shared";
 
 export const DEFAULT_CALAPAN_CENTER = {
   latitude: 13.4117,
@@ -14,6 +15,7 @@ export interface MapViewProps {
   userLocation?: { lat: number; lng: number } | null;
   pickupLocation?: { lat: number; lng: number } | null;
   dropoffLocation?: { lat: number; lng: number } | null;
+  routeCoordinates?: [number, number][];
   recenterTrigger?: number;
   height?: string;
   width?: string;
@@ -21,8 +23,8 @@ export interface MapViewProps {
 }
 
 /**
- * MapView - Leaflet OpenStreetMap Map Component (matching Passenger, LGU & TODA portals)
- * Pure, clean light map canvas.
+ * MapView - Leaflet OpenStreetMap Map Component (Driver PWA)
+ * Render road-based navigation route geometry using OSRM road network.
  */
 export const MapView: React.FC<MapViewProps> = ({
   center = { lat: DEFAULT_CALAPAN_CENTER.latitude, lng: DEFAULT_CALAPAN_CENTER.longitude },
@@ -30,6 +32,7 @@ export const MapView: React.FC<MapViewProps> = ({
   userLocation,
   pickupLocation,
   dropoffLocation,
+  routeCoordinates,
   recenterTrigger = 0,
   height = "100%",
   width = "100%",
@@ -38,13 +41,13 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const routePolylineRef = useRef<L.Polyline | null>(null);
+  const routeLayersRef = useRef<L.LayerGroup | null>(null);
+  const [roadCoords, setRoadCoords] = useState<[number, number][]>(routeCoordinates || []);
 
   // Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Remove existing instance if any
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
@@ -76,18 +79,19 @@ export const MapView: React.FC<MapViewProps> = ({
       boxZoom: interactive,
     });
 
-    // OpenStreetMap Tile Layer (Clean light tiles)
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       subdomains: ["a", "b", "c"],
     }).addTo(map);
 
-    // Create a LayerGroup for markers
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
+
+    const routeLayers = L.layerGroup().addTo(map);
+    routeLayersRef.current = routeLayers;
+
     mapInstanceRef.current = map;
 
-    // Invalidate size after container settles
     const resizeTimer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize();
@@ -103,20 +107,55 @@ export const MapView: React.FC<MapViewProps> = ({
     };
   }, [interactive]);
 
-  // Handle Updates: Markers, Route Polyline, Panning
+  // Synchronize routeCoordinates prop or fetch road coordinates via OSRM
+  useEffect(() => {
+    if (routeCoordinates && routeCoordinates.length >= 2) {
+      setRoadCoords(routeCoordinates);
+      return;
+    }
+
+    const startPoint = pickupLocation && pickupLocation.lat !== 0 ? pickupLocation : userLocation;
+    const endPoint = dropoffLocation && dropoffLocation.lat !== 0 ? dropoffLocation : null;
+
+    if (startPoint && startPoint.lat !== 0 && endPoint && endPoint.lat !== 0) {
+      let isMounted = true;
+      getOSRMRoute(startPoint.lat, startPoint.lng, endPoint.lat, endPoint.lng)
+        .then((result) => {
+          if (isMounted && result.coordinates && result.coordinates.length >= 2) {
+            setRoadCoords(result.coordinates);
+          }
+        })
+        .catch((err) => {
+          console.warn("[Driver MapView] Road routing note:", err);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    } else {
+      setRoadCoords([]);
+    }
+  }, [
+    pickupLocation?.lat,
+    pickupLocation?.lng,
+    dropoffLocation?.lat,
+    dropoffLocation?.lng,
+    userLocation?.lat,
+    userLocation?.lng,
+    routeCoordinates,
+  ]);
+
+  // Handle Updates: Markers, Road Route Polyline, Panning
   useEffect(() => {
     const map = mapInstanceRef.current;
     const markersLayer = markersLayerRef.current;
-    if (!map || !markersLayer) return;
+    const routeLayers = routeLayersRef.current;
+    if (!map || !markersLayer || !routeLayers) return;
 
     markersLayer.clearLayers();
+    routeLayers.clearLayers();
 
-    if (routePolylineRef.current) {
-      map.removeLayer(routePolylineRef.current);
-      routePolylineRef.current = null;
-    }
-
-    // 1. Driver Location Pulse Dot Marker
+    // 1. Driver Pulse Dot Marker
     if (userLocation && (!pickupLocation || !dropoffLocation)) {
       const userDotIcon = L.divIcon({
         className: "leaflet-user-marker",
@@ -187,23 +226,42 @@ export const MapView: React.FC<MapViewProps> = ({
       L.marker([dropoffLocation.lat, dropoffLocation.lng], { icon: dropoffIcon }).addTo(markersLayer);
     }
 
-    // 4. Draw Clean Route Polyline & Fit Bounds if both points exist
-    if (pickupLocation && pickupLocation.lat !== 0 && dropoffLocation && dropoffLocation.lat !== 0) {
-      const latlngs: [number, number][] = [
-        [pickupLocation.lat, pickupLocation.lng],
-        [dropoffLocation.lat, dropoffLocation.lng],
-      ];
+    // 4. Draw Road-Based Route Polyline (OSRM geometry) & Fit Bounds
+    const activeRoutePoints: [number, number][] =
+      roadCoords && roadCoords.length >= 2
+        ? roadCoords
+        : routeCoordinates && routeCoordinates.length >= 2
+        ? routeCoordinates
+        : pickupLocation && dropoffLocation && pickupLocation.lat !== 0 && dropoffLocation.lat !== 0
+        ? [
+            [pickupLocation.lat, pickupLocation.lng],
+            [dropoffLocation.lat, dropoffLocation.lng],
+          ]
+        : [];
 
-      const polyline = L.polyline(latlngs, {
+    if (activeRoutePoints.length >= 2) {
+      // 4a. Bottom white casing border for clean road contrast
+      const routeCasing = L.polyline(activeRoutePoints, {
+        color: "#FFFFFF",
+        weight: 9,
+        opacity: 0.95,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+
+      // 4b. Main road route line: solid SAKAY orange
+      const routeLine = L.polyline(activeRoutePoints, {
         color: "#FF6B00",
-        weight: 4,
-        opacity: 0.9,
-        dashArray: "8, 6",
-      }).addTo(map);
+        weight: 6,
+        opacity: 1,
+        lineCap: "round",
+        lineJoin: "round",
+      });
 
-      routePolylineRef.current = polyline;
+      routeLayers.addLayer(routeCasing);
+      routeLayers.addLayer(routeLine);
 
-      const bounds = L.latLngBounds(latlngs);
+      const bounds = L.latLngBounds(activeRoutePoints);
       map.fitBounds(bounds, {
         padding: [60, 60],
         maxZoom: 16,
@@ -211,7 +269,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } else if (typeof userLocation?.lat === "number" && !isNaN(userLocation.lat) && typeof userLocation?.lng === "number" && !isNaN(userLocation.lng)) {
       map.panTo([userLocation.lat, userLocation.lng], { animate: true });
     }
-  }, [userLocation, pickupLocation, dropoffLocation, recenterTrigger]);
+  }, [userLocation, pickupLocation, dropoffLocation, roadCoords, routeCoordinates, recenterTrigger]);
 
   // Recenter trigger listener
   useEffect(() => {

@@ -19,26 +19,31 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 import MapView from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
+import { useLanguage } from '../../../utils/LanguageContext';
+import { calculateHaversineKm, formatDistance } from '@sakay/shared';
+import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
 
 const SlideToCompleteDriver: React.FC<{
   enabled: boolean;
+  waitingForPayment?: boolean;
   onComplete: () => void;
   language?: string;
-}> = ({ enabled, onComplete }) => {
+}> = ({ enabled, waitingForPayment = false, onComplete, language = 'en' }) => {
   const [slidePos, setSlidePos] = useState(0);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleStart = () => {
-    if (!enabled) return;
+    if (!enabled || waitingForPayment) return;
     isDragging.current = true;
   };
 
   const handleMove = (clientX: number) => {
-    if (!enabled || !isDragging.current || !containerRef.current) return;
+    if (!enabled || waitingForPayment || !isDragging.current || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const maxOffset = rect.width - 52;
     const offset = Math.max(0, Math.min(clientX - rect.left - 24, maxOffset));
@@ -57,6 +62,17 @@ const SlideToCompleteDriver: React.FC<{
     setSlidePos(0);
   };
 
+  const getLabelText = () => {
+    if (waitingForPayment) {
+      return language === 'tl'
+        ? 'Naghihintay sa kumpirmasyon ng bayad...'
+        : 'Waiting for passenger to confirm payment...';
+    }
+    return language === 'tl'
+      ? 'I-slide para Kumpletuhin ang Biyahe >>>'
+      : 'Slide to Complete Trip >>>';
+  };
+
   return (
     <Box
       ref={containerRef}
@@ -71,71 +87,79 @@ const SlideToCompleteDriver: React.FC<{
         position: 'relative',
         width: '100%',
         height: '52px',
-        backgroundColor: enabled ? '#FFF7ED' : '#F1F5F9',
-        border: enabled ? '1.5px solid #FFD6B3' : '1.5px solid #CBD5E1',
+        backgroundColor: waitingForPayment ? '#FEF3C7' : enabled ? '#FFF7ED' : '#F1F5F9',
+        border: waitingForPayment ? '1.5px solid #FCD34D' : enabled ? '1.5px solid #FFD6B3' : '1.5px solid #CBD5E1',
         borderRadius: '999px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        cursor: enabled ? 'grab' : 'not-allowed',
+        cursor: enabled && !waitingForPayment ? 'grab' : 'not-allowed',
         userSelect: 'none',
         touchAction: 'none',
-        opacity: enabled ? 1 : 0.7,
       }}
     >
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: '12.5px',
           fontWeight: 800,
-          color: enabled ? '#FF6B00' : '#64748B',
+          color: waitingForPayment ? '#D97706' : enabled ? '#FF6B00' : '#64748B',
           fontFamily: 'Poppins, sans-serif',
           pointerEvents: 'none',
-          opacity: enabled ? Math.max(0.2, 1 - slidePos / 140) : 1,
+          opacity: enabled && !waitingForPayment ? Math.max(0.2, 1 - slidePos / 140) : 1,
+          px: 2,
+          textAlign: 'center',
         }}
       >
-        {enabled
-          ? 'Slide to Complete Trip >>>'
-          : "Waiting for passenger to tap 'Finish Trip'..."}
+        {getLabelText()}
       </Typography>
 
-      <Box
-        sx={{
-          position: 'absolute',
-          left: 4 + slidePos,
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          backgroundColor: enabled ? '#FF6B00' : '#94A3B8',
-          color: '#FFFFFF',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: enabled ? '0 4px 12px rgba(255, 107, 0, 0.4)' : 'none',
-          transition: isDragging.current ? 'none' : 'left 0.25s ease',
-        }}
-      >
-        <CheckCircleIcon sx={{ fontSize: 24 }} />
-      </Box>
+      {!waitingForPayment && (
+        <Box
+          sx={{
+            position: 'absolute',
+            left: 4 + slidePos,
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: enabled ? '#FF6B00' : '#94A3B8',
+            color: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: enabled ? '0 4px 12px rgba(255, 107, 0, 0.4)' : 'none',
+            transition: isDragging.current ? 'none' : 'left 0.25s ease',
+          }}
+        >
+          <CheckCircleIcon sx={{ fontSize: 24 }} />
+        </Box>
+      )}
     </Box>
   );
 };
 
 export const DriverActiveTrip: React.FC = () => {
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || 'BKG-9011';
 
   const [booking, setBooking] = useState<any>(null);
-  const [tripStarted, setTripStarted] = useState(false);
-  const [progress] = useState(45); // trip progress %
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   // Collapsible Card State
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
-  // Passenger Finished state for complete trip button enablement
-  const [passengerFinished, setPassengerFinished] = useState(false);
+  // Waiting for passenger payment & feedback states
+  const [waitingForPayment, setWaitingForPayment] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+
+  // Scroll to cancel drag tracking for driver
+  const [dragY, setDragY] = useState(0);
+  const isDraggingSheet = useRef(false);
+  const startY = useRef(0);
 
   // Additional Shared Passenger State
   const [pairedPassenger, setPairedPassenger] = useState<string | null>(null);
@@ -150,59 +174,26 @@ export const DriverActiveTrip: React.FC = () => {
     lng: booking?.pickup_longitude || 121.1803,
   });
 
-  // Check initial passenger finished state & listen for updates
+  // Fetch live booking & passenger details
   useEffect(() => {
     if (!bookingId) return;
 
-    const checkFinishedStatus = () => {
-      const isFinishedLocal = localStorage.getItem(`passenger_finished_${bookingId}`) === 'true';
-      if (isFinishedLocal) {
-        setPassengerFinished(true);
-      }
-    };
+    const fetchBookingDetails = async () => {
+      try {
+        const { data } = await supabase
+          .from('booking')
+          .select('*, passenger:passenger_id(*)')
+          .eq('booking_id', bookingId)
+          .maybeSingle();
 
-    checkFinishedStatus();
-    const interval = setInterval(checkFinishedStatus, 2000);
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === `passenger_finished_${bookingId}` && e.newValue === 'true') {
-        setPassengerFinished(true);
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
-    // Supabase channel listener
-    const syncChannel = supabase.channel(`booking_sync_${bookingId}`);
-    syncChannel
-      .on('broadcast', { event: 'passenger_finished' }, () => {
-        setPassengerFinished(true);
-      })
-      .subscribe();
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-      supabase.removeChannel(syncChannel);
-    };
-  }, [bookingId]);
-
-  useEffect(() => {
-    if (!bookingId) return;
-    Promise.resolve(
-      supabase
-        .from('booking')
-        .select('*, passenger:passenger_id(*)')
-        .eq('booking_id', bookingId)
-        .maybeSingle()
-    )
-      .then(({ data }: any) => {
         if (data) {
           const p = Array.isArray(data.passenger) ? data.passenger[0] : data.passenger;
           const fare = Number(data.actual_fare || data.final_fare || data.estimated_fare) || 35;
+
           setBooking({
             booking_id: data.booking_id,
             passenger_id: data.passenger_id,
-            passenger_name: p?.full_name || 'Calapan Commuter',
+            passenger_name: p?.full_name || data.passenger_name || 'Passenger',
             passenger_phone: p?.contact_number || '+63 917 000 0000',
             booking_type: data.booking_type || 'Immediate',
             is_shared_trip: Boolean(data.is_shared_trip),
@@ -219,16 +210,60 @@ export const DriverActiveTrip: React.FC = () => {
             created_at: data.created_at,
             updated_at: data.updated_at,
           } as any);
+
           setCurrentFare(fare);
           setProportionateFareP1(fare);
 
-          if (data.passenger_finished || data.booking_status === 'Arrived at Destination') {
-            setPassengerFinished(true);
+          if (data.booking_status === 'Arrived at Destination') {
+            setWaitingForPayment(true);
           }
         }
-      })
-      .catch((e: any) => console.warn('[DriverActiveTrip] Supabase fetch error:', e));
+      } catch (e) {
+        console.warn('[DriverActiveTrip] Supabase fetch error:', e);
+      }
+    };
+
+    fetchBookingDetails();
   }, [bookingId]);
+
+  // Listen for Passenger Payment Confirmation
+  useEffect(() => {
+    if (!bookingId) return;
+
+    const checkPaymentConfirmed = () => {
+      const isConfirmed =
+        localStorage.getItem(`payment_confirmed_${bookingId}`) === 'true' ||
+        localStorage.getItem(`passenger_finished_${bookingId}`) === 'true';
+
+      if (isConfirmed && !paymentConfirmed) {
+        setPaymentConfirmed(true);
+        setWaitingForPayment(false);
+        setFeedbackModalOpen(true);
+      }
+    };
+
+    checkPaymentConfirmed();
+    const interval = setInterval(checkPaymentConfirmed, 1500);
+
+    const syncChannel = supabase.channel(`booking_sync_${bookingId}`);
+    syncChannel
+      .on('broadcast', { event: 'payment_confirmed' }, () => {
+        setPaymentConfirmed(true);
+        setWaitingForPayment(false);
+        setFeedbackModalOpen(true);
+      })
+      .on('broadcast', { event: 'passenger_finished' }, () => {
+        setPaymentConfirmed(true);
+        setWaitingForPayment(false);
+        setFeedbackModalOpen(true);
+      })
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(syncChannel);
+    };
+  }, [bookingId, paymentConfirmed]);
 
   // Real-time GPS broadcasting during active trip
   useEffect(() => {
@@ -269,16 +304,6 @@ export const DriverActiveTrip: React.FC = () => {
     };
   }, [bookingId]);
 
-  useEffect(() => {
-    if (tripStarted && booking?.is_shared_trip && !hasPromptedShared) {
-      const t = setTimeout(() => {
-        setHasPromptedShared(true);
-        setSharedPromptOpen(true);
-      }, 5000);
-      return () => clearTimeout(t);
-    }
-  }, [tripStarted, hasPromptedShared, booking?.is_shared_trip]);
-
   const handleEnRoute = async () => {
     try {
       await supabase
@@ -304,7 +329,6 @@ export const DriverActiveTrip: React.FC = () => {
   };
 
   const handleStartTrip = async () => {
-    setTripStarted(true);
     try {
       await supabase
         .from('booking')
@@ -319,71 +343,120 @@ export const DriverActiveTrip: React.FC = () => {
     }
   };
 
-  const handleAcceptSharedPassenger = async () => {
-    setPairedPassenger('Joshua Dizon (San Vicente High)');
-    const newP1 = Math.round(currentFare * 0.75 * 100) / 100;
-    const p2Fare = 15.0;
-    setProportionateFareP1(newP1);
-    setCurrentFare(newP1 + p2Fare);
-    setSharedPromptOpen(false);
-
+  const handleDriverSlideComplete = async () => {
+    setWaitingForPayment(true);
     try {
       await supabase
         .from('booking')
-        .update({ is_shared_trip: true })
+        .update({ booking_status: 'Arrived at Destination' })
         .eq('booking_id', bookingId);
+      setBooking((prev: any) => ({ ...prev, booking_status: 'Arrived at Destination' }));
     } catch (err) {
-      console.warn('[DriverActiveTrip] acceptShared Supabase update note:', err);
+      console.warn('[DriverActiveTrip] slideComplete error:', err);
+    }
+
+    if (bookingId) {
+      const channel = supabase.channel(`booking_sync_${bookingId}`);
+      channel.send({
+        type: 'broadcast',
+        event: 'driver_arrived_destination',
+        payload: { bookingId },
+      });
     }
   };
 
-  const handleDeclineSharedPassenger = () => {
-    setSharedPromptOpen(false);
-  };
-
-  const handleCompleteTrip = async () => {
-    const p1PayableFare = pairedPassenger ? proportionateFareP1 : currentFare;
-    try {
-      await supabase
-        .from('booking')
-        .update({
-          booking_status: 'Completed',
-          actual_fare: p1PayableFare,
-          trip_completed_at: new Date().toISOString(),
-        })
-        .eq('booking_id', bookingId);
-    } catch (err) {
-      console.warn('[DriverActiveTrip] completeTrip Supabase update note:', err);
-    }
-
-    navigate('/driver/earnings', {
+  const handleFinishAndGoHome = () => {
+    setFeedbackModalOpen(false);
+    navigate('/driver/home', {
       replace: true,
       state: {
-        completedTrip: {
-          bookingCode: booking?.booking_id || bookingId,
-          passengerName: booking?.passenger_name || 'Maria Clara Santos',
-          pickup: booking?.pickup_address || 'JP Rizal Central Terminal',
-          dropoff: booking?.dropoff_address || 'Calapan City Public Market',
-          fareAmount: currentFare,
-          pairedPassenger,
-          proportionateFareP1: pairedPassenger ? proportionateFareP1 : undefined,
-        },
+        showEarningsAnimation: true,
+        completedFare: currentFare,
+        passengerName,
       },
     });
   };
 
-  const handleExitToHome = () => {
-    setExitGuardOpen(false);
-    navigate('/driver/home');
+  const handleConfirmCancelTrip = async () => {
+    setCancelModalOpen(false);
+    try {
+      await supabase
+        .from('booking')
+        .update({ booking_status: 'Cancelled' })
+        .eq('booking_id', bookingId);
+    } catch (err) {
+      console.warn('[DriverActiveTrip] Cancel update note:', err);
+    }
+    navigate('/driver/home', { replace: true });
   };
 
-  const passengerName = booking?.passenger_name || 'Maria Clara Santos';
+  // Scroll to cancel drag handlers for Driver PWA footer sheet
+  const handleSheetTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    const pageY = 'touches' in e ? e.touches[0].pageY : e.pageY;
+    isDraggingSheet.current = true;
+    startY.current = pageY;
+  };
+
+  const handleSheetTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDraggingSheet.current) return;
+    const pageY = 'touches' in e ? e.touches[0].pageY : e.pageY;
+    const diff = startY.current - pageY;
+    // Bound drag distance (maxDrag = 150px)
+    const clamped = Math.max(0, Math.min(150, diff));
+    setDragY(clamped);
+
+    if (clamped >= 120) {
+      isDraggingSheet.current = false;
+      setDragY(0);
+      setCancelModalOpen(true);
+    }
+  };
+
+  const handleSheetTouchEnd = () => {
+    if (!isDraggingSheet.current) return;
+    isDraggingSheet.current = false;
+    setDragY(0);
+  };
+
+  // Real GPS calculations
+  const pickupLat = Number(booking?.pickup_latitude) || 13.4117;
+  const pickupLng = Number(booking?.pickup_longitude) || 121.1803;
+  const dropoffLat = Number(booking?.dropoff_latitude) || 13.4180;
+  const dropoffLng = Number(booking?.dropoff_longitude) || 121.1850;
+
+  const pickupDistKm = calculateHaversineKm(driverLocation.lat, driverLocation.lng, pickupLat, pickupLng);
+  const dropoffDistKm = calculateHaversineKm(driverLocation.lat, driverLocation.lng, dropoffLat, dropoffLng);
+  const totalTripKm = calculateHaversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng) || 1.5;
+
+  const rawProgress = Math.round(((totalTripKm - dropoffDistKm) / totalTripKm) * 100);
+  const computedProgress = Math.min(100, Math.max(0, isNaN(rawProgress) ? 0 : rawProgress));
+
+  const passengerName = booking?.passenger_name || 'Passenger';
   const dropoffAddress = booking?.dropoff_address || 'Calapan City Public Market';
 
-  const isCompleteButtonEnabled =
-    passengerFinished ||
-    progress >= 90 ||
-    booking?.booking_status === 'Arrived at Destination';
+  const isPreTrip =
+    booking?.booking_status === 'Accepted' ||
+    booking?.booking_status === 'Driver Assigned' ||
+    booking?.booking_status === 'In Transit' ||
+    booking?.booking_status === 'Arrived at Pickup';
+
+  const getStageTitle = () => {
+    if (waitingForPayment) return language === 'tl' ? 'NAGHIHINTAY NG BAYAD' : 'WAITING FOR PAYMENT';
+    const status = booking?.booking_status;
+    if (status === 'Accepted' || status === 'Driver Assigned' || status === 'In Transit') {
+      return language === 'tl' ? 'PAPUNTA SA PICKUP' : 'DRIVING TO PICKUP';
+    }
+    if (status === 'Arrived at Pickup' || status === 'Driver Arrived') {
+      return language === 'tl' ? 'NASA PICKUP NA' : 'ARRIVED AT PICKUP';
+    }
+    if (status === 'Trip Ongoing') {
+      return language === 'tl' ? 'BIYAHE AY ONGOING' : 'TRIP IN PROGRESS';
+    }
+    if (status === 'Arrived at Destination') {
+      return language === 'tl' ? 'NASA DESTINASYON NA' : 'ARRIVED AT DESTINATION';
+    }
+    return language === 'tl' ? 'BIYAHE' : 'ACTIVE TRIP';
+  };
 
   return (
     <Box
@@ -397,16 +470,10 @@ export const DriverActiveTrip: React.FC = () => {
         position: 'relative',
       }}
     >
-      {/* 1. Leaflet OpenStreetMap Surface with Pickup and Dropoff markers */}
+      {/* 1. Leaflet OpenStreetMap Surface */}
       <MapView
-        pickupLocation={{
-          lat: booking?.pickup_latitude || 13.4117,
-          lng: booking?.pickup_longitude || 121.1803,
-        }}
-        dropoffLocation={{
-          lat: booking?.dropoff_latitude || 13.4180,
-          lng: booking?.dropoff_longitude || 121.1850,
-        }}
+        pickupLocation={{ lat: pickupLat, lng: pickupLng }}
+        dropoffLocation={{ lat: dropoffLat, lng: dropoffLng }}
         userLocation={driverLocation}
       />
 
@@ -448,7 +515,7 @@ export const DriverActiveTrip: React.FC = () => {
           <Box>
             <Typography
               sx={{
-                fontSize: '14px',
+                fontSize: '13.5px',
                 color: '#0F172A',
                 fontWeight: 800,
                 textTransform: 'uppercase',
@@ -456,7 +523,7 @@ export const DriverActiveTrip: React.FC = () => {
                 fontFamily: 'Poppins, sans-serif',
               }}
             >
-              {tripStarted ? 'ONGOING TRIP' : 'PASSENGER BOARDING'}
+              {getStageTitle()}
             </Typography>
           </Box>
         </Box>
@@ -473,7 +540,7 @@ export const DriverActiveTrip: React.FC = () => {
         />
       </Paper>
 
-      {/* 3. Floating Collapsible Trip Card */}
+      {/* 3. Floating Collapsible Trip Card with Persistent Destination Progress */}
       <Paper
         elevation={6}
         onClick={(e) => e.stopPropagation()}
@@ -492,7 +559,7 @@ export const DriverActiveTrip: React.FC = () => {
           transition: 'all 0.25s ease',
         }}
       >
-        {/* Main Row: Passenger Name & Destination + Uncollapse Toggle Arrow */}
+        {/* Main Row: Passenger Name & Destination + Toggle */}
         <Box
           onClick={() => setIsDetailsExpanded((prev) => !prev)}
           sx={{
@@ -507,10 +574,10 @@ export const DriverActiveTrip: React.FC = () => {
               {passengerName.charAt(0)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {passengerName}
               </Typography>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {dropoffAddress}
               </Typography>
             </Box>
@@ -529,49 +596,51 @@ export const DriverActiveTrip: React.FC = () => {
           </IconButton>
         </Box>
 
-        {/* Collapsible Details Section */}
+        {/* ALWAYS VISIBLE DESTINATION PROGRESS INDICATOR */}
+        <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid #F1F5F9' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>
+              {isPreTrip ? 'Pickup Distance' : 'Progress towards Destination'}
+            </Typography>
+            <Typography sx={{ fontSize: '13px', fontWeight: 900, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
+              {isPreTrip ? formatDistance(pickupDistKm) : `${computedProgress}% (${formatDistance(dropoffDistKm)} left)`}
+            </Typography>
+          </Box>
+
+          <LinearProgress
+            variant="determinate"
+            value={isPreTrip ? Math.min(100, Math.max(10, 100 - pickupDistKm * 20)) : computedProgress}
+            sx={{
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: '#E2E8F0',
+              '& .MuiLinearProgress-bar': { backgroundColor: '#FF6B00', borderRadius: 3 },
+            }}
+          />
+        </Box>
+
+        {/* Collapsible Expanded Details */}
         {isDetailsExpanded && (
-          <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>
-                Progress towards Destination
-              </Typography>
-              <Typography sx={{ fontSize: '14px', fontWeight: 900, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
-                {progress}%
-              </Typography>
-            </Box>
-
-            <LinearProgress
-              variant="determinate"
-              value={progress}
-              sx={{
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: '#E2E8F0',
-                '& .MuiLinearProgress-bar': { backgroundColor: '#FF6B00', borderRadius: 4 },
-              }}
-            />
-
-            <Box sx={{ p: 1.5, borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase' }}>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Box sx={{ p: 1.25, borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <Typography sx={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase' }}>
                 PICKUP ADDRESS
               </Typography>
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-                {booking?.pickup_address || 'JP Rizal St. Central Terminal'}
+              <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                {booking?.pickup_address || 'Calapan City'}
               </Typography>
             </Box>
 
-            {/* Paired Second Passenger (if accepted) */}
             {pairedPassenger && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.25, backgroundColor: '#ECFDF5', borderRadius: '12px', border: '1px solid #A7F3D0' }}>
-                <Avatar sx={{ width: 30, height: 30, backgroundColor: '#10B981', color: '#FFFFFF', fontWeight: 800, fontSize: '12px' }}>
+                <Avatar sx={{ width: 28, height: 28, backgroundColor: '#10B981', color: '#FFFFFF', fontWeight: 800, fontSize: '12px' }}>
                   J
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#065F46', fontFamily: 'Poppins, sans-serif' }}>
+                  <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#065F46', fontFamily: 'Poppins, sans-serif' }}>
                     {pairedPassenger}
                   </Typography>
-                  <Typography sx={{ fontSize: '11.5px', color: '#047857', fontFamily: 'Poppins, sans-serif' }}>
+                  <Typography sx={{ fontSize: '11px', color: '#047857', fontFamily: 'Poppins, sans-serif' }}>
                     Passenger #2 (Shared Carpool)
                   </Typography>
                 </Box>
@@ -581,10 +650,16 @@ export const DriverActiveTrip: React.FC = () => {
         )}
       </Paper>
 
-      {/* 4. Bottom Action Footer */}
+      {/* 4. Bottom Action Footer with Draggable Scroll-To-Cancel */}
       <Paper
         elevation={8}
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={handleSheetTouchStart}
+        onMouseMove={handleSheetTouchMove}
+        onMouseUp={handleSheetTouchEnd}
+        onTouchStart={handleSheetTouchStart}
+        onTouchMove={handleSheetTouchMove}
+        onTouchEnd={handleSheetTouchEnd}
         sx={{
           position: 'absolute',
           bottom: 0,
@@ -593,28 +668,39 @@ export const DriverActiveTrip: React.FC = () => {
           backgroundColor: '#FFFFFF',
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
-          padding: '18px 20px calc(var(--safe-area-bottom) + 20px) 20px',
+          padding: '16px 20px calc(var(--safe-area-bottom) + 20px) 20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 1.5,
+          gap: 1.25,
           zIndex: 30,
           borderTop: '1px solid #E2E8F0',
           boxShadow: '0 -8px 30px rgba(0, 0, 0, 0.08)',
+          transform: `translateY(${-dragY}px)`,
+          transition: isDraggingSheet.current ? 'none' : 'transform 0.25s ease',
         }}
       >
-        {/* Estimated Arrival Time above total fare */}
+        {/* Scroll-to-Cancel Guidance Bar during Pickup Stage */}
+        {isPreTrip && !waitingForPayment && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, py: 0.25 }}>
+            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: '#94A3B8', fontFamily: 'Poppins, sans-serif' }}>
+              ⌃⌃ {language === 'tl' ? 'I-scroll pataas para ikansela ang biyahe' : 'Scroll up to cancel trip'} ⌃⌃
+            </Typography>
+          </Box>
+        )}
+
+        {/* Estimated Arrival Time / Distance */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5 }}>
-          <Typography sx={{ fontSize: '11.5px', fontWeight: 800, color: '#64748B', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            ESTIMATED ARRIVAL TIME:
+          <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#64748B', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            ESTIMATED ROUTE DISTANCE:
           </Typography>
           <Chip
-            label="~8 MINS (1.5 KM)"
+            label={isPreTrip ? `Pickup: ${formatDistance(pickupDistKm)}` : `Dest: ${formatDistance(dropoffDistKm)}`}
             size="small"
             sx={{
               backgroundColor: '#FFF7ED',
               color: '#FF6B00',
               fontWeight: 800,
-              fontSize: '11.5px',
+              fontSize: '11px',
               height: '24px',
               border: '1px solid #FFD6B3',
               fontFamily: 'Poppins, sans-serif',
@@ -624,26 +710,26 @@ export const DriverActiveTrip: React.FC = () => {
 
         {/* Total Fare Display */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5 }}>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
             Total Trip Fare:
           </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 900, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '22px', fontWeight: 900, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
             ₱{currentFare.toFixed(2)}
           </Typography>
         </Box>
 
-        {/* Action Button Controls */}
+        {/* Dynamic Booking Action Button Controls */}
         {booking?.booking_status === 'Accepted' || booking?.booking_status === 'Driver Assigned' ? (
           <Button
             variant="contained"
             fullWidth
             onClick={handleEnRoute}
             sx={{
-              height: 50,
+              height: 48,
               borderRadius: '14px',
               backgroundColor: '#3B82F6',
               fontWeight: 800,
-              fontSize: '15px',
+              fontSize: '14.5px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
               '&:hover': { backgroundColor: '#2563EB' },
@@ -657,11 +743,11 @@ export const DriverActiveTrip: React.FC = () => {
             fullWidth
             onClick={handleArrived}
             sx={{
-              height: 50,
+              height: 48,
               borderRadius: '14px',
               backgroundColor: '#F59E0B',
               fontWeight: 800,
-              fontSize: '15px',
+              fontSize: '14.5px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
               '&:hover': { backgroundColor: '#D97706' },
@@ -676,11 +762,11 @@ export const DriverActiveTrip: React.FC = () => {
             onClick={handleStartTrip}
             startIcon={<LocalTaxiIcon />}
             sx={{
-              height: 50,
+              height: 48,
               borderRadius: '14px',
               backgroundColor: '#10B981',
               fontWeight: 800,
-              fontSize: '15px',
+              fontSize: '14.5px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
               '&:hover': { backgroundColor: '#059669' },
@@ -689,79 +775,65 @@ export const DriverActiveTrip: React.FC = () => {
             Start Trip
           </Button>
         ) : (
-          /* Slide to Complete Trip Button for Driver */
+          /* Slide to Complete Trip Slider for Driver */
           <SlideToCompleteDriver
-            enabled={isCompleteButtonEnabled}
-            onComplete={handleCompleteTrip}
+            enabled={!waitingForPayment}
+            waitingForPayment={waitingForPayment}
+            onComplete={handleDriverSlideComplete}
+            language={language}
           />
         )}
       </Paper>
 
-      {/* Mid-Trip Additional Shared Passenger Prompt (<50% Rule) */}
+      {/* Driver Feedback Modal (opens when payment is confirmed) */}
+      <DriverFeedbackModal
+        open={feedbackModalOpen}
+        onClose={handleFinishAndGoHome}
+        onSubmitted={handleFinishAndGoHome}
+        booking={{
+          booking_id: bookingId,
+          passenger_name: passengerName,
+          passenger_id: booking?.passenger_id,
+        }}
+      />
+
+      {/* Driver Cancel Confirmation Dialog */}
       <Dialog
-        open={sharedPromptOpen}
-        fullWidth
-        maxWidth="xs"
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
         slotProps={{
           paper: {
-            sx: {
-              borderRadius: '24px',
-              p: 1,
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
-            },
+            sx: { borderRadius: '20px', p: 1, backgroundColor: '#FFFFFF' },
           },
         }}
       >
-        <DialogTitle sx={{ textAlign: 'center', pb: 1 }}>
-          <Chip label="Mid-Trip Carpool Match (<50% Route)" color="warning" sx={{ fontWeight: 800 }} />
-          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', mt: 1 }}>
-            Additional Passenger along Route?
-          </Typography>
-          <Typography sx={{ fontSize: '12.5px', color: '#64748B' }}>
-            A commuter near San Vicente High is also heading towards City Hall.
-          </Typography>
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 800, color: '#EF4444' }}>
+          {language === 'tl' ? 'Ikansela ang Biyahe?' : 'Cancel Trip?'}
         </DialogTitle>
-
-        <DialogContent sx={{ py: 1 }}>
-          <Box sx={{ p: 2, backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
-            <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
-              Passenger: Joshua Dizon (1 seat)
-            </Typography>
-            <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
-              Pickup: San Vicente NHS Gate (+200m detour)
-            </Typography>
-            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#10B981', mt: 1 }}>
-              Extra Trip Earnings: +₱15.00
-            </Typography>
-          </Box>
+        <DialogContent sx={{ textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
+            {language === 'tl'
+              ? 'Sigurado ka bang nais mong ikansela ang biyaheng ito?'
+              : 'Are you sure you want to cancel this trip request?'}
+          </Typography>
         </DialogContent>
-
-        <DialogActions sx={{ p: '12px 18px 18px', gap: 1.5 }}>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
+            fullWidth
             variant="outlined"
-            fullWidth
-            color="inherit"
-            onClick={handleDeclineSharedPassenger}
-            sx={{ height: 44, borderRadius: '12px', fontWeight: 700, textTransform: 'none' }}
+            onClick={() => setCancelModalOpen(false)}
+            sx={{ height: 42, borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
           >
-            Decline
+            {language === 'tl' ? 'Bumalik' : 'Keep Trip'}
           </Button>
-
           <Button
-            variant="contained"
             fullWidth
-            onClick={handleAcceptSharedPassenger}
-            sx={{
-              height: 44,
-              borderRadius: '12px',
-              backgroundColor: '#10B981',
-              fontWeight: 800,
-              textTransform: 'none',
-              '&:hover': { backgroundColor: '#059669' },
-            }}
+            variant="contained"
+            color="error"
+            onClick={handleConfirmCancelTrip}
+            sx={{ height: 42, borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
           >
-            Accept (+₱15)
+            {language === 'tl' ? 'Ikansela' : 'Confirm Cancel'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -772,21 +844,18 @@ export const DriverActiveTrip: React.FC = () => {
         onClose={() => setExitGuardOpen(false)}
         slotProps={{
           paper: {
-            sx: {
-              borderRadius: '20px',
-              padding: '8px',
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-            },
+            sx: { borderRadius: '20px', padding: '8px', backgroundColor: '#FFFFFF' },
           },
         }}
       >
         <DialogTitle sx={{ fontWeight: 800, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
-          Active Ongoing Trip
+          {language === 'tl' ? 'Biyahe ay Aktibo' : 'Active Trip'}
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', py: 1 }}>
           <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.5 }}>
-            You currently have passenger(s) on board (<strong>{passengerName}</strong>). Do you want to return to Home? Your trip progress will remain active.
+            {language === 'tl'
+              ? `May pasahero ka sa biyahe (${passengerName}). Nais mo bang bumalik sa Home?`
+              : `You currently have passenger (${passengerName}). Do you want to return to Home? Your trip progress will remain active.`}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -795,7 +864,7 @@ export const DriverActiveTrip: React.FC = () => {
             variant="contained"
             onClick={() => setExitGuardOpen(false)}
             sx={{
-              height: 46,
+              height: 44,
               borderRadius: '12px',
               backgroundColor: '#FF6B00',
               fontWeight: 700,
@@ -803,13 +872,13 @@ export const DriverActiveTrip: React.FC = () => {
               '&:hover': { backgroundColor: '#E66000' },
             }}
           >
-            Stay in Trip
+            {language === 'tl' ? 'Manatili sa Biyahe' : 'Stay in Trip'}
           </Button>
           <Button
             fullWidth
             variant="outlined"
             color="error"
-            onClick={handleExitToHome}
+            onClick={() => navigate('/driver/home')}
             sx={{
               height: 44,
               borderRadius: '12px',
@@ -817,7 +886,7 @@ export const DriverActiveTrip: React.FC = () => {
               textTransform: 'none',
             }}
           >
-            Return to Home
+            {language === 'tl' ? 'Bumalik sa Home' : 'Return to Home'}
           </Button>
         </DialogActions>
       </Dialog>
