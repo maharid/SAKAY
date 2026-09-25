@@ -862,19 +862,58 @@ export const TripMonitoring: React.FC = () => {
         {/* Draggable Sheet Revealed Actions (Finish Trip & Visually Separated Cancel Trip) */}
         {status !== 'Completed' && (
           <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
-            {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
-              <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
-            )}
+            {/* Initial Collapsed View: Instruction + Slide to Finish Trip */}
+            <Box
+              sx={{
+                opacity: isExpanded ? 0 : 1,
+                maxHeight: isExpanded ? '0px' : '140px',
+                overflow: 'hidden',
+                transition: 'opacity 0.3s ease, max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: isExpanded ? 'none' : 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '100%',
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#94A3B8',
+                  textAlign: 'center',
+                  fontFamily: 'Poppins, sans-serif',
+                  mb: 0.5,
+                }}
+              >
+                {language === 'tl' ? 'Mag-scroll pababa para ikansela ang biyahe' : 'Scroll down to Cancel Trip'}
+              </Typography>
 
-            {/* Revealed Destructive Action when Expanded */}
-            {isExpanded && (
-              <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #FCA5A5', textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
-                  {language === 'tl' ? 'Kanselahin ang Biyahe' : 'Cancel Trip'}
-                </Typography>
-                <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
-              </Box>
-            )}
+              {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
+                <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
+              )}
+            </Box>
+
+            {/* Revealed Expanded View: Visually Separated Slide to Cancel */}
+            <Box
+              sx={{
+                opacity: isExpanded ? 1 : 0,
+                maxHeight: isExpanded ? '140px' : '0px',
+                overflow: 'hidden',
+                transition: 'opacity 0.3s ease, max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: isExpanded ? 'auto' : 'none',
+                mt: isExpanded ? 1 : 0,
+                pt: isExpanded ? 1.5 : 0,
+                borderTop: isExpanded ? '1px dashed #FCA5A5' : 'none',
+                textAlign: 'center',
+                width: '100%',
+              }}
+            >
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
+                {language === 'tl' ? 'Kanselahin ang Biyahe' : 'Cancel Trip'}
+              </Typography>
+              <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
+            </Box>
           </Box>
         )}
       </Paper>
