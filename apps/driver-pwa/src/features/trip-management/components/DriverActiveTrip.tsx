@@ -20,12 +20,17 @@ import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import CancelIcon from '@mui/icons-material/Cancel';
+import PhoneIcon from '@mui/icons-material/Phone';
+import MessageIcon from '@mui/icons-material/Message';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PersonIcon from '@mui/icons-material/Person';
 
 import MapView from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { calculateHaversineKm, formatDistance } from '@sakay/shared';
 import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
+import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
 
 const SlideToCompleteDriver: React.FC<{
   enabled: boolean;
@@ -147,6 +152,7 @@ export const DriverActiveTrip: React.FC = () => {
   const [booking, setBooking] = useState<any>(null);
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [commModalOpen, setCommModalOpen] = useState(false);
 
   // Collapsible Card State
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
@@ -432,6 +438,7 @@ export const DriverActiveTrip: React.FC = () => {
   const computedProgress = Math.min(100, Math.max(0, isNaN(rawProgress) ? 0 : rawProgress));
 
   const passengerName = booking?.passenger_name || 'Passenger';
+  const passengerPhone = booking?.passenger_phone || '+63 917 123 4567';
   const dropoffAddress = booking?.dropoff_address || 'Calapan City Public Market';
 
   const isPreTrip =
@@ -498,35 +505,18 @@ export const DriverActiveTrip: React.FC = () => {
           boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton
-            onClick={() => setExitGuardOpen(true)}
-            sx={{
-              backgroundColor: '#F1F5F9',
-              color: '#0F172A',
-              width: 36,
-              height: 36,
-              borderRadius: '10px',
-              '&:hover': { backgroundColor: '#E2E8F0' },
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <Box>
-            <Typography
-              sx={{
-                fontSize: '13.5px',
-                color: '#0F172A',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontFamily: 'Poppins, sans-serif',
-              }}
-            >
-              {getStageTitle()}
-            </Typography>
-          </Box>
-        </Box>
+        <Typography
+          sx={{
+            fontSize: '13.5px',
+            color: '#0F172A',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontFamily: 'Poppins, sans-serif',
+          }}
+        >
+          {getStageTitle()}
+        </Typography>
         <Chip
           label={booking?.is_shared_trip ? 'Shared Ride' : 'Solo Trip'}
           size="small"
@@ -577,23 +567,45 @@ export const DriverActiveTrip: React.FC = () => {
               <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {passengerName}
               </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {dropoffAddress}
+              <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <PersonIcon sx={{ fontSize: 13, color: '#94A3B8' }} />
+                {booking?.passenger_count || 1} {language === 'tl' ? 'pasahero' : 'passenger(s)'}
               </Typography>
             </Box>
           </Box>
 
-          <IconButton
-            size="small"
-            sx={{
-              backgroundColor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              ml: 1,
-              color: '#0F172A',
-            }}
-          >
-            {isDetailsExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href = `tel:${passengerPhone}`;
+              }}
+              sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E', width: 34, height: 34, borderRadius: '10px' }}
+              title={language === 'tl' ? 'Tawagan ang pasahero' : 'Call passenger'}
+            >
+              <PhoneIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                setCommModalOpen(true);
+              }}
+              sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00', width: 34, height: 34, borderRadius: '10px' }}
+              title={language === 'tl' ? 'Magpadala ng mensahe' : 'Send message'}
+            >
+              <MessageIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDetailsExpanded((prev) => !prev);
+              }}
+              sx={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', color: '#0F172A', width: 34, height: 34, borderRadius: '10px' }}
+            >
+              {isDetailsExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+            </IconButton>
+          </Box>
         </Box>
 
         {/* ALWAYS VISIBLE DESTINATION PROGRESS INDICATOR */}
@@ -622,13 +634,30 @@ export const DriverActiveTrip: React.FC = () => {
         {/* Collapsible Expanded Details */}
         {isDetailsExpanded && (
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            <Box sx={{ p: 1.25, borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <Typography sx={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase' }}>
-                PICKUP ADDRESS
-              </Typography>
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-                {booking?.pickup_address || 'Calapan City'}
-              </Typography>
+            <Box sx={{ p: 1.25, borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <LocationOnIcon sx={{ color: '#10B981', fontSize: 18, mt: '2px', flexShrink: 0 }} />
+                <Box>
+                  <Typography sx={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase' }}>
+                    {language === 'tl' ? 'LOKASYON NG PICKUP' : 'PICKUP LOCATION'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                    {booking?.pickup_address || 'Calapan City'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, pt: 0.75, borderTop: '1px dashed #E2E8F0' }}>
+                <LocationOnIcon sx={{ color: '#EF4444', fontSize: 18, mt: '2px', flexShrink: 0 }} />
+                <Box>
+                  <Typography sx={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase' }}>
+                    {language === 'tl' ? 'DESTINASYON' : 'DESTINATION'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                    {dropoffAddress}
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
 
             {pairedPassenger && (
@@ -784,6 +813,15 @@ export const DriverActiveTrip: React.FC = () => {
           />
         )}
       </Paper>
+
+      {/* Driver ↔ Passenger Communication Modal */}
+      <DriverCommunicationModal
+        open={commModalOpen}
+        onClose={() => setCommModalOpen(false)}
+        passengerName={passengerName}
+        passengerPhone={passengerPhone}
+        currentStage={booking?.booking_status}
+      />
 
       {/* Driver Feedback Modal (opens when payment is confirmed) */}
       <DriverFeedbackModal

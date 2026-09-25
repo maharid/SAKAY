@@ -50,7 +50,7 @@ export const DriverNavigation: React.FC = () => {
           setBooking({
             booking_id: data.booking_id,
             passenger_id: data.passenger_id,
-            passenger_name: p?.full_name || 'Calapan Commuter',
+            passenger_name: data.passenger_name || p?.full_name || 'Passenger',
             passenger_phone: p?.contact_number || '+63 917 000 0000',
             booking_type: data.booking_type || 'Immediate',
             is_shared_trip: Boolean(data.is_shared_trip),
@@ -152,7 +152,7 @@ export const DriverNavigation: React.FC = () => {
     navigate('/driver/home');
   };
 
-  const passengerName = booking?.passenger_name || 'Maria Clara Santos';
+  const passengerName = booking?.passenger_name || 'Passenger';
   const passengerPhone = booking?.passenger_phone || '+63 917 555 1001';
   const pickupAddress = booking?.pickup_address || 'JP Rizal St. Central Terminal, Calapan City';
   const fare = booking?.estimated_fare || 18.0;

@@ -366,7 +366,7 @@ export async function fetchDriverTrips(driverId?: string) {
       return {
         id: b.booking_id,
         bookingCode: `BKG-${b.booking_id.slice(0, 8).toUpperCase()}`,
-        passengerName: p?.full_name || 'Calapan Commuter',
+        passengerName: b.passenger_name || p?.full_name || 'Passenger',
         passengerPhone: p?.contact_number || '',
         pickupLocation: b.pickup_address || b.pickup_location_address || 'Calapan City',
         pickupLat: Number(b.pickup_latitude) || 13.4115,

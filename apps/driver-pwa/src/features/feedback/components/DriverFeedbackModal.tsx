@@ -46,7 +46,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
 }) => {
   const { language } = useLanguage();
   const bookingId = booking?.booking_id || booking?.id || '';
-  const passengerName = booking?.passenger_name || booking?.passengerName || 'Calapan Commuter';
+  const passengerName = booking?.passenger_name || booking?.passengerName || 'Passenger';
 
   const [stars, setStars] = useState<number | null>(5);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);

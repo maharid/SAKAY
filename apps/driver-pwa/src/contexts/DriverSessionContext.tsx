@@ -153,7 +153,7 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
 
       let query = supabase
         .from('booking')
-        .select('*')
+        .select('*, passenger:passenger_id(*)')
         .eq('booking_status', 'Pending')
         .gte('created_at', fifteenMinsAgoStr);
 
@@ -164,11 +164,12 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
       const { data, error } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
       
       if (!error && data && !incomingRequest && !declinedBookings.has(data.booking_id)) {
+        const p = Array.isArray(data.passenger) ? data.passenger[0] : data.passenger;
         const mapped: BookingRecord = {
           booking_id: data.booking_id,
           passenger_id: data.passenger_id || 'passenger-demo',
-          passenger_name: 'Calapan Commuter',
-          passenger_phone: '+63 917 123 4567',
+          passenger_name: data.passenger_name || p?.full_name || 'Passenger',
+          passenger_phone: p?.contact_number || data.passenger_phone || '+63 917 123 4567',
           booking_type: data.booking_type || 'Immediate',
           is_shared_trip: Boolean(data.is_shared_trip),
           passenger_count: data.passenger_count || 1,
