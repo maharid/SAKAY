@@ -254,6 +254,7 @@ export const TripMonitoring: React.FC = () => {
   });
 
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [leaveConfirmModalOpen, setLeaveConfirmModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [customSms, setCustomSms] = useState('');
@@ -681,6 +682,15 @@ export const TripMonitoring: React.FC = () => {
       {/* 3. Driver & Trip Details (Bottom Sheet Card with ONLY Top Rounded Corners) */}
       <Paper
         elevation={8}
+        onScroll={(e) => {
+          const st = e.currentTarget.scrollTop;
+          if (st > 20) {
+            setIsScrolledDown(true);
+          } else {
+            setIsScrolledDown(false);
+          }
+        }}
+        className="hide-scrollbar"
         sx={{
           backgroundColor: '#FFFFFF',
           borderRadius: '24px 24px 0 0',
@@ -690,6 +700,8 @@ export const TripMonitoring: React.FC = () => {
           gap: 1.5,
           zIndex: 20,
           width: '100%',
+          maxHeight: '65vh',
+          overflowY: 'auto',
           boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.08)',
         }}
       >
@@ -785,21 +797,69 @@ export const TripMonitoring: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Slide to Finish Trip for Passenger */}
-        {status !== 'Completed' && (status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
-          <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
-            <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
-          </Box>
-        )}
-
-        {/* Scroll Down to Cancel & Slide to Cancel Track */}
+        {/* Scroll-Driven Actions (Finish Trip vs Cancel Trip) */}
         {status !== 'Completed' && (
-          <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5, textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: '#94A3B8', mb: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-              <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
-              {language === 'tl' ? 'Scroll down to cancel' : 'Scroll down to cancel'}
-            </Typography>
-            <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
+          <Box sx={{ pt: 1, borderTop: '1px solid #F1F5F9', mt: 0.5 }}>
+            {!isScrolledDown ? (
+              <>
+                {/* Un-scrolled State: Show Slide to Finish Trip & "Scroll down to cancel trip" indicator. Slide to Cancel is hidden */}
+                {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
+                  <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
+                )}
+
+                <Box
+                  onClick={() => setIsScrolledDown(true)}
+                  sx={{
+                    pt: 1.5,
+                    pb: 0.5,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#94A3B8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 0.5,
+                      fontFamily: 'Poppins, sans-serif',
+                      '&:hover': { color: '#64748B' },
+                    }}
+                  >
+                    <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
+                    {language === 'tl' ? 'Scroll down to cancel trip' : 'Scroll down to cancel trip'}
+                  </Typography>
+                </Box>
+              </>
+            ) : (
+              <>
+                {/* Scrolled Down State: Hide Finish Trip & Indicator, Show Slide to Cancel Trip */}
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography
+                    onClick={() => setIsScrolledDown(false)}
+                    sx={{
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      color: '#64748B',
+                      mb: 0.5,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 0.5,
+                      fontFamily: 'Poppins, sans-serif',
+                    }}
+                  >
+                    ▲ {language === 'tl' ? 'Bumalik sa Finish Trip' : 'Back to Finish Trip'}
+                  </Typography>
+                  <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
+                </Box>
+              </>
+            )}
           </Box>
         )}
       </Paper>

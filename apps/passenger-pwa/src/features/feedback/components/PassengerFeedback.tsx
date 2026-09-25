@@ -10,8 +10,10 @@ import {
   Chip,
   TextField,
   Avatar,
+  Dialog,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -45,6 +47,7 @@ export const PassengerFeedback: React.FC = () => {
   );
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
 
   const availableTags = language === 'tl' ? [
     'Magalang na Driver',
@@ -87,8 +90,8 @@ export const PassengerFeedback: React.FC = () => {
         await supabase.from('rating').insert([
           {
             booking_id: booking.booking_id,
-            rater_id: booking.passenger_id,
-            ratee_id: booking.driver_id,
+            rater_id: booking.passenger_id || 'PSG-DEMO',
+            ratee_id: booking.driver_id || 'DRV-DEMO',
             rater_role: 'Passenger',
             stars: rating || 5,
             tags: selectedTags,
@@ -110,9 +113,7 @@ export const PassengerFeedback: React.FC = () => {
     }
 
     setSubmitted(true);
-    setTimeout(() => {
-      navigate('/dashboard', { replace: true });
-    }, 1500);
+    setThankYouModalOpen(true);
   };
 
   return (
@@ -271,6 +272,60 @@ export const PassengerFeedback: React.FC = () => {
           </Button>
         )}
       </Box>
+
+      {/* Thank You for Riding with SAKAY Popup Modal */}
+      <Dialog
+        open={thankYouModalOpen}
+        onClose={() => navigate('/dashboard', { replace: true })}
+        fullWidth
+        maxWidth="xs"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '28px',
+              p: 3,
+              textAlign: 'center',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.18)',
+            },
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, mt: 1 }}>
+          <CheckCircleIcon sx={{ fontSize: 64, color: '#10B981' }} />
+        </Box>
+
+        <Typography sx={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif', mb: 1, lineHeight: 1.3 }}>
+          {language === 'tl'
+            ? '🎉 Maraming Salamat sa Pagbiyahe Kasama ang SAKAY!'
+            : '🎉 Thank You for Riding with SAKAY!'}
+        </Typography>
+
+        <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif', mb: 3, px: 1, lineHeight: 1.5 }}>
+          {language === 'tl'
+            ? 'Ang iyong feedback ay malaking tulong sa pagpapanatili ng ligtas, maayos, at makatarungang biyahe sa buong Calapan City.'
+            : 'Your feedback helps us ensure safe, reliable, and fair tricycle transportation across Calapan City.'}
+        </Typography>
+
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={() => navigate('/dashboard', { replace: true })}
+          sx={{
+            height: '52px',
+            borderRadius: '16px',
+            backgroundColor: '#FF6B00',
+            fontWeight: 800,
+            fontSize: '15px',
+            textTransform: 'none',
+            fontFamily: 'Poppins, sans-serif',
+            boxShadow: '0 4px 14px rgba(255, 107, 0, 0.3)',
+            '&:hover': { backgroundColor: '#E66000' },
+          }}
+        >
+          {language === 'tl' ? 'Bumalik sa Dashboard' : 'Return to Dashboard'}
+        </Button>
+      </Dialog>
     </Box>
   );
 };
