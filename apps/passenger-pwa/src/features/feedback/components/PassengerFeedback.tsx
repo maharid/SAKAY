@@ -11,6 +11,8 @@ import {
   TextField,
   Avatar,
   Dialog,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -20,6 +22,7 @@ import { useLanguage } from '../../../utils/LanguageContext';
 
 interface FeedbackItem {
   id: string;
+  booking_id?: string;
   driverName: string;
   franchiseNo: string;
   todaName: string;
@@ -42,13 +45,16 @@ export const PassengerFeedback: React.FC = () => {
   const todaName = booking?.toda_name || 'Calapan Central TODA';
 
   const [rating, setRating] = useState<number | null>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
-    language === 'tl' ? ['Magalang na Driver', 'Ligtas Magmaneho'] : ['Courteous Driver', 'Safe Driving']
-  );
+  // Requirement 3: RATING CHOICES MUST START UNSELECTED
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // Requirement 4: OPTIONAL TEXT FEEDBACK MUST START EMPTY
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
 
+  // Requirement 2: RATING STATE MUST BE SAVED AND LOADED CORRECTLY
   React.useEffect(() => {
     let isMounted = true;
     const checkExistingRating = async () => {
@@ -63,13 +69,13 @@ export const PassengerFeedback: React.FC = () => {
 
           if (data && isMounted) {
             setRating(data.stars);
-            if (data.tags && Array.isArray(data.tags)) setSelectedTags(data.tags);
-            if (data.comment) setComment(data.comment);
+            setSelectedTags(Array.isArray(data.tags) ? data.tags : []);
+            setComment(data.comment || '');
             setSubmitted(true);
             return;
           }
-        } catch {
-          // ignore
+        } catch (err) {
+          console.warn('[PassengerFeedback] DB check error:', err);
         }
       }
 
@@ -77,11 +83,15 @@ export const PassengerFeedback: React.FC = () => {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const history = JSON.parse(raw);
-          const found = history.find((fb: any) => fb.driverName === driverName);
+          const found = history.find(
+            (fb: any) =>
+              (booking?.booking_id && fb.booking_id === booking.booking_id) ||
+              fb.driverName === driverName
+          );
           if (found && isMounted) {
-            setRating(found.rating);
-            if (found.tags) setSelectedTags(found.tags);
-            if (found.comment) setComment(found.comment);
+            setRating(found.rating || found.stars || 5);
+            setSelectedTags(found.tags || []);
+            setComment(found.comment || '');
             setSubmitted(true);
           }
         }
@@ -113,6 +123,7 @@ export const PassengerFeedback: React.FC = () => {
   ];
 
   const handleToggleTag = (tag: string) => {
+    if (submitted) return;
     if (selectedTags.includes(tag)) {
       setSelectedTags(selectedTags.filter((t) => t !== tag));
     } else {
@@ -121,31 +132,46 @@ export const PassengerFeedback: React.FC = () => {
   };
 
   const handleSubmitFeedback = async () => {
+    if (!rating) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    // Requirement 4: Truly optional - empty becomes NULL
+    const cleanComment = comment.trim() ? comment.trim() : null;
+
     const newFeedback: FeedbackItem = {
       id: `FB-${Date.now()}`,
+      booking_id: booking?.booking_id,
       driverName,
       franchiseNo,
       todaName,
-      rating: rating || 5,
+      rating: rating,
       tags: selectedTags,
-      comment: comment.trim(),
+      comment: cleanComment || '',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     };
 
     try {
       if (booking?.booking_id) {
-        await supabase.from('rating').insert([
-          {
-            booking_id: booking.booking_id,
-            rater_id: booking.passenger_id || 'PSG-DEMO',
-            ratee_id: booking.driver_id || 'DRV-DEMO',
-            rater_role: 'Passenger',
-            stars: rating || 5,
-            tags: selectedTags,
-            comment: comment.trim(),
-            created_at: new Date().toISOString(),
-          },
-        ]);
+        const { error } = await supabase.from('rating').upsert(
+          [
+            {
+              booking_id: booking.booking_id,
+              rater_id: booking.passenger_id || 'PSG-DEMO',
+              ratee_id: booking.driver_id || 'DRV-DEMO',
+              rater_role: 'Passenger',
+              stars: rating,
+              tags: selectedTags,
+              comment: cleanComment,
+              created_at: new Date().toISOString(),
+            },
+          ],
+          { onConflict: 'booking_id,rater_role' }
+        );
+
+        if (error) {
+          console.warn('[PassengerFeedback] Supabase upsert note:', error);
+        }
       }
     } catch (err) {
       console.warn('[PassengerFeedback] DB insert note:', err);
@@ -154,18 +180,22 @@ export const PassengerFeedback: React.FC = () => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const history = raw ? JSON.parse(raw) : [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([newFeedback, ...history]));
+      const filtered = history.filter(
+        (fb: any) => !(booking?.booking_id && fb.booking_id === booking.booking_id)
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([newFeedback, ...filtered]));
     } catch {
       // ignore
     }
 
+    setSubmitting(false);
     setSubmitted(true);
     setThankYouModalOpen(true);
   };
 
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
-      {/* Top Header: Left X, Right Contact Support, No Title */}
+      {/* Requirement 1: Top Header with Right-Aligned Contact Support */}
       <Box
         sx={{
           paddingTop: 'calc(var(--safe-area-top) + 12px)',
@@ -200,6 +230,10 @@ export const PassengerFeedback: React.FC = () => {
             fontSize: '13.5px',
             textTransform: 'none',
             fontFamily: 'Poppins, sans-serif',
+            borderRadius: '10px',
+            px: 1.5,
+            py: 0.5,
+            '&:hover': { backgroundColor: '#FFF7ED' },
           }}
         >
           {language === 'tl' ? 'Sumangguni sa Support' : 'Contact Support'}
@@ -218,6 +252,12 @@ export const PassengerFeedback: React.FC = () => {
           gap: 2.5,
         }}
       >
+        {submitError && (
+          <Alert severity="warning" onClose={() => setSubmitError(null)} sx={{ borderRadius: '14px' }}>
+            {submitError}
+          </Alert>
+        )}
+
         {/* Driver Card */}
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', textAlign: 'center' }}>
           <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '22px', margin: '0 auto 12px auto' }}>
@@ -237,7 +277,8 @@ export const PassengerFeedback: React.FC = () => {
             </Typography>
             <Rating
               value={rating}
-              onChange={(_, newValue) => setRating(newValue)}
+              readOnly={submitted}
+              onChange={(_, newValue) => !submitted && setRating(newValue)}
               size="large"
               sx={{ color: '#FF6B00', fontSize: '38px' }}
             />
@@ -252,11 +293,12 @@ export const PassengerFeedback: React.FC = () => {
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {availableTags.map((tag) => {
               const isSelected = selectedTags.includes(tag);
+              if (submitted && !isSelected) return null; // Hide unselected tags when viewing submitted rating
               return (
                 <Chip
                   key={tag}
                   label={tag}
-                  clickable
+                  clickable={!submitted}
                   onClick={() => handleToggleTag(tag)}
                   sx={{
                     fontWeight: 600,
@@ -273,7 +315,7 @@ export const PassengerFeedback: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Written Feedback */}
+        {/* Written Feedback (Optional) */}
         <Box>
           <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1, letterSpacing: '0.5px', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Karagdagang Komento (Optional)' : 'Additional Comments (Optional)'}
@@ -282,6 +324,7 @@ export const PassengerFeedback: React.FC = () => {
             fullWidth
             multiline
             rows={3.5}
+            disabled={submitted}
             placeholder={language === 'tl' ? 'Ibahagi ang iyong opinyon tungkol sa serbisyo...' : 'Share your thoughts about the service...'}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -295,13 +338,14 @@ export const PassengerFeedback: React.FC = () => {
         {submitted ? (
           <Paper elevation={0} sx={{ p: 2, borderRadius: '14px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0', textAlign: 'center' }}>
             <Typography sx={{ color: '#1E8E3E', fontWeight: 800, fontSize: '14px', fontFamily: 'Poppins, sans-serif' }}>
-              {language === 'tl' ? '✓ Maraming salamat sa iyong rating at suporta sa TODA!' : '✓ Thank you so much for your rating and supporting TODA!'}
+              {language === 'tl' ? '✓ Naitala na ang iyong rating. Maraming salamat!' : '✓ Your rating has been saved. Thank you!'}
             </Typography>
           </Paper>
         ) : (
           <Button
             variant="contained"
             fullWidth
+            disabled={submitting || !rating}
             onClick={handleSubmitFeedback}
             sx={{
               height: 52,
@@ -313,14 +357,21 @@ export const PassengerFeedback: React.FC = () => {
               fontFamily: 'Poppins, sans-serif',
               boxShadow: '0 4px 14px rgba(255, 107, 0, 0.3)',
               '&:hover': { backgroundColor: '#E66000' },
+              '&.Mui-disabled': { backgroundColor: '#FFB380', color: '#FFFFFF' },
             }}
           >
-            {language === 'tl' ? 'Isumite ang Feedback' : 'Submit Feedback'}
+            {submitting ? (
+              <CircularProgress size={24} sx={{ color: '#FFFFFF' }} />
+            ) : language === 'tl' ? (
+              'Isumite ang Feedback'
+            ) : (
+              'Submit Feedback'
+            )}
           </Button>
         )}
       </Box>
 
-      {/* Thank You for Riding with SAKAY Popup Modal */}
+      {/* Thank You Popup Modal */}
       <Dialog
         open={thankYouModalOpen}
         onClose={() => navigate('/dashboard', { replace: true })}

@@ -25,6 +25,8 @@ import SendIcon from '@mui/icons-material/Send';
 import GroupsIcon from '@mui/icons-material/Groups';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import MapView from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
@@ -760,11 +762,33 @@ export const TripMonitoring: React.FC = () => {
           }}
         >
           <Box sx={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1', mb: 0.5 }} />
-          <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#94A3B8', fontFamily: 'Poppins, sans-serif' }}>
-            {isExpanded
-              ? (language === 'tl' ? '▼ Drag pababa para i-collapse' : '▼ Drag down to collapse')
-              : (language === 'tl' ? '▲ Drag pataas para sa cancel trip & options' : '▲ Drag up for cancel trip & options')}
-          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.25,
+              color: isExpanded ? '#FF6B00' : '#94A3B8',
+              transition: 'color 0.2s ease',
+            }}
+          >
+            {isExpanded ? (
+              <>
+                <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+                  {language === 'tl' ? 'Scroll down to continue trip' : 'Scroll down to continue trip'}
+                </Typography>
+                <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+              </>
+            ) : (
+              <>
+                <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+                  {language === 'tl' ? 'Scroll up to cancel trip' : 'Scroll up to cancel trip'}
+                </Typography>
+                <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />
+              </>
+            )}
+          </Box>
         </Box>
 
         {/* Driver Identity Card */}
@@ -876,18 +900,21 @@ export const TripMonitoring: React.FC = () => {
                 width: '100%',
               }}
             >
-              <Typography
-                sx={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#94A3B8',
-                  textAlign: 'center',
-                  fontFamily: 'Poppins, sans-serif',
-                  mb: 0.5,
-                }}
-              >
-                {language === 'tl' ? 'Mag-scroll pababa para ikansela ang biyahe' : 'Scroll down to Cancel Trip'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.25, mb: 0.5 }}>
+                <KeyboardArrowUpIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
+                <Typography
+                  sx={{
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    color: '#94A3B8',
+                    textAlign: 'center',
+                    fontFamily: 'Poppins, sans-serif',
+                  }}
+                >
+                  {language === 'tl' ? 'Scroll up to cancel trip' : 'Scroll up to cancel trip'}
+                </Typography>
+                <KeyboardArrowUpIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
+              </Box>
 
               {(status === 'Trip Ongoing' || status === 'In Transit' || status === 'Arrived at Pickup' || status === 'Driver Arrived') && (
                 <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} />
@@ -909,9 +936,13 @@ export const TripMonitoring: React.FC = () => {
                 width: '100%',
               }}
             >
-              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
-                {language === 'tl' ? 'Kanselahin ang Biyahe' : 'Cancel Trip'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.25, mb: 0.75 }}>
+                <KeyboardArrowDownIcon sx={{ fontSize: 16, color: '#FF6B00' }} />
+                <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
+                  {language === 'tl' ? 'Scroll down to continue trip' : 'Scroll down to continue trip'}
+                </Typography>
+                <KeyboardArrowDownIcon sx={{ fontSize: 16, color: '#FF6B00' }} />
+              </Box>
               <SlideToCancel onCancel={() => setCancelModalOpen(true)} language={language} />
             </Box>
           </Box>
