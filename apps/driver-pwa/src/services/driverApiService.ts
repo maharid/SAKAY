@@ -376,7 +376,7 @@ export async function fetchDriverTrips(driverId?: string) {
         dropoffLng: Number(b.dropoff_longitude) || 121.1785,
         distanceKm: Number(b.route_distance_km || b.estimated_distance_km) || 0,
         fareAmount: Number(b.actual_fare || b.final_fare || b.estimated_fare) || 0,
-        tripMode: (b.is_shared_trip || b.trip_type === 'shared' ? 'Shared Ride' : 'Single Commuter') as any,
+        tripMode: (b.is_shared_trip || b.trip_type === 'shared' ? 'Shared Ride' : 'Solo Trip') as any,
         status: (b.booking_status === 'Completed' ? 'Completed' : b.booking_status?.includes('Cancel') ? 'Cancelled' : 'In Progress') as any,
         date: b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
         time: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',

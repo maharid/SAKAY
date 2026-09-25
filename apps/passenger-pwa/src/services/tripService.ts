@@ -15,6 +15,7 @@ export interface HistoryTrip {
   dropoffLng: number;
   price: string;
   type: "Solo" | "Share";
+  distanceKm?: number;
   time: string;
   dateGroup: "NGAYONG ARAW" | "NAKARAANG ARAW";
   driverName?: string;
@@ -35,6 +36,7 @@ export const DEMO_HISTORY_TRIPS: HistoryTrip[] = [
     dropoffLng: 121.1790,
     price: "₱66.40",
     type: "Solo",
+    distanceKm: 3.6,
     time: "2:30 PM",
     dateGroup: "NGAYONG ARAW",
     driverName: "Juan Dela Cruz",
@@ -52,6 +54,7 @@ export const DEMO_HISTORY_TRIPS: HistoryTrip[] = [
     dropoffLng: 121.1780,
     price: "₱64.40",
     type: "Solo",
+    distanceKm: 3.1,
     time: "9:15 AM",
     dateGroup: "NGAYONG ARAW",
     driverName: "Pedro Penduko",
@@ -69,6 +72,7 @@ export const DEMO_HISTORY_TRIPS: HistoryTrip[] = [
     dropoffLng: 121.1830,
     price: "₱20.00",
     type: "Share",
+    distanceKm: 1.2,
     time: "5:45 PM",
     dateGroup: "NAKARAANG ARAW",
     driverName: "Mario Reyes",
@@ -107,6 +111,8 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         dropoff_latitude,
         dropoff_longitude,
         estimated_fare,
+        route_distance_km,
+        estimated_distance_km,
         is_shared_trip,
         created_at
       `)
@@ -133,6 +139,7 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         dropoffLng: b.dropoff_longitude,
         price: `₱${parseFloat(b.estimated_fare || 0).toFixed(2)}`,
         type: b.is_shared_trip ? "Share" : "Solo",
+        distanceKm: Number(b.route_distance_km || b.estimated_distance_km) || 0,
         time: createdDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         dateGroup: isToday ? "NGAYONG ARAW" : "NAKARAANG ARAW",
         dateString: createdDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),

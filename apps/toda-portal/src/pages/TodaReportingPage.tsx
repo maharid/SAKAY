@@ -88,7 +88,7 @@ export const TodaReportingPage: React.FC = () => {
         dropoffLocation: b.dropoff_address || 'Dropoff Point',
         distanceKm: Number(b.estimated_distance_km) || 2.0,
         fareAmount: Number(b.estimated_fare) || 15,
-        tripMode: b.is_shared_trip ? 'Shared Ride' : 'Single Commuter',
+        tripMode: b.is_shared_trip ? 'Shared Ride' : 'Solo Trip',
         status: b.status === 'Completed' ? 'Completed' : b.status === 'Cancelled' ? 'Cancelled' : 'In Progress',
         paymentMethod: 'Cash',
         timestamp: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
@@ -181,7 +181,7 @@ export const TodaReportingPage: React.FC = () => {
 
   const modeOptions: FilterOption[] = [
     { label: 'All Trip Modes', value: 'All' },
-    { label: 'Single Commuter', value: 'Single Commuter' },
+    { label: 'Solo Trip', value: 'Solo Trip' },
     { label: 'Solo Trip', value: 'Solo Trip' },
     { label: 'Shared Ride', value: 'Shared Ride' },
   ];

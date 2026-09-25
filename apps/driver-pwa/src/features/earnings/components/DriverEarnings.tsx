@@ -28,7 +28,7 @@ interface TripItem {
   pickupLocation: string;
   dropoffLocation: string;
   fareAmount: number;
-  tripMode: 'Shared Ride' | 'Single Commuter';
+  tripMode: 'Shared Ride' | 'Solo Trip';
   status: 'Completed' | 'Cancelled' | 'In Progress';
   date: string;
   time: string;
@@ -67,7 +67,7 @@ export const DriverEarnings: React.FC = () => {
           pickupLocation: t.pickupLocation || 'JP Rizal Central Terminal',
           dropoffLocation: t.dropoffLocation || 'Calapan Public Market',
           fareAmount: Number(t.fareAmount) || 0,
-          tripMode: t.tripMode || 'Single Commuter',
+          tripMode: t.tripMode || 'Solo Trip',
           status: t.status || 'Completed',
           date: t.date || 'Today',
           time: t.time || 'Just now',
@@ -83,7 +83,7 @@ export const DriverEarnings: React.FC = () => {
             pickupLocation: justCompleted.pickup,
             dropoffLocation: justCompleted.dropoff,
             fareAmount: justCompleted.fareAmount,
-            tripMode: justCompleted.pairedPassenger ? 'Shared Ride' : 'Single Commuter',
+            tripMode: justCompleted.pairedPassenger ? 'Shared Ride' : 'Solo Trip',
             status: 'Completed',
             date: 'Today',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

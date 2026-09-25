@@ -351,7 +351,7 @@ export const MOCK_TODA_BOOKINGS: TodaBooking[] = [
     dropoffLocation: 'Calapan City Hall',
     distanceKm: 2.8,
     fareAmount: 20,
-    tripMode: 'Single Commuter',
+    tripMode: 'Solo Trip',
     status: 'Completed',
     paymentMethod: 'Cash',
     timestamp: 'May 12, 2026 • 09:15 AM',

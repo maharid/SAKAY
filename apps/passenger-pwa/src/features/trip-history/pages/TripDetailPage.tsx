@@ -13,11 +13,14 @@ import PlaceIcon from "@mui/icons-material/Place";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
+import Rating from "@mui/material/Rating";
+
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 import { formatShortBookingId } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
+import { supabase } from "../../../services/supabaseClient";
 
 export const TripDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -38,6 +41,63 @@ export const TripDetailPage: React.FC = () => {
   const status = stateTrip?.status || "Completed";
 
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [passengerRatingGiven, setPassengerRatingGiven] = React.useState<any>(null);
+  const [driverRatingReceived, setDriverRatingReceived] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadRatings() {
+      try {
+        // Query rating given by passenger
+        const { data: pData } = await supabase
+          .from("rating")
+          .select("*")
+          .eq("booking_id", tripId)
+          .eq("rater_role", "Passenger")
+          .maybeSingle();
+
+        if (pData && isMounted) {
+          setPassengerRatingGiven(pData);
+        } else {
+          try {
+            const raw = localStorage.getItem("sakay_passenger_ratings");
+            if (raw) {
+              const list = JSON.parse(raw);
+              const found = list.find((item: any) => item.bookingId === tripId || item.id === tripId);
+              if (found && isMounted) setPassengerRatingGiven(found);
+            }
+          } catch {}
+        }
+
+        // Query rating received from driver
+        const { data: dData } = await supabase
+          .from("rating")
+          .select("*")
+          .eq("booking_id", tripId)
+          .eq("rater_role", "Driver")
+          .maybeSingle();
+
+        if (dData && isMounted) {
+          setDriverRatingReceived(dData);
+        } else {
+          try {
+            const raw = localStorage.getItem("sakay_driver_passenger_ratings");
+            if (raw) {
+              const list = JSON.parse(raw);
+              const found = list.find((item: any) => item.bookingId === tripId || item.id === tripId);
+              if (found && isMounted) setDriverRatingReceived(found);
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.warn("[TripDetailPage] Rating load note:", err);
+      }
+    }
+    loadRatings();
+    return () => {
+      isMounted = false;
+    };
+  }, [tripId]);
 
   const handleCopyTripId = () => {
     if (tripId) {
@@ -346,6 +406,94 @@ export const TripDetailPage: React.FC = () => {
           >
             {language === "tl" ? "Mag-SMS" : "SMS Driver"}
           </Button>
+        </Paper>
+
+        {/* Bi-directional Ratings & Feedback Section */}
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: "20px",
+            backgroundColor: "#FFFFFF",
+            p: 2.5,
+            border: "1px solid #F1F5F9",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+            {language === "tl" ? "Mga Rating at Feedback" : "Ratings & Feedback"}
+          </Typography>
+
+          {/* Rating Given to Driver */}
+          <Box>
+            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px", mb: 1, fontFamily: "Poppins, sans-serif" }}>
+              {language === "tl" ? "IYONG RATING SA DRAYBER" : "YOUR RATING TO DRIVER"}
+            </Typography>
+
+            {passengerRatingGiven ? (
+              <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Rating value={passengerRatingGiven.stars || 5} readOnly size="small" sx={{ color: "#FF6B00" }} />
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6B00" }}>
+                    {(passengerRatingGiven.stars || 5).toFixed(1)} / 5.0
+                  </Typography>
+                </Box>
+                {passengerRatingGiven.tags && passengerRatingGiven.tags.length > 0 && (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                    {passengerRatingGiven.tags.map((tag: string) => (
+                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "11px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
+                    ))}
+                  </Box>
+                )}
+                {passengerRatingGiven.comment && (
+                  <Typography sx={{ fontSize: "12px", color: "#475569", fontStyle: "italic", mt: 0.5 }}>
+                    "{passengerRatingGiven.comment}"
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <Typography sx={{ fontSize: "12.5px", color: "#94A3B8", fontStyle: "italic" }}>
+                {language === "tl" ? "Wala pang nabibigay na rating sa drayber" : "No rating given to driver yet"}
+              </Typography>
+            )}
+          </Box>
+
+          <Divider sx={{ borderColor: "#F1F5F9" }} />
+
+          {/* Rating Received from Driver */}
+          <Box>
+            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px", mb: 1, fontFamily: "Poppins, sans-serif" }}>
+              {language === "tl" ? "RATING MULA SA DRAYBER" : "RATING FROM DRIVER"}
+            </Typography>
+
+            {driverRatingReceived ? (
+              <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Rating value={driverRatingReceived.stars || 5} readOnly size="small" sx={{ color: "#FF6B00" }} />
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6B00" }}>
+                    {(driverRatingReceived.stars || 5).toFixed(1)} / 5.0
+                  </Typography>
+                </Box>
+                {driverRatingReceived.tags && driverRatingReceived.tags.length > 0 && (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                    {driverRatingReceived.tags.map((tag: string) => (
+                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "11px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
+                    ))}
+                  </Box>
+                )}
+                {driverRatingReceived.comment && (
+                  <Typography sx={{ fontSize: "12px", color: "#475569", fontStyle: "italic", mt: 0.5 }}>
+                    "{driverRatingReceived.comment}"
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <Typography sx={{ fontSize: "12.5px", color: "#94A3B8", fontStyle: "italic" }}>
+                {language === "tl" ? "Wala pang naitatalang rating mula sa drayber" : "No rating received from driver yet"}
+              </Typography>
+            )}
+          </Box>
         </Paper>
 
         {/* Bottom Report Issue Link */}
