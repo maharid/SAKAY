@@ -14,6 +14,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import {
   FareMatrixRecord,
   TodaApplicationRecord,
@@ -719,74 +720,92 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
 // 4. FARE MATRIX SERVICES
 // ============================================================================
 
+export type FareRuleStatus = 'In force' | 'Scheduled' | 'Superseded';
+
+/**
+ * The LGU's fare rule history. The database decides which rule is "In force" or "Scheduled" from the effective
+ * timestamps (public.fare_matrix_history); nothing here compares dates. Throws when the history cannot be read, so
+ * the page never shows an invented rate.
+ */
 export async function fetchFareMatrices(): Promise<FareMatrixRecord[]> {
-  try {
-    const { data, error } = await supabase
-      .from('fare_matrix')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('fare_matrix_history');
+  if (error) throw new Error(error.message);
 
-    if (error || !data || data.length === 0) return [];
-
-    return data.map((row: any) => ({
-      id: row.fare_matrix_id,
-      fare_matrix_id: row.fare_matrix_id,
-      base_fare: Number(row.base_fare),
-      base_distance_km: Number(row.base_distance_km),
-      succeeding_rate: Number(row.succeeding_rate),
-      effective_timestamp: row.effective_timestamp,
-      effective_date: new Date(row.effective_timestamp).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-      is_active: row.is_active,
-      ordinance_reference: row.ordinance_reference || 'Calapan City Ordinance No. 118',
-      configured_by_lgu_admin: 'LGU Transport Board',
-      created_at: row.created_at,
-    }));
-  } catch (err) {
-    console.error('[adminApiService] fetchFareMatrices error:', err);
-    return [];
-  }
+  return ((data ?? []) as any[]).map((row) => ({
+    id: row.fare_matrix_id,
+    fare_matrix_id: row.fare_matrix_id,
+    base_fare: Number(row.base_fare),
+    base_distance_km: Number(row.base_distance_km),
+    succeeding_rate: Number(row.succeeding_rate),
+    effective_timestamp: row.effective_timestamp,
+    effective_date: formatManilaDateTime(row.effective_timestamp),
+    is_active: row.status === 'In force',
+    status: row.status as FareRuleStatus,
+    solo_base_fare: Number(row.solo_base_fare),
+    ordinance_reference: row.ordinance_reference || 'No ordinance reference recorded',
+    configured_by_lgu_admin: row.configured_by_name || 'Seeded ordinance record',
+    notes: row.notes || undefined,
+    created_at: row.created_at,
+  }));
 }
 
-export async function createFareMatrix(newMatrix: {
+/**
+ * Enacts a new fare rule (Rule 6.3). The database checks the caller is the LGU Administrator, refuses a
+ * back-dated effective time, serialises concurrent changes and writes the audit_log row (actor, before, after,
+ * reason) in the same transaction; this function writes nothing else. A change affects only bookings confirmed
+ * after its effective time.
+ */
+export async function enactFareMatrix(input: {
   baseFare: number;
   baseDistanceKm: number;
   succeedingRate: number;
-  ordinanceNumber?: string;
-  configuredBy?: string;
-}): Promise<FareMatrixRecord> {
-  const payload: any = {
-    base_fare: newMatrix.baseFare,
-    base_distance_km: newMatrix.baseDistanceKm,
-    succeeding_rate: newMatrix.succeedingRate,
-    effective_timestamp: new Date().toISOString(),
-    is_active: true,
-    ordinance_reference: newMatrix.ordinanceNumber || 'Calapan City Ordinance No. 118',
-  };
-
-  await supabase.from('fare_matrix').update({ is_active: false }).eq('is_active', true);
-  const { data, error } = await supabase.from('fare_matrix').insert([payload]).select().single();
-  if (error) throw error;
-
-  await recordAdminAuditAction({
-    actionType: 'FARE_MATRIX_UPDATED',
-    targetId: data?.fare_matrix_id,
-    targetName: newMatrix.ordinanceNumber || 'Municipal Fare Matrix',
-    details: `Enacted new fare matrix: ₱${newMatrix.baseFare.toFixed(2)} base (${newMatrix.baseDistanceKm} km) + ₱${newMatrix.succeedingRate.toFixed(2)}/km.`,
-    category: 'Fare Matrix',
+  ordinanceReference: string;
+  reason: string;
+  /** ISO timestamp; omit to take effect immediately */
+  effectiveAt?: string | null;
+  notes?: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc('enact_fare_matrix', {
+    p_base_fare: input.baseFare,
+    p_base_distance_km: input.baseDistanceKm,
+    p_succeeding_rate: input.succeedingRate,
+    p_ordinance_reference: input.ordinanceReference,
+    p_reason: input.reason,
+    p_effective_timestamp: input.effectiveAt ?? null,
+    p_notes: input.notes ?? null,
   });
+  if (error) throw new Error(error.message);
+}
 
+export interface FareExample {
+  excessKm: number;
+  seatFare: number;
+  soloFare: number;
+  soloBase: number;
+  sharedEstimate: number;
+}
+
+/** A worked example for a rule, computed by the database's own fare function (no formula is repeated here). */
+export async function fetchFareExample(
+  distanceKm: number,
+  rule: { base_fare: number; base_distance_km: number; succeeding_rate: number }
+): Promise<FareExample | null> {
+  const { data, error } = await supabase.rpc('calculate_fare', {
+    p_distance_km: distanceKm,
+    p_trip_type: 'Shared',
+    p_passenger_count: 1,
+    p_base_fare: rule.base_fare,
+    p_base_distance_km: rule.base_distance_km,
+    p_succeeding_rate: rule.succeeding_rate,
+  });
+  const r = data as { excess_km: number; seat_fare: number; solo_fare: number; shared_matched_estimate: number; solo_components: { base: number } } | null;
+  if (error || !r) return null;
   return {
-    id: data.fare_matrix_id,
-    fare_matrix_id: data.fare_matrix_id,
-    base_fare: Number(data.base_fare),
-    base_distance_km: Number(data.base_distance_km),
-    succeeding_rate: Number(data.succeeding_rate),
-    effective_timestamp: data.effective_timestamp,
-    effective_date: new Date(data.effective_timestamp).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-    is_active: data.is_active,
-    ordinance_reference: data.ordinance_reference || newMatrix.ordinanceNumber || 'Calapan City Ordinance',
-    configured_by_lgu_admin: newMatrix.configuredBy || 'LGU Transport Board',
-    created_at: data.created_at,
+    excessKm: Number(r.excess_km),
+    seatFare: Number(r.seat_fare),
+    soloFare: Number(r.solo_fare),
+    soloBase: Number(r.solo_components.base),
+    sharedEstimate: Number(r.shared_matched_estimate),
   };
 }
 
@@ -1913,7 +1932,13 @@ export interface BookingRecordItem {
   driverLat: number;
   driverLng: number;
   currentArea: string;
+  /** The estimate the passenger confirmed (Matched Shared Fare Estimate for a Shared trip) */
   estimatedFare: number;
+  /** The final, binding fare once the trip arrived (written by the database, Rule 6.2); null before that */
+  finalFare?: number | null;
+  /** How the final fare was reached, for the trip detail (rule 6.2.4: deviations are recorded) */
+  fareBasis?: string | null;
+  fareDeviation?: boolean;
   distanceKm?: number;
   createdAt: string;
   bookingTime: string;
@@ -1990,8 +2015,11 @@ export async function fetchAllBookings(filterStatus?: string): Promise<BookingRe
       driverLat: Number(b.pickup_latitude) || 13.4115,
       driverLng: Number(b.pickup_longitude) || 121.1803,
       currentArea: b.pickup_address || b.pickup_location_address || 'Calapan City',
-      estimatedFare: Number(b.final_fare) || Number(b.estimated_fare) || 15.0,
-      distanceKm: Number(b.estimated_distance_km) || Number(b.route_distance_km) || 2.0,
+      estimatedFare: Number(b.estimated_fare) || 0,
+      finalFare: b.actual_fare !== null && b.actual_fare !== undefined ? Number(b.actual_fare) : null,
+      fareBasis: b.fare_breakdown?.final?.basis ?? null,
+      fareDeviation: Boolean(b.fare_breakdown?.final?.deviation),
+      distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
       createdAt: b.created_at,
       bookingTime: b.created_at ? new Date(b.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '12:00 PM',
       eta: '3 mins',
@@ -2123,7 +2151,7 @@ export async function fetchOperationalReports(): Promise<OperationalReportsData>
 
     const completed = bookings.filter((b) => b.booking_status === 'Completed');
     const cancelled = bookings.filter((b) => (b.booking_status || '').includes('Cancelled'));
-    const totalRev = completed.reduce((sum, b) => sum + (Number(b.final_fare) || Number(b.estimated_fare) || 0), 0);
+    const totalRev = completed.reduce((sum, b) => sum + (Number(b.actual_fare ?? b.estimated_fare) || 0), 0);
 
     // Peak hours aggregation
     const hoursMap: Record<number, number> = {};

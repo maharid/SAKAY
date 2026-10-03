@@ -9,14 +9,17 @@ const AFF = {
   D3_T2: 'e3000000-0000-0000-0000-000000000001',   // D3: only a Submitted / Pending application
 };
 
-const LAST = '20261006000003_batch4_inactivity_ignores_open_booking.sql';
+// The Batch 4 suites stop at their own last migration. Set B4_FULL_CHAIN=1 to run them on every migration
+// instead (regression check that later batches did not change presence behaviour).
+const LAST = process.env.B4_FULL_CHAIN ? null : '20261006000003_batch4_inactivity_ignores_open_booking.sql';
 
 // Presence functions that take the app's login-session token as their last argument,
 // and how many arguments come before it.
 const TOKEN_ARITY = { driver_go_online: 4, driver_heartbeat: 3, get_my_driver_presence: 0 };
 
-async function setup() {
-  const db = await freshDb(LAST);
+// `until`: last migration to apply (default: this batch's last; pass null for the whole chain).
+async function setup(until = LAST) {
+  const db = await freshDb(until);
   await seed(db);
   const internal = (sql) => db.exec(`SELECT set_config('sakay.internal_context','true',false); ${sql}; SELECT set_config('sakay.internal_context','',false);`);
   await internal(`

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -25,9 +25,18 @@ import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import totoHeadImg from "@sakay/shared/src/assets/icons/toto-head.webp";
-import { calculateFare } from "@sakay/shared";
+import {
+  TYPOGRAPHY_TOKENS,
+  fetchFareQuote,
+  estimatedFareFor,
+  componentsFor,
+  parseFareError,
+  describeFareError,
+  type FareQuote,
+} from "@sakay/shared";
 
 import MapView from "../../../../common/components/MapView";
+import SharedFareNotice from "../../../../common/components/SharedFareNotice";
 import PassengerCancelModal from "../../../../common/components/PassengerCancelModal";
 import HomeHeader from "../Dashboard/HomeHeader";
 import PassengerNavigationDrawer from "../Dashboard/PassengerNavigationDrawer";
@@ -46,18 +55,6 @@ import {
   cancelBooking,
   type BookingRecord,
 } from "../../../../services/bookingService";
-import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
-
-const calculateCoordinateDistanceKm = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number => {
-  const latDiff = (lat2 - lat1) * 110.574;
-  const lonDiff = (lon2 - lon1) * 108.29;
-  return Math.round(Math.sqrt(latDiff * latDiff + lonDiff * lonDiff) * 100) / 100;
-};
 
 const NewTrip: React.FC = () => {
   const navigate = useNavigate();
@@ -160,25 +157,22 @@ const NewTrip: React.FC = () => {
     };
   });
 
-  // Fare Matrix & Tariff State from DB
-  const [activeTariff, setActiveTariff] = useState<{ baseFare: number; baseKm: number; succRate: number }>(() => {
-    try {
-      const cached = localStorage.getItem("sakay_active_fare_matrix");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        return {
-          baseFare: Number(parsed.base_fare) || 15.0,
-          baseKm: Number(parsed.base_distance_km) || 2.0,
-          succRate: Number(parsed.succeeding_rate) ?? 1.0,
-        };
-      }
-    } catch {}
-    return { baseFare: 15.0, baseKm: 2.0, succRate: 1.0 };
-  });
-
-  const [tripDistanceKm, setTripDistanceKm] = useState<number>(3.5);
-  const [estimatedFare, setEstimatedFare] = useState<number>(60.0);
+  // Route and fare. Rule 6.2: the estimate is priced from the confirmed OSRM road route, and the fare itself is
+  // computed by the database (public.quote_fare); this screen holds no tariff and no formula.
+  const [tripDistanceKm, setTripDistanceKm] = useState<number | null>(null);
+  const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [routeRetry, setRouteRetry] = useState<number>(0);
+  const [fetchedQuote, setQuote] = useState<FareQuote | null>(null);
+  const [quoteRetry, setQuoteRetry] = useState<number>(0);
+  const [fareNotice, setFareNotice] = useState<string>("");
   const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+  // A quote is only good for the headcount it was priced for: while the new one is on its way there is no fare to confirm.
+  const quote = fetchedQuote && fetchedQuote.passenger_count === passengers ? fetchedQuote : null;
+  const estimatedFare = quote ? estimatedFareFor(quote, tripType) : null;
+  const routeErrorText =
+    language === "tl"
+      ? "Hindi makuha ang ruta sa mapa ngayon. Pakisubukang muli."
+      : "We couldn't get the road route right now. Please try again.";
 
   // Searching State matching TIER 1 - SOLO.png
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -216,34 +210,6 @@ const NewTrip: React.FC = () => {
       .catch((err) => {
         console.warn("[NewTrip] Note on device geolocation:", err);
       });
-  }, []);
-
-  // Fetch active municipal fare matrix from Supabase DB
-  useEffect(() => {
-    const fetchMatrix = async () => {
-      try {
-        const { data } = await supabase
-          .from("fare_matrix")
-          .select("base_fare, base_distance_km, succeeding_rate")
-          .eq("is_active", true)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (data) {
-          const formatted = {
-            baseFare: Number(data.base_fare) || 15.0,
-            baseKm: Number(data.base_distance_km) || 2.0,
-            succRate: Number(data.succeeding_rate) ?? 1.0,
-          };
-          setActiveTariff(formatted);
-          localStorage.setItem("sakay_active_fare_matrix", JSON.stringify(data));
-        }
-      } catch (err) {
-        console.warn("[NewTrip] Fare matrix fetch note:", err);
-      }
-    };
-    fetchMatrix();
   }, []);
 
   // Reverse-geocode pickup coordinates if generic
@@ -301,51 +267,66 @@ const NewTrip: React.FC = () => {
 
   const [sharedDisclaimerAgreed, setSharedDisclaimerAgreed] = useState<boolean>(false);
 
-  // Recalculate distance, road coordinates, and fare dynamically when pickup or dropoff changes
-  const calculateDistanceAndFare = useCallback(async () => {
+  // The road route (Rule 6.2). A straight-line guess is not a route: if OSRM cannot be reached, nothing is priced
+  // and the booking is blocked (decision D5) instead of confirming a fare the passenger cannot rely on.
+  useEffect(() => {
     if (!pickup.lat || !dropoff.lat || pickup.lat === 0 || dropoff.lat === 0) {
-      setEstimatedFare(60.0);
       setRouteCoordinates([]);
+      setTripDistanceKm(null);
+      setQuote(null);
+      setRouteStatus("idle");
       return;
     }
 
-    let roadDist = 0;
-    try {
-      const routeRes = await getOSRMRoute(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
-      roadDist = routeRes.distanceKm;
-      if (routeRes.coordinates && routeRes.coordinates.length >= 2) {
-        setRouteCoordinates(routeRes.coordinates);
-      }
-    } catch {
-      roadDist = calculateCoordinateDistanceKm(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng) * 1.25;
-    }
+    let cancelled = false;
+    setRouteStatus("loading");
+    setTripDistanceKm(null);
+    setQuote(null);
+    setFareNotice("");
 
-    if (roadDist <= 0) {
-      roadDist = calculateCoordinateDistanceKm(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng) * 1.25;
-    }
+    getOSRMRoute(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng)
+      .then((route) => {
+        if (cancelled) return;
+        if (route.source !== "osrm" || !(route.distanceKm > 0)) {
+          setRouteCoordinates([]);
+          setRouteStatus("error");
+          return;
+        }
+        if (route.coordinates && route.coordinates.length >= 2) {
+          setRouteCoordinates(route.coordinates);
+        }
+        setTripDistanceKm(route.distanceKm);
+        setRouteStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setRouteStatus("error");
+      });
 
-    roadDist = Math.max(0.5, Number(roadDist.toFixed(2)));
-    setTripDistanceKm(roadDist);
+    return () => {
+      cancelled = true;
+    };
+  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, routeRetry]);
 
-    // Calculate official SAKAY estimated fare using central fare calculator
-    const result = calculateFare({
-      distanceKm: roadDist,
-      tripType,
-      passengerCount: passengers,
-      tariff: {
-        baseFare: activeTariff.baseFare,
-        baseDistanceKm: activeTariff.baseKm,
-        succeedingRate: activeTariff.succRate,
-        capacity: 4
-      }
-    });
-
-    setEstimatedFare(tripType === 'Shared' ? (result.sharedEstimate || result.finalFare) : result.finalFare);
-  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, tripType, passengers, activeTariff]);
-
+  // The fare for that route and headcount, from the database (both trip types come back in one quote).
   useEffect(() => {
-    calculateDistanceAndFare();
-  }, [calculateDistanceAndFare]);
+    if (routeStatus !== "ready" || tripDistanceKm === null) return;
+
+    let cancelled = false;
+    fetchFareQuote(supabase, tripDistanceKm, passengers)
+      .then((q) => {
+        if (!cancelled) setQuote(q);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setQuote(null);
+        const parsed = parseFareError(err instanceof Error ? err.message : "");
+        setFareNotice(parsed ? describeFareError(parsed, language) : language === "tl" ? "Hindi makuha ang pamasahe ngayon. Pakisubukang muli." : "We could not get the fare right now. Please try again.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeStatus, tripDistanceKm, passengers, quoteRetry, language]);
 
   // Subscribe to real-time status updates while searching
   useEffect(() => {
@@ -490,6 +471,18 @@ const NewTrip: React.FC = () => {
       return;
     }
 
+    // Decision D5: no road route, no priced estimate, no booking.
+    if (routeStatus !== "ready" || !quote || tripDistanceKm === null || estimatedFare === null) {
+      setValidationError(
+        routeStatus === "error"
+          ? routeErrorText
+          : language === "tl"
+          ? "Hinihintay pa ang pamasahe. Pakisubukang muli sa ilang sandali."
+          : "The fare is still loading. Please try again in a moment."
+      );
+      return;
+    }
+
     setValidationError("");
     setBookingSubmitting(true);
 
@@ -518,6 +511,10 @@ const NewTrip: React.FC = () => {
       setBookingSubmitting(false);
       const msg = err instanceof Error ? err.message : "Booking submission error";
       setValidationError(msg);
+      // The rate changed (or the figure was off) between the quote and the tap: show the current fare again.
+      if ((err as { fareCode?: string } | null)?.fareCode === "ERR_FARE_MISMATCH") {
+        setQuoteRetry((n) => n + 1);
+      }
     }
   };
 
@@ -1229,6 +1226,16 @@ const NewTrip: React.FC = () => {
               </Box>
             </Box>
 
+            {/* Rule 6.5: both fares, the cutoff and the acknowledgement, shown before Book is tapped */}
+            {tripType === "Shared" && quote && (
+              <SharedFareNotice
+                language={language}
+                matchedEstimate={quote.shared_matched_estimate}
+                maxUnmatchedFare={quote.max_unmatched_fare}
+                partnerAssumptionPassengers={quote.partner_assumption_passengers}
+              />
+            )}
+
             {/* Shared Trip Disclaimer & Agreement (Combined Integrated Card) */}
             {tripType === "Shared" && (
               <Paper
@@ -1316,9 +1323,32 @@ const NewTrip: React.FC = () => {
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  ₱{estimatedFare.toFixed(2)}
+                  {estimatedFare !== null ? `₱${estimatedFare.toFixed(2)}` : routeStatus === "loading" || (routeStatus === "ready" && !fareNotice) ? "…" : "—"}
                 </Typography>
               </Box>
+
+              {(routeStatus === "error" || fareNotice) && (
+                <Alert
+                  severity="warning"
+                  sx={{ borderRadius: "12px", fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, fontFamily: "Poppins, sans-serif" }}
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => {
+                        setFareNotice("");
+                        if (routeStatus === "error") setRouteRetry((n) => n + 1);
+                        else setQuoteRetry((n) => n + 1);
+                      }}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                    >
+                      {language === "tl" ? "Subukan muli" : "Retry"}
+                    </Button>
+                  }
+                >
+                  {routeStatus === "error" ? routeErrorText : fareNotice}
+                </Alert>
+              )}
             </Box>
 
             {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
@@ -1334,6 +1364,7 @@ const NewTrip: React.FC = () => {
                   dropoff.lat === 0 ||
                   !pickup.lat ||
                   pickup.lat === 0 ||
+                  estimatedFare === null ||
                   (tripType === "Shared" && !sharedDisclaimerAgreed)
                 }
                 sx={{
@@ -1491,29 +1522,19 @@ const NewTrip: React.FC = () => {
             {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
           </Typography>
           <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600, mt: "2px", fontFamily: "Poppins, sans-serif" }}>
-            Official City Tariff Rate • Calapan Ordinance No. 110
+            {quote?.rule.ordinance_reference
+              ? `Official City Tariff Rate • ${quote.rule.ordinance_reference}`
+              : "Official City Tariff Rate"}
           </Typography>
         </Box>
 
-        {/* Receipt Container Body */}
-        {(() => {
-          const breakdown = calculateFare({
-            distanceKm: tripDistanceKm,
-            tripType,
-            passengerCount: passengers,
-            tariff: {
-              baseFare: activeTariff.baseFare,
-              baseDistanceKm: activeTariff.baseKm,
-              succeedingRate: activeTariff.succRate,
-              capacity: 4
-            }
-          });
-
-          // Compute equivalent values for UI presentation based on the new logic
-          const displayedTotal = tripType === 'Shared' ? (breakdown.sharedEstimate || breakdown.finalFare) : breakdown.finalFare;
-          const multiplier = tripType === 'Solo' ? 4 : passengers;
-          const baseFareTotal = activeTariff.baseFare * multiplier;
-          const succeedingChargeTotal = breakdown.breakdown.excessKm * activeTariff.succRate * multiplier;
+        {/* Receipt Container Body: every figure below comes from the database quote */}
+        {quote ? (() => {
+          const comps = componentsFor(quote, tripType);
+          const displayedTotal = estimatedFareFor(quote, tripType);
+          const rule = quote.rule;
+          const money = (n: number) => `₱${n.toFixed(2)}`;
+          const shareSeats = Math.min(passengers + quote.partner_assumption_passengers, quote.seat_capacity);
 
           return (
             <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1534,7 +1555,7 @@ const NewTrip: React.FC = () => {
                     {language === "tl" ? "Kabuuang Distansya" : "Total Distance"}
                   </Typography>
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    {tripDistanceKm.toFixed(1)} km
+                    {quote.distance_km.toFixed(1)} km
                   </Typography>
                 </Box>
 
@@ -1542,16 +1563,20 @@ const NewTrip: React.FC = () => {
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Box>
                     <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl" ? "Unang 2.0 km (Base Fare)" : "Base Fare (First 2.0 km)"}
+                      {language === "tl"
+                        ? `Unang ${rule.base_distance_km.toFixed(1)} km (Base Fare)`
+                        : `Base Fare (First ${rule.base_distance_km.toFixed(1)} km)`}
                     </Typography>
-                    {tripType === "Solo" && (
-                      <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
-                        ₱15.00 × 4 {language === "tl" ? "upuan (Solo)" : "seats (Solo)"}
-                      </Typography>
-                    )}
+                    <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                      {tripType === "Solo"
+                        ? `${money(rule.base_fare)} × ${quote.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`
+                        : language === "tl"
+                        ? `Hati mo sa buong tricycle (${passengers} sa ${shareSeats} upuan)`
+                        : `Your share of the whole tricycle (${passengers} of ${shareSeats} seats)`}
+                    </Typography>
                   </Box>
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    ₱{baseFareTotal.toFixed(2)}
+                    {money(comps.base)}
                   </Typography>
                 </Box>
 
@@ -1560,19 +1585,32 @@ const NewTrip: React.FC = () => {
                   <Box>
                     <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                       {language === "tl"
-                        ? `Dagdag na Distansya (${breakdown.breakdown.excessKm.toFixed(1)} km)`
-                        : `Distance Charge (${breakdown.breakdown.excessKm.toFixed(1)} km)`}
+                        ? `Dagdag na Distansya (${quote.excess_km.toFixed(1)} km)`
+                        : `Distance Charge (${quote.excess_km.toFixed(1)} km)`}
                     </Typography>
-                    {tripType === "Solo" && breakdown.breakdown.excessKm > 0 && (
+                    {tripType === "Solo" && quote.excess_km > 0 && (
                       <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
-                        {breakdown.breakdown.excessKm.toFixed(1)} km × ₱1.00 × 4
+                        {quote.excess_km.toFixed(1)} km × {money(rule.succeeding_rate)} × {quote.seat_capacity}
                       </Typography>
                     )}
                   </Box>
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    ₱{succeedingChargeTotal.toFixed(2)}
+                    {money(comps.distance)}
                   </Typography>
                 </Box>
+
+                {/* Rounding to the nearest peso / the minimum fare, only when it changes the total */}
+                {comps.adjustment !== 0 && (
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                      {language === "tl" ? "Pag-round sa pinakamalapit na piso" : "Rounded to the nearest peso"}
+                    </Typography>
+                    <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                      {comps.adjustment > 0 ? "+" : "−"}
+                      {money(Math.abs(comps.adjustment))}
+                    </Typography>
+                  </Box>
+                )}
 
                 <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed", my: 0.5 }} />
 
@@ -1582,7 +1620,7 @@ const NewTrip: React.FC = () => {
                     {language === "tl" ? "Kabuuan" : "Total Fare"}
                   </Typography>
                   <Typography sx={{ fontSize: "17px", fontWeight: 900, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
-                    ₱{displayedTotal.toFixed(2)}
+                    {money(displayedTotal)}
                   </Typography>
                 </Box>
               </Box>
@@ -1600,7 +1638,13 @@ const NewTrip: React.FC = () => {
               </Box>
             </Box>
           );
-        })()}
+        })() : (
+          <Box sx={{ p: 3 }}>
+            <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif", textAlign: "center" }}>
+              {language === "tl" ? "Kinakalkula ang pamasahe..." : "Calculating the fare..."}
+            </Typography>
+          </Box>
+        )}
       </Dialog>
 
       {/* 8. Trip Type Info Modal */}

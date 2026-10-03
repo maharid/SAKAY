@@ -95,8 +95,9 @@ export const TodaReportingPage: React.FC = () => {
           vehiclePlate: b.driver?.plate_number || 'MV-101',
           pickupLocation: b.pickup_address || b.pickup_location_address || 'Pickup Point',
           dropoffLocation: b.dropoff_address || b.dropoff_location_address || 'Dropoff Point',
-          distanceKm: Number(b.estimated_distance_km) || Number(b.route_distance_km) || 2.0,
-          fareAmount: Number(b.final_fare) || Number(b.estimated_fare) || 15,
+          distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || 0,
+          // the final fare once the trip arrived (written by the database), otherwise the estimate
+          fareAmount: Number(b.actual_fare ?? b.estimated_fare) || 0,
           tripMode: b.is_shared_trip || b.trip_type === 'Shared' ? 'Shared Ride' : 'Solo Trip',
           status: tripStatus,
           paymentMethod: 'Cash',

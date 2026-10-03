@@ -75,8 +75,9 @@ export const TodaOperationsPage: React.FC = () => {
           vehiclePlate: b.driver?.plate_number || 'MV-101',
           pickupLocation: b.pickup_address || b.pickup_location_address || 'Pickup Point',
           dropoffLocation: b.dropoff_address || b.dropoff_location_address || 'Dropoff Point',
-          distanceKm: Number(b.estimated_distance_km) || Number(b.route_distance_km) || 2.0,
-          fareAmount: Number(b.final_fare) || Number(b.estimated_fare) || 15,
+          distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || 0,
+          // the final fare once the trip arrived (written by the database), otherwise the estimate
+          fareAmount: Number(b.actual_fare ?? b.estimated_fare) || 0,
           tripMode: b.is_shared_trip || b.trip_type === 'Shared' ? 'Shared Ride' : 'Solo Trip',
           status: tripStatus,
           paymentMethod: 'Cash',
@@ -243,7 +244,7 @@ export const TodaOperationsPage: React.FC = () => {
             Standard Fare Policy Reminder
           </Typography>
           <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
-            SAKAY fares strictly follow the approved city fare matrix (City Ordinance No. 118: ₱15 minimum base fare for first 2.0 km). Charging or applying a fare that does not comply with the approved fare policy is subject to administrative review and applicable sanctions.
+            SAKAY fares strictly follow the approved city fare matrix (City Ordinance No. 110, Series of 2022: ₱15 minimum base fare for first 2.0 km). Charging or applying a fare that does not comply with the approved fare policy is subject to administrative review and applicable sanctions.
           </Typography>
         </Box>
       </Box>

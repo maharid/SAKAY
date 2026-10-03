@@ -8,9 +8,11 @@ const { ID, seed } = require('../fixtures');
   const as = (uid, fn) => asUser(db, { uid }, fn, { commit: true });
   const internal = (sql) => db.exec(`SELECT set_config('sakay.internal_context','true',false); ${sql}; SELECT set_config('sakay.internal_context','',false);`);
   const strikeN = async (type, id, code, n, tag) => { for (let i = 1; i <= n; i++) await svc((tx) => tx.query('SELECT public.issue_strike($1,$2,$3,NULL,NULL,NULL,$4,NULL,NULL,NULL,NULL)', [type, id, code, `${tag}-${i}`])); };
+  // Every booking carries a route distance and the matching fare (1.5 km Solo = 60), as the app sends them: from Batch 5 on
+  // the database refuses a booking without them, and the extra columns change nothing at this suite's own point in the chain.
   const book = (uid, pid) => as(uid, (tx) => attempt(() => tx.query(
-    `INSERT INTO booking(passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude)
-     VALUES ('${pid}',1,'A',13.4115,121.1803,'B',13.42,121.19)`)));
+    `INSERT INTO booking(passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude,estimated_distance_km,estimated_fare)
+     VALUES ('${pid}',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60)`)));
 
   console.log('T2 passenger booking guard');
   const ctrl = await book(ID.P_AUTH, ID.P1);
@@ -37,8 +39,8 @@ const { ID, seed } = require('../fixtures');
   await db.exec(`DELETE FROM booking`);
 
   console.log('\nT2 driver offer / accept / online guards');
-  await db.exec(`INSERT INTO booking(booking_id,passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude)
-    VALUES ('d0000000-0000-0000-0000-000000000001','${ID.P2}',1,'A',13.4115,121.1803,'B',13.42,121.19)`);
+  await db.exec(`INSERT INTO booking(booking_id,passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude,estimated_distance_km,estimated_fare)
+    VALUES ('d0000000-0000-0000-0000-000000000001','${ID.P2}',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60)`);
   const offer = (did) => svc((tx) => attempt(() => tx.query(`INSERT INTO dispatch_attempt(booking_id,driver_id,dispatch_method) VALUES ('d0000000-0000-0000-0000-000000000001','${did}','Tier 1')`)));
   const ok1 = await offer(ID.D1);
   check('control: an unrestricted driver can be offered a booking', ok1.ok, ok1);
@@ -79,14 +81,14 @@ const { ID, seed } = require('../fixtures');
   console.log('\nPI-09 cancellation trigger re-pointed to the engine');
   await db.exec(`UPDATE booking SET booking_status='Assigned', driver_id=NULL WHERE booking_id='d0000000-0000-0000-0000-000000000001'`);
   const before = (await db.query(`SELECT strikes_count FROM passenger WHERE passenger_id='${ID.P1}'`)).rows[0].strikes_count;
-  await db.exec(`INSERT INTO booking(booking_id,passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude,booking_status)
-    VALUES ('d0000000-0000-0000-0000-000000000002','${ID.P1}',1,'A',13.4115,121.1803,'B',13.42,121.19,'Assigned')`);
+  await db.exec(`INSERT INTO booking(booking_id,passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude,booking_status,estimated_distance_km,estimated_fare)
+    VALUES ('d0000000-0000-0000-0000-000000000002','${ID.P1}',1,'A',13.4115,121.1803,'B',13.42,121.19,'Assigned',1.5,60)`);
   await as(ID.P_AUTH, (tx) => tx.query(`UPDATE booking SET booking_status='Cancelled', cancelled_by='passenger', cancellation_reason='changed mind' WHERE booking_id='d0000000-0000-0000-0000-000000000002'`));
   const after = (await db.query(`SELECT strikes_count FROM passenger WHERE passenger_id='${ID.P1}'`)).rows[0].strikes_count;
   const viaEngine = (await db.query(`SELECT count(*)::int n FROM strikes_ledger WHERE idempotency_key='PAX_LATE_CANCEL:d0000000-0000-0000-0000-000000000002'`)).rows[0].n;
   check('a passenger cancelling an assigned booking now goes through issue_strike (and no longer errors)', viaEngine === 1 && after === before + 1, { before, after, viaEngine });
-  await db.exec(`INSERT INTO booking(booking_id,passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude,booking_status)
-    VALUES ('d0000000-0000-0000-0000-000000000003','${ID.P1}',1,'A',13.4115,121.1803,'B',13.42,121.19,'Assigned')`);
+  await db.exec(`INSERT INTO booking(booking_id,passenger_id,passenger_count,pickup_address,pickup_latitude,pickup_longitude,dropoff_address,dropoff_latitude,dropoff_longitude,booking_status,estimated_distance_km,estimated_fare)
+    VALUES ('d0000000-0000-0000-0000-000000000003','${ID.P1}',1,'A',13.4115,121.1803,'B',13.42,121.19,'Assigned',1.5,60)`);
   await svc((tx) => tx.query(`UPDATE booking SET booking_status='Cancelled', cancelled_by='system' WHERE booking_id='d0000000-0000-0000-0000-000000000003'`));
   check('system cancellations never strike the passenger (12.6)', (await db.query(`SELECT count(*)::int n FROM strikes_ledger WHERE idempotency_key LIKE 'PAX_LATE_CANCEL:%0003'`)).rows[0].n === 0);
 

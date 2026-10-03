@@ -1,5 +1,7 @@
 // SAKAY Database Types matching Supabase PostgreSQL Schema
 
+import type { FareBreakdown } from '../utils/fareCalculator';
+
 export interface Toda {
   toda_id: string;
   toda_name: string;
@@ -166,7 +168,8 @@ export interface Booking {
   passenger_id: string;
   driver_id?: string;
   toda_id?: string;
-  booking_type: 'Immediate' | 'Scheduled';
+  /** Rule 6.6: every booking is for immediate pickup */
+  booking_type: 'Immediate';
   is_shared_trip: boolean;
   shared_trip_match_id?: string;
   passenger_count: number;
@@ -177,9 +180,13 @@ export interface Booking {
   dropoff_latitude: number;
   dropoff_longitude: number;
   estimated_distance_km?: number;
-  actual_distance_km?: number;
+  actual_distance_km?: number | null;
   estimated_fare?: number;
-  actual_fare?: number;
+  actual_fare?: number | null;
+  /** The fare rule the booking was priced on (Rule 6.3) */
+  fare_matrix_id?: string | null;
+  fare_breakdown?: FareBreakdown | null;
+  fare_locked_at?: string | null;
   fare_confirmation_status: 'Matched' | 'Flagged for Review';
   booking_status: 'Pending' | 'Searching Driver' | 'Driver Assigned' | 'Driver En Route' | 'Driver Arrived' | 'Passenger Boarded' | 'Trip Ongoing' | 'Completed' | 'Cancelled' | 'No Driver Found';
   cancelled_by?: 'Passenger' | 'Driver' | 'System';

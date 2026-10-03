@@ -291,12 +291,12 @@ export const ReportsPage: React.FC = () => {
                     <TableRow>
                       <TableCell sx={{ fontWeight: 600 }}>Gross Fare Volume</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{summary.totalRevenue.toFixed(2)}</TableCell>
-                      <TableCell>Ordinance No. 118 Compliant</TableCell>
+                      <TableCell>Ordinance No. 110 Compliant</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 600 }}>Average Fare Per Passenger</TableCell>
                       <TableCell>₱{summary.averageFare}.00</TableCell>
-                      <TableCell>Standard Base ₱15.00</TableCell>
+                      <TableCell>Per approved fare matrix</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>

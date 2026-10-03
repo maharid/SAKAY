@@ -201,7 +201,7 @@ export const AnalyticsPage: React.FC = () => {
               <TimelineIcon sx={{ color: '#6A1B9A', fontSize: '16' }} />
             </Box>
             <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#6A1B9A', mb: 0.5 }}>
-              ₱{summary.averageFare > 0 ? summary.averageFare : 15}.00
+              {summary.averageFare > 0 ? `₱${summary.averageFare}.00` : '—'}
             </Typography>
             <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
               Calapan tariff benchmark

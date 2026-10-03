@@ -16,7 +16,7 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import Rating from "@mui/material/Rating";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId } from "@sakay/shared";
+import { formatShortBookingId, type FareBreakdown } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -305,31 +305,80 @@ export const TripDetailPage: React.FC = () => {
           </Typography>
 
           {(() => {
-            const numPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 60;
-            const isSolo = stateTrip?.type !== "Share" && numPrice >= 60;
-            const baseFareVal = isSolo ? 60 : 15;
-            const distanceChargeVal = Math.max(0, numPrice - baseFareVal);
+            // The lines come from the fare breakdown the database stored when the trip arrived (Rule 6.2);
+            // nothing is derived here. Demo and older records have no breakdown, so only the total is shown.
+            const fb = stateTrip?.fareBreakdown as FareBreakdown | null | undefined;
+            const fin = fb?.final;
+            if (!fb || !fin) return null;
+            const money = (n: number) => `₱${n.toFixed(2)}`;
+            const matched = fin.basis === "matched_estimate_pending_segments";
+            const rowSx = { display: "flex", justifyContent: "space-between", alignItems: "center" } as const;
+            const labelSx = { fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" } as const;
+            const noteSx = { fontSize: "11.5px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" } as const;
+            const valueSx = { fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" } as const;
             return (
               <>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl"
-                      ? `Unang 2.0 km (Base Fare${isSolo ? " • Solo" : ""})`
-                      : `Base Fare (First 2.0 km${isSolo ? " • Solo" : ""})`}
-                  </Typography>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    ₱{baseFareVal.toFixed(2)}
-                  </Typography>
+                <Box sx={rowSx}>
+                  <Typography sx={labelSx}>{language === "tl" ? "Distansyang Siningil" : "Distance Billed"}</Typography>
+                  <Typography sx={valueSx}>{fin.billed_distance_km.toFixed(1)} km</Typography>
                 </Box>
 
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl" ? "Dagdag na Distansya" : "Distance Charge"}
-                  </Typography>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    ₱{distanceChargeVal.toFixed(2)}
-                  </Typography>
+                <Box sx={rowSx}>
+                  <Box>
+                    <Typography sx={labelSx}>
+                      {language === "tl"
+                        ? `Unang ${fb.rule.base_distance_km.toFixed(1)} km (Base Fare)`
+                        : `Base Fare (First ${fb.rule.base_distance_km.toFixed(1)} km)`}
+                    </Typography>
+                    <Typography sx={noteSx}>
+                      {matched
+                        ? language === "tl" ? "Hati mo sa buong tricycle" : "Your share of the whole tricycle"
+                        : `${money(fb.rule.base_fare)} × ${fin.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`}
+                    </Typography>
+                  </Box>
+                  <Typography sx={valueSx}>{money(fin.components.base)}</Typography>
                 </Box>
+
+                <Box sx={rowSx}>
+                  <Box>
+                    <Typography sx={labelSx}>
+                      {language === "tl"
+                        ? `Dagdag na Distansya (${fin.excess_km.toFixed(1)} km)`
+                        : `Distance Charge (${fin.excess_km.toFixed(1)} km)`}
+                    </Typography>
+                    {!matched && fin.excess_km > 0 && (
+                      <Typography sx={noteSx}>
+                        {fin.excess_km.toFixed(1)} km × {money(fb.rule.succeeding_rate)} × {fin.seat_capacity}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Typography sx={valueSx}>{money(fin.components.distance)}</Typography>
+                </Box>
+
+                {fin.components.adjustment !== 0 && (
+                  <Box sx={rowSx}>
+                    <Typography sx={labelSx}>{language === "tl" ? "Pag-round sa pinakamalapit na piso" : "Rounded to the nearest peso"}</Typography>
+                    <Typography sx={valueSx}>
+                      {fin.components.adjustment > 0 ? "+" : "−"}
+                      {money(Math.abs(fin.components.adjustment))}
+                    </Typography>
+                  </Box>
+                )}
+
+                {fin.basis === "unmatched_solo" && (
+                  <Typography sx={noteSx}>
+                    {language === "tl"
+                      ? "Shared booking na walang nakapares: sinisingil bilang Solo Trip (Pinakamataas na Pamasahe)."
+                      : "Shared booking with no matched passenger: billed as a Solo Trip (Maximum Unmatched Fare)."}
+                  </Typography>
+                )}
+                {fin.deviation && (
+                  <Typography sx={noteSx}>
+                    {language === "tl"
+                      ? "Batay sa aktwal na distansyang nilakbay (iba ang ruta sa estimasyon)."
+                      : "Based on the actual distance travelled (the route differed from the estimate)."}
+                  </Typography>
+                )}
               </>
             );
           })()}

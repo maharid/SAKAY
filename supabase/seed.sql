@@ -140,7 +140,8 @@ INSERT INTO public.fare_matrix (
     base_distance_km,
     succeeding_rate,
     effective_timestamp,
-    is_active
+    is_active,
+    ordinance_reference
 ) VALUES 
 (
     'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380f01',
@@ -148,7 +149,8 @@ INSERT INTO public.fare_matrix (
     2.00,
     1.00,
     '2022-06-01T00:00:00Z',
-    TRUE
+    TRUE,
+    'City Ordinance No. 110, Series of 2022'
 ),
 (
     'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380f02',
@@ -156,7 +158,8 @@ INSERT INTO public.fare_matrix (
     2.00,
     0.75,
     '2019-01-01T00:00:00Z',
-    FALSE
+    FALSE,
+    NULL
 );
 
 -- ============================================================================
@@ -199,7 +202,7 @@ INSERT INTO public.audit_log (
 (
     gen_random_uuid(),
     'FARE_MATRIX_VERIFIED',
-    'Verified City Ordinance No. 118, Series of 2022 active tariff matrix: ₱15.00 base (2.0 km), ₱1.00/km succeeding.'
+    'Verified City Ordinance No. 110, Series of 2022 active tariff matrix: ₱15.00 base (2.0 km), ₱1.00/km succeeding.'
 ),
 (
     gen_random_uuid(),

@@ -1,142 +1,217 @@
+import type { NoticeLanguage, RpcCapableClient } from './restrictionUtils';
+
 /**
- * Official SAKAY Fare Calculator
- * Adheres to Calapan City Ordinance Fare Matrix Rules and Ride Sharing Rules.
+ * SAKAY fare quotes (client side).
+ *
+ * There is NO fare formula in the apps. The one fare function is public.calculate_fare() in the database
+ * (supabase/migrations/20261007000002_batch5_fare_engine.sql). The apps ask for a quote (public.quote_fare)
+ * and show what comes back; the database re-computes the fare when the booking is inserted and again, from the
+ * recorded GPS track, when the trip arrives. The amount a passenger is charged is therefore never something a
+ * phone supplied (Rules 6.2, 6.3; PI-04 Option B).
  */
 
-import type { TariffConfig } from '../config/policyConfig';
-import { DEFAULT_TARIFF } from '../config/policyConfig';
-export type { TariffConfig };
-export { DEFAULT_TARIFF };
+export type TripType = 'Solo' | 'Shared';
 
-export interface RouteSegment {
-  distanceKm: number;
-  type: 'common' | 'exclusive';
-  totalPassengersOnBoard: number; // Total passengers in the trike during this segment
+/** The fare rule (LGU matrix row) a quote or a booking was priced on (Rule 6.3). */
+export interface FareRuleSnapshot {
+  fare_matrix_id: string;
+  base_fare: number;
+  base_distance_km: number;
+  succeeding_rate: number;
+  seat_capacity: number;
+  /** ISO timestamp (UTC) */
+  effective_timestamp: string;
+  ordinance_reference: string | null;
 }
 
-export interface FareCalculationParams {
-  distanceKm: number;          // Total distance for this booking
-  tripType: 'Solo' | 'Shared'; // Booking type
-  passengerCount: number;      // Declared passenger count
-  segments?: RouteSegment[];   // Present if finalizing a matched shared trip
-  tariff?: TariffConfig;
+/** How a fare is made up, ready to print: base + distance + (rounding / minimum fare). */
+export interface FareComponents {
+  base: number;
+  distance: number;
+  adjustment: number;
 }
 
-export interface FareSegmentBreakdown {
-  type: 'common' | 'exclusive';
-  distanceKm: number;
-  totalPassengersOnBoard: number;
-  cost: number;
+/** The figures calculate_fare() returns for a distance and a headcount. */
+export interface FareFigures {
+  distance_km: number;
+  excess_km: number;
+  passenger_count: number;
+  seat_capacity: number;
+  /** Fare for one passenger (exact, before rounding) */
+  seat_fare: number;
+  /** No booking is charged less than this (Rule 6.1.5 d) */
+  minimum_fare: number;
+  /** Solo Trip Fare = seat fare x seat capacity, whole pesos (Rule 6.1.2) */
+  solo_fare: number;
+  /** Rule 6.5: what a Shared booking pays if nobody is matched = the Solo fare */
+  max_unmatched_fare: number;
+  /** Rule 6.5: the estimate if a compatible partner is matched (assumes one more 1-passenger booking) */
+  shared_matched_estimate: number;
+  partner_assumption_passengers: number;
+  solo_components: FareComponents;
+  shared_components: FareComponents;
 }
 
-export interface FareCalculationResult {
-  seatFare: number;
-  soloFare: number;
-  sharedEstimate: number | null;
-  maxUnmatchedFare: number | null;
-  finalFare: number; // The exact fare to bill
-  breakdown: {
-    baseFareApplied: number;
-    excessKm: number;
-    shareRatio?: string;
-    segments?: FareSegmentBreakdown[];
-    minimumFareApplied: boolean;
-  };
+/** What public.quote_fare() returns: the figures plus the rule in force right now. */
+export interface FareQuote extends FareFigures {
+  rule: FareRuleSnapshot;
 }
 
-export function calculateFare(params: FareCalculationParams): FareCalculationResult {
-  const tariff = params.tariff || DEFAULT_TARIFF;
-  
-  // 1. Calculate the core Seat Fare for the given total distance
-  const excessKm = Math.max(0, params.distanceKm - tariff.baseDistanceKm);
-  const seatFare = tariff.baseFare + (excessKm * tariff.succeedingRate);
-  
-  // 2. Solo Fare (Max Unmatched Fare) is always Seat Fare * Capacity
-  const soloFare = seatFare * tariff.capacity;
+/** The estimate stored on a booking when it was confirmed. */
+export interface FareEstimateBreakdown extends FareFigures {
+  trip_type: TripType;
+  estimated_fare: number;
+}
 
-  let sharedEstimate: number | null = null;
-  let maxUnmatchedFare: number | null = null;
-  let finalFareRaw = 0;
-  let minimumFareApplied = false;
-  let segmentsBreakdown: FareSegmentBreakdown[] | undefined = undefined;
+/** What the database learned from the driver's GPS track when the trip arrived (figure F5.1). */
+export interface FareTrackSummary {
+  distance_km: number;
+  fixes_total: number;
+  fixes_usable: number;
+  fixes_counted: number;
+  rejected_accuracy: number;
+  rejected_speed: number;
+  max_gap_seconds: number;
+  gap_flag: boolean;
+  end_distance_to_destination_m: number | null;
+}
 
-  if (params.tripType === 'Solo') {
-    // Solo trip implies they reserve the whole trike
-    finalFareRaw = soloFare;
-  } else {
-    // Shared Trip
-    sharedEstimate = seatFare * params.passengerCount;
-    maxUnmatchedFare = soloFare;
+export type FareDistanceBasis =
+  | 'estimate_no_track'
+  | 'estimate_within_tolerance'
+  | 'estimate_kept_incomplete_track'
+  | 'actual_distance';
 
-    if (!params.segments || params.segments.length === 0) {
-      // If no segments provided (e.g. at booking time), finalFare defaults to unmatched max
-      finalFareRaw = soloFare;
-    } else {
-      // Trip completed, segments provided. Calculate proportional split.
-      segmentsBreakdown = [];
-      let totalSegmentDistance = 0;
-      
-      // We calculate proportion based on the sum of segment distances.
-      // (This should closely match params.distanceKm unless there was a reroute).
-      params.segments.forEach(s => totalSegmentDistance += s.distanceKm);
+export type FareBasis = 'solo' | 'unmatched_solo' | 'matched_estimate_pending_segments';
 
-      // If for some reason segments sum to 0, fallback to solo fare.
-      if (totalSegmentDistance === 0) {
-        finalFareRaw = soloFare;
-      } else {
-        // Re-calculate the theoretical solo pool for the actual total segment distance
-        // (This accounts for reroutes where segment sum != original distanceKm)
-        const actualExcessKm = Math.max(0, totalSegmentDistance - tariff.baseDistanceKm);
-        const actualSeatFare = tariff.baseFare + (actualExcessKm * tariff.succeedingRate);
-        const actualSoloPool = actualSeatFare * tariff.capacity;
+/** The final, binding fare and how it was reached (Rule 6.2). */
+export interface FareFinalBreakdown {
+  basis: FareBasis;
+  distance_basis: FareDistanceBasis;
+  billed_distance_km: number;
+  estimated_distance_km: number;
+  recorded_distance_km: number | null;
+  tolerance_km: number;
+  /** True when the recorded distance differed from the estimate by more than the tolerance (Rule 6.2.4) */
+  deviation: boolean;
+  track: FareTrackSummary;
+  seat_fare: number;
+  excess_km: number;
+  seat_capacity: number;
+  components: FareComponents;
+  minimum_fare: number;
+  actual_fare: number;
+  finalized_at: string;
+}
 
-        params.segments.forEach(seg => {
-          const distanceProportion = seg.distanceKm / totalSegmentDistance;
-          let segmentCost = 0;
+/** booking.fare_breakdown: the rule snapshot, the estimate, and (once the trip arrived) the final fare. */
+export interface FareBreakdown {
+  version: number;
+  rule: FareRuleSnapshot;
+  estimate: FareEstimateBreakdown | null;
+  final: FareFinalBreakdown | null;
+  /** Bookings made before the fare engine: the rule in force when they were created was looked up at the end */
+  legacy_rule_lookup?: boolean;
+}
 
-          if (seg.type === 'exclusive') {
-            // Passenger pays 100% of their share of the solo pool for this segment
-            segmentCost = distanceProportion * actualSoloPool;
-          } else {
-            // Passenger pays a proportional share based on passengers onboard
-            // Share ratio = their passenger count / total passengers on board
-            const shareRatio = params.passengerCount / seg.totalPassengersOnBoard;
-            segmentCost = distanceProportion * actualSoloPool * shareRatio;
-          }
-
-          segmentsBreakdown!.push({
-            type: seg.type,
-            distanceKm: seg.distanceKm,
-            totalPassengersOnBoard: seg.totalPassengersOnBoard,
-            cost: segmentCost
-          });
-
-          finalFareRaw += segmentCost;
-        });
-      }
-    }
+/**
+ * Asks the database for a fare quote (public.quote_fare). Throws an Error whose message is the database's,
+ * so callers can pass it to parseFareError().
+ */
+export async function fetchFareQuote(
+  client: RpcCapableClient,
+  distanceKm: number,
+  passengerCount: number
+): Promise<FareQuote> {
+  const { data, error } = await client.rpc('quote_fare', {
+    p_distance_km: distanceKm,
+    p_passenger_count: passengerCount,
+  });
+  if (error) {
+    throw new Error(typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Fare quote failed');
   }
-
-  // Rounding: nearest whole peso; >= .50 rounds up. Round once per booking at the end.
-  let finalFareRounded = Math.round(finalFareRaw);
-
-  // Minimum fare rule: no booking pays less than the base fare (15)
-  if (finalFareRounded < tariff.baseFare) {
-    finalFareRounded = tariff.baseFare;
-    minimumFareApplied = true;
+  const quote = data as FareQuote | null;
+  if (!quote || typeof quote.solo_fare !== 'number' || typeof quote.shared_matched_estimate !== 'number' || !quote.rule) {
+    throw new Error('Fare quote failed: unexpected response');
   }
+  return quote;
+}
 
-  return {
-    seatFare,
-    soloFare,
-    sharedEstimate,
-    maxUnmatchedFare,
-    finalFare: finalFareRounded,
-    breakdown: {
-      baseFareApplied: tariff.baseFare,
-      excessKm,
-      segments: segmentsBreakdown,
-      minimumFareApplied
-    }
-  };
+/** The estimate the passenger is shown and confirms for a trip type (Rule 6.5). */
+export function estimatedFareFor(figures: FareFigures, tripType: TripType): number {
+  return tripType === 'Shared' ? figures.shared_matched_estimate : figures.solo_fare;
+}
+
+/** The base / distance parts of that estimate. */
+export function componentsFor(figures: FareFigures, tripType: TripType): FareComponents {
+  return tripType === 'Shared' ? figures.shared_components : figures.solo_components;
+}
+
+export type FareErrorCode =
+  | 'ERR_FARE_MISMATCH'
+  | 'ERR_DISTANCE_IMPLAUSIBLE'
+  | 'ERR_DISTANCE_REQUIRED'
+  | 'ERR_INVALID_DISTANCE'
+  | 'ERR_SCHEDULED_BOOKING_NOT_SUPPORTED'
+  | 'ERR_FUTURE_BOOKING_NOT_SUPPORTED'
+  | 'ERR_NO_FARE_RULE'
+  | 'ERR_BOOKING_LOCKED'
+  | 'ERR_FARE_LOCKED';
+
+const FARE_ERROR_CODES: FareErrorCode[] = [
+  'ERR_FARE_MISMATCH',
+  'ERR_DISTANCE_IMPLAUSIBLE',
+  'ERR_DISTANCE_REQUIRED',
+  'ERR_INVALID_DISTANCE',
+  'ERR_SCHEDULED_BOOKING_NOT_SUPPORTED',
+  'ERR_FUTURE_BOOKING_NOT_SUPPORTED',
+  'ERR_NO_FARE_RULE',
+  'ERR_BOOKING_LOCKED',
+  'ERR_FARE_LOCKED',
+];
+
+export interface ParsedFareError {
+  code: FareErrorCode;
+  /** The fare the database expected, when it says so (ERR_FARE_MISMATCH) */
+  expectedFare?: number;
+}
+
+/** Recovers the fare error from a database message raised by the fare guards; null for any other error. */
+export function parseFareError(message: string | null | undefined): ParsedFareError | null {
+  if (!message) return null;
+  const code = FARE_ERROR_CODES.find((c) => message.includes(c));
+  if (!code) return null;
+  const expected = message.match(/expected=([0-9.]+)/);
+  return { code, expectedFare: expected ? Number(expected[1]) : undefined };
+}
+
+/** Plain-language notice for a fare error, in the user's language. */
+export function describeFareError(error: ParsedFareError, language: NoticeLanguage): string {
+  switch (error.code) {
+    case 'ERR_FARE_MISMATCH':
+      return language === 'tl'
+        ? 'Nagbago ang pamasahe. Pakisuri ang bagong halaga bago mag-book.'
+        : 'The fare has changed. Please review the updated fare before booking.';
+    case 'ERR_DISTANCE_IMPLAUSIBLE':
+    case 'ERR_DISTANCE_REQUIRED':
+    case 'ERR_INVALID_DISTANCE':
+      return language === 'tl'
+        ? 'Hindi makumpirma ang distansya ng ruta. Pakisubukang muli.'
+        : 'We could not confirm the route distance. Please try again.';
+    case 'ERR_SCHEDULED_BOOKING_NOT_SUPPORTED':
+    case 'ERR_FUTURE_BOOKING_NOT_SUPPORTED':
+      return language === 'tl'
+        ? 'Hindi tumatanggap ang SAKAY ng naka-iskedyul na booking; para lamang ito sa agarang sakay.'
+        : 'Scheduled bookings are not supported; every booking is for immediate pickup.';
+    case 'ERR_NO_FARE_RULE':
+      return language === 'tl'
+        ? 'Walang umiiral na fare matrix sa ngayon. Makipag-ugnayan sa LGU.'
+        : 'No fare rule is in force right now. Please contact the LGU.';
+    case 'ERR_BOOKING_LOCKED':
+    case 'ERR_FARE_LOCKED':
+    default:
+      return language === 'tl'
+        ? 'Naka-lock na ang ruta at pamasahe ng booking na ito.'
+        : "This booking's route and fare are locked.";
+  }
 }

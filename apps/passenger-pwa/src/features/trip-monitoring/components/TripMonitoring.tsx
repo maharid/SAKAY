@@ -368,13 +368,29 @@ export const TripMonitoring: React.FC = () => {
     try {
       localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
-        await supabase
+        // The database computes and locks the final fare when the trip first arrives (Rule 6.2); read it back
+        // so the figure on screen is the binding one, not the estimate.
+        const { data } = await supabase
           .from('booking')
           .update({
             booking_status: 'Arrived at Destination',
             arrived_at: new Date().toISOString(),
           })
-          .eq('booking_id', activeBookingId);
+          .eq('booking_id', activeBookingId)
+          .select('actual_fare, actual_distance_km, fare_breakdown')
+          .maybeSingle();
+        if (data) {
+          setBooking((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  actual_fare: data.actual_fare !== null && data.actual_fare !== undefined ? Number(data.actual_fare) : prev.actual_fare,
+                  actual_distance_km: data.actual_distance_km ?? prev.actual_distance_km,
+                  fare_breakdown: data.fare_breakdown ?? prev.fare_breakdown,
+                }
+              : prev
+          );
+        }
       }
 
       const channel = supabase.channel(`booking_sync_${activeBookingId}`);
@@ -394,14 +410,16 @@ export const TripMonitoring: React.FC = () => {
       localStorage.setItem(`payment_confirmed_${activeBookingId}`, 'true');
       localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
-        await supabase
+        // The passenger confirms payment; the final fare is NOT sent from here (Rule 6.2): the database
+        // already computed it when the trip arrived, and rejects any client that tries to write it.
+        const { error } = await supabase
           .from('booking')
           .update({
             booking_status: 'Completed',
-            actual_fare: passengerPayableFare,
             trip_completed_at: new Date().toISOString(),
           })
           .eq('booking_id', activeBookingId);
+        if (error) throw error;
       }
 
       const channel = supabase.channel(`booking_sync_${activeBookingId}`);
@@ -413,10 +431,16 @@ export const TripMonitoring: React.FC = () => {
 
       updateBookingState(activeBookingId, {
         booking_status: 'Completed',
-        actual_fare: passengerPayableFare,
+        actual_fare: booking?.actual_fare ?? undefined,
       });
     } catch (err) {
       console.warn('[TripMonitoring] handlePassengerPaid error:', err);
+      setToastMessage(
+        language === 'tl'
+          ? 'Hindi nakumpirma ang bayad. Pakisubukang muli.'
+          : 'We could not confirm the payment. Please try again.'
+      );
+      return;
     }
     setCompletionFareModalOpen(true);
   };
@@ -449,6 +473,8 @@ export const TripMonitoring: React.FC = () => {
             dropoff_longitude,
             estimated_fare,
             actual_fare,
+            actual_distance_km,
+            fare_breakdown,
             estimated_distance_km,
             is_shared_trip,
             passenger_count,
@@ -507,8 +533,11 @@ export const TripMonitoring: React.FC = () => {
               pickup_longitude: d.pickup_longitude ?? prev?.pickup_longitude ?? 121.1834,
               dropoff_latitude: d.dropoff_latitude ?? prev?.dropoff_latitude ?? 13.4150,
               dropoff_longitude: d.dropoff_longitude ?? prev?.dropoff_longitude ?? 121.1810,
-              estimated_fare: Number(d.estimated_fare) || prev?.estimated_fare || 18,
-              actual_fare: d.actual_fare !== null && d.actual_fare !== undefined ? Number(d.actual_fare) : prev?.actual_fare || 18,
+              estimated_fare: Number(d.estimated_fare) || prev?.estimated_fare || 0,
+              // null until the trip arrives: the database writes the final fare once (Rule 6.2)
+              actual_fare: d.actual_fare !== null && d.actual_fare !== undefined ? Number(d.actual_fare) : prev?.actual_fare ?? null,
+              actual_distance_km: d.actual_distance_km ?? prev?.actual_distance_km ?? null,
+              fare_breakdown: d.fare_breakdown ?? prev?.fare_breakdown ?? null,
               is_shared_trip: Boolean(d.is_shared_trip),
               passenger_count: Number(d.passenger_count) || 1,
               created_at: prev?.created_at || new Date().toISOString(),
@@ -541,6 +570,7 @@ export const TripMonitoring: React.FC = () => {
           .select(`
             booking_status,
             actual_fare,
+            fare_breakdown,
             created_at,
             driver_id,
             cancelled_by,
@@ -577,6 +607,7 @@ export const TripMonitoring: React.FC = () => {
               ...(prev || ({} as any)),
               booking_status: mappedStatus as any,
               actual_fare: d.actual_fare !== null && d.actual_fare !== undefined ? Number(d.actual_fare) : prev?.actual_fare,
+              fare_breakdown: d.fare_breakdown ?? prev?.fare_breakdown,
               updated_at: new Date().toISOString(),
             };
             updateBookingState(activeBookingId, merged);
@@ -634,6 +665,8 @@ export const TripMonitoring: React.FC = () => {
                 ...(prev || ({} as any)),
                 booking_status: mappedStatus as any,
                 actual_fare: row.actual_fare !== null && row.actual_fare !== undefined ? Number(row.actual_fare) : prev?.actual_fare,
+                actual_distance_km: row.actual_distance_km ?? prev?.actual_distance_km,
+                fare_breakdown: row.fare_breakdown ?? prev?.fare_breakdown,
                 updated_at: row.updated_at || new Date().toISOString(),
               };
               updateBookingState(activeBookingId, merged);
@@ -739,7 +772,10 @@ export const TripMonitoring: React.FC = () => {
   const franchiseNo = booking?.franchise_no || 'CAL-2025-0773';
   const plateNo = booking?.vehicle_plate || '773-MV';
   const todaName = booking?.toda_name || 'Calapan Central TODA';
-  const passengerPayableFare = booking?.proportionate_fare || booking?.actual_fare || booking?.estimated_fare || 18.0;
+  // The final fare is the one the database wrote when the trip arrived; until then it is the estimate (Rule 6.2).
+  const passengerPayableFare = booking?.actual_fare ?? booking?.estimated_fare ?? 0;
+  const fareOrdinance = booking?.fare_breakdown?.rule.ordinance_reference ?? null;
+  const fareBasis = booking?.fare_breakdown?.final?.basis ?? null;
 
   const isPreTrip =
     status === 'Searching Driver' ||
@@ -1171,8 +1207,8 @@ export const TripMonitoring: React.FC = () => {
             <Typography sx={{ fontSize: '11.5px', color: '#065F46', mt: '2px' }}>
               {booking.paired_booking_count && booking.paired_booking_count > 1
                 ? (language === 'tl'
-                    ? 'Nakatipid ka ng 25%! Nabawasan ang iyong pamasahe dahil may kasamang commuter sa ruta.'
-                    : 'You saved 25%! Your fare was reduced with a shared commuter along the route.')
+                    ? 'Nabawasan ang iyong pamasahe dahil may kasamang commuter sa ruta.'
+                    : 'Your fare was reduced because a commuter shares your route.')
                 : (language === 'tl'
                     ? 'Makatipid kapag may karagdagang commuter sa inyong ruta (hanggang 4 pinagsamang pasahero).'
                     : 'Save when an additional commuter shares your route (up to 4 passengers combined).')}
@@ -1200,8 +1236,10 @@ export const TripMonitoring: React.FC = () => {
         {/* Final Fare Display */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 0.5 }}>
           <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#64748B' }}>
-            {booking?.proportionate_fare
+            {fareBasis === 'matched_estimate_pending_segments'
               ? (language === 'tl' ? 'Proportionate Shared Fare:' : 'Proportionate Shared Fare:')
+              : fareBasis === 'unmatched_solo'
+              ? (language === 'tl' ? 'Solo Fare (walang nakapares):' : 'Solo Fare (no passenger matched):')
               : (language === 'tl' ? 'Kabuuang Pamasahe:' : 'Total Fare:')}
           </Typography>
           <Typography sx={{ fontSize: '24px', fontWeight: 900, color: '#FF6B00' }}>
@@ -1433,7 +1471,9 @@ export const TripMonitoring: React.FC = () => {
             ₱{passengerPayableFare.toFixed(2)}
           </Typography>
           <Typography sx={{ fontSize: '11.5px', color: '#94A3B8', textAlign: 'center', display: 'block' }}>
-            {language === 'tl' ? 'Batay sa Calapan City Ordinance No. 118' : 'Based on Calapan City Ordinance No. 118'}
+            {fareOrdinance
+              ? (language === 'tl' ? `Batay sa ${fareOrdinance}` : `Based on ${fareOrdinance}`)
+              : (language === 'tl' ? 'Batay sa opisyal na taripa ng Lungsod ng Calapan' : 'Based on the official Calapan City tariff')}
           </Typography>
         </Paper>
 

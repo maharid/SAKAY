@@ -38,6 +38,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, sx, ...props }
       case 'Pending':
       case 'Pending Review':
       case 'Under Review':
+      case 'Scheduled':
         return {
           backgroundColor: 'rgba(251, 188, 4, 0.15)',
           color: '#B06000',

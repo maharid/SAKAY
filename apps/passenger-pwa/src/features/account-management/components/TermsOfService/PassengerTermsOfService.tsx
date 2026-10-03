@@ -138,12 +138,8 @@ export const PassengerTermsOfService: React.FC = () => {
                       <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Standard LGU Matrix (Base fare + distansya bawat kilometro)</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Estudyante / Senior / PWD</TableCell>
-                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>20% Diskwento sang-ayon sa batas (ipakita ang balidong ID)</TableCell>
-                    </TableRow>
-                    <TableRow>
                       <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Paraan ng Pagbabayad</TableCell>
-                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Direktang Cash sa drayber pagbaba o mga suportadong e-wallet</TableCell>
+                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Cash lamang, direkta sa drayber pagbaba (walang e-wallet, QR o paunang bayad)</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -260,12 +256,8 @@ export const PassengerTermsOfService: React.FC = () => {
                       <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Standard LGU Matrix (Base distance + per km increment)</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Student / Senior / PWD</TableCell>
-                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Mandatory 20% discount upon presentation of valid ID</TableCell>
-                    </TableRow>
-                    <TableRow>
                       <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Payment Method</TableCell>
-                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Cash directly to driver upon arrival or supported e-wallets</TableCell>
+                      <TableCell sx={{ fontSize: '12px', color: '#475569' }}>Cash only, paid directly to the driver on arrival (no e-wallet, QR or advance payment)</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>

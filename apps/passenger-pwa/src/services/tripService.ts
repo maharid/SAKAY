@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "./supabaseClient";
+import type { FareBreakdown } from "@sakay/shared";
 
 export interface HistoryTrip {
   id: string;
@@ -16,6 +17,8 @@ export interface HistoryTrip {
   price: string;
   type: "Solo" | "Share";
   distanceKm?: number;
+  /** What the database stored for the fare: rule snapshot, estimate, final (Rule 6.2). Absent on demo / older records. */
+  fareBreakdown?: FareBreakdown | null;
   time: string;
   dateGroup: "NGAYONG ARAW" | "NAKARAANG ARAW";
   driverName?: string;
@@ -144,8 +147,9 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         dropoff_longitude,
         estimated_fare,
         actual_fare,
-        route_distance_km,
+        actual_distance_km,
         estimated_distance_km,
+        fare_breakdown,
         is_shared_trip,
         booking_status,
         created_at
@@ -165,7 +169,8 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
       bookings.forEach((b: any) => {
         const createdDate = new Date(b.created_at);
         const isToday = new Date().toDateString() === createdDate.toDateString();
-        const fare = b.actual_fare || b.estimated_fare || 0;
+        // The final fare once the trip arrived (written by the database), otherwise the estimate
+        const fare = b.actual_fare ?? b.estimated_fare ?? 0;
 
         dbTrips.push({
           id: b.booking_id,
@@ -177,7 +182,8 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
           dropoffLng: Number(b.dropoff_longitude) || 121.1810,
           price: `₱${parseFloat(fare).toFixed(2)}`,
           type: b.is_shared_trip ? "Share" : "Solo",
-          distanceKm: Number(b.route_distance_km || b.estimated_distance_km) || 1.5,
+          distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
+          fareBreakdown: b.fare_breakdown ?? null,
           time: createdDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           dateGroup: isToday ? "NGAYONG ARAW" : "NAKARAANG ARAW",
           dateString: createdDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),

@@ -70,9 +70,8 @@ export const DriverActiveTrip: React.FC = () => {
   const [sharedPromptOpen, setSharedPromptOpen] = useState(false);
   const [hasPromptedShared, setHasPromptedShared] = useState(false);
 
-  // Fare calculations
-  const [currentFare, setCurrentFare] = useState(booking?.estimated_fare || 35.0);
-  const [proportionateFareP1, setProportionateFareP1] = useState(booking?.estimated_fare || 35.0);
+  // The fare on screen: the estimate until the trip arrives, then the final fare the database wrote (Rule 6.2).
+  const [currentFare, setCurrentFare] = useState<number>(booking?.estimated_fare ?? 0);
   const driverLocation = {
     lat: profile.currentLat || booking?.pickup_latitude || 13.4117,
     lng: profile.currentLng || booking?.pickup_longitude || 121.1803,
@@ -92,7 +91,7 @@ export const DriverActiveTrip: React.FC = () => {
 
         if (data) {
           const p = Array.isArray(data.passenger) ? data.passenger[0] : data.passenger;
-          const fare = Number(data.actual_fare || data.final_fare || data.estimated_fare) || 35;
+          const fare = Number(data.actual_fare ?? data.estimated_fare) || 0;
 
           setBooking({
             booking_id: data.booking_id,
@@ -108,7 +107,7 @@ export const DriverActiveTrip: React.FC = () => {
             dropoff_address: data.dropoff_address || data.dropoff_location_address || 'Calapan City Public Market',
             dropoff_latitude: Number(data.dropoff_latitude) || 13.4180,
             dropoff_longitude: Number(data.dropoff_longitude) || 121.1850,
-            estimated_distance_km: Number(data.route_distance_km || data.estimated_distance_km) || 1.5,
+            estimated_distance_km: Number(data.estimated_distance_km) || 0,
             estimated_fare: fare,
             booking_status: data.booking_status,
             created_at: data.created_at,
@@ -116,7 +115,6 @@ export const DriverActiveTrip: React.FC = () => {
           } as any);
 
           setCurrentFare(fare);
-          setProportionateFareP1(fare);
 
           if (data.booking_status === 'Arrived at Destination') {
             setWaitingForPayment(true);
@@ -137,12 +135,26 @@ export const DriverActiveTrip: React.FC = () => {
   useEffect(() => {
     if (!bookingId) return;
 
+    // The database writes the final fare when the trip first arrives (Rule 6.2), which may be because the passenger
+    // marked arrival first; read it so the driver sees the same binding figure the passenger sees.
+    const refreshFare = async () => {
+      const { data } = await supabase
+        .from('booking')
+        .select('actual_fare')
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+      if (data && data.actual_fare !== null && data.actual_fare !== undefined) {
+        setCurrentFare(Number(data.actual_fare));
+      }
+    };
+
     const checkPaymentConfirmed = () => {
       const isConfirmed =
         localStorage.getItem(`payment_confirmed_${bookingId}`) === 'true' ||
         localStorage.getItem(`passenger_finished_${bookingId}`) === 'true';
 
       if (isConfirmed && !paymentConfirmed) {
+        refreshFare();
         setPaymentConfirmed(true);
         setWaitingForPayment(false);
         setFeedbackModalOpen(true);
@@ -155,11 +167,13 @@ export const DriverActiveTrip: React.FC = () => {
     const syncChannel = supabase.channel(`booking_sync_${bookingId}`);
     syncChannel
       .on('broadcast', { event: 'payment_confirmed' }, () => {
+        refreshFare();
         setPaymentConfirmed(true);
         setWaitingForPayment(false);
         setFeedbackModalOpen(true);
       })
       .on('broadcast', { event: 'passenger_finished' }, () => {
+        refreshFare();
         setPassengerFinished(true);
         setPaymentConfirmed(true);
         setWaitingForPayment(false);
@@ -255,10 +269,17 @@ export const DriverActiveTrip: React.FC = () => {
   const handleDriverSlideComplete = async () => {
     setWaitingForPayment(true);
     try {
-      await supabase
+      // The database computes and locks the final fare from the recorded GPS track when the trip first arrives
+      // (Rule 6.2); read it back so the driver sees the same binding figure as the passenger.
+      const { data: arrived } = await supabase
         .from('booking')
         .update({ booking_status: 'Arrived at Destination' })
-        .eq('booking_id', bookingId);
+        .eq('booking_id', bookingId)
+        .select('actual_fare')
+        .maybeSingle();
+      if (arrived && arrived.actual_fare !== null && arrived.actual_fare !== undefined) {
+        setCurrentFare(Number(arrived.actual_fare));
+      }
       setBooking((prev: any) => ({ ...prev, booking_status: 'Arrived at Destination' }));
     } catch (err) {
       console.warn('[DriverActiveTrip] slideComplete error:', err);

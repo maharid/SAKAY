@@ -59,7 +59,9 @@ export const DriverAvailabilityHome: React.FC = () => {
 
   useEffect(() => {
     if (location.state?.showEarningsAnimation) {
-      setEarnedAmount(location.state.completedFare || 35.0);
+      // The amount is the fare the database locked for the trip (Rule 6.2); with none, no figure is invented.
+      const lockedFare = Number(location.state.completedFare);
+      setEarnedAmount(Number.isFinite(lockedFare) && lockedFare > 0 ? lockedFare : null);
       setToastOpen(true);
       setSearchingPillVisible(false);
     }
