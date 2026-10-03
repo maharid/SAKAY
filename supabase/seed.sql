@@ -39,8 +39,6 @@ INSERT INTO public.toda (
     terminal_longitude,
     barangay,
     service_coverage_area,
-    contact_number,
-    email,
     president_name,
     president_contact,
     vice_president_name,
@@ -53,7 +51,8 @@ INSERT INTO public.toda (
     active_driver_count,
     certificate_number,
     certificate_expiry,
-    account_status
+    account_status,
+    toda_status
 ) VALUES 
 (
     'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
@@ -65,8 +64,6 @@ INSERT INTO public.toda (
     121.1803,
     'San Vicente Central',
     'Calapan Public Market, City Hall, J.P. Rizal St., San Vicente West',
-    '+63 917 100 2001',
-    'cctoda.calapan@gmail.com',
     'Roberto "Berting" Alcantara',
     '+63 917 555 1001',
     'Eduardo M. Perez',
@@ -79,6 +76,7 @@ INSERT INTO public.toda (
     18,
     'CERT-LGU-2026-001',
     '2026-12-31T23:59:59Z',
+    'Active',
     'Active'
 ),
 (
@@ -91,8 +89,6 @@ INSERT INTO public.toda (
     121.1712,
     'Balite',
     'Barangay Balite, Lumangbayan Highway, Calapan Port Access Road',
-    '+63 918 200 3002',
-    'bltoda.association@gmail.com',
     'Arnaldo V. Mendoza',
     '+63 918 555 2001',
     'Crisanto B. Salazar',
@@ -105,6 +101,7 @@ INSERT INTO public.toda (
     28,
     'CERT-LGU-2026-002',
     '2026-12-31T23:59:59Z',
+    'Active',
     'Active'
 ),
 (
@@ -117,8 +114,6 @@ INSERT INTO public.toda (
     121.1894,
     'San Vicente East',
     'San Vicente East, Calapan Pier Road, Provincial Capitol Complex',
-    '+63 919 300 4003',
-    'svtoda.officials@gmail.com',
     'Nestor G. Villanueva',
     '+63 919 555 3001',
     'Guillermo C. Ramos',
@@ -131,6 +126,7 @@ INSERT INTO public.toda (
     14,
     'CERT-LGU-2026-003',
     '2026-12-31T23:59:59Z',
+    'Active',
     'Active'
 );
 
@@ -271,6 +267,7 @@ BEGIN
             v_user_id::text,
             json_build_object('sub', v_user_id::text, 'email', v_email),
             'email',
+            now(),
             now()
         );
     ELSE
@@ -285,7 +282,7 @@ BEGIN
     END IF;
 
     -- Insert or update into public.lgu_admin
-    INSERT INTO public.lgu_admin (auth_user_id, email, full_name, role, account_status)
+    INSERT INTO public.lgu_admin (auth_user_id, email, full_name, position, account_status)
     VALUES (v_user_id, v_email, 'City Administrator', 'Super Admin', 'Active')
     ON CONFLICT (auth_user_id) DO UPDATE
     SET account_status = 'Active';
@@ -345,6 +342,13 @@ BEGIN
         password text
     )
     LOOP
+        -- Skip an administrator whose TODA is not seeded above (a TODA registered later, e.g. in a live
+        -- project) instead of failing on the toda_admin foreign key.
+        IF NOT EXISTS (SELECT 1 FROM public.toda WHERE toda_id = rec.toda_id) THEN
+            RAISE NOTICE 'Skipping TODA Admin % (TODA % is not in this seed)', upper(rec.acronym), rec.toda_id;
+            CONTINUE;
+        END IF;
+
         v_email := lower(rec.acronym) || '@toda.sakay.internal';
         v_user_id := gen_random_uuid();
 
@@ -391,6 +395,7 @@ BEGIN
                 v_user_id::text,
                 json_build_object('sub', v_user_id::text, 'email', v_email),
                 'email',
+                now(),
                 now()
             );
         ELSE

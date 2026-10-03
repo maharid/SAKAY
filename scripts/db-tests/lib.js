@@ -19,7 +19,19 @@ CREATE TABLE auth.users (
   email_confirmed_at timestamptz, phone_confirmed_at timestamptz, confirmed_at timestamptz,
   raw_user_meta_data jsonb DEFAULT '{}'::jsonb, raw_app_meta_data jsonb DEFAULT '{}'::jsonb,
   is_sso_user boolean DEFAULT false, last_sign_in_at timestamptz,
+  is_super_admin boolean, is_anonymous boolean DEFAULT false, deleted_at timestamptz, banned_until timestamptz,
+  invited_at timestamptz, confirmation_token text, confirmation_sent_at timestamptz,
+  recovery_token text, recovery_sent_at timestamptz,
+  email_change text, email_change_token_new text, email_change_token_current text, email_change_sent_at timestamptz,
+  phone_change text, phone_change_token text, phone_change_sent_at timestamptz,
+  reauthentication_token text, reauthentication_sent_at timestamptz,
   created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
+);
+CREATE TABLE auth.identities (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  identity_data jsonb NOT NULL, provider text NOT NULL, provider_id text NOT NULL,
+  last_sign_in_at timestamptz, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
 );
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT NULLIF(COALESCE(current_setting('request.jwt.claim.sub', true),
@@ -44,7 +56,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authen
 
 async function newDb() {
   const { uuid_ossp } = require('@electric-sql/pglite/contrib/uuid_ossp');
-  const db = new PGlite({ extensions: { uuid_ossp } });
+  const { pgcrypto } = require('@electric-sql/pglite/contrib/pgcrypto');
+  const db = new PGlite({ extensions: { uuid_ossp, pgcrypto } });
+  await db.exec('CREATE EXTENSION IF NOT EXISTS pgcrypto');   // seed.sql uses crypt() / gen_salt()
   await db.exec(PREAMBLE);
   return db;
 }
