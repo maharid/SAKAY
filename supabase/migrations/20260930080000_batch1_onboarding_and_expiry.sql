@@ -23,6 +23,22 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
+-- 0. SCHEMA RECONCILIATION: public.toda columns this migration depends on
+-- ----------------------------------------------------------------------------
+-- Migration 20260828000003 drops registration_number, certificate_number and
+-- certificate_expiry and renames account_status to toda_status. The code below (the toda
+-- protection trigger, approve_toda_accreditation, the expiry cascade, the affiliation guard)
+-- and supabase/seed.sql still read and write all four, and so does the live project, whose
+-- toda table has both status columns. On a database built only from the migration history
+-- those columns are missing and Batch 1 fails at run time (every UPDATE on public.toda, going
+-- online, accreditation approval). IF NOT EXISTS makes this a no-op wherever they exist.
+ALTER TABLE public.toda
+    ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS certificate_number VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS certificate_expiry TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS account_status VARCHAR(50) DEFAULT 'Pending Verification';
+
+-- ----------------------------------------------------------------------------
 -- 1. SHARED CANONICAL ADMIN REVIEW FLAG TABLE & NOTIFICATION DEDUPLICATION
 -- ----------------------------------------------------------------------------
 
@@ -646,7 +662,14 @@ CREATE TRIGGER trigger_driver_offline_before_affiliation_change
     FOR EACH ROW
     EXECUTE FUNCTION public.check_driver_offline_before_affiliation_change();
 
--- Backfill driver_toda_affiliation from existing driver records
+-- Backfill driver_toda_affiliation from existing driver records.
+-- This records HISTORIC data (Endorsed / Approved / active rows), so it must not go through
+-- check_driver_affiliation_insert, which validates brand-new applications (Submitted / Pending,
+-- not active, driver not disqualified, TODA active). That trigger also reads driver columns that
+-- section 6 below adds, so on a database that already has drivers the backfill failed with:
+--   record "v_driver" has no field "is_permanently_disqualified"
+-- The trigger honours this transaction-local internal-context flag; it is reset right after.
+SELECT set_config('sakay.internal_context', 'true', true);
 INSERT INTO public.driver_toda_affiliation (
     driver_id,
     toda_id,
@@ -682,6 +705,7 @@ SELECT
 FROM public.driver d
 WHERE d.toda_id IS NOT NULL
 ON CONFLICT (driver_id, toda_id) DO NOTHING;
+SELECT set_config('sakay.internal_context', '', true);
 
 
 -- ----------------------------------------------------------------------------
