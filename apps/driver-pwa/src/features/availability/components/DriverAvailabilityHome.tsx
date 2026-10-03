@@ -47,7 +47,7 @@ export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile, presence, goOnline, goOffline, refreshPresence, enableLocation, locationReauthRequired } = useDriverSession();
+  const { profile, setProfile, presence, goOnline, goOffline, refreshPresence, enableLocation, locationReauthRequired, sessionMissing } = useDriverSession();
 
   // Going Online / Offline is a request to the database; this screen only shows its answer.
   const [togglingOnline, setTogglingOnline] = useState(false);
@@ -338,6 +338,8 @@ export const DriverAvailabilityHome: React.FC = () => {
   const describePresenceError = (code: string, serverMessage: string): string => {
     const tl = language === 'tl';
     switch (code) {
+      case 'ERR_NO_SESSION':
+        return tl ? 'Walang secure na login session. Mag-login gamit ang tunay na account ng drayber para makapag-Online.' : 'There is no secure login session. Sign in with your real driver account to go Online.';
       case 'ERR_LOCATION_DENIED':
         return tl ? 'Naka-off ang Location. Payagan ito para makapag-Online.' : 'Location is turned off. Allow it to go Online.';
       case 'ERR_LOCATION_REQUIRED':
@@ -777,6 +779,15 @@ export const DriverAvailabilityHome: React.FC = () => {
             mb: 0.5,
           }}
         />
+
+        {/* No Supabase session (demo login): the database refuses every presence request */}
+        {sessionMissing && (
+          <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+            {language === 'tl'
+              ? 'Walang secure na login session (demo login). Mag-login gamit ang tunay na account ng drayber para makapag-Online.'
+              : 'No secure login session (demo login). Sign in with your real driver account to go Online.'}
+          </Alert>
+        )}
 
         {/* Rule 17.6: persistent reminder while Online */}
         {isOnline && <DriverForegroundReminder />}
