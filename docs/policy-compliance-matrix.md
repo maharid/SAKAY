@@ -100,7 +100,14 @@ This document tracks system-wide compliance against *Appendix B - Operational Po
 
 ## 6. Batch 3 Compliance Matrix: Strikes, Suspension, Deactivation, Exemption & Review Flags
 
-**How these statuses were verified.** The database logic was executed on a PostgreSQL 18 engine (PGlite) after applying the full migration chain plus the four Batch 3 migrations (169 checks, all passing: foundation 18, engine 83, exemptions/sweep 48, guards 19, plus execution of the original PI-09 trigger to confirm its defect). The four TypeScript workspaces and the server type-check; no browser run was done and the migrations have **not** been applied to the hosted Supabase project. `[OK]` therefore means *verified by executing the database path*; anything that needs an admin/driver/passenger screen that was not built stays `[PARTIAL]`.
+**Close-out status: 22 rules `[OK]`, 7 `[PARTIAL]`, 0 `[MISSING]`; 7 deferred frontend components `[MISSING]` (section 6.1).** Every `[PARTIAL]` rule is fully enforced in the database; it is partial only because its user-facing screen was deferred to keep the batch scope tight.
+
+**How these statuses were verified.**
+- **Executed tests:** the database logic runs on a PostgreSQL 18 engine (PGlite) against the unpatched migration chain, including a database that already holds drivers and the repo's `seed.sql`. `node scripts/db-tests/run-all.js`: **7 suites, 187 checks, all passing** (Batch 1 existing-data 14, engine 83, exemptions/sweep 48, foundation 18, guards 19, re-apply 4, original PI-09 defect 1).
+- **Builds:** the server and the four apps type-check and build. The only remaining TypeScript error is in `packages/shared/src/utils/fareCalculator.test.ts`, which imports `vitest` (not installed); it predates Batch 3 and belongs to the fare batch.
+- **Live Supabase:** all 32 migrations are recorded in `supabase_migrations.schema_migrations` and the Batch 1–3 objects exist (read-only check: ladder constants 3-day / 7-day / 72 h, 39-violation catalog, row-level security on the new tables, strike columns locked to the engine, restriction guards present, the anonymous role cannot call the engine, no existing data lost). The project owner reports having verified the strike ladder, suspension triggers and database security constraints manually on the live server.
+- **Not done:** no browser run of any screen, and `seed.sql` was deliberately **not** run on live (it truncates data).
+- `[OK]` therefore means *verified by executing the database path*; anything that needs an admin/driver/passenger screen that was not built is `[PARTIAL]` or listed in 6.1.
 
 Migrations: `20261004000001_batch3_strike_foundation.sql` (tables, columns, constants, helpers, protection), `…0002_batch3_strike_engine.sql` (engine, flags, admin actions, pause), `…0003_batch3_exemptions_and_sweep.sql` (Section 25, sweep), `…0004_batch3_enforcement_guards.sql` (guards).
 
@@ -135,3 +142,19 @@ Migrations: `20261004000001_batch3_strike_foundation.sql` (tables, columns, cons
 | **Shared review flag** | One flag mechanism for all rules. | `[OK]` | `…0002` open `flag_type` vocabulary, `passenger` subjects, TODA scoping fix, `create_admin_review_flag`, `resolve_admin_review_flag`. | Flags for 7.8, 7.9, 12.4, 12.7, 12.9, 13.6, 17.5, 23.3, 23.4, 29.7, 5.4 are raised by their own batches through this function. |
 | **PI-09 (a)–(f)** | Cross-reference errata. | `[OK]` | Corrected references stored in `violation_catalog.source_rule` (18.5, Section 20, 6.1.3, 12.x). | Overlaps in (f) are owned by Batches 1, 4, 6. |
 | **PI-09 (g)–(h)** | Undefined counts. | `[OK]` | Booking abuse 2, damage 3, contamination 1, availability 1, deviation 1 (decision D2). | Booking abuse raises a flag; the strike needs administrator confirmation. |
+
+### 6.1 Deferred frontend components (fully supported in the database; screens intentionally not built in Batch 3)
+
+Batch 3's UI scope was limited to showing suspension and deactivation state. These screens are `[MISSING]`; every one already has its database function, access rules and audit trail, so each is a thin client over an existing, tested RPC.
+
+| Component | Status | Supported in the database by | Rules it completes |
+|---|---|---|---|
+| Exemption request form, Driver PWA (cause, justification, evidence) | `[MISSING]` | `submit_exemption_request` (72 h window, routing, repeated-cause denial) | Sec 1 Exemption, 22.3, 25.1–25.3, 25.7 |
+| Exemption / appeal request form, Passenger PWA | `[MISSING]` | `submit_exemption_request` (routes directly to the LGU) | 22.3, 25.5 |
+| Exemption review queue, TODA portal (the existing "Strike Exemption Appeals" tab is still an empty shell fed by `useState([])`) | `[MISSING]` | `exemption_request` read access scoped to the TODA (RLS); `decide_exemption`, `escalate_exemption_request` | 25.4, 25.6, 25.8 |
+| Exemption review queue, LGU portal (Full / Partial / Denied with reason) | `[MISSING]` | `decide_exemption`, `admin_void_strike` | 25.4–25.6, 25.8 |
+| Emergency pause toggle, LGU portal (scope `ALL` or `CANCEL_STALL_NOSHOW`, mandatory reason) | `[MISSING]` | `set_strike_accrual_pause` (one audit entry; direct writes to the switch are blocked) | 15.4, 29.6 |
+| Review-flag list and resolve action, TODA portal (the LGU dashboard already lists and resolves flags) | `[MISSING]` | `admin_review_flag` read access scoped to the TODA's own drivers; `resolve_admin_review_flag` | W14, shared review flag |
+| Evidence upload for exemption requests (storage bucket and picker) | `[MISSING]` | `exemption_request.evidence_urls` accepts any URL list | 25.2 |
+
+Until these screens exist, the actions can be performed by calling the functions directly (SQL editor or `supabase.rpc`) as the signed-in administrator or account holder.
