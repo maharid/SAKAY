@@ -9,7 +9,11 @@ const AFF = {
   D3_T2: 'e3000000-0000-0000-0000-000000000001',   // D3: only a Submitted / Pending application
 };
 
-const LAST = '20261005000002_batch4_presence_rpcs.sql';
+const LAST = '20261006000003_batch4_inactivity_ignores_open_booking.sql';
+
+// Presence functions that take the app's login-session token as their last argument,
+// and how many arguments come before it.
+const TOKEN_ARITY = { driver_go_online: 4, driver_heartbeat: 3, get_my_driver_presence: 0 };
 
 async function setup() {
   const db = await freshDb(LAST);
@@ -25,11 +29,19 @@ async function setup() {
 
   const as = (uid, fn) => asUser(db, { uid }, fn, { commit: true });
   const svc = (fn) => asUser(db, { role: 'service_role' }, fn, { commit: true });
-  // Call a presence RPC as a driver and return its jsonb result.
-  const rpc = async (uid, name, args = []) => {
+  // Call a presence RPC exactly as given and return its jsonb result.
+  const rpcRaw = async (uid, name, args = []) => {
     const ph = args.map((_, i) => `$${i + 1}`).join(',');
     const r = await as(uid, (tx) => tx.query(`SELECT public.${name}(${ph}) AS r`, args));
     return r.rows[0].r;
+  };
+  // Same, but acting like the real app: it sends the login-session token the driver currently holds.
+  const rpc = async (uid, name, args = []) => {
+    if (name in TOKEN_ARITY && args.length === TOKEN_ARITY[name]) {
+      const row = (await db.query(`SELECT session_id FROM driver WHERE auth_user_id='${uid}'`)).rows[0];
+      args = [...args, row ? row.session_id : null];
+    }
+    return rpcRaw(uid, name, args);
   };
   const goOnline = (uid, lat = 13.4115, lng = 121.1803, acc = 15, age = 500) => rpc(uid, 'driver_go_online', [lat, lng, acc, age]);
   const goOffline = (uid) => rpc(uid, 'driver_go_offline');
@@ -62,7 +74,7 @@ async function setup() {
     for (let i = 0; i < n; i++) await timeout(await offer(b, driver));
   };
 
-  return { db, internal, as, svc, rpc, goOnline, goOffline, presence, q, one, openSession, lastSession, status, mkBooking, offer, timeout, explicitDecline, accept, unansweredOffers };
+  return { db, internal, as, svc, rpc, rpcRaw, goOnline, goOffline, presence, q, one, openSession, lastSession, status, mkBooking, offer, timeout, explicitDecline, accept, unansweredOffers };
 }
 
 module.exports = { setup, AFF, ID, attempt, check, summary, asUser };

@@ -141,8 +141,16 @@ export const DRIVER_AUTO_OFFLINE_REVIEW_WINDOW_DAYS = 30;
 export const DRIVER_OFFLINE_AFTER_DECLINE_SECONDS = 60;
 export const DRIVER_OFFLINE_AFTER_DECLINE_COUNT = 3;
 
-/** App silent for this long -> the presence sweep sets the driver Offline (approved extra, 5 min) [DB] */
+/** App silent for this long -> the presence sweep sets the driver Offline (approved extra, 5 min) [DB].
+ *  The sweep runs inside the database (pg_cron, every minute): 5 minutes is the threshold, not the schedule. */
 export const DRIVER_HEARTBEAT_STALE_SECONDS = 300;
+
+/**
+ * Time in the background (while Online) after which the driver is warned on return that location updates only
+ * work with the app open and the screen unlocked (Rule 17.6). Client-only: browsers suspend the page while it is
+ * hidden, so the warning can only appear when the driver comes back.
+ */
+export const DRIVER_BACKGROUND_WARNING_AFTER_SECONDS = 20;
 
 /** Location publish interval while Online and idle, in seconds (decision F4.5: 15 s; slower is accepted, Rule 17.8) */
 export const DRIVER_IDLE_LOCATION_INTERVAL_SECONDS = 15;
@@ -196,6 +204,7 @@ export const POLICY_CONSTANTS = {
     DRIVER_OFFLINE_AFTER_DECLINE_SECONDS,
     DRIVER_OFFLINE_AFTER_DECLINE_COUNT,
     DRIVER_HEARTBEAT_STALE_SECONDS,
+    DRIVER_BACKGROUND_WARNING_AFTER_SECONDS,
     DRIVER_IDLE_LOCATION_INTERVAL_SECONDS,
     LOCATION_MAX_ACCURACY_METERS,
     LOCATION_MAX_AGE_SECONDS,

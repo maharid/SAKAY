@@ -72,9 +72,30 @@ function offlineNoticeText(reason: PresenceEndReason, language: 'tl' | 'en'): { 
 export const DriverPresenceNotices: React.FC = () => {
   const { language } = useLanguage();
   const lang: 'tl' | 'en' = language === 'tl' ? 'tl' : 'en';
-  const { reminderOpen, dismissReminder, goOffline, offlineNotice, dismissOfflineNotice } = useDriverSession();
+  const {
+    reminderOpen, dismissReminder, goOffline, offlineNotice, dismissOfflineNotice, backgroundNotice, dismissBackgroundNotice,
+  } = useDriverSession();
 
   const notice = offlineNotice ? offlineNoticeText(offlineNotice.reason, lang) : null;
+
+  // "Switch to Offline" can be refused (a booking is open). Say so instead of silently closing the dialog.
+  const [reminderError, setReminderError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!reminderOpen) setReminderError(null);
+  }, [reminderOpen]);
+  const handleSwitchOffline = async () => {
+    const result = await goOffline();
+    if (result.ok) {
+      setReminderError(null);
+      dismissReminder();
+      return;
+    }
+    setReminderError(
+      result.code === 'ERR_OPEN_BOOKING'
+        ? (lang === 'tl' ? 'Hindi ka maaaring mag-Offline habang may bukas na booking.' : 'You cannot go Offline while a booking is open.')
+        : (result.message || (lang === 'tl' ? 'Hindi ma-Offline. Subukan muli.' : 'Could not go Offline. Try again.'))
+    );
+  };
 
   return (
     <>
@@ -96,6 +117,11 @@ export const DriverPresenceNotices: React.FC = () => {
           <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5, mt: 1 }}>
             Mukhang hindi ka available. Paki-switch sa Offline kung hindi ka na tumatanggap ng booking.
           </Typography>
+          {reminderError && (
+            <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '12px', fontSize: '12px' }}>
+              {reminderError}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
@@ -106,13 +132,39 @@ export const DriverPresenceNotices: React.FC = () => {
           </Button>
           <Button
             variant="contained"
-            onClick={async () => {
-              await goOffline();
-              dismissReminder();
-            }}
+            onClick={handleSwitchOffline}
             sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6B00', '&:hover': { backgroundColor: '#E05300' } }}
           >
             {lang === 'tl' ? 'Mag-Offline' : 'Switch to Offline'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rule 17.6: shown on return from the background, when location updates were probably paused */}
+      <Dialog
+        open={backgroundNotice !== null && notice === null && !reminderOpen}
+        onClose={dismissBackgroundNotice}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A' }}>
+          {lang === 'tl' ? 'Nasa background ang SAKAY' : 'SAKAY was in the background'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '13px', color: '#334155', lineHeight: 1.5 }}>
+            {lang === 'tl'
+              ? 'Humihinto ang pagpapadala ng lokasyon kapag naka-minimize ang app o naka-lock ang screen, kaya maaaring hindi ka makatanggap ng booking. Panatilihing bukas ang SAKAY at hindi naka-lock ang screen habang Online.'
+              : 'Location updates stop while the app is minimized or the screen is locked, so you may miss booking requests. Keep SAKAY open and the screen unlocked while you are Online.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            variant="contained"
+            onClick={dismissBackgroundNotice}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6B00', '&:hover': { backgroundColor: '#E05300' } }}
+          >
+            {lang === 'tl' ? 'Sige' : 'OK'}
           </Button>
         </DialogActions>
       </Dialog>

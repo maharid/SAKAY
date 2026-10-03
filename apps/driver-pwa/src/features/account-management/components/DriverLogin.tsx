@@ -99,59 +99,6 @@ export const DriverLogin: React.FC = () => {
 
     setLoading(true);
 
-    // Instant Verified Test Driver Login (Option A for live map & ride testing)
-    const isTestDriver =
-      (phone09 === '09171234567' || phone09 === '09181234567' || phone09 === '09123456789' || phone09 === '09999999999') &&
-      (password === 'Password123!' || password === '@Dmin_123' || password === 'password' || password === '123456');
-
-    if (isTestDriver) {
-      setLoading(false);
-      localStorage.setItem('sakay_driver_phone', phone63);
-      localStorage.setItem('sakay_driver_id', '11111111-1111-1111-1111-111111111111');
-      localStorage.setItem(
-        'sakay_driver_profile',
-        JSON.stringify({
-          id: '11111111-1111-1111-1111-111111111111',
-          name: 'Juan Dela Cruz',
-          phone: phone63,
-          vehiclePlate: 'ABC 123',
-          licenseNumber: 'N03-12-123456',
-          franchiseNumber: '1234',
-          todaName: 'Calapan Central TODA (CCTODA)',
-          selectedTodaId: 'toda-1',
-          selectedVehicleId: 'VEH-001',
-          rating: 5.0,
-          totalTrips: 0,
-          isOnline: true,
-          isPaused: false,
-          currentLat: 13.4124,
-          currentLng: 121.1834,
-          accountStatus: 'Verified',
-          verificationStage: 'Stage 2 Approved',
-        })
-      );
-
-      // Guarantee driver record is online and verified in Supabase
-      supabase
-        .from('driver')
-        .upsert({
-          driver_id: '11111111-1111-1111-1111-111111111111',
-          full_name: 'Juan Dela Cruz',
-          contact_number: phone63,
-          plate_number: 'ABC 123',
-          account_status: 'Verified',
-          is_online: true,
-          // No location here: the Online heartbeat is the only thing that publishes a driver's position (Batch 4).
-        })
-        .then(() => {});
-
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/driver/home', { replace: true });
-      }, 1000);
-      return;
-    }
-
     try {
       // 1. Pre-fetch driver record if available
       let driverData = await lookupDriverByPhoneSecure(phone63);
