@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ACTIVE_TRIP_GPS_INTERVAL_MS,
+  DRIVER_BACKGROUND_WARNING_AFTER_SECONDS,
   DRIVER_IDLE_LOCATION_INTERVAL_MS,
   LOCATION_MAX_AGE_MS,
   LOCATION_MAX_ACCURACY_METERS,
@@ -92,6 +93,28 @@ function toFix(coords: LocationCoords | null): PositionFix | null {
   return { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy ?? LOCATION_MAX_ACCURACY_METERS + 1, timestamp: coords.timestamp };
 }
 
+/**
+ * Which reminder the driver already dismissed (its timestamp), kept for the browser tab so a page reload does not
+ * show the same Rule 7.6 reminder again. A NEW reminder has a new timestamp and is shown.
+ */
+const REMINDER_DISMISSED_KEY = 'sakay_driver_reminder_dismissed';
+
+function readDismissedReminder(): string | null {
+  try {
+    return sessionStorage.getItem(REMINDER_DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeDismissedReminder(reminderSentAt: string | null): void {
+  try {
+    if (reminderSentAt) sessionStorage.setItem(REMINDER_DISMISSED_KEY, reminderSentAt);
+  } catch {
+    // Storage unavailable: the reminder simply reappears after a reload.
+  }
+}
+
 function hasStoredLocationConsent(): boolean {
   try {
     const stored = localStorage.getItem('sakay_driver_location_permission');
@@ -103,24 +126,36 @@ function hasStoredLocationConsent(): boolean {
   }
 }
 
-export function useDriverPresenceEngine(driverId: string | null) {
+/**
+ * `onSessionSuperseded` is called when the database says another device has logged in since this one
+ * (Rule 29.1); the caller signs this device out.
+ */
+export function useDriverPresenceEngine(driverId: string | null, onSessionSuperseded?: () => void) {
   const [presence, setPresence] = useState<PresenceView>(INITIAL_VIEW);
   const [fix, setFix] = useState<LocationCoords | null>(null);
   const [locationEnabled, setLocationEnabled] = useState<boolean>(hasStoredLocationConsent);
   const [locationReauthRequired, setLocationReauthRequired] = useState(false);
   const [offlineNotice, setOfflineNotice] = useState<{ reason: PresenceEndReason } | null>(null);
-  const [dismissedReminderAt, setDismissedReminderAt] = useState<string | null>(null);
+  const [dismissedReminderAt, setDismissedReminderAt] = useState<string | null>(readDismissedReminder);
   // True when the app has no Supabase login session (e.g. the demo login): the database refuses every presence call.
   const [sessionMissing, setSessionMissing] = useState(false);
+
+  // Set when the app returns from the background after long enough that location updates were probably paused (17.6).
+  const [backgroundNotice, setBackgroundNotice] = useState<{ seconds: number } | null>(null);
 
   const fixRef = useRef<LocationCoords | null>(null);
   const presenceRef = useRef<PresenceView>(INITIAL_VIEW);
   const wasOnlineRef = useRef(false);
   const reportingLossRef = useRef(false);
+  const hiddenAtRef = useRef<number | null>(null);
+  const onSupersededRef = useRef(onSessionSuperseded);
 
   useEffect(() => {
     presenceRef.current = presence;
   }, [presence]);
+  useEffect(() => {
+    onSupersededRef.current = onSessionSuperseded;
+  }, [onSessionSuperseded]);
 
   // Apply a server answer. Only successful answers change the view; a network failure keeps the last known state.
   const applyResult = useCallback((res: PresenceResult) => {
@@ -133,7 +168,17 @@ export function useDriverPresenceEngine(driverId: string | null) {
       if (reason === 'location_permission_revoked') setLocationReauthRequired(true);
     }
     wasOnlineRef.current = online;
+    presenceRef.current = next;
     setPresence(next);
+  }, []);
+
+  // Another device logged in after this one (Rule 29.1): this device may no longer act. Stop showing Online here
+  // (the driver's real state on the server is untouched) and let the caller sign this device out.
+  const handleSuperseded = useCallback(() => {
+    wasOnlineRef.current = false;
+    presenceRef.current = { ...INITIAL_VIEW, status: 'offline' };
+    setPresence(presenceRef.current);
+    onSupersededRef.current?.();
   }, []);
 
   const refresh = useCallback(async () => {
@@ -142,6 +187,8 @@ export function useDriverPresenceEngine(driverId: string | null) {
     if (res.success) {
       setSessionMissing(false);
       applyResult(res);
+    } else if (res.error_code === 'ERR_SESSION_SUPERSEDED') {
+      handleSuperseded();
     } else if (res.error_code === 'ERR_NOT_A_DRIVER') {
       // Signed in, but not as a driver: never Online.
       wasOnlineRef.current = false;
@@ -156,9 +203,10 @@ export function useDriverPresenceEngine(driverId: string | null) {
         setPresence({ ...INITIAL_VIEW, status: 'offline' });
       }
     }
-  }, [driverId, applyResult]);
+  }, [driverId, applyResult, handleSuperseded]);
 
   // ── 1. Hydrate from the server: open, reload, return to foreground, reconnect ────────────────
+  // Also Rule 17.6: the page is suspended while it is hidden, so the driver can only be warned on return.
   useEffect(() => {
     if (!driverId) {
       wasOnlineRef.current = false;
@@ -166,13 +214,24 @@ export function useDriverPresenceEngine(driverId: string | null) {
       return;
     }
     refresh();
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh();
+    const onVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        if (presenceRef.current.status === 'online') hiddenAtRef.current = Date.now();
+        return;
+      }
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      await refresh();
+      // Only warn if the server still has the driver Online (otherwise the "set Offline" notice already explains).
+      if (hiddenAt && presenceRef.current.status === 'online') {
+        const seconds = Math.round((Date.now() - hiddenAt) / 1000);
+        if (seconds >= DRIVER_BACKGROUND_WARNING_AFTER_SECONDS) setBackgroundNotice({ seconds });
+      }
     };
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('online', refresh);
     return () => {
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('online', refresh);
     };
   }, [driverId, refresh]);
@@ -248,7 +307,9 @@ export function useDriverPresenceEngine(driverId: string | null) {
       inFlight = true;
       try {
         const res = await sendHeartbeat(toFix(fixRef.current));
-        if (!stopped) applyResult(res);
+        if (stopped) return;
+        if (res.error_code === 'ERR_SESSION_SUPERSEDED') handleSuperseded();
+        else applyResult(res);
       } finally {
         inFlight = false;
       }
@@ -260,7 +321,7 @@ export function useDriverPresenceEngine(driverId: string | null) {
       stopped = true;
       clearInterval(timer);
     };
-  }, [driverId, presence.status, presence.sessionId, presence.openBooking, applyResult]);
+  }, [driverId, presence.status, presence.sessionId, presence.openBooking, applyResult, handleSuperseded]);
 
   // ── Actions ─────────────────────────────────────────────────────────────────────────────────
   const goOnline = useCallback(async (): Promise<PresenceOutcome> => {
@@ -308,13 +369,16 @@ export function useDriverPresenceEngine(driverId: string | null) {
       accuracy: coords.accuracy ?? LOCATION_MAX_ACCURACY_METERS + 1,
       timestamp: coords.timestamp,
     });
-    if (!res.success) return { ok: false, code: res.error_code || 'ERR_UNKNOWN', message: res.error || 'Could not go online.' };
+    if (!res.success) {
+      if (res.error_code === 'ERR_SESSION_SUPERSEDED') handleSuperseded();
+      return { ok: false, code: res.error_code || 'ERR_UNKNOWN', message: res.error || 'Could not go online.' };
+    }
 
     setLocationReauthRequired(false);
     setOfflineNotice(null);
     applyResult(res);
     return OK;
-  }, [driverId, applyResult]);
+  }, [driverId, applyResult, handleSuperseded]);
 
   const goOffline = useCallback(async (): Promise<PresenceOutcome> => {
     const res = await requestGoOffline();
@@ -330,12 +394,17 @@ export function useDriverPresenceEngine(driverId: string | null) {
   }, []);
 
   const dismissReminder = useCallback(() => {
-    setDismissedReminderAt(presenceRef.current.reminderSentAt);
+    const sentAt = presenceRef.current.reminderSentAt;
+    writeDismissedReminder(sentAt);
+    setDismissedReminderAt(sentAt);
   }, []);
 
   const dismissOfflineNotice = useCallback(() => setOfflineNotice(null), []);
+  const dismissBackgroundNotice = useCallback(() => setBackgroundNotice(null), []);
 
-  const reminderOpen = presence.status === 'online' && !!presence.reminderSentAt && presence.reminderSentAt !== dismissedReminderAt;
+  // Not during a booking: a driver on a trip is busy, not "unavailable" (the database does not count offers then either).
+  const reminderOpen = presence.status === 'online' && !presence.openBooking
+    && !!presence.reminderSentAt && presence.reminderSentAt !== dismissedReminderAt;
 
   return {
     presence,
@@ -348,6 +417,8 @@ export function useDriverPresenceEngine(driverId: string | null) {
     sessionMissing,
     offlineNotice,
     dismissOfflineNotice,
+    backgroundNotice,
+    dismissBackgroundNotice,
     reminderOpen,
     dismissReminder,
   };

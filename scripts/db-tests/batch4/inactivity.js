@@ -101,13 +101,21 @@ const { setup, AFF, ID, attempt, check, summary } = require('../b4fixtures');
   await unansweredOffers(ID.D2, 5);
   check('two automatic Offlines older than 30 days + one new = 1 in the window -> no flag', (await q(`SELECT 1 FROM admin_review_flag WHERE subject_id='${ID.D2}'`)).length === 0);
 
-  console.log('\nAn open booking is never abandoned by the inactivity rule');
+  console.log('\nA driver on a booking is busy, not unavailable: ignored offers are not inactivity (found in manual test T5)');
   await goOnline(ID.D2_AUTH);
-  const open = await mkBooking(ID.P2, 'Accepted', ID.D2);
-  await unansweredOffers(ID.D2, 5);
-  check('five unanswered offers while a booking is open do not set the driver Offline', (await status(ID.D2)) === 'Available');
+  const open = await mkBooking(ID.P2, 'In Transit', ID.D2);
+  await unansweredOffers(ID.D2, 8);
+  let d2 = await openSession(ID.D2);
+  check('eight ignored offers during a trip do not set the driver Offline', (await status(ID.D2)) === 'Available');
+  check('...and they are not counted: streak stays 0 and no "You appear to be unavailable" reminder is sent', d2.unanswered_streak === 0 && d2.reminder_sent_at === null && (await q(`SELECT 1 FROM notification WHERE driver_id='${ID.D2}' AND notification_type='DRIVER_INACTIVITY_REMINDER' AND subject_id='${d2.session_id}'`)).length === 0, d2);
   await internal(`UPDATE booking SET booking_status='Completed' WHERE booking_id='${open}'`);
-  await goOffline(ID.D2_AUTH);
+  await unansweredOffers(ID.D2, 4);
+  d2 = await openSession(ID.D2);
+  check('once the trip is over the count starts fresh: 4 ignored offers = streak 4, still Online', d2.unanswered_streak === 4 && (await status(ID.D2)) === 'Available', d2);
+  await unansweredOffers(ID.D2, 1);
+  const d2end = await one(`SELECT end_reason, unanswered_streak FROM driver_online_session WHERE driver_id='${ID.D2}' ORDER BY ended_at DESC NULLS FIRST LIMIT 1`);
+  check('the 5th ignored offer after the trip sets the driver Offline automatically', (await status(ID.D2)) === 'Offline' && d2end.end_reason === 'auto_inactivity' && d2end.unanswered_streak === 5, d2end);
+  check('...with no strike', (await strikes(ID.D2)).ledger === 0);
 
   console.log('\nRule 29.7: going Offline right after declining, 3+ times in a login session -> monitoring flag only');
   const flagN = async () => (await q(`SELECT 1 FROM admin_review_flag WHERE subject_id='${ID.D1}' AND flag_type='DRIVER_AVAILABILITY_MONITORING' AND status IN ('Open','Under Review')`)).length;

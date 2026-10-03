@@ -92,7 +92,8 @@ export const DriverAvailabilityHome: React.FC = () => {
   const [renewalMsg, setRenewalMsg] = useState('');
 
   const handleRenewalSubmit = async () => {
-    const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
+    // The signed-in driver's real id; there is no fallback id.
+    const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id');
     if (!activeDriverId) return;
     setRenewalSubmitting(true);
     setRenewalMsg('');

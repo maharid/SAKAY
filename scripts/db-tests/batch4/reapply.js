@@ -7,6 +7,9 @@ const { applyFile } = require('../lib');
 const BATCH4 = [
   '20261005000001_batch4_presence_foundation.sql',
   '20261005000002_batch4_presence_rpcs.sql',
+  '20261006000001_batch4_login_session_check.sql',
+  '20261006000002_batch4_presence_sweep_cron.sql',
+  '20261006000003_batch4_inactivity_ignores_open_booking.sql',
 ];
 
 (async () => {

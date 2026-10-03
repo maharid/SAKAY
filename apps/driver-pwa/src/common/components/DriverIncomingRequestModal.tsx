@@ -32,17 +32,22 @@ export const DriverIncomingRequestModal: React.FC = () => {
   const handleAcceptRequest = async () => {
     if (!incomingRequest) return;
 
-    const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
+    // The signed-in driver's real id. There is no fallback id: a booking is never accepted for a made-up driver.
+    const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id');
+    if (!activeDriverId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeDriverId)) {
+      alert(language === 'tl'
+        ? 'Hindi matukoy ang iyong account ng drayber. Mag-login muli bago tumanggap ng booking.'
+        : 'Your driver account could not be identified. Please sign in again before accepting a booking.');
+      return;
+    }
 
     // Explicit Supabase update
     try {
       const updatePayload: any = {
         booking_status: 'Accepted',
         accepted_at: new Date().toISOString(),
+        driver_id: activeDriverId,
       };
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeDriverId)) {
-        updatePayload.driver_id = activeDriverId;
-      }
 
       const { error } = await supabase
         .from('booking')

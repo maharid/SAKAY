@@ -56,6 +56,18 @@ export interface PositionFix {
   timestamp?: number;
 }
 
+/**
+ * The login-session token stored at login (Batch 2). The database compares it with driver.session_id so only the
+ * device that logged in last can act (Rule 29.1). Null when nothing is stored.
+ */
+function loginSessionToken(): string | null {
+  try {
+    return localStorage.getItem('sakay_driver_session_token');
+  } catch {
+    return null;
+  }
+}
+
 function failure(error: unknown): PresenceResult {
   const message = error instanceof Error ? error.message : (error as { message?: string })?.message || 'Network error';
   return { success: false, error_code: 'ERR_NETWORK', error: message };
@@ -73,7 +85,7 @@ async function call(fn: string, args?: Record<string, unknown>): Promise<Presenc
 
 /** What the server believes right now (used on open, refresh and when the app returns to the foreground). */
 export function fetchMyPresence(): Promise<PresenceResult> {
-  return call('get_my_driver_presence');
+  return call('get_my_driver_presence', { p_session_token: loginSessionToken() });
 }
 
 /** Every precondition (verified, affiliation, documents, suspension, fresh accurate location) is checked in the database. */
@@ -84,6 +96,7 @@ export function requestGoOnline(fix: PositionFix): Promise<PresenceResult> {
     p_longitude: fix.longitude,
     p_accuracy_m: fix.accuracy,
     p_position_age_ms: Math.round(ageMs),
+    p_session_token: loginSessionToken(),
   });
 }
 
@@ -98,6 +111,7 @@ export function sendHeartbeat(fix: PositionFix | null): Promise<PresenceResult> 
     p_latitude: fix ? fix.latitude : null,
     p_longitude: fix ? fix.longitude : null,
     p_accuracy_m: fix ? fix.accuracy : null,
+    p_session_token: loginSessionToken(),
   });
 }
 

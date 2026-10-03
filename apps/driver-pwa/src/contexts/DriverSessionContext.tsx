@@ -43,6 +43,9 @@ interface DriverSessionContextType {
   /** Why the system ended the Online session (shown once). */
   offlineNotice: { reason: PresenceEndReason } | null;
   dismissOfflineNotice: () => void;
+  /** The app was in the background while Online long enough that location updates probably paused (Rule 17.6). */
+  backgroundNotice: { seconds: number } | null;
+  dismissBackgroundNotice: () => void;
   /** Rule 7.6 reminder is due. */
   reminderOpen: boolean;
   dismissReminder: () => void;
@@ -101,7 +104,12 @@ function readStoredProfile(): DriverProfile {
  * `driverId` is the signed-in driver (null when nobody is signed in). The provider stays mounted for as long as
  * a driver is signed in, so navigating between screens never resets presence or the location watcher.
  */
-export const DriverSessionProvider: React.FC<{ driverId?: string | null; children: ReactNode }> = ({ driverId = null, children }) => {
+export const DriverSessionProvider: React.FC<{
+  driverId?: string | null;
+  /** Called when the database says another device logged in after this one (Rule 29.1). */
+  onSessionSuperseded?: () => void;
+  children: ReactNode;
+}> = ({ driverId = null, onSessionSuperseded, children }) => {
   const [profile, setProfile] = useState<DriverProfile>(readStoredProfile);
 
   const [incomingRequest, setIncomingRequest] = useState<BookingRecord | null>(null);
@@ -109,7 +117,7 @@ export const DriverSessionProvider: React.FC<{ driverId?: string | null; childre
   const [countdown, setCountdown] = useState<number>(DRIVER_OFFER_TIMEOUT_SECONDS);
   const [declinedBookings, setDeclinedBookings] = useState<Set<string>>(new Set());
 
-  const engine = useDriverPresenceEngine(driverId);
+  const engine = useDriverPresenceEngine(driverId, onSessionSuperseded);
   const { presence, fix } = engine;
   const isOnline = presence.status === 'online';
 
@@ -359,6 +367,8 @@ export const DriverSessionProvider: React.FC<{ driverId?: string | null; childre
         sessionMissing: engine.sessionMissing,
         offlineNotice: engine.offlineNotice,
         dismissOfflineNotice: engine.dismissOfflineNotice,
+        backgroundNotice: engine.backgroundNotice,
+        dismissBackgroundNotice: engine.dismissBackgroundNotice,
         reminderOpen: engine.reminderOpen,
         dismissReminder: engine.dismissReminder,
       }}

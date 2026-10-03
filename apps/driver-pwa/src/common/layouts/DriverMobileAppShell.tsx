@@ -45,6 +45,22 @@ export const DriverMobileAppShell: React.FC = () => {
     '/settings', '/profile', '/trip-history', '/trip-detail',
   ];
 
+  // Signs this device out because the account logged in on another device (Rule 29.1). Used by the check below
+  // (on navigation) and by the presence engine, whose database calls are refused for a superseded device.
+  const invalidateLocalSession = React.useCallback(async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('sakay_driver_session_token');
+    localStorage.removeItem('sakay_driver_id');
+    localStorage.removeItem('sakay_driver_profile');
+    localStorage.removeItem('sakay_driver_phone');
+    const msg = language === 'tl'
+      ? 'Natapos ang inyong session dahil nag-login ang account sa ibang device. Mag-login muli.'
+      : 'Your session was invalidated because the account logged in on another device. Please log in again.';
+    setSessionToastMsg(msg);
+    setSessionToastOpen(true);
+    navigate('/driver/login', { replace: true });
+  }, [language, navigate]);
+
   React.useEffect(() => {
     const isGuarded = GUARDED_PATHS.some((p) => currentPath.startsWith(p));
     if (!isGuarded) return;
@@ -62,17 +78,7 @@ export const DriverMobileAppShell: React.FC = () => {
 
       // If DB has a session_id and it doesn't match the local one → another device logged in
       if (dbProfile?.session_id && dbProfile.session_id !== localToken) {
-        await supabase.auth.signOut();
-        localStorage.removeItem('sakay_driver_session_token');
-        localStorage.removeItem('sakay_driver_id');
-        localStorage.removeItem('sakay_driver_profile');
-        localStorage.removeItem('sakay_driver_phone');
-        const msg = language === 'tl'
-          ? 'Natapos ang inyong session dahil nag-login ang account sa ibang device. Mag-login muli.'
-          : 'Your session was invalidated because the account logged in on another device. Please log in again.';
-        setSessionToastMsg(msg);
-        setSessionToastOpen(true);
-        navigate('/driver/login', { replace: true });
+        await invalidateLocalSession();
       }
     };
 
@@ -277,7 +283,7 @@ export const DriverMobileAppShell: React.FC = () => {
   const signedInDriverId = localStorage.getItem('sakay_driver_id');
 
   return (
-    <DriverSessionProvider driverId={signedInDriverId}>
+    <DriverSessionProvider driverId={signedInDriverId} onSessionSuperseded={invalidateLocalSession}>
       {content}
     </DriverSessionProvider>
   );
