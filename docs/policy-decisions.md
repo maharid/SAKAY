@@ -328,3 +328,49 @@ Fixes in `supabase/seed.sql` (Supabase Preview and `db reset` run it after the m
 - both `auth.identities` inserts named 7 columns but supplied 6 values (added `updated_at`);
 - `lgu_admin.role` does not exist; the value is the job title, so it now writes `position`;
 - the 4th TODA admin (`lptoda`) points at a TODA the seed never creates; the loop now skips an admin whose TODA is absent (with a notice) instead of failing on the foreign key. Nothing was deleted; if that TODA is meant to exist in the seed, add its row.
+
+
+---
+
+## 6. Batch 4 Decisions (Driver Availability, Online Persistence, Presence & Inactivity)
+
+### 6.1 Approved by the project owner when Batch 4 started
+
+| Ref | Decision | Where it lives |
+|---|---|---|
+| **PI-06 (Option A)** | One canonical, accuracy-aware location threshold instead of per-rule values. Batch 4 fixes the **publish / go-Online / dispatch** accuracy at 100 m. The 40 m pickup-zone gating and the no-show radius stay with Batch 8. | `LOCATION_MAX_ACCURACY_METERS`, `driver_presence_constant('location_max_accuracy_m')` |
+| **PI-09 (Option A)** | Cross-reference errata are implemented by intent. For Rule 5.7 the strike count is 1 point per administrator-confirmed instance (catalog code `DRV_AVAILABILITY_VIOLATION`, Batch 3 decision D2); Rule 5.3 likewise 1 point (`DRV_QUEUE_CONFLICT`). | `violation_catalog` (Batch 3) |
+| **F4.1 – F4.4** | Policy values kept as written: reminder at **3** unanswered offers, automatic Offline at **5**, review flag at **3 automatic Offlines in a rolling 30 days**, monitoring flag at **3 offline-after-decline events** with "immediately" meaning within **60 s**. | `driver_presence_constant()` + `policyConfig.ts` (section 7) |
+| **F4.5** | Location publishing interval: **5 s** while a booking is open, **15 s** while Online and idle. Slower is accepted (Rule 17.8). | `ACTIVE_TRIP_GPS_INTERVAL_SECONDS`, `DRIVER_IDLE_LOCATION_INTERVAL_SECONDS` (client only) |
+| **F4.6** | A GPS fix may be used to go Online, and counts as fresh for dispatch, for at most **45 s**. | `LOCATION_MAX_AGE_SECONDS`, `driver_has_fresh_location()` |
+| **F4.7** | Fixes worse than **100 m** accuracy are not published and cannot start a session. | `LOCATION_MAX_ACCURACY_METERS` |
+| **PI-B4-1** | **One verified unit per driver for the pilot.** Shown read-only on the Home screen; `plate_number` and `franchise_number` are locked once the account is Verified (also Suspended / Deactivated). Only an LGU administrator or the system can change them. No multi-vehicle table. | `protect_verified_vehicle()` (Rules 3.10, 29.18) |
+| **PI-B4-2** | **Location permission lost during an open accepted booking:** record it and set Offline when the booking ends; otherwise set Offline immediately. | `driver_report_location_unavailable()`, `apply_pending_driver_offline()` |
+| **PI-B4-3** | **"Unanswered" = the offer timed out with no response.** An explicit decline or an accept resets the streak and clears the reminder. A new online session starts at zero. | `classify_dispatch_attempt_response()`, `track_driver_offer_response()` |
+| **PI-B4-4** | **Presence sweep:** an Online driver whose app has not reported for 5 minutes is set Offline (no strike), via the Express server's scheduler. | `sweep_driver_presence()`, `DRIVER_HEARTBEAT_STALE_SECONDS` |
+| **PI-B4-5** | The Rule 7.6 reminder uses the exact English policy sentence, followed by a Filipino line. | `DriverPresenceNotices.tsx`, notification row `DRIVER_INACTIVITY_REMINDER` |
+| **PI-B4-6** | Rule 5.4 (going Available right after leaving the terminal queue): **no system action** beyond TODA-administrator flagging. | none by design |
+| **Extras** | Approved: the 5-minute presence sweep. **Not approved, not built:** TODA-portal additions (Online column, record-violation / flag screens), Screen Wake Lock, and adding `vitest`. | section 7.1 of the matrix |
+
+### 6.2 Interpretations made while building (please confirm)
+
+| Ref | Interpretation | Why |
+|---|---|---|
+| **D-B4-1** | **"Session" in Rule 29.7 means the driver's app login session** (the `driver.session_id` snapshot stored on each online session), not one Online period. | Going Offline ends the Online period, so "3 times in a session" could never be reached otherwise. |
+| **D-B4-2** | Going Online **auto-selects the only verified affiliation**. If several are verified and none is selected, the driver must choose (`ERR_SELECT_AFFILIATION`). If the selected TODA expires and exactly one verified affiliation remains, that one becomes active. | Rule 3.1 requires a choice only when there are several. |
+| **D-B4-3** | **"Open accepted booking"** is a booking whose `driver_id` is the driver and whose status is one of: Accepted, Assigned, Driver Assigned, Driver En Route, Heading to Passenger, Driver Arrived, Arrived at Pickup, In Transit, Trip Ongoing, Ongoing, Arrived at Destination. | The apps write several spellings, and nothing in the code ever sets a driver to `Busy`, so the booking table is the only reliable source. One function (`_booking_is_open_accepted`) holds the list. |
+| **D-B4-4** | An offer **withdrawn by the system** (booking cancelled or completed while it was pending; recorded as `Expired` with `responded_at`) neither counts as unanswered nor resets the streak. | The driver neither ignored nor answered it. |
+| **D-B4-5** | A heartbeat with **no usable position still proves presence**; a fix worse than 100 m is not published (the last good fix is kept). A fix older than 45 s is never sent. | Presence and GPS quality are separate questions; GPS staleness (Rule 9.2) is Batch 8. |
+| **D-B4-6** | The database refuses a plain `UPDATE` that sets a driver `Available` or `Busy` (`ERR_USE_GO_ONLINE`) and refuses a plain `UPDATE` to `Offline` while a booking is open. The service role and the engine are exempt. Clients cannot write `unanswered`, `resolved_at` or `responded_at` on an offer except in the same update that answers it, and `responded_at` is stamped with the server clock. | So every precondition is checked in one place and the unanswered counter cannot be forged. |
+| **D-B4-7** | **Reports under Rules 5.3 / 5.7:** a TODA administrator (own TODA's drivers), an LGU administrator, or a passenger (only for a driver on one of their own bookings) can file a report. It creates a review flag only. A strike is issued when the driver's TODA administrator or an LGU administrator confirms it, with a reason, through `issue_strike`. | Both rules say a strike follows a *confirmed* instance. |
+| **D-B4-8** | The inactivity reminder is stored as a notification row **and** shown as an in-app dialog. | The row survives a closed app; the dialog is the "in-app reminder" the rule asks for. |
+| **D-B4-9** | The presence sweep runs on **its own 60-second timer** in the Express server (`PRESENCE_SWEEP_INTERVAL_MS`), separate from the hourly SLA cascade. The 5-minute value is the staleness threshold, not the timer period. | An hourly sweep would leave a silent driver Online for up to an hour. |
+
+### 6.3 Findings routed to other batches or to the owner
+
+- **Batch 6 (dispatch):** `dispatchService.ts` was not touched. It must (a) require `driver_has_fresh_location()` before offering, and (b) stop treating `availability_status = 'Available'` as sufficient. Its timeout write (`Declined` without `responded_at`) is exactly what the unanswered counter expects; do not add `responded_at` there.
+- **Batch 2 follow-up:** the one-open-booking guard lists `Assigned` and `Ongoing`, but the apps write `Accepted`, `In Transit` and `Trip Ongoing`. The guard may not match real bookings. Not changed here.
+- **Batch 8:** pickup-zone radius (PI-06) and GPS staleness / Driver Unreachable (Rule 9.2) build on `driver_has_fresh_location()` and the accuracy constant.
+- **Security finding (outside Batch 4, not changed):** `DriverLogin.tsx` contains a hard-coded "Instant Verified Test Driver Login" that bypasses Supabase authentication for a known phone number and any of four weak passwords. Only its fake location write was removed (it was a second location writer). The backdoor itself should be removed or limited to development builds.
+- **Operational:** `scripts/applyBatch4Migrations.js` and `scripts/checkDriverState.js` appeared in the working tree without being written by Claude. The first runs both Batch 4 files straight against the hosted database without a transaction and without recording them in `supabase_migrations`. Claude did not run it. Whether the migrations are live must be confirmed with `supabase migration list`. Both migrations are safe to re-run (`batch4/reapply.js`), so a later `supabase db push` is harmless. `checkDriverState.js` loads `.env` from `scripts/server/.env`, which does not exist.
+- **Deferred by the owner's choice:** the TODA-portal screens (Online column, record-violation and flag review) and Screen Wake Lock. Until they exist, flags can be read and actioned by calling the functions directly.

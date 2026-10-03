@@ -17,6 +17,7 @@ import { useLanguage } from '../../utils/LanguageContext';
 import { supabase } from '../../services/supabaseClient';
 import { DriverSessionProvider } from '../../contexts/DriverSessionContext';
 import { DriverIncomingRequestModal } from '../components/DriverIncomingRequestModal';
+import DriverPresenceNotices from '../components/DriverPresenceNotices';
 import SakayToast from '../components/SakayToast';
 
 interface NavTabItem {
@@ -262,17 +263,23 @@ export const DriverMobileAppShell: React.FC = () => {
 
           {/* Global Incoming Request Modal */}
           {isDriverPortal && <DriverIncomingRequestModal />}
+
+          {/* Rule 7.6 reminder, and why the system set the driver Offline (7.7, 17.7) */}
+          {isDriverPortal && <DriverPresenceNotices />}
         </Box>
       </Box>
     </Box>
   );
 
-  return isDriverPortal ? (
-    <DriverSessionProvider>
+  // The provider stays mounted for as long as a driver is signed in, on every screen. Mounting it only on
+  // some routes reset the Online state and restarted GPS each time the driver opened another page.
+  // Re-read on every render, so signing in or out (which navigates) is picked up immediately.
+  const signedInDriverId = localStorage.getItem('sakay_driver_id');
+
+  return (
+    <DriverSessionProvider driverId={signedInDriverId}>
       {content}
     </DriverSessionProvider>
-  ) : (
-    content
   );
 };
 

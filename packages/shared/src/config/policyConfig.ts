@@ -121,7 +121,42 @@ export const EXEMPTION_REPEAT_LIMIT = 3;
 export const EXEMPTION_REPEAT_WINDOW_DAYS = 30;
 
 // ============================================================================
-// 7. UNIFIED POLICY CONSTANTS OBJECT
+// 7. DRIVER AVAILABILITY & PRESENCE (Batch 4 - Rules 3.1, 3.10, 5.5, 7.6-7.8, 17.1, 17.6-17.8, 29.7)
+// ============================================================================
+// Values marked [DB] are code constants inside public.driver_presence_constant()
+// (supabase/migrations/20261005000001_*). The database enforces them; the copies here
+// are for the app and for display. Change both together.
+
+/** Consecutive unanswered offers that trigger the in-app reminder (Rule 7.6) [DB] */
+export const DRIVER_INACTIVITY_REMINDER_AFTER_UNANSWERED = 3;
+
+/** Consecutive unanswered offers (3 + 2 more) that set the driver Offline, no strike (Rule 7.7) [DB] */
+export const DRIVER_AUTO_OFFLINE_AFTER_UNANSWERED = 5;
+
+/** Automatic Offlines in the rolling window that open a TODA review flag (Rule 7.8) [DB] */
+export const DRIVER_AUTO_OFFLINE_REVIEW_COUNT = 3;
+export const DRIVER_AUTO_OFFLINE_REVIEW_WINDOW_DAYS = 30;
+
+/** Offline-after-decline pattern: repeats in one login session -> monitoring flag (Rule 29.7) [DB] */
+export const DRIVER_OFFLINE_AFTER_DECLINE_SECONDS = 60;
+export const DRIVER_OFFLINE_AFTER_DECLINE_COUNT = 3;
+
+/** App silent for this long -> the presence sweep sets the driver Offline (approved extra, 5 min) [DB] */
+export const DRIVER_HEARTBEAT_STALE_SECONDS = 300;
+
+/** Location publish interval while Online and idle, in seconds (decision F4.5: 15 s; slower is accepted, Rule 17.8) */
+export const DRIVER_IDLE_LOCATION_INTERVAL_SECONDS = 15;
+export const DRIVER_IDLE_LOCATION_INTERVAL_MS = DRIVER_IDLE_LOCATION_INTERVAL_SECONDS * 1000;
+
+/** Fixes worse than this accuracy (metres) are not published and cannot start a session (decision F4.7) [DB] */
+export const LOCATION_MAX_ACCURACY_METERS = 100;
+
+/** Oldest GPS fix (seconds) that may be used to go Online or to receive offers (decision F4.6) [DB] */
+export const LOCATION_MAX_AGE_SECONDS = 45;
+export const LOCATION_MAX_AGE_MS = LOCATION_MAX_AGE_SECONDS * 1000;
+
+// ============================================================================
+// 8. UNIFIED POLICY CONSTANTS OBJECT
 // ============================================================================
 
 export const POLICY_CONSTANTS = {
@@ -152,6 +187,18 @@ export const POLICY_CONSTANTS = {
     EXEMPTION_DECISION_BUSINESS_DAYS,
     EXEMPTION_REPEAT_LIMIT,
     EXEMPTION_REPEAT_WINDOW_DAYS,
+  },
+  PRESENCE: {
+    DRIVER_INACTIVITY_REMINDER_AFTER_UNANSWERED,
+    DRIVER_AUTO_OFFLINE_AFTER_UNANSWERED,
+    DRIVER_AUTO_OFFLINE_REVIEW_COUNT,
+    DRIVER_AUTO_OFFLINE_REVIEW_WINDOW_DAYS,
+    DRIVER_OFFLINE_AFTER_DECLINE_SECONDS,
+    DRIVER_OFFLINE_AFTER_DECLINE_COUNT,
+    DRIVER_HEARTBEAT_STALE_SECONDS,
+    DRIVER_IDLE_LOCATION_INTERVAL_SECONDS,
+    LOCATION_MAX_ACCURACY_METERS,
+    LOCATION_MAX_AGE_SECONDS,
   },
 } as const;
 
