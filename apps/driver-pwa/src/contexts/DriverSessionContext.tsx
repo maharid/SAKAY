@@ -38,6 +38,8 @@ interface DriverSessionContextType {
   enableLocation: () => void;
   /** Location was revoked: show the re-authorization prompt before going Online again (Rule 17.7). */
   locationReauthRequired: boolean;
+  /** No Supabase login session (e.g. the demo login): the database refuses Online until the driver signs in properly. */
+  sessionMissing: boolean;
   /** Why the system ended the Online session (shown once). */
   offlineNotice: { reason: PresenceEndReason } | null;
   dismissOfflineNotice: () => void;
@@ -354,6 +356,7 @@ export const DriverSessionProvider: React.FC<{ driverId?: string | null; childre
         refreshPresence: engine.refresh,
         enableLocation: engine.enableLocation,
         locationReauthRequired: engine.locationReauthRequired,
+        sessionMissing: engine.sessionMissing,
         offlineNotice: engine.offlineNotice,
         dismissOfflineNotice: engine.dismissOfflineNotice,
         reminderOpen: engine.reminderOpen,

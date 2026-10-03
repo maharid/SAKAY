@@ -9,6 +9,7 @@ import {
 } from '@sakay/shared';
 import type { LocationCoords } from '@sakay/shared';
 
+import { supabase } from '../services/supabaseClient';
 import {
   fetchMyPresence,
   reportLocationUnavailable,
@@ -109,6 +110,8 @@ export function useDriverPresenceEngine(driverId: string | null) {
   const [locationReauthRequired, setLocationReauthRequired] = useState(false);
   const [offlineNotice, setOfflineNotice] = useState<{ reason: PresenceEndReason } | null>(null);
   const [dismissedReminderAt, setDismissedReminderAt] = useState<string | null>(null);
+  // True when the app has no Supabase login session (e.g. the demo login): the database refuses every presence call.
+  const [sessionMissing, setSessionMissing] = useState(false);
 
   const fixRef = useRef<LocationCoords | null>(null);
   const presenceRef = useRef<PresenceView>(INITIAL_VIEW);
@@ -137,11 +140,21 @@ export function useDriverPresenceEngine(driverId: string | null) {
     if (!driverId) return;
     const res = await fetchMyPresence();
     if (res.success) {
+      setSessionMissing(false);
       applyResult(res);
     } else if (res.error_code === 'ERR_NOT_A_DRIVER') {
-      // No real driver login (e.g. a demo session): never Online.
+      // Signed in, but not as a driver: never Online.
       wasOnlineRef.current = false;
       setPresence({ ...INITIAL_VIEW, status: 'offline' });
+    } else {
+      // Refused or unreachable. Without a login session the database answers 401 to every presence call, so say so
+      // instead of leaving the screen waiting forever. A real network failure keeps the last known state.
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) {
+        wasOnlineRef.current = false;
+        setSessionMissing(true);
+        setPresence({ ...INITIAL_VIEW, status: 'offline' });
+      }
     }
   }, [driverId, applyResult]);
 
@@ -252,6 +265,11 @@ export function useDriverPresenceEngine(driverId: string | null) {
   // ── Actions ─────────────────────────────────────────────────────────────────────────────────
   const goOnline = useCallback(async (): Promise<PresenceOutcome> => {
     if (!driverId) return { ok: false, code: 'ERR_NOT_SIGNED_IN', message: 'Not signed in.' };
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth?.session) {
+      setSessionMissing(true);
+      return { ok: false, code: 'ERR_NO_SESSION', message: 'No login session.' };
+    }
 
     try {
       const perm = await navigator.permissions?.query({ name: 'geolocation' });
@@ -327,6 +345,7 @@ export function useDriverPresenceEngine(driverId: string | null) {
     goOffline,
     enableLocation,
     locationReauthRequired,
+    sessionMissing,
     offlineNotice,
     dismissOfflineNotice,
     reminderOpen,
