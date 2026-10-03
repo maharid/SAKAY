@@ -48,7 +48,6 @@ export const DriverEarnings: React.FC = () => {
       dropoff: string;
       fareAmount: number;
       pairedPassenger?: string | null;
-      proportionateFareP1?: number;
     };
   } | undefined;
 

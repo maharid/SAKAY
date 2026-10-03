@@ -206,6 +206,12 @@ export interface ActiveTripRecord {
   startTime: string;
   bookingTime: string;
   estimatedFare: number;
+  /** The final, binding fare written by the database when the trip arrived (Rule 6.2); null before that */
+  finalFare?: number | null;
+  /** How the final fare was reached: solo | unmatched_solo | matched_estimate_pending_segments */
+  fareBasis?: string | null;
+  /** True when the recorded distance differed from the estimate by more than the tolerance (Rule 6.2.4) */
+  fareDeviation?: boolean;
   sharedTripDetails?: {
     matchedPassengers: number;
     cutoffPassed: boolean;
@@ -287,6 +293,10 @@ export interface FareMatrixRecord {
   effective_timestamp: string;
   effective_date: string;
   is_active: boolean;
+  /** Decided by the database from the effective timestamps (public.fare_matrix_history) */
+  status?: 'In force' | 'Scheduled' | 'Superseded';
+  /** Solo Trip base = base fare x seats, computed by the database */
+  solo_base_fare?: number;
   configured_by_lgu_admin: string;
   ordinance_reference: string;
   notes?: string;

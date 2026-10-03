@@ -298,7 +298,7 @@ export const DriverSessionProvider: React.FC<{
             dropoff_latitude: data.dropoff_latitude,
             dropoff_longitude: data.dropoff_longitude,
             estimated_distance_km: data.estimated_distance_km || 1,
-            estimated_fare: data.estimated_fare || 20,
+            estimated_fare: Number(data.estimated_fare) || 0,
             booking_status: 'Pending',
             created_at: data.created_at,
             updated_at: data.created_at,

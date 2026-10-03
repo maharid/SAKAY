@@ -166,10 +166,28 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '2px' }}>Official Estimated Cash Fare</Typography>
+              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '2px' }}>Estimated Cash Fare (confirmed by the passenger)</Typography>
               <Typography sx={{ fontSize: '19.3px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
-                ₱{trip.estimatedFare}.00
+                ₱{Number(trip.estimatedFare).toFixed(2)}
               </Typography>
+              {trip.finalFare !== null && trip.finalFare !== undefined && (
+                <>
+                  <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '8px', mb: '2px' }}>Final Fare (computed by the system, binding)</Typography>
+                  <Typography sx={{ fontSize: '19.3px', fontWeight: 700, color: '#1E8E3E' }}>
+                    ₱{Number(trip.finalFare).toFixed(2)}
+                  </Typography>
+                  {trip.fareBasis === 'unmatched_solo' && (
+                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                      Shared booking with no matched passenger: billed as a Solo Trip.
+                    </Typography>
+                  )}
+                  {trip.fareDeviation && (
+                    <Typography sx={{ fontSize: '9.6px', color: '#C25E00', mt: '2px' }}>
+                      Route deviation recorded: the fare follows the actual distance travelled.
+                    </Typography>
+                  )}
+                </>
+              )}
             </Box>
 
             {trip.sharedTripDetails && (

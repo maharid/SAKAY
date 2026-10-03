@@ -13,6 +13,10 @@
 // ============================================================================
 // 1. FARE MATRIX & TARIFF CONFIGURATION (Rules 6.1, 6.1.1, 14.1 - City Ordinance No. 110, s. 2022)
 // ============================================================================
+// The authoritative rate lives in the database table public.fare_matrix (Rule 6.3: LGU Administrator only,
+// effective timestamp, audited) and is applied by public.calculate_fare(). DEFAULT_TARIFF below is only the
+// mirror of the SEEDED ordinance row, kept for documentation and for the drift test
+// (scripts/db-tests/batch5/config-drift.js); no app computes a fare from it.
 
 export interface TariffConfig {
   /** Base fare covering the first baseDistanceKm (Rule 6.1) */
@@ -26,7 +30,7 @@ export interface TariffConfig {
 }
 
 /**
- * Default Municipal Tariff Matrix for Calapan City Tricycle Services
+ * Seeded Municipal Tariff Matrix for Calapan City Tricycle Services
  * Source: City Ordinance No. 110, Series of 2022
  */
 export const DEFAULT_TARIFF: TariffConfig = {
@@ -164,11 +168,80 @@ export const LOCATION_MAX_AGE_SECONDS = 45;
 export const LOCATION_MAX_AGE_MS = LOCATION_MAX_AGE_SECONDS * 1000;
 
 // ============================================================================
-// 8. UNIFIED POLICY CONSTANTS OBJECT
+// 8. FARE ENGINE (Batch 5 - Section 6, Rules 6.2 / 6.3 / 6.5 / 6.6, 14.7)
+// ============================================================================
+// Code constants inside public.fare_policy_constant() (supabase/migrations/20261007000001_*). The database
+// enforces them; the copies here are for the app and for display, and the drift test fails if either side
+// changes alone. The admin-changeable fare VALUES (base fare, base distance, per-km rate) are NOT here:
+// they live in fare_matrix with an effective timestamp (see section 1).
+
+/** Seats in a tricycle: Solo fare = seat fare x this; the shared "vehicle fare" = base fare x this (Rules 6.1.2 / 6.1.3) */
+export const FARE_SEAT_CAPACITY = 4;
+
+/** The Matched Shared Fare Estimate assumes this many more passengers join (decision D2c) */
+export const FARE_PARTNER_ASSUMPTION_PASSENGERS = 1;
+
+/** Estimate-vs-actual distance tolerance: the larger of this many metres ... (F5.2) */
+export const FARE_DEVIATION_TOLERANCE_METERS = 500;
+/** ... and this percent of the estimated distance (F5.2) */
+export const FARE_DEVIATION_TOLERANCE_PERCENT = 15;
+
+/** GPS fixes worse than this accuracy (metres) are not used for trip distance (F5.1) */
+export const FARE_GPS_MAX_ACCURACY_METERS = 50;
+/** A fix implying a jump faster than this (km/h) is discarded as a teleport (F5.1) */
+export const FARE_GPS_MAX_SPEED_KMH = 80;
+/** Movement smaller than max(this, accuracy of both fixes added) is jitter (F5.1) */
+export const FARE_GPS_DEADBAND_METERS = 15;
+/** A silence longer than this (seconds) flags the track as incomplete (F5.1) */
+export const FARE_GPS_GAP_FLAG_SECONDS = 30;
+/** Consecutive discarded fixes after which the reference point is replaced (F5.1) */
+export const FARE_GPS_REANCHOR_AFTER_REJECTS = 3;
+/** A track ending farther than this (metres) from the destination cannot prove a shorter trip (F5.2 guard) */
+export const FARE_GPS_ARRIVAL_RADIUS_METERS = 150;
+
+/** Plausibility of the phone's OSRM distance vs the straight line between pickup and destination */
+export const FARE_DISTANCE_MIN_PERCENT_OF_STRAIGHT = 90;
+export const FARE_DISTANCE_MIN_SLACK_METERS = 50;
+export const FARE_DISTANCE_MAX_FACTOR = 3;
+export const FARE_DISTANCE_MAX_SLACK_METERS = 500;
+
+/** A requested pickup time further ahead than this (seconds) is a scheduled booking, which is not supported (Rule 6.6) */
+export const FUTURE_REQUEST_SLACK_SECONDS = 300;
+
+/** A fare change effective earlier than this many seconds ago is back-dating and is refused (Rule 6.3) */
+export const RATE_BACKDATE_SLACK_SECONDS = 120;
+
+/**
+ * Ride-sharing cutoff shown to the passenger before they confirm (Rule 6.5, PI-10): matching continues while
+ * less than this percent of the original trip is completed. DISPLAY ONLY here; Batch 10 enforces it.
+ */
+export const RIDE_SHARING_CUTOFF_PERCENT = 50;
+
+// ============================================================================
+// 9. UNIFIED POLICY CONSTANTS OBJECT
 // ============================================================================
 
 export const POLICY_CONSTANTS = {
   FARE: DEFAULT_TARIFF,
+  FARE_ENGINE: {
+    FARE_SEAT_CAPACITY,
+    FARE_PARTNER_ASSUMPTION_PASSENGERS,
+    FARE_DEVIATION_TOLERANCE_METERS,
+    FARE_DEVIATION_TOLERANCE_PERCENT,
+    FARE_GPS_MAX_ACCURACY_METERS,
+    FARE_GPS_MAX_SPEED_KMH,
+    FARE_GPS_DEADBAND_METERS,
+    FARE_GPS_GAP_FLAG_SECONDS,
+    FARE_GPS_REANCHOR_AFTER_REJECTS,
+    FARE_GPS_ARRIVAL_RADIUS_METERS,
+    FARE_DISTANCE_MIN_PERCENT_OF_STRAIGHT,
+    FARE_DISTANCE_MIN_SLACK_METERS,
+    FARE_DISTANCE_MAX_FACTOR,
+    FARE_DISTANCE_MAX_SLACK_METERS,
+    FUTURE_REQUEST_SLACK_SECONDS,
+    RATE_BACKDATE_SLACK_SECONDS,
+    RIDE_SHARING_CUTOFF_PERCENT,
+  },
   DISPATCH: {
     DRIVER_OFFER_TIMEOUT_SECONDS,
     DRIVER_OFFER_TIMEOUT_MS,

@@ -39,7 +39,8 @@ export const DriverTripDetailPage: React.FC = () => {
   const dropoffAddress = stateTrip?.dropoffLocation || stateTrip?.dropoff || "Batangas State University-Alangilan Campus";
   const dateString = stateTrip?.date || "22 Sep 2026";
   const timeString = stateTrip?.time || "07:49 PM";
-  const fareAmount = Number(stateTrip?.fareAmount || stateTrip?.actual_fare || stateTrip?.estimated_fare || 60);
+  // The final fare the database wrote (Rule 6.2), else the estimate; no invented amount.
+  const fareAmount = Number(stateTrip?.fareAmount ?? stateTrip?.actual_fare ?? stateTrip?.estimated_fare ?? 0) || 0;
   const tripMode = stateTrip?.tripMode || (stateTrip?.is_shared_trip ? "Shared Ride" : "Solo Trip");
   const distanceKm = Number(stateTrip?.distanceKm || stateTrip?.estimated_distance_km || 2.4);
 

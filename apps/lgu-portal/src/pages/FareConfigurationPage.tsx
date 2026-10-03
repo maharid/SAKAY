@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -15,6 +15,7 @@ import {
   TextField,
   Chip,
   Divider,
+  Alert,
 } from '@mui/material';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CalculateIcon from '@mui/icons-material/Calculate';
@@ -27,8 +28,7 @@ import { FareMatrixRecord } from '../mockData/adminData';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
-import { fetchFareMatrices, createFareMatrix, recordAdminAuditAction } from '../services/adminApiService';
-import { useAuth } from '../contexts/AuthContext';
+import { fetchFareMatrices, enactFareMatrix, fetchFareExample, type FareExample } from '../services/adminApiService';
 
 /**
  * ============================================================================
@@ -41,127 +41,160 @@ import { useAuth } from '../contexts/AuthContext';
  * ============================================================================
  */
 export const FareConfigurationPage: React.FC = () => {
-  const { adminProfile, user } = useAuth();
-  const currentAdminName = adminProfile?.full_name || 'City Administrator';
-  const currentAdminRole = adminProfile?.position || 'LGU Transport Officer';
-
-  // State: Historical and currently enacted fare matrix records
+  // State: the rule history exactly as the database reports it (Rule 6.3)
   const [fareHistory, setFareHistory] = useState<FareMatrixRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string>('');
   const [updateModalOpen, setUpdateModalOpen] = useState<boolean>(false);
   const [selectedVersion, setSelectedVersion] = useState<FareMatrixRecord | null>(null);
+  const [example, setExample] = useState<FareExample | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string>('');
 
-  /**
-   * Effect: Fetch live fare matrices from the backend server on initial component load.
-   */
-  useEffect(() => {
-    let isMounted = true;
-    fetchFareMatrices()
-      .then((data) => {
-        if (isMounted) {
-          setFareHistory(data || []);
-        }
-      })
-      .catch((err) => {
-        console.warn('[FareConfiguration] Failed to fetch fare matrix:', err);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const defaultMatrix: FareMatrixRecord = {
-    id: 'FARE-2026-V1',
-    fare_matrix_id: 'FM-001',
-    base_fare: 15.0,
-    base_distance_km: 2.0,
-    succeeding_rate: 1.0,
-    effective_timestamp: new Date().toISOString(),
-    effective_date: 'Standard Municipal Rate',
-    is_active: true,
-    configured_by_lgu_admin: 'Calapan City LGU Transport Board',
-    ordinance_reference: 'City Ordinance No. 118, Series of 2022',
-    notes: 'Standard municipal tricycle fare matrix.',
-    created_at: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-  };
-
-  // Compute: The currently active municipal matrix (first record where is_active is true)
-  const activeMatrix = fareHistory.find((f) => f.is_active) || fareHistory[0] || defaultMatrix;
-
-  // Form State: Controlled inputs for enacting a new municipal fare rate ordinance
-  const [newBaseFare, setNewBaseFare] = useState<string>('15.00');
-  const [newBaseDistance, setNewBaseDistance] = useState<string>('2.0');
-  const [newSucceedingRate, setNewSucceedingRate] = useState<string>('1.00');
-  const [newOrdinance, setNewOrdinance] = useState<string>('City Ordinance No. 118, Series of 2022 (Amendment 2026)');
-  const [newEffectiveDate, setNewEffectiveDate] = useState<string>('June 01, 2026');
+  // Form State: controlled inputs for enacting a new municipal fare rate
+  const [newBaseFare, setNewBaseFare] = useState<string>('');
+  const [newBaseDistance, setNewBaseDistance] = useState<string>('');
+  const [newSucceedingRate, setNewSucceedingRate] = useState<string>('');
+  const [newOrdinance, setNewOrdinance] = useState<string>('');
+  const [newEffectiveLocal, setNewEffectiveLocal] = useState<string>('');
+  const [newReason, setNewReason] = useState<string>('');
   const [newNotes, setNewNotes] = useState<string>('');
 
   /**
-   * Handler: Submits a new municipal fare matrix.
-   * 1. Validates numerical inputs.
-   * 2. Calls createFareMatrix() API to persist the new rates in the backend.
-   * 3. Records an immutable action in the audit trail.
-   * 4. Updates the local state to immediately reflect the new active rates.
+   * Loads the rule history from the database. Never falls back to an invented rate: if the history cannot be read,
+   * the page says so.
+   */
+  const loadHistory = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      setFareHistory(await fetchFareMatrices());
+    } catch (err) {
+      setFareHistory([]);
+      setLoadError(err instanceof Error ? err.message : 'The fare history could not be loaded.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  // The rule in force is decided by the database from the effective timestamps.
+  const activeMatrix = fareHistory.find((f) => f.status === 'In force') || null;
+
+  // Version numbers run oldest (V1) to newest.
+  const versionNumber = (record: FareMatrixRecord): number =>
+    [...fareHistory]
+      .sort((a, b) => new Date(a.effective_timestamp).getTime() - new Date(b.effective_timestamp).getTime() || new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .findIndex((f) => f.fare_matrix_id === record.fare_matrix_id) + 1;
+
+  // Worked example for the rule in force, computed by the database's own fare function.
+  const activeRuleKey = activeMatrix?.fare_matrix_id;
+  useEffect(() => {
+    if (!activeMatrix) {
+      setExample(null);
+      return;
+    }
+    let cancelled = false;
+    fetchFareExample(4.5, activeMatrix).then((ex) => {
+      if (!cancelled) setExample(ex);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRuleKey]);
+
+  const openConfigureModal = () => {
+    setFormError('');
+    setNewBaseFare(activeMatrix ? activeMatrix.base_fare.toFixed(2) : '');
+    setNewBaseDistance(activeMatrix ? activeMatrix.base_distance_km.toFixed(2) : '');
+    setNewSucceedingRate(activeMatrix ? activeMatrix.succeeding_rate.toFixed(2) : '');
+    setNewOrdinance('');
+    setNewEffectiveLocal('');
+    setNewReason('');
+    setNewNotes('');
+    setUpdateModalOpen(true);
+  };
+
+  /**
+   * Handler: submits a new fare rule to the database (public.enact_fare_matrix). The database checks the caller is the
+   * LGU Administrator, refuses a back-dated change, records the audit entry (actor, before, after, reason) and appends
+   * the version. The page then reloads the history instead of pretending the save worked.
    */
   const handleUpdateMatrixSubmit = async () => {
-    const base = parseFloat(newBaseFare) || 15.0;
-    const dist = parseFloat(newBaseDistance) || 2.0;
-    const succ = parseFloat(newSucceedingRate) || 1.0;
-
-    const newVersionId = `FARE-2026-V${fareHistory.length + 1}`;
-    const newRecord: FareMatrixRecord = {
-      id: newVersionId,
-      fare_matrix_id: `FM-00${fareHistory.length + 1}`,
-      base_fare: base,
-      base_distance_km: dist,
-      succeeding_rate: succ,
-      effective_timestamp: new Date().toISOString(),
-      effective_date: newEffectiveDate,
-      is_active: true,
-      configured_by_lgu_admin: `${currentAdminName} (${currentAdminRole})`,
-      ordinance_reference: newOrdinance,
-      notes: newNotes || 'Updated municipal fare rates according to Sangguniang Panlungsod resolution.',
-      created_at: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-    };
-
-    // Save to Backend API / Database
-    try {
-      await createFareMatrix({
-        baseFare: base,
-        baseDistanceKm: dist,
-        succeedingRate: succ,
-        ordinanceNumber: newOrdinance,
-        configuredBy: `${currentAdminName} (${currentAdminRole})`,
-      });
-    } catch (error) {
-      console.warn('[FareConfiguration] Failed to save matrix to backend, saving locally:', error);
+    const money = /^\d+(\.\d{1,2})?$/;
+    if (!money.test(newBaseFare.trim()) || !money.test(newBaseDistance.trim()) || !money.test(newSucceedingRate.trim())) {
+      setFormError('Base fare, base distance and per-km rate must be numbers with at most 2 decimal places.');
+      return;
+    }
+    if (newOrdinance.trim().length < 3) {
+      setFormError('Enter the ordinance or resolution this change is based on.');
+      return;
+    }
+    if (newReason.trim().length < 5) {
+      setFormError('Enter the reason for the change (at least 5 characters). It is written to the audit trail.');
+      return;
     }
 
-    // Update local UI state
-    setFareHistory((prev) => [
-      newRecord,
-      ...prev.map((f) => ({
-        ...f,
-        is_active: false,
-        effective_date: f.is_active ? `${f.effective_date} (Superseded)` : f.effective_date,
-      })),
-    ]);
+    // The date-time box is read as Asia/Manila time; empty means "effective immediately".
+    const effectiveAt = newEffectiveLocal ? new Date(newEffectiveLocal + ':00+08:00').toISOString() : null;
 
-    // Record action to the immutable audit trail ledger
-    recordAdminAuditAction({
-      actionType: 'FARE_MATRIX_UPDATED',
-      targetId: newRecord.fare_matrix_id,
-      targetName: `Fare Matrix Version ${fareHistory.length + 1}`,
-      details: `Enacted new fare rates: ₱${base.toFixed(2)} base fare (${dist.toFixed(1)} km), ₱${succ.toFixed(2)}/km succeeding rate. Ordinance: ${newOrdinance}.`,
-      category: 'Fare Matrix',
-    });
-
-    setUpdateModalOpen(false);
+    setSaving(true);
+    setFormError('');
+    try {
+      await enactFareMatrix({
+        baseFare: Number(newBaseFare),
+        baseDistanceKm: Number(newBaseDistance),
+        succeedingRate: Number(newSucceedingRate),
+        ordinanceReference: newOrdinance.trim(),
+        reason: newReason.trim(),
+        effectiveAt,
+        notes: newNotes.trim() || undefined,
+      });
+      setUpdateModalOpen(false);
+      await loadHistory();
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : 'The change could not be saved.';
+      setFormError(raw.replace(/^ERR_[A-Z_]+:\s*/, ''));
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+        <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)' }}>Loading the fare rules...</Typography>
+      </Box>
+    );
+  }
+
+  if (loadError || !activeMatrix) {
+    return (
+      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={loadHistory}>
+              Retry
+            </Button>
+          }
+        >
+          {loadError
+            ? 'The fare rules could not be loaded: ' + loadError.replace(/^ERR_[A-Z_]+:\s*/, '')
+            : 'No fare rule is in force. Enact one to allow bookings.'}
+        </Alert>
+        {!loadError && (
+          <Button onClick={openConfigureModal} variant="contained" sx={{ mt: 2, textTransform: 'none' }}>
+            Configure New Rate
+          </Button>
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
@@ -186,13 +219,13 @@ export const FareConfigurationPage: React.FC = () => {
         </Box>
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
           <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Solo Trip Base</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#2E7D32' }}>₱{(activeMatrix.base_fare * 4).toFixed(2)}</Typography>
+          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#2E7D32' }}>₱{(activeMatrix.solo_base_fare ?? 0).toFixed(2)}</Typography>
           <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>4-Seat capacity charter</Typography>
         </Box>
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
           <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Matrix Versions</Typography>
           <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{fareHistory.length} Versions</Typography>
-          <Typography sx={{ fontSize: '12px', color: '#1E8E3E', mt: 0.5, fontWeight: 600 }}>Active: V{fareHistory.length}</Typography>
+          <Typography sx={{ fontSize: '12px', color: '#1E8E3E', mt: 0.5, fontWeight: 600 }}>Active: V{versionNumber(activeMatrix)}</Typography>
         </Box>
       </Box>
 
@@ -229,7 +262,7 @@ export const FareConfigurationPage: React.FC = () => {
               </Box>
 
               <Button
-                onClick={() => setUpdateModalOpen(true)}
+                onClick={openConfigureModal}
                 startIcon={<EditNoteIcon />}
                 variant="contained"
                 sx={{
@@ -328,7 +361,9 @@ export const FareConfigurationPage: React.FC = () => {
                   Seat Fare = Base Fare + (Excess Distance × Per-KM Rate)
                 </Typography>
                 <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '4px' }}>
-                  Example (4.5 km): ₱15 + (2.5 km × ₱1.00) = ₱17.50 → ₱18.00 rounded
+                  {example
+                    ? 'Example (4.5 km, rule in force): ₱' + activeMatrix.base_fare.toFixed(2) + ' + (' + example.excessKm.toFixed(1) + ' km × ₱' + activeMatrix.succeeding_rate.toFixed(2) + ') = ₱' + example.seatFare.toFixed(2)
+                    : 'Example unavailable right now.'}
                 </Typography>
               </Box>
 
@@ -338,10 +373,12 @@ export const FareConfigurationPage: React.FC = () => {
                   2. Solo Trip (Full Unit Charter)
                 </Typography>
                 <Typography sx={{ fontFamily: 'monospace', fontSize: '13px', color: '#1565C0', fontWeight: 600 }}>
-                  Solo Trip Fare = Seat Fare × 4 Seats (₱60.00 Base)
+                  Solo Trip Fare = Seat Fare × the seats of the tricycle{example ? ' (₱' + example.soloBase.toFixed(2) + ' base)' : ''}
                 </Typography>
                 <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '4px' }}>
-                  Guarantees exclusive vehicle occupancy for passenger party.
+                  {example
+                    ? 'Example (4.5 km): ₱' + example.soloFare.toFixed(2) + ' (rounded to the nearest peso). Guarantees exclusive vehicle occupancy, whatever the headcount.'
+                    : 'Guarantees exclusive vehicle occupancy for the passenger party.'}
                 </Typography>
               </Box>
 
@@ -351,10 +388,12 @@ export const FareConfigurationPage: React.FC = () => {
                   3. Ride-Sharing Proportional Split
                 </Typography>
                 <Typography sx={{ fontFamily: 'monospace', fontSize: '13px', color: '#2E7D32', fontWeight: 600 }}>
-                  Commuter Base = (Declared Pax / Total Pax) × ₱60.00
+                  Shared Fare = the vehicle fare of the route, split per kilometre by passengers on board
                 </Typography>
                 <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '4px' }}>
-                  Split savings benefit both co-passengers while ensuring ₱60.00 driver gross.
+                  {example
+                    ? 'The vehicle fare is the Solo Trip Fare of the whole route. Example (4.5 km, two 1-passenger bookings sharing it): ₱' + example.sharedEstimate.toFixed(2) + ' each. Kilometres travelled by one booking alone are charged to that booking.'
+                    : 'Kilometres travelled by one booking alone are charged to that booking.'}
                 </Typography>
               </Box>
             </Box>
@@ -424,7 +463,7 @@ export const FareConfigurationPage: React.FC = () => {
                     {version.effective_date}
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <StatusBadge status={version.is_active ? 'Active' : 'Superseded'} />
+                    <StatusBadge status={version.status === 'In force' ? 'Active' : version.status ?? 'Superseded'} />
                   </TableCell>
                   <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
                     <ActionButton
@@ -449,7 +488,8 @@ export const FareConfigurationPage: React.FC = () => {
         title="Configure New Fare Matrix Version"
         subtitle="Appends an immutable rate record to the municipal ledger."
         maxWidth={640}
-        primaryActionLabel="Enact & Publish Rate"
+        primaryActionLabel={saving ? 'Saving...' : 'Enact & Publish Rate'}
+        primaryActionDisabled={saving}
         onPrimaryAction={handleUpdateMatrixSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setUpdateModalOpen(false)}
@@ -457,9 +497,11 @@ export const FareConfigurationPage: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box sx={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', padding: '14px 18px', borderRadius: '10px' }}>
             <Typography sx={{ fontSize: '13px', color: '#0369A1', lineHeight: 1.4 }}>
-              <strong>Immutable Versioning Rule:</strong> Submitting a new configuration will preserve all past records for fare audit trails. The newly created version will immediately become the active calculation basis across Calapan City.
+              <strong>Forward-only, append-only:</strong> a new version never edits or deletes an old one, and it applies only to bookings confirmed after its effective time. Bookings already confirmed keep the rate they were confirmed at. The change and your reason are written to the audit trail.
             </Typography>
           </Box>
+
+          {formError && <Alert severity="error">{formError}</Alert>}
 
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <TextField
@@ -492,7 +534,7 @@ export const FareConfigurationPage: React.FC = () => {
           <TextField
             fullWidth
             label="Ordinance / Resolution Legal Reference"
-            placeholder="e.g. City Ordinance No. 118, Series of 2022"
+            placeholder="e.g. City Ordinance No. 110, Series of 2022"
             value={newOrdinance}
             onChange={(e) => setNewOrdinance(e.target.value)}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
@@ -500,10 +542,21 @@ export const FareConfigurationPage: React.FC = () => {
 
           <TextField
             fullWidth
-            label="Effective Implementation Date"
-            placeholder="e.g. June 01, 2026"
-            value={newEffectiveDate}
-            onChange={(e) => setNewEffectiveDate(e.target.value)}
+            type="datetime-local"
+            label="Effective From (Asia/Manila)"
+            value={newEffectiveLocal}
+            onChange={(e) => setNewEffectiveLocal(e.target.value)}
+            helperText="Leave empty to take effect immediately. It cannot be in the past."
+            slotProps={{ inputLabel: { shrink: true } }}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          />
+
+          <TextField
+            fullWidth
+            label="Reason for the change (audit trail)"
+            placeholder="e.g. Sangguniang Panlungsod resolution adjusting the tariff"
+            value={newReason}
+            onChange={(e) => setNewReason(e.target.value)}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
           />
 
@@ -511,8 +564,8 @@ export const FareConfigurationPage: React.FC = () => {
             fullWidth
             multiline
             rows={3}
-            label="Regulatory Notes & Rationale"
-            placeholder="Specify reason for fare adjustments (e.g. annual inflation index, fuel price stabilization)..."
+            label="Regulatory Notes (optional)"
+            placeholder="Anything else worth keeping with this version..."
             value={newNotes}
             onChange={(e) => setNewNotes(e.target.value)}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
@@ -527,7 +580,7 @@ export const FareConfigurationPage: React.FC = () => {
           onClose={() => setSelectedVersion(null)}
           title={`Fare Matrix Record — ${selectedVersion.fare_matrix_id}`}
           subtitle={selectedVersion.ordinance_reference}
-          badge={<StatusBadge status={selectedVersion.is_active ? 'Active' : 'Superseded'} />}
+          badge={<StatusBadge status={selectedVersion.status === 'In force' ? 'Active' : selectedVersion.status ?? 'Superseded'} />}
           maxWidth={640}
         >
           <Box sx={{ mb: 3 }}>
@@ -546,7 +599,7 @@ export const FareConfigurationPage: React.FC = () => {
               </Box>
               <Box>
                 <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Solo Trip Base (4 Seats)</Typography>
-                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#2E7D32' }}>₱{(selectedVersion.base_fare * 4).toFixed(2)}</Typography>
+                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#2E7D32' }}>₱{(selectedVersion.solo_base_fare ?? 0).toFixed(2)}</Typography>
               </Box>
               <Box sx={{ gridColumn: 'span 2' }}>
                 <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Authorized Officer</Typography>

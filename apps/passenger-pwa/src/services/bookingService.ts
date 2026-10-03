@@ -5,7 +5,7 @@
 
 import { supabase } from './supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
-import { describeRestriction, parseRestrictionError } from '@sakay/shared';
+import { describeFareError, describeRestriction, parseFareError, parseRestrictionError } from '@sakay/shared';
 import { saveTripToHistory } from './tripService';
 
 export type { BookingRecord };
@@ -14,7 +14,8 @@ export interface CreateBookingPayload {
   passenger_id?: string;
   passenger_name?: string;
   passenger_phone?: string;
-  booking_type?: 'Immediate' | 'Scheduled';
+  /** Rule 6.6: scheduled bookings do not exist; every booking is for immediate pickup */
+  booking_type?: 'Immediate';
   is_shared_trip: boolean;
   passenger_count: number;
   pickup_address: string;
@@ -23,7 +24,9 @@ export interface CreateBookingPayload {
   dropoff_address: string;
   dropoff_latitude: number;
   dropoff_longitude: number;
+  /** The road distance the fare was quoted for (OSRM, Rule 6.2) */
   estimated_distance_km: number;
+  /** The fare the passenger was shown and confirms. The database re-computes it and refuses a different figure. */
   estimated_fare: number;
 }
 
@@ -66,7 +69,7 @@ const persistToHistoryIfTerminal = (b: BookingRecord) => {
   if (b.booking_status === 'Completed' || b.booking_status === 'Cancelled') {
     const createdDate = b.created_at ? new Date(b.created_at) : new Date();
     const isToday = new Date().toDateString() === createdDate.toDateString();
-    const fareVal = b.actual_fare || b.estimated_fare || 0;
+    const fareVal = b.actual_fare ?? b.estimated_fare ?? 0;
 
     saveTripToHistory({
       id: b.booking_id,
@@ -78,7 +81,8 @@ const persistToHistoryIfTerminal = (b: BookingRecord) => {
       dropoffLng: Number(b.dropoff_longitude) || 121.1810,
       price: `₱${parseFloat(String(fareVal)).toFixed(2)}`,
       type: b.is_shared_trip ? 'Share' : 'Solo',
-      distanceKm: Number(b.estimated_distance_km) || 1.5,
+      distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
+      fareBreakdown: b.fare_breakdown ?? null,
       time: createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       dateGroup: isToday ? 'NGAYONG ARAW' : 'NAKARAANG ARAW',
       dateString: createdDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
@@ -154,17 +158,18 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     dropoff_latitude: payload.dropoff_latitude,
     dropoff_longitude: payload.dropoff_longitude,
     estimated_distance_km: payload.estimated_distance_km,
+    // The fare shown to the passenger, sent so the database can confirm it is the current one (Rule 6.5).
+    // actual_fare and created_at are not sent: the final fare is computed by the database when the trip arrives
+    // (Rule 6.2) and the confirmation time is the server's clock.
     estimated_fare: payload.estimated_fare,
-    actual_fare: payload.estimated_fare,
     is_shared_trip: Boolean(payload.is_shared_trip),
     passenger_count: Math.min(
       Math.max(Number(payload.passenger_count) || 1, 1),
       payload.is_shared_trip ? 3 : 4
     ),
-    booking_type: payload.booking_type || 'Immediate',
+    booking_type: 'Immediate',
     booking_status: 'Pending',
     fare_confirmation_status: 'Matched',
-    created_at: now,
   };
 
   if (validPassengerId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validPassengerId)) {
@@ -207,6 +212,15 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
       );
     }
 
+    // Fare rules (Batch 5): a stale or altered fare, no usable route distance, a scheduled / future booking.
+    const fareError = parseFareError(msg);
+    if (fareError) {
+      throw Object.assign(
+        new Error(`${describeFareError(fareError, 'tl')}\n\n(${describeFareError(fareError, 'en')})`),
+        { fareCode: fareError.code }
+      );
+    }
+
     throw new Error(error?.message || 'Failed to create booking');
   }
 
@@ -226,7 +240,10 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     dropoff_latitude: payload.dropoff_latitude,
     dropoff_longitude: payload.dropoff_longitude,
     estimated_distance_km: payload.estimated_distance_km,
-    estimated_fare: payload.estimated_fare,
+    // What the database stored is the truth, not what the phone sent.
+    estimated_fare: Number(dbData.estimated_fare ?? payload.estimated_fare),
+    fare_matrix_id: dbData.fare_matrix_id ?? null,
+    fare_breakdown: dbData.fare_breakdown ?? null,
     booking_status: 'Pending',
     created_at: dbData.created_at || now,
     updated_at: dbData.created_at || now,

@@ -68,8 +68,8 @@ export const DriverNavigation: React.FC = () => {
             dropoff_address: data.dropoff_address || data.dropoff_location_address || 'Calapan City',
             dropoff_latitude: Number(data.dropoff_latitude) || 13.4180,
             dropoff_longitude: Number(data.dropoff_longitude) || 121.1850,
-            estimated_distance_km: Number(data.route_distance_km || data.estimated_distance_km) || 1.5,
-            estimated_fare: Number(data.final_fare || data.estimated_fare) || 18,
+            estimated_distance_km: Number(data.estimated_distance_km) || 0,
+            estimated_fare: Number(data.estimated_fare) || 0,
             booking_status: data.booking_status,
             created_at: data.created_at,
             updated_at: data.updated_at,
@@ -156,7 +156,7 @@ export const DriverNavigation: React.FC = () => {
   const passengerName = booking?.passenger_name || 'Passenger';
   const passengerPhone = booking?.passenger_phone || '+63 917 555 1001';
   const pickupAddress = booking?.pickup_address || 'JP Rizal St. Central Terminal, Calapan City';
-  const fare = booking?.estimated_fare || 18.0;
+  const fare = booking?.estimated_fare ?? 0;
   const pickupLat = Number(booking?.pickup_latitude) || 13.4150;
   const pickupLng = Number(booking?.pickup_longitude) || 121.1825;
   const pickupDistanceKm = calculateDistanceKm(driverLocation.lat, driverLocation.lng, pickupLat, pickupLng);

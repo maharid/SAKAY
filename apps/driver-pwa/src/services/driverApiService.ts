@@ -380,8 +380,9 @@ export async function fetchDriverTrips(driverId?: string) {
         dropoffLocation: b.dropoff_address || b.dropoff_location_address || 'Calapan City',
         dropoffLat: Number(b.dropoff_latitude) || 13.4145,
         dropoffLng: Number(b.dropoff_longitude) || 121.1785,
-        distanceKm: Number(b.route_distance_km || b.estimated_distance_km) || 0,
-        fareAmount: Number(b.actual_fare || b.final_fare || b.estimated_fare) || 0,
+        distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || 0,
+        // the final fare once the trip arrived (written by the database, Rule 6.2), otherwise the estimate
+        fareAmount: Number(b.actual_fare ?? b.estimated_fare) || 0,
         tripMode: (b.is_shared_trip || b.trip_type === 'shared' ? 'Shared Ride' : 'Solo Trip') as any,
         status: (b.booking_status === 'Completed' ? 'Completed' : b.booking_status?.includes('Cancel') ? 'Cancelled' : 'In Progress') as any,
         date: b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
@@ -397,13 +398,11 @@ export async function fetchDriverTrips(driverId?: string) {
   }
 }
 
-export async function updateTripStatus(bookingId: string, status: string, finalFare?: number) {
-  const updatePayload: any = { booking_status: status };
-  if (finalFare !== undefined) updatePayload.final_fare = finalFare;
-
+// The final fare is never sent from a client: the database computes and locks it when the trip arrives (Rule 6.2).
+export async function updateTripStatus(bookingId: string, status: string) {
   const { data, error } = await supabase
     .from('booking')
-    .update(updatePayload)
+    .update({ booking_status: status })
     .eq('booking_id', bookingId)
     .select()
     .single();

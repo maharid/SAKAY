@@ -24,18 +24,22 @@ This document records the architectural and regulatory decisions for SAKAY polic
 
 ### PI-03: Passenger Destination Change After Booking Confirmation
 - **Issue**: Rules 6.2(a) and 6.2.2 describe destination modifications and fare recalculation, whereas Rules 6.2.1, 13.9, 13.10, 29.4 and Section 20 state that destination changes are unsupported after booking confirmation.
-- **Status**: `recommended - provisional`
+- **Status**: `approved by the project owner - implemented in Batch 5` (decision D1)
 - **Approved Option**: **Option A (Not Supported Post-Confirmation)**
 - **Details**: Destination modifications after driver acceptance are not supported in the UI or backend. Fixed cash fares and shared-ride segment mathematics require an immutable route. Unavoidable road closures or emergencies are handled exclusively via emergency early trip termination (Rule 6.2(b)).
+- **Enforced in the database (Batch 5)**: pickup and destination (address and coordinates), the estimated distance and fare, the passenger count and the trip type cannot be changed by any client once the booking exists (`booking_fare_update_guard`, `ERR_BOOKING_LOCKED`). The wording of Rules 6.2(a) and 6.2.2 should be deleted from the policy document.
 
 ---
 
 ### PI-04: Shared-Trip Fare Gaps & Calculation Model
 - **Issue**: Policy Rule 6.1.4 charges additional fare only on exclusive excess kilometers at ₱1/km, failing to charge distance for the common route beyond 2 km and severely under-collecting driver earnings on long routes.
-- **Status**: `pending my/adviser confirmation`
-- **Candidate Model**: **Model B (Vehicle-Fare Proportional Pool Model)**, as currently implemented in `packages/shared/src/utils/fareCalculator.ts`.
+- **Status**: `approved by the project owner - implemented in Batch 5` (decision D2). The policy text still says shared fares are subject to LGU / adviser validation; the owner has chosen to build this model for the pilot.
+- **Approved Model**: **Option B (Vehicle-Fare Proportional Pool Model)**. Implemented in the database by `public.calculate_fare()` (estimates) and `public.allocate_shared_fares()` (settlement), `supabase/migrations/20261007000002_batch5_fare_engine.sql`. The earlier `fareCalculator.ts` was **not** this model (it priced each booking's pool from that booking's own distance, which charged Booking B ₱32 below instead of ₱22) and has been replaced.
+- **Choices inside Option B (D2a-D2c)**: (a) the pool is the Solo Trip Fare of the **whole vehicle route** (occupied kilometres), not of each booking's own route; (b) every kilometre costs the same (pool ÷ route km), so the ₱60 base is spread over the route and a late boarder does not ride almost free; (c) the Matched Shared Fare Estimate shown before booking assumes **one more 1-passenger booking** on the same route, which is an upper bound for the matched fare (a heavier partner lowers it).
+- **Answer to the reviewer's "x4 dapat diba?"**: yes under the study's own Solo x4 logic: in this model a booking that travels alone is charged the whole vehicle's cost for those kilometres.
+- **Regulatory note for the LGU**: with two sharing passengers each pays half of the vehicle fare, which is twice the ordinance per-seat fare (₱46 each vs ₱23 on a 10 km trip). That is the point the policy already flags as subject to LGU approval.
 
-#### Arithmetic Walkthrough for Model B (Scenario 5)
+#### Arithmetic Walkthrough for Model B (Scenario 5) - executed by `scripts/db-tests/batch5/fare-formula.js`
 - **Scenario Parameters**:
   - Passenger A (1 pax) travels 5.0 km total: 2.0 km exclusive segment (before Passenger B boards), followed by 3.0 km common segment with Passenger B.
   - Passenger B (1 pax) boards at km 2.0 and travels 3.0 km common with Passenger A to the destination.
@@ -384,3 +388,82 @@ Fixes in `supabase/seed.sql` (Supabase Preview and `db reset` run it after the m
 - **Operational:** `scripts/applyBatch4Migrations.js` and `scripts/checkDriverState.js` were not written by Claude and were never run by it. `applyBatch4Migrations.js` runs files straight against the hosted database without a transaction or history record; prefer `supabase db push`. The first two Batch 4 migrations are confirmed applied (read-only check of migration history). All four are safe to re-run (`batch4/reapply.js`). `checkDriverState.js` loads `.env` from `scripts/server/.env`, which does not exist.
 - **pg_cron:** it was available but not installed on the hosted project when checked. Migration `20261006000002` installs it. After applying, confirm with `SELECT jobname, schedule, active FROM cron.job;`. The hourly SLA cascade and strike sweep (Batches 1 and 3) still run from the Express server and have the same sleep-on-free-plan weakness; moving them to pg_cron is a follow-up.
 - **Deferred by the owner's choice:** the TODA-portal screens (Online column, record-violation and flag review), the vehicle-substitution approval workflow, a passenger screen for filing 5.3 / 5.7 reports, and Screen Wake Lock. Until they exist, flags can be read and actioned by calling the functions directly.
+
+
+---
+
+## 7. Batch 5 Decisions (Fare Computation, Rate Changes, Estimates, Deviations, Cash-Only, No Scheduling)
+
+### 7.1 Approved by the project owner when Batch 5 started ("use the recommended defaults")
+
+| Ref | Decision | Where it lives |
+|---|---|---|
+| **D1 / PI-03** | Option A: destinations (and pickup) are locked at confirmation; Rules 6.2(a) and 6.2.2 are dropped. | `booking_fare_update_guard()` (`ERR_BOOKING_LOCKED`) |
+| **D2 / PI-04** | Option B: the fare is the Solo Trip Fare of the vehicle's whole route, split per kilometre by passengers on board; every kilometre costs the same; the Matched Shared Fare Estimate assumes one more 1-passenger booking. | `calculate_fare()`, `allocate_shared_fares()` |
+| **D3 / PI-09** | Option A: cross-reference errata by intent (nothing new needed in Batch 5; the Batch 3 catalog already carries them). | `violation_catalog.source_rule` |
+| **D4** | Ordinance **No. 110, Series of 2022** is the citation, stored in the database and shown from it. | `fare_matrix.ordinance_reference` |
+| **D5** | No booking without a real OSRM road route: if OSRM cannot be reached nothing is priced and the Book button stays off. The database also refuses a booking without a plausible route distance. | `NewTrip.tsx`, `BookSummary.tsx`, `booking_fare_insert_guard()` |
+| **D6** | F5.1 and F5.2 values approved (see 7.2 for the one refinement). | `fare_policy_constant()` + `policyConfig.ts` section 8 |
+| **D7** | Rate changes are forward-only: they may be future-dated, never back-dated. | `enact_fare_matrix()` (`ERR_BACKDATED_RATE`) |
+| **D8** | `fare_adjustment_history` is created now as the one fare-change ledger (route deviations now; Batch 9 adds disputes and early stops). | `20261007000003_*` |
+| **D9** | `fareCalculator.ts` is now a typed client with no formula; the vitest test (which could not run: `vitest` is not installed) was replaced by database tests. | `packages/shared/src/utils/fareCalculator.ts`, `scripts/db-tests/batch5/` |
+| **D10** | Cash-only wording fixed in the Passenger Terms. "No discount row for now": see 7.2. | `PassengerTermsOfService.tsx` |
+| **D11** | The Express `/api/admin/fare-matrix` route answers 403 to everything. | `server/src/routes/fareMatrixRoutes.ts`, `disabledEndpoints.ts` |
+| **D12** | `/book-summary` is kept and adapted to the same quote function; it is still unreachable from the app. | `BookSummary.tsx` |
+| **D13** | The booking table's open row-level security (anonymous read and write of every booking) is a separate security pass. Batch 5 closes only the fare, route and rule columns. | trigger guards only |
+
+### 7.2 Interpretations and refinements made while building (please confirm)
+
+| Ref | Interpretation | Why |
+|---|---|---|
+| **D-B5-1** | **Dead-band refinement (F5.1).** Movement counts only beyond `max(15 m, accuracy of the last counted point + accuracy of this fix)`; the approved wording was `max(15 m, accuracy of this fix)`. The 15 m floor is unchanged. | Found by test: with the approved wording alternating +-11 m jitter produced 2.6 km of phantom distance while standing still, and a simulation of random noise (10 minutes, 5 s beats) gave 0.2 - 1.8 km. Overlapping error circles cannot show movement; with the combined rule the same simulation gives 40 - 140 m and the deterministic jitter test gives 0 m. |
+| **D-B5-2** | **Extra guard constants** that were not in the figure list: a track that ends more than **150 m** from the destination cannot prove a SHORTER trip (F5.2 guard); the phone's OSRM distance must be at least 90 % of the straight line minus 50 m and at most 3x it plus 500 m; a requested time more than 300 s ahead is a scheduled booking; a rate back-dated by more than 120 s is refused; 3 consecutive discarded fixes replace the reference point. | Needed to make "keep the estimate unless the trip really differed" safe against missing GPS and early endings (early termination itself is Batch 9). All are code constants mirrored in `policyConfig.ts` and covered by the drift test. |
+| **D-B5-3** | **D10 "no discount row for now"** was read as: the Student / Senior / PWD "mandatory 20 % discount" row was **removed from the Passenger Terms** (Tagalog and English), because the system does not implement any discount and the policy text has none. Nothing was built. | A Terms row promising something the app does not do is worse than silence. It is one table row per language: restore it if the LGU wants the discount, and a discount rule would then belong in the fare function. |
+| **D-B5-4** | The orphan `/book-summary` screen lost its "auto-cancel if unmatched" radio group. | Rule 6.5 says an unmatched Shared booking **automatically continues as Solo**; the option promised something the policy forbids (and was never sent anywhere). |
+| **D-B5-5** | The final fare is computed and locked **once, when the booking first reaches `Arrived at Destination` (or `Completed`)**, by whoever causes that transition. | Both apps then read the same figure from the same row (Rule 6.2); passenger or driver ending first gives the same result because a track that stops short of the destination cannot lower the fare. |
+| **D-B5-6** | A Shared booking marked matched but with no recorded segments (cannot happen before Batch 10) is billed the **Matched Shared Fare Estimate**, never more than the estimate it accepted; one that was never matched is billed the Maximum Unmatched Fare (Solo). | Keeps the driver unblocked and the passenger protected until Batch 10 supplies the legs for `allocate_shared_fares()`. |
+| **D-B5-7** | `gps_log` (every trip's route) was readable by anyone and writable by anyone, even without a login. It is now written only by `driver_heartbeat()` and readable only by the trip's passenger and driver, the driver's TODA administrator and the LGU administrator. | Trip distance is billed from it and it now holds real routes. |
+| **D-B5-8** | The minimum fare (Rule 6.1.5 d) is applied per booking **after** rounding, to the rounded base fare. | A whole-peso fare cannot equal a base fare of, say, 15.50. |
+| **D-B5-9** | Trusted server code (service role, internal context) may insert a booking row **without** a quote (imports, repairs, tests). Everyone else needs a quote. Scheduled bookings are refused for everyone. | Keeps maintenance possible without opening a client path. |
+| **D-B5-10** | `fare_matrix.is_active` is now only a convenience flag set when a rule takes effect immediately; every lookup uses `effective_timestamp` (`fare_rule_in_force()`). | A scheduled rule cannot flip a flag by itself when its time arrives. |
+| **D-B5-11** | Rule versions can no longer be edited or deleted by anyone (not even the service role); a mistake is fixed by enacting a newer version. | Bookings point at a version; history must not move. |
+| **D-B5-12** | **Fail-closed trust check in the booking guards.** `booking_fare_insert_guard()` and `booking_fare_update_guard()` treat an unknown answer from Batch 3's `is_service_context()` as NOT trusted (`COALESCE(..., FALSE)`). | Found by the live dry run on the hosted database: the helper answers NULL, not FALSE, in a database session that has never set `sakay.internal_context`, and `IF NOT NULL` is NULL, so every lock was silently skipped (the estimate, pickup and final fare were editable; a client-supplied `created_at` and `actual_fare` were kept). The emulator sessions always had the setting defined, so no earlier test could see it. Covered now by 7 fail-closed checks that make the helper answer NULL. |
+
+### 7.3 Findings routed to other batches or to the owner
+
+- **Batch 6 (dispatch):** `accepted_at` is stamped by the driver's phone clock (`DriverIncomingRequestModal.tsx`); the fare conditions bind at acceptance (Rule 6.5), so the database should stamp it. `dispatchService.ts` was not touched.
+- **Batch 8 (pickup edit):** Rule 29.9 lets a pickup be updated before a driver accepts; Batch 5 blocks direct edits, so Batch 8 must add the edit as a function that sets the internal context and re-quotes. The booking statuses Batch 5 keys on: `Trip Ongoing` / `Ongoing` (passenger on board), `Arrived at Destination` and `Completed` (final fare).
+- **Batch 9 (trip execution):** early-termination fare rules and fare disputes should write `fare_adjustment_history` (reason codes `EARLY_TERMINATION`, `DISPUTE_RESOLUTION`, `ADMIN_CORRECTION`, `DECLARED_PASSENGER_MISMATCH` already exist in its CHECK); `trip_started_at`, `arrived_at` and `trip_completed_at` are still stamped by the phones; the payment-confirmed flag is still read from `localStorage` across tabs.
+- **Batch 10 (ride sharing):** set `shared_trip_match.match_status = 'Matched'`, supply the legs (`board_km`, `alight_km` along the vehicle route) to `allocate_shared_fares()` and replace the interim `matched_estimate_pending_segments` billing; the 50 % cutoff text is already shown from `RIDE_SHARING_CUTOFF_PERCENT`; passenger caps disagree (UI 2 per Shared booking, `bookingService` 3, database 4).
+- **Batch 11:** the passenger report category "Overcharging Attempt" has no wording for a driver asking for pre-payment or an off-platform deposit (Rule 6.4); the strike `DRV_OVERCHARGING` (2 strikes, administrator-confirmed) already exists.
+- **Batch 12:** analytics now read `actual_fare` / `actual_distance_km` (the columns that exist; they used to read `final_fare` / `route_distance_km`, which no migration creates); `gps_log` needs a retention policy (about 12 rows a minute per trip in progress).
+- **Security patch SP-1 (Batches 3, 4 and 5):** the trust checks that failed open on NULL (the helper `is_service_context()` and the one inline copy in `protect_read_only_columns()`) are fixed by migration `20261007000004_security_null_safe_service_context.sql`; see section 7.5. Verified in fresh database sessions (39 checks) and by a rolled-back dry run on the hosted database. Apply with `node scripts/applySecurityPatch.js apply`.
+- **Security pass (D13):** booking row-level security still lets any role, including anonymous, read and update every booking. Batch 5 stops fare, route and rule edits with triggers, but names, addresses and coordinates of every booking remain readable.
+- **Leftovers not changed:** "Ordinance No. 118" still appears in demo data (`apps/lgu-portal/src/mockData/adminData.ts`, `apps/toda-portal/src/mockData/todaData.ts`), in a comment of the historic migration `20260819122000_seed_master_data.sql` and in a Batch 3 catalog note (`DRV_OVERCHARGING`); historic migrations are never edited. The public OSRM servers are demonstration infrastructure; plan a hosted or self-hosted router before a wider pilot.
+
+### 7.4 Operational notes
+
+- The three Batch 5 migrations (`20261007000001_batch5_fare_rules.sql`, `20261007000002_batch5_fare_engine.sql`, `20261007000003_batch5_booking_fare_guards.sql`) were applied to the hosted database by the project owner and are recorded in its migration history (checked read-only on 2026-10-04). The note below is how they were applied: They depend on Batches 1 - 4 (all recorded in its migration history). A pre-flight and a rolled-back dry run against the hosted database passed with the final files. To apply: `node scripts/applyBatch5Migrations.js dryrun`, then `node scripts/applyBatch5Migrations.js apply` (one transaction per migration, checks before each commit, each recorded in `supabase_migrations.schema_migrations`, then an API schema reload).
+- **Deploy the database and the apps together.** A phone still running the previous version sends `actual_fare` when the passenger confirms payment and reads `final_fare`; the new database rejects the first (`ERR_FARE_LOCKED`) and has no such column. Reload the apps after the migration.
+- After applying, the rule in force must show the citation: `SELECT ordinance_reference FROM public.fare_rule_in_force();`.
+
+### 7.5 Security patch SP-1: trust checks that failed open (migration `20261007000004_security_null_safe_service_context.sql`)
+
+**What was wrong.** Batch 3's `is_service_context()` answered NULL, not FALSE, in a database session that had never set the custom setting `sakay.internal_context` (a freshly opened pooled connection is exactly that). A guard written `IF NOT is_service_context() THEN <protect>` evaluated `NOT NULL`, which is NULL, and PL/pgSQL treats NULL as false: the protection was silently skipped. Every earlier test passed because the test sessions had already defined the setting. The live dry run for Batch 5 found it on the hosted database (the first statement of a new connection printed `helper answers NULL`); a dry run of this patch showed **all 8 probed attacks working on the hosted database in brand-new connections** (the strike, suspension and vehicle columns, going Available without `driver_go_online()`, the strike pause switch, review flags, and the two service-only sweeps).
+
+| Guard | What it protects | Reachable by clients? |
+|---|---|---|
+| `protect_read_only_columns()` (Batch 3; held its own inline copy of the check) | strike, suspension, deactivation and closure columns of passengers and drivers | Yes: an account holder updating their own row. The row policies for `passenger` and `driver` also contain `OR auth.uid() IS NULL`, so an **unauthenticated** caller reached them as well |
+| `check_driver_online_eligibility()` (Batch 4) | going Available only through `driver_go_online()`; no Offline with an open accepted booking (Rule 5.5) | Yes: a driver updating their own row (and anonymous callers through the same row policy) |
+| `protect_verified_vehicle()` (Batch 4) | plate and franchise number of a verified vehicle (Rules 3.10, 29.18) | Yes: same |
+| `classify_dispatch_attempt_response()` (Batch 4) | the unanswered / resolved columns that feed Rules 7.6 - 7.8 | Yes: the `dispatch_attempt` update policy is `USING (true)` |
+| `create_admin_review_flag()` (Batch 3) | who may create review flags | Yes: EXECUTE is granted to signed-in users |
+| `protect_strike_pause_config()` (Batch 3) | the strike pause switch only through `set_strike_accrual_pause()` | Only the LGU administrator can write that table (direct writes skipped the audit) |
+| `sweep_strike_state()`, `sweep_driver_presence()` | service-only sweeps | **No**: EXECUTE is revoked from clients; the check inside is defense in depth (an earlier version of these notes said any signed-in user could run them; that was wrong) |
+| `booking_fare_insert_guard()`, `booking_fare_update_guard()` (Batch 5) | the fare lock | Already written NULL-safe (D-B5-12) |
+
+**The fix.** (1) `is_service_context()` answers TRUE or FALSE, never NULL (both operands are COALESCEd), which repairs every caller at once. (2) `protect_read_only_columns()` is copied verbatim from its live definition with the one inline check replaced by the helper. Same signatures, attributes and privileges; the migration ends with a self-check and is safe to run twice. `issue_strike()` and the other "allow when trusted" checks were never affected (NULL fails them closed). `is_lgu_admin()`, `is_toda_admin()` and `_in_presence_context()` are strict booleans and were checked.
+
+**Verification.** `scripts/db-tests/security/null-safe-service-context.js` dumps a populated database and loads it into a brand-new PGlite instance for every probe, so the session has never set the setting. Before the patch (chain through Batch 5) every attack works; after it every attack is refused and the legitimate paths (service role, LGU and TODA administrators, the strike engine, `driver_go_online()`, harmless self-edits) still work. `node scripts/applySecurityPatch.js dryrun` repeats this on the hosted database inside rolled-back transactions; `apply` runs the patch in one transaction, verifies before COMMIT, records it in the migration history and re-checks from new connections. The script refuses to run if the live function bodies are not exactly the Batch 3 text.
+
+**Not part of this patch (found while checking who can reach these guards).** The row-level policies are still open: `passenger` and `driver` allow UPDATE when `auth.uid() IS NULL` (roles anon and authenticated), `dispatch_attempt` allows any UPDATE, and `booking` has the open policies noted in D13. With the guards fixed, the protected columns hold, but every other column of those rows can still be edited by an unauthenticated caller. This is the D13 security pass, now more urgent; it needs care because some screens (registration, OTP activation) may rely on anonymous access.
