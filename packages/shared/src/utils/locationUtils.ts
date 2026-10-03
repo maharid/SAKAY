@@ -163,7 +163,7 @@ export const getCurrentDevicePosition = (): Promise<LocationCoords> => {
           } else if (error.code === error.TIMEOUT) {
             message = "Location request timed out.";
           }
-          reject(new Error(message));
+          reject(Object.assign(new Error(message), { code: error.code }));
         },
         {
           enableHighAccuracy: false,
@@ -178,7 +178,7 @@ export const getCurrentDevicePosition = (): Promise<LocationCoords> => {
       saveSuccess,
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          reject(new Error("Location permission denied by user."));
+          reject(Object.assign(new Error("Location permission denied by user."), { code: error.code }));
           return;
         }
         tryLowAccuracy();
@@ -197,7 +197,8 @@ export const getCurrentDevicePosition = (): Promise<LocationCoords> => {
  */
 export const watchDevicePosition = (
   onCoords: (coords: LocationCoords) => void,
-  onError?: (err: Error) => void
+  onError?: (err: Error & { code?: number }) => void,
+  options: PositionOptions = { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
 ): number | null => {
   if (typeof window === "undefined" || !navigator.geolocation) return null;
 
@@ -216,8 +217,9 @@ export const watchDevicePosition = (
       onCoords(coords);
     },
     (err) => {
-      if (onError) onError(new Error(err.message));
+      // Keep the browser's error code (1 = permission denied) so callers can tell it apart.
+      if (onError) onError(Object.assign(new Error(err.message), { code: err.code }));
     },
-    { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
+    options
   );
 };

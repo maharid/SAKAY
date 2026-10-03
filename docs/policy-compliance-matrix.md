@@ -158,3 +158,48 @@ Batch 3's UI scope was limited to showing suspension and deactivation state. The
 | Evidence upload for exemption requests (storage bucket and picker) | `[MISSING]` | `exemption_request.evidence_urls` accepts any URL list | 25.2 |
 
 Until these screens exist, the actions can be performed by calling the functions directly (SQL editor or `supabase.rpc`) as the signed-in administrator or account holder.
+
+
+---
+
+## 7. Batch 4 Compliance Matrix: Driver Availability, Online Persistence, Presence & Inactivity
+
+**Close-out status: database engine `[OK]`. TODA-portal screens and Wake Lock `[MISSING]`, explicitly deferred by the project owner. Device-side detection of revoked location permission and the Online screens are `[PARTIAL]`: built and build-verified, not yet run by a signed-in driver on a device.**
+
+**How these statuses were verified**
+- **Executed:** `node scripts/db-tests/run-all.js` runs the Batch 4 suites `online`, `inactivity`, `offline-rules`, `reapply` and `config-drift` on a PostgreSQL emulator (PGlite) with the full migration chain, next to the Batch 1 and 3 suites.
+- **Built:** driver-pwa, passenger-pwa, lgu-portal, toda-portal and the server type-check and build. Client behaviour (hydration, one watcher, heartbeat, permission listener, reminder dialog) is verified by build and code trace, **not** executed against a signed-in driver.
+- **Migrations:** `20261005000001_batch4_presence_foundation.sql` and `20261005000002_batch4_presence_rpcs.sql`. **Whether they are applied to the hosted database was not verified by Claude** (see decisions section 6.3).
+- `[OK]` = the database path was executed and passes. `[PARTIAL]` = part is executed, part is build/trace only. `[MISSING]` = not built.
+
+| Rule | Requirement | Status | Evidence | Enforcement detail |
+|---|---|---|---|---|
+| **3.1** | Affiliation must be verified by TODA then LGU, under an active TODA, before the driver can receive requests; with several verified affiliations the driver selects one before Online. | `[OK]` | `driver_go_online()`; `online.js` | `ERR_NO_VERIFIED_AFFILIATION`, `ERR_SELECT_AFFILIATION`; a single verified affiliation is selected automatically (D-B4-2). Home picker lists the driver's own affiliations only. |
+| **3.10** | One active affiliation and one verified unit; no change while Online. | `[OK]` | `check_driver_offline_before_affiliation_change` (Batch 1), `select_active_driver_affiliation`, `protect_verified_vehicle()`; `online.js` T3 + vehicle lock | `ERR_MUST_BE_OFFLINE` while Online; `toda_id` and `is_active_selection` cannot be written directly; plate/franchise locked (`ERR_VEHICLE_LOCKED`). The Home picker is disabled while Online. |
+| **5.1 / 5.2** | Terminal-queue exclusivity is procedural (honor system + TODA monitoring). | `[OK]` (by design) | none required | No automatic enforcement is specified. |
+| **5.3** | Confirmed queue-conflict while holding a terminal place = 1 strike. | `[OK]` (DB) / `[MISSING]` (TODA screen) | `report_driver_availability_violation()`, `confirm_driver_availability_violation()`; `offline-rules.js` | Report creates a flag; the strike is issued only on administrator confirmation with a reason; confirming twice never strikes twice. |
+| **5.4** | Going Available right after leaving the queue is not penalized; repeated patterns are TODA-internal. | `[OK]` (by design) | PI-B4-6 | No system action. |
+| **5.5** | Offline always permitted, never penalized, unless an accepted booking is open. | `[OK]` | `driver_go_offline()`, `check_driver_online_eligibility()`; `offline-rules.js` T6 | `ERR_OPEN_BOOKING` via the function and via a plain `UPDATE`; all open statuses block; completed / cancelled do not. |
+| **5.6** | Keep enough battery; interruptions handled under Section 9. | `[OK]` | `DriverForegroundReminder` | Advisory note shown on Home while Online. Section 9 handling is Batch 8. |
+| **5.7** | Confirmed availability violation (accepting while already carrying a passenger) = strike. | `[OK]` (DB) / `[MISSING]` (TODA screen) | as 5.3 | A passenger can report only a driver on one of their own bookings. 1 point per confirmed instance (PI-09). |
+| **7.6** | After 3 consecutive unanswered offers in an online session, an in-app reminder with the exact wording. | `[OK]` | `track_driver_offer_response()`; `inactivity.js` | Notification row (English sentence + Filipino line) once per run; dialog in `DriverPresenceNotices.tsx` (build-verified). |
+| **7.7** | 2 more unanswered (5 total) → automatic Offline, no strike. | `[OK]` | same; `inactivity.js` | Session ends `auto_inactivity`; strike ledger and counter stay at 0; audited as system. Not applied while a booking is open. |
+| **7.8** | 3+ automatic Offlines in a rolling 30 days → TODA review flag, no automatic strike. | `[OK]` (DB) / `[MISSING]` (TODA screen) | `_presence_flag()`; `inactivity.js` | Flag `DRIVER_INACTIVITY_REVIEW`, one open flag at a time; sessions older than 30 days do not count. |
+| **17.1** | Location updates every 5 s during a trip. | `[PARTIAL]` | `useDriverPresenceEngine.ts`, `ACTIVE_TRIP_GPS_INTERVAL_SECONDS` | Heartbeat interval switches to 5 s when the server reports an open booking; build/trace only. |
+| **17.6** | Foreground / unlocked-screen operation with a persistent on-screen reminder when Online. | `[PARTIAL]` | `DriverForegroundReminder` on Home | Reminder is built. **Wake Lock `[MISSING]`**, deferred by the owner. |
+| **17.7** | Location permission verified before Online; revoked during a session → Offline automatically and a re-authorization prompt before Online again. | `[PARTIAL]` | `driver_go_online()`, `driver_report_location_unavailable()`, `apply_pending_driver_offline()`; `offline-rules.js` T4 | **DB executed:** a valid, fresh, accurate position is required (`ERR_LOCATION_REQUIRED / INACCURATE / STALE`); revocation sets Offline now, or at booking end (PI-B4-2); re-auth state is returned. **Build/trace only:** detection through the Permissions API change event and watch error code 1, and the prompt on Home. |
+| **17.8** | Degraded update interval accepted as long as updates continue. | `[OK]` | `driver_heartbeat()`; `driver_presence_constant` | No minimum rate except the 5-minute presence threshold; GPS staleness (Rule 9.2) is Batch 8. |
+| **29.7** | Offline right after declining or losing an offer, repeated 3+ times in a session → monitoring flag, not a punishment. | `[OK]` | `sync_driver_online_session()`; `inactivity.js` | Counted per app login session (D-B4-1) and only for declines in the session being closed within 60 s; flag `DRIVER_AVAILABILITY_MONITORING`, no strike. |
+| **29.18** | Only the verified registered vehicle; substitution needs TODA + LGU approval. | `[OK]` | `protect_verified_vehicle()`; `online.js` | LGU admin and system exempt; drivers still applying can enter details. |
+| **PI-06** | One canonical, accuracy-aware location threshold. | `[PARTIAL]` | `LOCATION_MAX_ACCURACY_METERS`, `driver_has_fresh_location()`; `config-drift.js` | Publish / Online / dispatch gate done (100 m, 45 s). The pickup-zone and no-show radius belong to Batch 8. |
+| **PI-09** | Errata by intent; propose counts for 5.7. | `[OK]` | `violation_catalog` rows | 1 point per confirmed instance for 5.3 and 5.7. |
+| **T1 / T2** | Online survives navigation; refresh / reopen recovers from the server. | `[PARTIAL]` | `get_my_driver_presence()`; `online.js`; provider hoisted in `DriverMobileAppShell.tsx`; `DriverSessionContext.tsx` exposes `isOnline` as the server's answer | **DB executed:** idempotent go-online, one open session, server state after refresh / auto-Offline. **Build/trace only:** one watcher and unmount-free provider. |
+| **One publisher** | One GPS publisher; no other writer of driver position. | `[OK]` | duplicate scan | The only geolocation watcher is in the engine hook; the only code path that sends a position is `driver_heartbeat()`. The four Home writers, the context writer and the login writer were removed. |
+| **Presence sweep** | App silent for 5 minutes → Offline, no strike. | `[OK]` (DB) / `[PARTIAL]` (scheduler) | `sweep_driver_presence()`; `offline-rules.js`; `slaSchedulerService.ts` | 4 min is allowed, 6 min is not; open-booking drivers skipped. Needs the Express server to be running (own 60 s timer). |
+
+### 7.1 Deferred components (supported by the database; not built, by the owner's choice)
+
+| Component | Status | Supported by | Completes |
+|---|---|---|---|
+| TODA-portal screens: Online column, record-violation action, flag review list | `[MISSING]` | `admin_review_flag` types `DRIVER_INACTIVITY_REVIEW`, `DRIVER_AVAILABILITY_MONITORING`, `DRIVER_QUEUE_CONFLICT_REPORT`, `DRIVER_AVAILABILITY_VIOLATION_REPORT`; `driver_online_session` readable by the driver's TODA admin (RLS); report / confirm functions | 5.2, 5.3, 5.7, 7.8, 29.7 |
+| Screen Wake Lock while Online | `[MISSING]` | device API; not database-backed | 17.6 |

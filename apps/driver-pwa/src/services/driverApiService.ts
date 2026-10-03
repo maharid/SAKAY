@@ -317,8 +317,9 @@ export async function fetchDriverProfile(driverId?: string) {
       todaId: data.toda_id || '',
       rating: Number(data.weighted_average_rating) || 5.0,
       accountStatus: data.account_status,
-      isOnline: data.availability_status === 'Online',
-      isPaused: data.availability_status === 'Paused',
+      // The column holds 'Offline' | 'Available' | 'Busy' (never 'Online' / 'Paused'); the live value comes from the presence engine.
+      isOnline: data.availability_status === 'Available' || data.availability_status === 'Busy',
+      isPaused: false,
       verificationStage: data.account_status === 'Verified' ? 'Stage 2 Approved' : 'Stage 1 TODA Review',
       currentLat: data.current_latitude ? Number(data.current_latitude) : 13.4117,
       currentLng: data.current_longitude ? Number(data.current_longitude) : 121.1803,
@@ -345,15 +346,8 @@ export async function updateDriverProfile(driverId: string = DEFAULT_DRIVER_ID, 
 // 2. AVAILABILITY & DISPATCH
 // ============================================================================
 
-export async function updateDriverAvailability(driverId: string, isOnline: boolean, isPaused: boolean = false) {
-  try {
-    const availability_status = isPaused ? 'Paused' : isOnline ? 'Online' : 'Offline';
-    await supabase.from('driver').update({ availability_status }).eq('driver_id', driverId);
-  } catch (e) {
-    console.warn('[driverApiService] updateDriverAvailability sync note:', e);
-  }
-  return { success: true, isOnline, isPaused };
-}
+// Availability is changed only through the presence functions (see driverPresenceService.ts):
+// the database rejects a direct write that sets a driver Available.
 
 // ============================================================================
 // 3. BOOKINGS & ACTIVE TRIPS

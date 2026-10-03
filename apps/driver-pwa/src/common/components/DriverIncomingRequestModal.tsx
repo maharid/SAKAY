@@ -26,6 +26,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
     currentAttemptId,
     countdown,
     handleDeclineRequest,
+    refreshPresence,
   } = useDriverSession();
 
   const handleAcceptRequest = async () => {
@@ -73,6 +74,8 @@ export const DriverIncomingRequestModal: React.FC = () => {
 
     const activeId = incomingRequest.booking_id;
     setIncomingRequest(null);
+    // A booking is now open: the presence publisher switches to the 5 s trip interval (Rule 17.1).
+    refreshPresence();
 
     // Route to Active Navigation to Pickup
     navigate('/driver/navigation', { state: { bookingId: activeId, stage: 'pickup' } });

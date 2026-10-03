@@ -27,8 +27,11 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
+import { DriverForegroundReminder } from '../../../common/components/DriverPresenceNotices';
 import { supabase } from '../../../services/supabaseClient';
-import { fetchAccreditedTodas, checkDriverDocumentaryRestriction, submitDriverRenewal } from '../../../services/driverApiService';
+import { checkDriverDocumentaryRestriction, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
+import { fetchMyAffiliationOptions } from '../../../services/driverPresenceService';
+import type { AffiliationOption } from '../../../services/driverPresenceService';
 import {
   getCurrentDevicePosition,
   getCachedDevicePosition,
@@ -44,7 +47,11 @@ export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile } = useDriverSession();
+  const { profile, setProfile, presence, goOnline, goOffline, refreshPresence, enableLocation, locationReauthRequired } = useDriverSession();
+
+  // Going Online / Offline is a request to the database; this screen only shows its answer.
+  const [togglingOnline, setTogglingOnline] = useState(false);
+  const [presenceMessage, setPresenceMessage] = useState<string | null>(null);
 
   const [toastOpen, setToastOpen] = useState(false);
   const [earnedAmount, setEarnedAmount] = useState<number | null>(null);
@@ -123,9 +130,16 @@ export const DriverAvailabilityHome: React.FC = () => {
 
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string>('');
-  const [availableTodas, setAvailableTodas] = useState<Array<{ id: string; name: string; acronym: string; barangay: string; terminalLocation: string }>>([]);
+  // The driver's OWN TODA affiliations (Rules 3.1 / 3.10). Only verified ones can be selected, and only while Offline.
+  const [affiliations, setAffiliations] = useState<AffiliationOption[]>([]);
+  const [selectingAffiliation, setSelectingAffiliation] = useState(false);
   const [todaModalOpen, setTodaModalOpen] = useState(false);
   const [recenterTrigger, setRecenterTrigger] = useState(0);
+  // Rule 17.7: after permission was revoked the prompt returns until the driver allows location again.
+  const [reauthDismissed, setReauthDismissed] = useState(false);
+  useEffect(() => {
+    if (locationReauthRequired) setReauthDismissed(false);
+  }, [locationReauthRequired]);
 
   // Check if browser native permission is already granted; if so, never prompt and record
   useEffect(() => {
@@ -140,7 +154,8 @@ export const DriverAvailabilityHome: React.FC = () => {
     }
   }, []);
 
-  // Attempt to get actual driver device position on mount ONLY if permission was already granted
+  // Centre the map on the device position on mount ONLY if permission was already granted.
+  // Display only: the Online heartbeat is the single place a position is sent to the database.
   useEffect(() => {
     const perm = localStorage.getItem('sakay_driver_location_permission');
     const prompted = localStorage.getItem('sakay_driver_location_prompted') === 'true';
@@ -155,33 +170,14 @@ export const DriverAvailabilityHome: React.FC = () => {
           currentLng: coords.longitude,
         }));
         setRecenterTrigger((prev) => prev + 1);
-
-        const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
-        if (activeDriverId) {
-          supabase
-            .from('driver')
-            .update({
-              current_latitude: coords.latitude,
-              current_longitude: coords.longitude,
-              last_location_update: new Date().toISOString(),
-            })
-            .eq('driver_id', activeDriverId)
-            .then(() => {});
-        }
       })
       .catch((err) => {
         console.warn('[DriverAvailabilityHome] Mount position error:', err);
       });
-  }, [locationPermissionOpen]);
+  }, [locationPermissionOpen, setProfile]);
 
-  // Load live Supabase profile and accredited TODAs on mount
+  // Load live Supabase profile on mount
   useEffect(() => {
-    fetchAccreditedTodas().then((todas) => {
-      if (todas && todas.length > 0) {
-        setAvailableTodas(todas);
-      }
-    });
-
     async function loadLiveDriver() {
       try {
         const storedId = localStorage.getItem('sakay_driver_id');
@@ -205,7 +201,6 @@ export const DriverAvailabilityHome: React.FC = () => {
             license_number,
             franchise_number,
             account_status,
-            availability_status,
             weighted_average_rating,
             current_latitude,
             current_longitude,
@@ -238,15 +233,10 @@ export const DriverAvailabilityHome: React.FC = () => {
           }
 
           // Authoritative check for documentary restrictions (Rule 24.1 - 24.3)
+          // A restricted driver is put Offline by the database (scheduler cascade and the Online guard);
+          // the app never writes availability itself.
           const restr = await checkDriverDocumentaryRestriction(driverData.driver_id);
           setRestrictionInfo(restr);
-          if (restr?.is_restricted && driverData.availability_status === 'Available') {
-            await supabase
-              .from('driver')
-              .update({ availability_status: 'Offline' })
-              .eq('driver_id', driverData.driver_id);
-            driverData.availability_status = 'Offline';
-          }
 
           const { count: completedTripsCount } = await supabase
             .from('booking')
@@ -300,23 +290,10 @@ export const DriverAvailabilityHome: React.FC = () => {
               totalTrips: completedTripsCount || 0,
               accountStatus: driverData.account_status,
               verificationStage: 'Stage 2 Approved',
-              isOnline: driverData.availability_status === 'Available',
               currentLat: finalLat,
               currentLng: finalLng,
             };
           });
-
-          if (cached?.latitude && cached?.longitude && driverData.driver_id) {
-            supabase
-              .from('driver')
-              .update({
-                current_latitude: cached.latitude,
-                current_longitude: cached.longitude,
-                last_location_update: new Date().toISOString(),
-              })
-              .eq('driver_id', driverData.driver_id)
-              .then(() => {});
-          }
         }
       } catch (err) {
         console.warn('[DriverAvailabilityHome] Live profile sync note:', err);
@@ -326,13 +303,20 @@ export const DriverAvailabilityHome: React.FC = () => {
     loadLiveDriver();
   }, [navigate, setProfile]);
 
-  const selectedTodaIds = profile.selectedTodaIds && profile.selectedTodaIds.length > 0 
-    ? profile.selectedTodaIds 
-    : (profile.selectedTodaId ? [profile.selectedTodaId] : []);
+  // Load the driver's own affiliations (re-load when the driver id becomes known, and after a selection).
+  const loadAffiliations = React.useCallback(async () => {
+    if (!profile.id) return;
+    setAffiliations(await fetchMyAffiliationOptions(profile.id));
+  }, [profile.id]);
+  useEffect(() => {
+    loadAffiliations();
+  }, [loadAffiliations, presence.status]);
 
-  const selectedTodas = availableTodas.filter((t) => selectedTodaIds.includes(t.id));
-  const displayTodaText = selectedTodas.length > 0 
-    ? selectedTodas.map((t) => `${t.name} (${t.acronym})`).join(', ')
+  const activeAffiliation = affiliations.find((a) => a.isActive) || null;
+  const selectableAffiliations = affiliations.filter((a) => a.isSelectable);
+  const isOnline = presence.status === 'online';
+  const displayTodaText = activeAffiliation
+    ? `${activeAffiliation.todaName} (${activeAffiliation.todaAcronym})`
     : (profile.todaName || (language === 'tl' ? 'Pumili ng TODA...' : 'Select TODA...'));
 
   const selectedVehicle = {
@@ -343,34 +327,88 @@ export const DriverAvailabilityHome: React.FC = () => {
   };
 
   const isDriverVerifiedInDb = profile.accountStatus === 'Verified';
-  const canGoOnline = isDriverVerifiedInDb && !restrictionInfo?.is_restricted && !accountRestriction?.restricted;
+  // Expired papers block going Online. A missing active affiliation does not: the database selects the only
+  // verified affiliation automatically, and the picker below handles the case of several.
+  const documentsBlock = !!restrictionInfo?.is_restricted
+    && !!(restrictionInfo.license_expired || restrictionInfo.mtop_expired || restrictionInfo.toda_expired);
+  const canGoOnline = isDriverVerifiedInDb && !documentsBlock && !accountRestriction?.restricted
+    && presence.status !== 'unknown';
 
-  const handleToggleOnline = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canGoOnline) return;
-    const nextState = e.target.checked;
-    setProfile((prev) => ({ ...prev, isOnline: nextState }));
-    
-    // Update Supabase
-    const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
-    if (activeDriverId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeDriverId)) {
-      try {
-        const { error } = await supabase
-          .from('driver')
-          .update({ availability_status: nextState ? 'Available' : 'Offline' })
-          .eq('driver_id', activeDriverId);
-        if (error) {
-          console.warn('[DriverAvailabilityHome] Failed to sync availability_status:', error);
-          setProfile((prev) => ({ ...prev, isOnline: false }));
-          // The database refuses going online while suspended / deactivated: show why.
-          const refused = parseRestrictionError(error.message);
-          if (refused) setAccountRestriction(refused);
-        }
-      } catch (err) {
-        console.warn('[DriverAvailabilityHome] Failed to sync availability_status:', err);
-      }
+  // Why Online was refused, in the driver's language. The database gives the reason; the app never guesses.
+  const describePresenceError = (code: string, serverMessage: string): string => {
+    const tl = language === 'tl';
+    switch (code) {
+      case 'ERR_LOCATION_DENIED':
+        return tl ? 'Naka-off ang Location. Payagan ito para makapag-Online.' : 'Location is turned off. Allow it to go Online.';
+      case 'ERR_LOCATION_REQUIRED':
+        return tl ? 'Hindi makuha ang iyong lokasyon. Subukan muli sa bukas na lugar.' : 'Could not get your location. Try again in an open area.';
+      case 'ERR_LOCATION_INACCURATE':
+        return tl ? 'Mahina ang GPS signal (higit sa 100 m ang layo ng error). Pumunta sa bukas na lugar at subukan muli.' : 'GPS signal is too weak (accuracy worse than 100 m). Move to an open area and try again.';
+      case 'ERR_LOCATION_STALE':
+        return tl ? 'Luma na ang nakuhang lokasyon. Subukan muli.' : 'The location fix is too old. Try again.';
+      case 'ERR_SELECT_AFFILIATION':
+        return tl ? 'Pumili muna ng aktibong TODA bago mag-Online.' : 'Select your active TODA before going Online.';
+      case 'ERR_NO_VERIFIED_AFFILIATION':
+        return tl ? 'Wala ka pang beripikadong TODA affiliation.' : 'You do not have a verified TODA affiliation yet.';
+      case 'ERR_OPEN_BOOKING':
+        return tl ? 'Hindi ka maaaring mag-Offline habang may bukas na booking.' : 'You cannot go Offline while a booking is open.';
+      case 'ERR_NETWORK':
+        return tl ? 'Walang koneksyon. Subukan muli.' : 'No connection. Try again.';
+      default:
+        return serverMessage;
     }
   };
 
+  const handleToggleOnline = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canGoOnline || togglingOnline) return;
+    const wantOnline = e.target.checked;
+    setTogglingOnline(true);
+    setPresenceMessage(null);
+    try {
+      const outcome = wantOnline ? await goOnline() : await goOffline();
+      if (outcome.ok) return;
+
+      // The database refuses going online while suspended / deactivated: show why, with the end date.
+      const refused = parseRestrictionError(outcome.message);
+      if (refused) setAccountRestriction(refused);
+      if (outcome.code === 'ERR_LOCATION_DENIED') setReauthDismissed(false);
+      if (outcome.code === 'ERR_SELECT_AFFILIATION') setTodaModalOpen(true);
+      if (outcome.code === 'ERR_DOCUMENT_EXPIRED' && profile.id) {
+        checkDriverDocumentaryRestriction(profile.id).then(setRestrictionInfo).catch(() => {});
+      }
+      setPresenceMessage(describePresenceError(outcome.code, outcome.message));
+    } finally {
+      setTogglingOnline(false);
+    }
+  };
+
+  // Rules 3.1 / 3.10: the active affiliation is chosen through the database function, never changes while Online.
+  const handleSelectAffiliation = async (option: AffiliationOption) => {
+    if (isOnline || selectingAffiliation || !option.isSelectable) return;
+    setSelectingAffiliation(true);
+    setPresenceMessage(null);
+    try {
+      const result = await selectActiveDriverAffiliation(option.affiliationId);
+      if (result?.success) {
+        setProfile((prev) => ({
+          ...prev,
+          selectedTodaIds: [option.todaId],
+          selectedTodaId: option.todaId,
+          todaName: `${option.todaName} (${option.todaAcronym})`,
+        }));
+        await loadAffiliations();
+        await refreshPresence();
+      } else {
+        setPresenceMessage(result?.error || (language === 'tl' ? 'Hindi mapili ang TODA.' : 'Could not select that TODA.'));
+      }
+    } catch (err: any) {
+      setPresenceMessage(err?.message || (language === 'tl' ? 'Hindi mapili ang TODA.' : 'Could not select that TODA.'));
+    } finally {
+      setSelectingAffiliation(false);
+    }
+  };
+
+  // Display only: re-centres the map. Publishing a position is the Online heartbeat's job.
   const handleRecenter = async () => {
     try {
       const coords = await getCurrentDevicePosition();
@@ -380,19 +418,6 @@ export const DriverAvailabilityHome: React.FC = () => {
         currentLng: coords.longitude,
       }));
       setRecenterTrigger((prev) => prev + 1);
-
-      const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
-      if (activeDriverId) {
-        supabase
-          .from('driver')
-          .update({
-            current_latitude: coords.latitude,
-            current_longitude: coords.longitude,
-            last_location_update: new Date().toISOString(),
-          })
-          .eq('driver_id', activeDriverId)
-          .then(() => {});
-      }
     } catch {
       setRecenterTrigger((prev) => prev + 1);
     }
@@ -413,18 +438,8 @@ export const DriverAvailabilityHome: React.FC = () => {
       }));
       setRecenterTrigger((prev) => prev + 1);
 
-      const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
-      if (activeDriverId) {
-        supabase
-          .from('driver')
-          .update({
-            current_latitude: coords.latitude,
-            current_longitude: coords.longitude,
-            last_location_update: new Date().toISOString(),
-          })
-          .eq('driver_id', activeDriverId)
-          .then(() => {});
-      }
+      // Location is back: the engine restarts its watcher and the re-authorization prompt is done (Rule 17.7).
+      enableLocation();
       setIsRequestingLocation(false);
       setLocationPermissionOpen(false);
     } catch (err: any) {
@@ -442,7 +457,17 @@ export const DriverAvailabilityHome: React.FC = () => {
     localStorage.setItem('sakay_driver_location_prompted', 'true');
     localStorage.setItem('sakay_driver_location_permission', 'denied');
     setLocationPermissionOpen(false);
+    setReauthDismissed(true);
   };
+
+  const locationDialogOpen = locationPermissionOpen || (locationReauthRequired && !reauthDismissed);
+
+  // The documentary banner is hidden when the only problem is "no active affiliation" and the driver has a verified
+  // one to choose: that is fixed by the picker (or automatically), not by renewing documents.
+  const onlyAffiliationIssue = !!restrictionInfo?.no_active_affiliation
+    && !restrictionInfo.license_expired && !restrictionInfo.mtop_expired && !restrictionInfo.toda_expired;
+  const showDocBanner = !!restrictionInfo?.is_restricted && !accountRestriction?.restricted
+    && !(onlyAffiliationIssue && selectableAffiliations.length > 0);
 
   const displayName = profile.name || 'Drayber';
   const firstName = displayName.split(' ')[0] || 'Drayber';
@@ -551,7 +576,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           </Typography>
           <Switch
             checked={profile.isOnline}
-            disabled={!canGoOnline}
+            disabled={!canGoOnline || togglingOnline}
             onChange={handleToggleOnline}
             color="success"
             size="small"
@@ -608,7 +633,7 @@ export const DriverAvailabilityHome: React.FC = () => {
       )}
 
       {/* Documentary Restriction Warning Banner (Rule 24.2, 24.3) */}
-      {restrictionInfo?.is_restricted && !accountRestriction?.restricted && (
+      {showDocBanner && restrictionInfo && (
         <Paper
           elevation={3}
           sx={{
@@ -753,14 +778,30 @@ export const DriverAvailabilityHome: React.FC = () => {
           }}
         />
 
-        {!canGoOnline && (
-          <Box sx={{ p: '10px 14px', borderRadius: '12px', backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography sx={{ fontSize: '11.5px', color: '#B45309', fontWeight: 700 }}>
-              {language === 'tl'
-                ? 'Pumili muna ng beripikadong TODA at Tricycle Unit bago mag-Online.'
-                : 'Please select a Verified TODA and Tricycle Unit before going Online.'}
-            </Typography>
-          </Box>
+        {/* Rule 17.6: persistent reminder while Online */}
+        {isOnline && <DriverForegroundReminder />}
+
+        {/* The database's reason when Online was refused (never a guess) */}
+        {presenceMessage && (
+          <Alert severity="warning" onClose={() => setPresenceMessage(null)} sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+            {presenceMessage}
+          </Alert>
+        )}
+
+        {/* Only the real blocker is shown: suspension and documents have their own banners above */}
+        {!isOnline && isDriverVerifiedInDb && !accountRestriction?.restricted && !documentsBlock && affiliations.length > 0 && selectableAffiliations.length === 0 && (
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+            {language === 'tl'
+              ? 'Hindi pa tapos ang beripikasyon ng iyong TODA affiliation. Hindi ka pa makakapag-Online.'
+              : 'Your TODA affiliation is not fully verified yet, so you cannot go Online.'}
+          </Alert>
+        )}
+        {!isOnline && isDriverVerifiedInDb && !accountRestriction?.restricted && !documentsBlock && selectableAffiliations.length > 1 && !activeAffiliation && (
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+            {language === 'tl'
+              ? 'Pumili ng isang aktibong TODA sa ibaba bago mag-Online.'
+              : 'Select one active TODA below before going Online.'}
+          </Alert>
         )}
 
         <Box
@@ -809,6 +850,12 @@ export const DriverAvailabilityHome: React.FC = () => {
                 ? `${language === 'tl' ? 'Plaka' : 'Plate'}: ${selectedVehicle.plateNumber} • Franchise: ${selectedVehicle.franchiseNumber}`
                 : (language === 'tl' ? 'Rehistradong Tricycle Unit' : 'Registered Tricycle Unit')}
             </Typography>
+            {/* Rules 3.10 / 29.18: the verified unit is fixed; substituting needs TODA and LGU approval */}
+            <Typography sx={{ fontSize: '10.5px', color: '#64748B', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
+              {language === 'tl'
+                ? 'Naka-lock ang beripikadong unit. Makipag-ugnayan sa TODA at LGU para magpalit.'
+                : 'Your verified unit is locked. Ask your TODA and the LGU to change it.'}
+            </Typography>
           </Box>
         </Box>
       </Paper>
@@ -819,39 +866,44 @@ export const DriverAvailabilityHome: React.FC = () => {
         </DialogTitle>
         <DialogContent sx={{ px: 2.5, py: 0 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mt: 0.5 }}>
-            {availableTodas.length > 0 ? (
-              availableTodas.map((toda) => {
-                const isSelected = selectedTodaIds.includes(toda.id);
+            {/* Rule 3.10: no change while Online */}
+            {isOnline && (
+              <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+                {language === 'tl'
+                  ? 'Hindi maaaring magpalit ng aktibong TODA habang Online. Mag-Offline muna.'
+                  : 'The active TODA cannot be changed while you are Online. Go Offline first.'}
+              </Alert>
+            )}
+            {affiliations.length > 0 ? (
+              affiliations.map((option) => {
+                const locked = isOnline || selectingAffiliation || !option.isSelectable;
                 return (
                   <Box
-                    key={toda.id}
-                    onClick={() => {
-                      setProfile((prev) => ({
-                        ...prev,
-                        selectedTodaIds: [toda.id],
-                        selectedTodaId: toda.id,
-                        todaName: `${toda.name} (${toda.acronym})`,
-                      }));
-                    }}
+                    key={option.affiliationId}
+                    onClick={() => !locked && handleSelectAffiliation(option)}
                     sx={{
                       p: 1.5,
                       borderRadius: '14px',
-                      border: isSelected ? '2px solid #FF6B00' : '1px solid #E2E8F0',
-                      backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
-                      cursor: 'pointer',
+                      border: option.isActive ? '2px solid #FF6B00' : '1px solid #E2E8F0',
+                      backgroundColor: option.isActive ? '#FFF8F0' : '#FFFFFF',
+                      cursor: locked ? 'default' : 'pointer',
+                      opacity: option.isSelectable ? 1 : 0.6,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       transition: 'all 0.15s ease',
-                      '&:hover': { borderColor: '#FF6B00' },
+                      '&:hover': { borderColor: locked ? undefined : '#FF6B00' },
                     }}
                   >
                     <Box>
-                      <Typography sx={{ fontWeight: 700, fontSize: '13px', color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>{toda.name} ({toda.acronym})</Typography>
-                      <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>Terminal: {toda.terminalLocation}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: '13px', color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>{option.todaName} ({option.todaAcronym})</Typography>
+                      <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+                        {option.isSelectable ? `Terminal: ${option.coverage}` : option.statusLabel}
+                      </Typography>
                     </Box>
                     <Radio
-                      checked={isSelected}
+                      checked={option.isActive}
+                      disabled={locked}
                       sx={{
                         color: '#CBD5E1',
                         p: 0.5,
@@ -864,7 +916,7 @@ export const DriverAvailabilityHome: React.FC = () => {
             ) : (
               <Box sx={{ p: 2, textAlign: 'center' }}>
                 <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
-                  {language === 'tl' ? 'Walang nahanap na TODA sa database' : 'No TODAs found in database'}
+                  {language === 'tl' ? 'Wala ka pang TODA affiliation' : 'You have no TODA affiliations yet'}
                 </Typography>
               </Box>
             )}
@@ -892,8 +944,11 @@ export const DriverAvailabilityHome: React.FC = () => {
       </Dialog>
 
       <Dialog
-        open={locationPermissionOpen}
-        onClose={() => setLocationPermissionOpen(false)}
+        open={locationDialogOpen}
+        onClose={() => {
+          setLocationPermissionOpen(false);
+          setReauthDismissed(true);
+        }}
         maxWidth="xs"
         fullWidth
         slotProps={{

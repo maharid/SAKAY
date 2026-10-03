@@ -141,9 +141,7 @@ export const DriverLogin: React.FC = () => {
           plate_number: 'ABC 123',
           account_status: 'Verified',
           is_online: true,
-          current_latitude: 13.4124,
-          current_longitude: 121.1834,
-          last_location_update: new Date().toISOString(),
+          // No location here: the Online heartbeat is the only thing that publishes a driver's position (Batch 4).
         })
         .then(() => {});
 

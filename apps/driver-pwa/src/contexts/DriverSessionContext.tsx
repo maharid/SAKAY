@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { supabase } from '../services/supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
-import { getCurrentDevicePosition, getCachedDevicePosition, watchDevicePosition } from '@sakay/shared';
+import { DRIVER_OFFER_TIMEOUT_SECONDS, getCachedDevicePosition } from '@sakay/shared';
 import type { DriverProfile } from '../mockData/driverMockData';
+import { useDriverPresenceEngine } from '../hooks/useDriverPresenceEngine';
+import type { PresenceOutcome, PresenceView } from '../hooks/useDriverPresenceEngine';
+import type { PresenceEndReason } from '../services/driverPresenceService';
+
+/** Fallback poll for new offers when the realtime channel misses an event. */
+const OFFER_POLL_INTERVAL_MS = 3000;
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface DriverSessionContextType {
   profile: DriverProfile;
@@ -15,122 +23,116 @@ interface DriverSessionContextType {
   setCountdown: React.Dispatch<React.SetStateAction<number>>;
   declinedBookings: Set<string>;
   setDeclinedBookings: React.Dispatch<React.SetStateAction<Set<string>>>;
+  /** The driver pressed Decline (counts as an answer). */
   handleDeclineRequest: () => void;
+  /** The offer window ended with no answer (counts as unanswered, Rule 7.6). */
+  handleOfferTimeout: () => void;
   playIncomingAlert: () => void;
+
+  // ── Presence (Batch 4): the server decides, the app only displays and requests ──
+  presence: PresenceView;
+  goOnline: () => Promise<PresenceOutcome>;
+  goOffline: () => Promise<PresenceOutcome>;
+  refreshPresence: () => Promise<void>;
+  /** Tell the engine the driver granted location in the app's own prompt. */
+  enableLocation: () => void;
+  /** Location was revoked: show the re-authorization prompt before going Online again (Rule 17.7). */
+  locationReauthRequired: boolean;
+  /** Why the system ended the Online session (shown once). */
+  offlineNotice: { reason: PresenceEndReason } | null;
+  dismissOfflineNotice: () => void;
+  /** Rule 7.6 reminder is due. */
+  reminderOpen: boolean;
+  dismissReminder: () => void;
 }
 
 const DriverSessionContext = createContext<DriverSessionContextType | undefined>(undefined);
 
-export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [profile, setProfile] = useState<DriverProfile>(() => {
-    const cachedCoords = getCachedDevicePosition();
-    const fallbackLat = cachedCoords ? cachedCoords.latitude : 13.4117;
-    const fallbackLng = cachedCoords ? cachedCoords.longitude : 121.1803;
+function readStoredProfile(): DriverProfile {
+  const cachedCoords = getCachedDevicePosition();
+  const fallbackLat = cachedCoords ? cachedCoords.latitude : 13.4117;
+  const fallbackLng = cachedCoords ? cachedCoords.longitude : 121.1803;
 
-    const saved = localStorage.getItem('sakay_driver_profile');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const savedLat = typeof parsed.currentLat === 'number' && parsed.currentLat !== 13.367554 ? parsed.currentLat : null;
-        const savedLng = typeof parsed.currentLng === 'number' && parsed.currentLng !== 121.168617 ? parsed.currentLng : null;
+  const saved = localStorage.getItem('sakay_driver_profile');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      const savedLat = typeof parsed.currentLat === 'number' && parsed.currentLat !== 13.367554 ? parsed.currentLat : null;
+      const savedLng = typeof parsed.currentLng === 'number' && parsed.currentLng !== 121.168617 ? parsed.currentLng : null;
 
-        return {
-          id: parsed.id || '',
-          name: parsed.name || '',
-          phone: parsed.phone || '',
-          email: parsed.email || '',
-          licenseNo: parsed.licenseNumber || parsed.licenseNo || '',
-          licenseExpiry: parsed.licenseExpiry || '',
-          avatarUrl: '',
-          rating: typeof parsed.rating === 'number' ? parsed.rating : 5.0,
-          totalTrips: typeof parsed.totalTrips === 'number' ? parsed.totalTrips : 0,
-          accountStatus: parsed.accountStatus || 'Verified',
-          selectedTodaId: parsed.selectedTodaId || '',
-          selectedTodaIds: parsed.selectedTodaIds || (parsed.selectedTodaId ? [parsed.selectedTodaId] : []),
-          selectedVehicleId: parsed.selectedVehicleId || '',
-          vehiclePlate: parsed.vehiclePlate || '',
-          franchiseNumber: parsed.franchiseNumber || '',
-          todaName: parsed.todaName || '',
-          isOnline: parsed.isOnline || false, // Persist isOnline
-          isPaused: parsed.isPaused || false,
-          currentLat: savedLat ?? fallbackLat,
-          currentLng: savedLng ?? fallbackLng,
-        };
-      } catch (e) {
-        console.warn('Error parsing driver profile from storage:', e);
-      }
+      return {
+        id: parsed.id || '',
+        name: parsed.name || '',
+        phone: parsed.phone || '',
+        email: parsed.email || '',
+        licenseNo: parsed.licenseNumber || parsed.licenseNo || '',
+        licenseExpiry: parsed.licenseExpiry || '',
+        avatarUrl: '',
+        rating: typeof parsed.rating === 'number' ? parsed.rating : 5.0,
+        totalTrips: typeof parsed.totalTrips === 'number' ? parsed.totalTrips : 0,
+        accountStatus: parsed.accountStatus || 'Verified',
+        selectedTodaId: parsed.selectedTodaId || '',
+        selectedTodaIds: parsed.selectedTodaIds || (parsed.selectedTodaId ? [parsed.selectedTodaId] : []),
+        selectedVehicleId: parsed.selectedVehicleId || '',
+        vehiclePlate: parsed.vehiclePlate || '',
+        franchiseNumber: parsed.franchiseNumber || '',
+        todaName: parsed.todaName || '',
+        // Never trusted from storage: the server says whether the driver is Online (see presence below).
+        isOnline: false,
+        isPaused: false,
+        currentLat: savedLat ?? fallbackLat,
+        currentLng: savedLng ?? fallbackLng,
+      };
+    } catch (e) {
+      console.warn('Error parsing driver profile from storage:', e);
     }
-    return {
-      id: '', name: '', phone: '', email: '', licenseNo: '', licenseExpiry: '', avatarUrl: '',
-      rating: 5.0, totalTrips: 0, accountStatus: 'Verified', selectedTodaId: '', selectedTodaIds: [], selectedVehicleId: '',
-      vehiclePlate: '', franchiseNumber: '', todaName: '', isOnline: false, isPaused: false,
-      currentLat: fallbackLat, currentLng: fallbackLng,
-    };
-  });
+  }
+  return {
+    id: '', name: '', phone: '', email: '', licenseNo: '', licenseExpiry: '', avatarUrl: '',
+    rating: 5.0, totalTrips: 0, accountStatus: 'Verified', selectedTodaId: '', selectedTodaIds: [], selectedVehicleId: '',
+    vehiclePlate: '', franchiseNumber: '', todaName: '', isOnline: false, isPaused: false,
+    currentLat: fallbackLat, currentLng: fallbackLng,
+  };
+}
+
+/**
+ * `driverId` is the signed-in driver (null when nobody is signed in). The provider stays mounted for as long as
+ * a driver is signed in, so navigating between screens never resets presence or the location watcher.
+ */
+export const DriverSessionProvider: React.FC<{ driverId?: string | null; children: ReactNode }> = ({ driverId = null, children }) => {
+  const [profile, setProfile] = useState<DriverProfile>(readStoredProfile);
 
   const [incomingRequest, setIncomingRequest] = useState<BookingRecord | null>(null);
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState<number>(15);
+  const [countdown, setCountdown] = useState<number>(DRIVER_OFFER_TIMEOUT_SECONDS);
   const [declinedBookings, setDeclinedBookings] = useState<Set<string>>(new Set());
 
-  // Save profile changes (like goes online/offline)
+  const engine = useDriverPresenceEngine(driverId);
+  const { presence, fix } = engine;
+  const isOnline = presence.status === 'online';
+
+  // A different driver signed in (or out): start from that driver's stored profile.
+  const lastDriverIdRef = useRef<string | null>(driverId);
   useEffect(() => {
+    if (lastDriverIdRef.current === driverId) return;
+    lastDriverIdRef.current = driverId;
+    setProfile(readStoredProfile());
+  }, [driverId]);
+
+  // Save profile changes (only for a signed-in driver; the login screens must not get a stray profile)
+  useEffect(() => {
+    if (!driverId) return;
     localStorage.setItem('sakay_driver_profile', JSON.stringify(profile));
-  }, [profile]);
+  }, [profile, driverId]);
 
-  // GPS Tracking (App-Level with high-accuracy + network fallback and DB sync)
+  // "Online" shown anywhere in the app is the server's answer, whatever a screen writes with setProfile.
+  const exposedProfile = useMemo<DriverProfile>(() => ({ ...profile, isOnline, isPaused: false }), [profile, isOnline]);
+
+  // The engine's single watcher feeds the map position (local state only; the heartbeat is the only publisher).
   useEffect(() => {
-    const storedPerm = localStorage.getItem('sakay_driver_location_permission');
-    const prompted = localStorage.getItem('sakay_driver_location_prompted') === 'true';
-    if (storedPerm === 'denied') return;
-    if (storedPerm !== 'always' && storedPerm !== 'once' && !prompted) return;
-
-    const applyLiveCoords = (latitude: number, longitude: number) => {
-      setProfile((prev) => ({
-        ...prev,
-        currentLat: latitude,
-        currentLng: longitude,
-      }));
-
-      const activeDriverId = localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
-      if (activeDriverId) {
-        supabase
-          .from('driver')
-          .update({
-            current_latitude: latitude,
-            current_longitude: longitude,
-            last_location_update: new Date().toISOString(),
-          })
-          .eq('driver_id', activeDriverId)
-          .then(() => {});
-      }
-    };
-
-    // Initial fix using robust fallback
-    getCurrentDevicePosition()
-      .then((coords) => {
-        applyLiveCoords(coords.latitude, coords.longitude);
-      })
-      .catch((err) => {
-        console.warn('[DriverSessionProvider] Device location note:', err.message);
-      });
-
-    // Continuous watch
-    const watchId = watchDevicePosition(
-      (coords) => {
-        applyLiveCoords(coords.latitude, coords.longitude);
-      },
-      (err) => {
-        console.warn('[DriverSessionProvider] Watch location note:', err.message);
-      }
-    );
-
-    return () => {
-      if (watchId !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
-  }, []);
+    if (!fix) return;
+    setProfile((prev) => ({ ...prev, currentLat: fix.latitude, currentLng: fix.longitude }));
+  }, [fix]);
 
   const playIncomingAlert = () => {
     try {
@@ -155,41 +157,85 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
     } catch {}
   };
 
-  const handleDeclineRequest = async () => {
-    if (!incomingRequest) return;
+  const closeOffer = (bookingId: string) => {
     setDeclinedBookings((prev) => {
       const updated = new Set(prev);
-      updated.add(incomingRequest.booking_id);
+      updated.add(bookingId);
       return updated;
     });
+    setIncomingRequest(null);
+    setCurrentAttemptId(null);
+  };
 
-    if (currentAttemptId) {
+  // Explicit decline: the driver answered. responded_at is what tells the database it was an answer.
+  const handleDeclineRequest = async () => {
+    if (!incomingRequest) return;
+    const bookingId = incomingRequest.booking_id;
+    const attemptId = currentAttemptId;
+    closeOffer(bookingId);
+
+    if (attemptId) {
       try {
-        await supabase.from('dispatch_attempt').update({ response_status: 'Declined' }).eq('attempt_id', currentAttemptId);
+        await supabase
+          .from('dispatch_attempt')
+          .update({ response_status: 'Declined', responded_at: new Date().toISOString() })
+          .eq('attempt_id', attemptId)
+          .eq('response_status', 'Pending');
       } catch (err) {
         console.warn('Failed to decline attempt:', err);
       }
     }
+    engine.refresh();
+  };
 
-    setIncomingRequest(null);
-    setCurrentAttemptId(null);
+  // The window ended with no answer: recorded WITHOUT responded_at, so the database counts it as unanswered.
+  const handleOfferTimeout = async () => {
+    if (!incomingRequest) return;
+    const bookingId = incomingRequest.booking_id;
+    const attemptId = currentAttemptId;
+    closeOffer(bookingId);
+
+    if (attemptId) {
+      try {
+        await supabase
+          .from('dispatch_attempt')
+          .update({ response_status: 'Declined' })
+          .eq('attempt_id', attemptId)
+          .eq('response_status', 'Pending');
+      } catch (err) {
+        console.warn('Failed to record offer timeout:', err);
+      }
+    }
+    engine.refresh();
   };
 
   // Countdown Timer
   useEffect(() => {
     if (!incomingRequest) return;
     if (countdown <= 0) {
-      handleDeclineRequest();
+      handleOfferTimeout();
       return;
     }
     const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingRequest, countdown]);
 
-  // Realtime Dispatch Listener
+  // Realtime Dispatch Listener (this driver's offers only)
+  const incomingRequestRef = useRef<BookingRecord | null>(incomingRequest);
+  const declinedBookingsRef = useRef<Set<string>>(declinedBookings);
   useEffect(() => {
-    if (!profile.isOnline || profile.isPaused) {
-      if (incomingRequest) {
+    incomingRequestRef.current = incomingRequest;
+  }, [incomingRequest]);
+  useEffect(() => {
+    declinedBookingsRef.current = declinedBookings;
+  }, [declinedBookings]);
+
+  const offerDriverId = UUID_PATTERN.test(profile.id) ? profile.id : (driverId && UUID_PATTERN.test(driverId) ? driverId : null);
+
+  useEffect(() => {
+    if (!isOnline || !offerDriverId) {
+      if (incomingRequestRef.current) {
         setIncomingRequest(null);
         setCurrentAttemptId(null);
       }
@@ -197,13 +243,10 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
     }
 
     const fetchPendingAttempt = async () => {
-      const activeDriverId = profile.id || localStorage.getItem('sakay_driver_id') || '11111111-1111-1111-1111-111111111111';
-      if (!activeDriverId) return;
-
       const { data: attempt, error: attemptError } = await supabase
         .from('dispatch_attempt')
         .select('*')
-        .eq('driver_id', activeDriverId)
+        .eq('driver_id', offerDriverId)
         .eq('response_status', 'Pending')
         .order('notification_sent_at', { ascending: false })
         .limit(1)
@@ -214,7 +257,7 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
         return;
       }
 
-      if (attempt && !incomingRequest && !declinedBookings.has(attempt.booking_id)) {
+      if (attempt && !incomingRequestRef.current && !declinedBookingsRef.current.has(attempt.booking_id)) {
         // Fetch booking details
         const { data, error: bookingError } = await supabase
           .from('booking')
@@ -250,33 +293,33 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
             created_at: data.created_at,
             updated_at: data.created_at,
           };
-          
+
           setCurrentAttemptId(attempt.attempt_id);
           setIncomingRequest(mapped);
-          setCountdown(15);
+          setCountdown(DRIVER_OFFER_TIMEOUT_SECONDS);
           playIncomingAlert();
         } else if (data && data.booking_status !== 'Pending' && data.booking_status !== 'Searching Driver') {
           // Booking was cancelled or completed while attempt was in flight; mark attempt Expired
-          await supabase.from('dispatch_attempt').update({ response_status: 'Expired' }).eq('attempt_id', attempt.attempt_id);
+          await supabase.from('dispatch_attempt').update({ response_status: 'Expired', responded_at: new Date().toISOString() }).eq('attempt_id', attempt.attempt_id).eq('response_status', 'Pending');
         }
       }
     };
 
     fetchPendingAttempt();
-    const interval = setInterval(fetchPendingAttempt, 1200);
+    const interval = setInterval(fetchPendingAttempt, OFFER_POLL_INTERVAL_MS);
 
     const channel = supabase
-      .channel('public:dispatch_attempt')
+      .channel(`driver_offers_${offerDriverId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'dispatch_attempt' },
+        { event: 'INSERT', schema: 'public', table: 'dispatch_attempt', filter: `driver_id=eq.${offerDriverId}` },
         () => {
           fetchPendingAttempt();
         }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'dispatch_attempt' },
+        { event: 'UPDATE', schema: 'public', table: 'dispatch_attempt', filter: `driver_id=eq.${offerDriverId}` },
         () => {
           fetchPendingAttempt();
         }
@@ -287,12 +330,12 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [profile.isOnline, profile.isPaused, incomingRequest, declinedBookings, profile.id]);
+  }, [isOnline, offerDriverId]);
 
   return (
     <DriverSessionContext.Provider
       value={{
-        profile,
+        profile: exposedProfile,
         setProfile,
         incomingRequest,
         setIncomingRequest,
@@ -303,7 +346,18 @@ export const DriverSessionProvider: React.FC<{ children: ReactNode }> = ({ child
         declinedBookings,
         setDeclinedBookings,
         handleDeclineRequest,
-        playIncomingAlert
+        handleOfferTimeout,
+        playIncomingAlert,
+        presence,
+        goOnline: engine.goOnline,
+        goOffline: engine.goOffline,
+        refreshPresence: engine.refresh,
+        enableLocation: engine.enableLocation,
+        locationReauthRequired: engine.locationReauthRequired,
+        offlineNotice: engine.offlineNotice,
+        dismissOfflineNotice: engine.dismissOfflineNotice,
+        reminderOpen: engine.reminderOpen,
+        dismissReminder: engine.dismissReminder,
       }}
     >
       {children}

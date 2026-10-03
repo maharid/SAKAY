@@ -2,7 +2,38 @@ import { supabase } from '../config/supabase';
 
 let schedulerTimer: NodeJS.Timeout | null = null;
 let initialTimeout: NodeJS.Timeout | null = null;
+let presenceTimer: NodeJS.Timeout | null = null;
 let isExecuting = false;
+let isSweepingPresence = false;
+
+/**
+ * Batch 4: sets drivers Offline when their app has stopped reporting for longer than the
+ * heartbeat allowance (driver_presence_constant('heartbeat_stale_seconds') in the database).
+ * No strike is applied. Runs far more often than the hourly SLA cascade, so it has its own
+ * timer and mutex. The decision lives in sweep_driver_presence(); this only calls it.
+ */
+export async function executePresenceSweep(): Promise<{ success: boolean; skipped?: boolean; data?: unknown; error?: string }> {
+  if (isSweepingPresence) {
+    return { success: false, skipped: true, error: 'Presence sweep already in progress' };
+  }
+  if (!supabase) {
+    return { success: false, error: 'Supabase client not initialized' };
+  }
+  isSweepingPresence = true;
+  try {
+    const { data, error } = await supabase.rpc('sweep_driver_presence');
+    if (error) {
+      console.error('[Presence Sweep Error] RPC failed:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('[Presence Sweep Fatal Error]:', err);
+    return { success: false, error: err.message || 'Unknown presence sweep error' };
+  } finally {
+    isSweepingPresence = false;
+  }
+}
 
 /**
  * Executes a single authoritative SLA and credential expiry cascade run.
@@ -91,6 +122,12 @@ export function startSlaScheduler() {
     }
   }, intervalMs);
 
+  // Batch 4: driver presence sweep, every 60 s by default (PRESENCE_SWEEP_INTERVAL_MS).
+  const presenceMs = parseInt(process.env.PRESENCE_SWEEP_INTERVAL_MS || '60000', 10);
+  presenceTimer = setInterval(() => {
+    executePresenceSweep().catch((err) => console.error('[Presence Sweep] Interval run failed:', err));
+  }, presenceMs);
+
   console.log('[SLA Scheduler] Background daemon successfully started.');
 }
 
@@ -105,6 +142,10 @@ export function stopSlaScheduler() {
   if (schedulerTimer) {
     clearInterval(schedulerTimer);
     schedulerTimer = null;
+  }
+  if (presenceTimer) {
+    clearInterval(presenceTimer);
+    presenceTimer = null;
   }
   console.log('[SLA Scheduler] Daemon stopped.');
 }
