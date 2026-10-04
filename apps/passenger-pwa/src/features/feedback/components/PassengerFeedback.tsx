@@ -40,9 +40,10 @@ export const PassengerFeedback: React.FC = () => {
   const { language } = useLanguage();
 
   const booking = (location.state as { booking?: any })?.booking;
-  const driverName = booking?.driver_name || 'Aurelio Bautista';
-  const franchiseNo = booking?.franchise_no || 'CAL-2025-0773';
-  const todaName = booking?.toda_name || 'Calapan Central TODA';
+  // Never an invented driver: what the trip says, or a neutral label.
+  const driverName = booking?.driver_name || (language === 'tl' ? 'Drayber' : 'Driver');
+  const franchiseNo = booking?.franchise_no || '-';
+  const todaName = booking?.toda_name || '-';
 
   const [rating, setRating] = useState<number | null>(null);
   // RATING CHOICES MUST START UNSELECTED

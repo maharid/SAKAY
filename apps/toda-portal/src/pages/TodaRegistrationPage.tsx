@@ -44,7 +44,7 @@ import { SakayTextField } from '../components/common/SakayTextField';
 import SakayPhoneInput from '../components/common/SakayPhoneInput';
 import SakayToast from '../components/common/SakayToast';
 
-import { registerToda, uploadTodaDocument, checkAcronymAvailability } from '../services/todaApiService';
+import { registerToda, checkAcronymAvailability } from '../services/todaApiService';
 import { DateCalendarPopover } from '../components/popovers/DateCalendarPopover';
 import { TerminalMapPickerModal } from '../components/modals/TerminalMapPickerModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
@@ -264,36 +264,7 @@ export const TodaRegistrationPage: React.FC = () => {
         if (draft.treasurerName) setTreasurerName(draft.treasurerName);
         if (draft.treasurerContact) setTreasurerContact(draft.treasurerContact);
         if (draft.confirmAcronym) setConfirmAcronym(draft.confirmAcronym);
-        if (draft.clearanceDoc?.url) {
-          setClearanceDoc({
-            file: null,
-            url: draft.clearanceDoc.url,
-            fileName: draft.clearanceDoc.fileName,
-            sizeBytes: draft.clearanceDoc.sizeBytes,
-            isUploading: false,
-            uploadError: null,
-          });
-        }
-        if (draft.rosterDoc?.url) {
-          setRosterDoc({
-            file: null,
-            url: draft.rosterDoc.url,
-            fileName: draft.rosterDoc.fileName,
-            sizeBytes: draft.rosterDoc.sizeBytes,
-            isUploading: false,
-            uploadError: null,
-          });
-        }
-        if (draft.bylawsDoc?.url) {
-          setBylawsDoc({
-            file: null,
-            url: draft.bylawsDoc.url,
-            fileName: draft.bylawsDoc.fileName,
-            sizeBytes: draft.bylawsDoc.sizeBytes,
-            isUploading: false,
-            uploadError: null,
-          });
-        }
+        // Documents are not restored: a file cannot be kept in the browser draft, so they are attached again.
       }
     } catch (e) {
       console.warn('[TodaRegistrationPage] Failed to restore draft:', e);
@@ -337,9 +308,6 @@ export const TodaRegistrationPage: React.FC = () => {
       treasurerName,
       treasurerContact,
       confirmAcronym,
-      clearanceDoc: clearanceDoc.url ? { url: clearanceDoc.url, fileName: clearanceDoc.fileName, sizeBytes: clearanceDoc.sizeBytes } : undefined,
-      rosterDoc: rosterDoc.url ? { url: rosterDoc.url, fileName: rosterDoc.fileName, sizeBytes: rosterDoc.sizeBytes } : undefined,
-      bylawsDoc: bylawsDoc.url ? { url: bylawsDoc.url, fileName: bylawsDoc.fileName, sizeBytes: bylawsDoc.sizeBytes } : undefined,
       lastSaved: new Date().toISOString(),
     };
 
@@ -502,8 +470,8 @@ export const TodaRegistrationPage: React.FC = () => {
       }
     }
 
-    setDocState((prev) => ({ ...prev, isUploading: true, uploadError: null }));
-
+    // The file is only ATTACHED here. It is uploaded when the registration is submitted: an upload needs the registrant's own login,
+    // which is created at that moment (nothing can be uploaded anonymously).
     // Extract driver count from roster spreadsheet
     if (bucket === 'toda-accredited-driver-lists' || ['csv', 'xlsx', 'xls'].includes(file.name.split('.').pop()?.toLowerCase() || '')) {
       try {
@@ -514,31 +482,15 @@ export const TodaRegistrationPage: React.FC = () => {
       }
     }
 
-    try {
-      const result = await uploadTodaDocument(file, bucket);
-      setDocState({
-        file,
-        url: result.url,
-        fileName: result.fileName,
-        sizeBytes: result.sizeBytes,
-        isUploading: false,
-        uploadError: null,
-      });
-      showToast(`Attached ${file.name} successfully.`);
-    } catch (err: any) {
-      console.warn('Document storage upload fallback to local ObjectURL:', err);
-      // Ensure file attachment succeeds even if remote storage bucket is provisioning
-      const fallbackUrl = URL.createObjectURL(file);
-      setDocState({
-        file,
-        url: fallbackUrl,
-        fileName: file.name,
-        sizeBytes: file.size,
-        isUploading: false,
-        uploadError: null,
-      });
-      showToast(`Attached ${file.name} successfully.`);
-    }
+    setDocState({
+      file,
+      url: URL.createObjectURL(file),   // local preview only
+      fileName: file.name,
+      sizeBytes: file.size,
+      isUploading: false,
+      uploadError: null,
+    });
+    showToast(`Attached ${file.name} successfully.`);
   };
 
   const handleRemoveDoc = (
@@ -666,6 +618,12 @@ export const TodaRegistrationPage: React.FC = () => {
         }
       }
 
+      if (!clearanceDoc.file || !rosterDoc.file || !bylawsDoc.file) {
+        showToast('Please attach the Barangay Clearance, Driver Roster and Internal Bylaws again (files are not kept between visits).');
+        setIsSubmitting(false);
+        return;
+      }
+
       await registerToda({
         todaName: todaName.trim(),
         todaAcronym: cleanOrgAcronym,
@@ -681,9 +639,7 @@ export const TodaRegistrationPage: React.FC = () => {
         treasurerName: treasurerName.trim(),
         treasurerContact: treasurerContact.trim(),
         password,
-        barangayClearanceUrl: clearanceDoc.url || undefined,
-        accreditedDriversUrl: rosterDoc.url || undefined,
-        bylawsUrl: bylawsDoc.url || undefined,
+        files: { barangayClearance: clearanceDoc.file, driverRoster: rosterDoc.file, bylaws: bylawsDoc.file },
         registeredTricycleCount: driverCount,
         terminalLatitude,
         terminalLongitude,

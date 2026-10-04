@@ -103,11 +103,17 @@ const { setup, check, summary } = require('../b5fixtures');
   ];
   const snapshot = async () => JSON.stringify(await getBooking(B.booking_id));
   const before = await snapshot();
+  // The people ON the booking reach the lock and get its error. Everybody else is stopped earlier since the perimeter lockdown (S3):
+  // row security shows them no row (the statement changes nothing), and anon has no table privilege at all.
+  const onTheBooking = new Set(['the booking\'s passenger', 'the assigned driver', 'the LGU administrator']);
   for (const [label, run] of roles) {
     const failures = [];
     for (const [col, set, code] of edits) {
       const r = await attempt(() => run((tx) => tx.query(`UPDATE public.booking SET ${set} WHERE booking_id = $1`, [B.booking_id])));
-      if (r.ok || !r.error.includes(code)) failures.push({ col, got: err(r) });
+      const refusedByLock = !r.ok && r.error.includes(code);
+      const refusedBeforeTheLock = onTheBooking.has(label) ? false
+        : (r.ok ? r.value.rowCount === 0 : /permission denied|row-level security/.test(r.error));
+      if (!refusedByLock && !refusedBeforeTheLock) failures.push({ col, got: err(r) });
     }
     check(`${label} cannot change any of the ${edits.length} locked columns`, failures.length === 0, failures);
   }
@@ -167,6 +173,7 @@ const { setup, check, summary } = require('../b5fixtures');
   check('the rule in force when the booking was created is used (72) and recorded', num(lArr.actual_fare) === 72 && lArr.fare_matrix_id === R1 && lArr.fare_breakdown.legacy_rule_lookup === true, lArr);
   await done(L.booking_id);
   const N = await attempt(() => svc((tx) => tx.query(`INSERT INTO public.booking (passenger_id, passenger_count, pickup_address, pickup_latitude, pickup_longitude, dropoff_address, dropoff_latitude, dropoff_longitude, booking_status) VALUES ($1, 1, 'A', 13.4115, 121.1803, 'B', 13.42, 121.19, 'Trip Ongoing') RETURNING booking_id`, [ID.P1])));
+  await assign(N.value.rows[0].booking_id, ID.D1);   // since the perimeter lockdown (S3) a driver can only move a booking they are on
   const nArr = await setStatus(ID.D_AUTH, N.value.rows[0].booking_id, 'Arrived at Destination');
   check('a row with no distance at all just gets locked: nothing is invented', nArr.actual_fare === null && nArr.fare_locked_at !== null, nArr);
 
@@ -195,7 +202,9 @@ const { setup, check, summary } = require('../b5fixtures');
     const failures = [];
     for (const [col, set, code] of edits) {
       const r2 = await attempt(() => run((tx) => tx.query(`UPDATE public.booking SET ${set} WHERE booking_id = $1`, [F.booking_id])));
-      if (r2.ok || !r2.error.includes(code)) failures.push({ col, got: err(r2) });
+      // anon has no table privilege at all since the perimeter lockdown (S3): refused before the lock is reached
+      const stoppedEarly = label === 'an anonymous caller' && !r2.ok && /permission denied/.test(r2.error);
+      if (!stoppedEarly && (r2.ok || !r2.error.includes(code))) failures.push({ col, got: err(r2) });
     }
     check(`...${label} still cannot change any of the ${edits.length} locked columns`, failures.length === 0, failures);
   }

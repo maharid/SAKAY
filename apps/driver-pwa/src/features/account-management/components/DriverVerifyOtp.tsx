@@ -13,8 +13,7 @@ import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import SakayToast from '../../../common/components/SakayToast';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { sendDriverOtp, verifyDriverOtp, formatPhoneToE164, getPhoneLookupCandidates, lookupDriverByPhoneSecure } from '../../../services/driverApiService';
-import { supabase } from '../../../services/supabaseClient';
+import { sendDriverOtp, verifyDriverOtp, formatPhoneToE164, getPhoneLookupCandidates } from '../../../services/driverApiService';
 
 const formatDisplayPhone = (raw: string = ''): string => {
   const digits = raw.replace(/\D/g, '');
@@ -35,7 +34,7 @@ export const DriverVerifyOtp: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, language } = useLanguage();
-  const state = location.state as { phone?: string; password?: string; isRecovery?: boolean; isOtpLogin?: boolean; driverName?: string; todaId?: string; debugOtp?: string } | undefined;
+  const state = location.state as { phone?: string; driverName?: string } | undefined;
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -92,221 +91,35 @@ export const DriverVerifyOtp: React.FC = () => {
       setToastError(null);
 
       try {
-        const result = await verifyDriverOtp(state?.phone || '', enteredCode);
+        // The server checks the code against the signed-in driver's own number. There is no sandbox code, and if the server cannot be
+        // reached the code is not verified. (The driver is already signed in: registration created the login before this screen.)
+        const result = await verifyDriverOtp(targetPhone, enteredCode);
         if (!result.success) {
           setLoading(false);
           setToastError(result.error || (language === 'tl' ? 'Maling OTP code. Pakisubukang muli.' : 'Incorrect OTP code. Please try again.'));
           return;
         }
 
-        // Establish active Supabase Auth session for driver
-        const rawPhone = state?.phone || localStorage.getItem('sakay_driver_phone') || '';
-        const candidates = getPhoneLookupCandidates(rawPhone);
-        const e164Phone = candidates.e164;
-        const driverPassword = state?.password || localStorage.getItem('sakay_driver_password') || `SakayDriver#2026_${candidates.phoneRaw.slice(-4)}`;
-
-        if (rawPhone) {
-          try {
-            let authUser = (await supabase.auth.getUser()).data.user;
-
-            const savedAuthEmail = localStorage.getItem('sakay_driver_auth_email');
-            if (savedAuthEmail && !candidates.authCandidates.some((c: any) => c.email === savedAuthEmail)) {
-              candidates.authCandidates.unshift({ email: savedAuthEmail });
-            }
-
-            if (!authUser) {
-              for (const candidate of candidates.authCandidates) {
-                const { data: signInRes, error: signInErr } = await supabase.auth.signInWithPassword({
-                  ...candidate,
-                  password: driverPassword,
-                });
-                if (!signInErr && signInRes?.user) {
-                  authUser = signInRes.user;
-                  break;
-                }
-              }
-            }
-
-            if (!authUser) {
-              const emailToUse = savedAuthEmail || `driver_${candidates.phone63NoPlus}@sakay.ph`;
-              const { data: signUpRes } = await supabase.auth.signUp({
-                email: emailToUse,
-                password: driverPassword,
-                options: {
-                  data: {
-                    role: 'driver',
-                    phone: e164Phone,
-                    contact_number: e164Phone,
-                    full_name: state?.driverName || null,
-                    toda_id: state?.todaId || null,
-                  },
-                },
-              });
-              authUser = signUpRes?.user || null;
-
-              if (!authUser) {
-                const altEmail = `driver_${candidates.phone63NoPlus}+${Date.now().toString().slice(-6)}@sakay.ph`;
-                const { data: altSignUp } = await supabase.auth.signUp({
-                  email: altEmail,
-                  password: driverPassword,
-                  options: {
-                    data: {
-                      role: 'driver',
-                      phone: e164Phone,
-                      contact_number: e164Phone,
-                      full_name: state?.driverName || null,
-                      toda_id: state?.todaId || null,
-                    },
-                  },
-                });
-                authUser = altSignUp?.user || null;
-              }
-            }
-
-            if (authUser) {
-              console.log('[DriverVerifyOtp] Authenticated user session established:', authUser.id);
-              const { data: driverRows } = await supabase
-                .from('driver')
-                .select('driver_id, auth_user_id, contact_number')
-                .or(`auth_user_id.eq.${authUser.id},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
-                .limit(1);
-
-              const driverRow = driverRows?.[0] || null;
-
-              if (driverRow) {
-                console.log('[DriverVerifyOtp] Linking existing driver profile:', driverRow.driver_id);
-                await supabase
-                  .from('driver')
-                  .update({
-                    auth_user_id: authUser.id,
-                    contact_number: e164Phone,
-                    ...(state?.todaId ? { toda_id: state.todaId } : {}),
-                    ...(state?.driverName ? { full_name: state.driverName } : {}),
-                  })
-                  .eq('driver_id', driverRow.driver_id);
-              } else {
-                const storedTodaId = typeof window !== 'undefined' ? localStorage.getItem('sakay_driver_toda_id') : null;
-                await supabase
-                  .from('driver')
-                  .upsert(
-                    [
-                      {
-                        auth_user_id: authUser.id,
-                        full_name: state?.driverName || 'Bagong Drayber',
-                        contact_number: e164Phone,
-                        toda_id: state?.todaId || storedTodaId || null,
-                        account_status: 'Pending Verification',
-                        availability_status: 'Offline',
-                      },
-                    ],
-                    { onConflict: 'auth_user_id' }
-                  );
-              }
-            }
-          } catch (authErr) {
-            console.warn('[DriverVerifyOtp] Auth session setup warning:', authErr);
-          } finally {
-            try {
-              localStorage.setItem('sakay_driver_phone', e164Phone);
-              localStorage.removeItem('sakay_driver_password');
-            } catch {}
-          }
-        }
-
-        if (state?.isOtpLogin) {
-          const driverData = await lookupDriverByPhoneSecure(e164Phone);
-          setLoading(false);
-          if (driverData) {
-            localStorage.setItem('sakay_driver_phone', e164Phone);
-            localStorage.setItem('sakay_driver_id', driverData.driver_id);
-            const todaInfo = Array.isArray(driverData.toda) ? driverData.toda[0] : driverData.toda;
-            const todaNameStr = todaInfo?.toda_name || 'Calapan Central TODA';
-            const todaAcronymStr = todaInfo?.toda_acronym || 'CCTODA';
-
-            localStorage.setItem(
-              'sakay_driver_profile',
-              JSON.stringify({
-                name: driverData.full_name,
-                phone: driverData.contact_number || e164Phone,
-                vehiclePlate: driverData.plate_number || 'MV-101',
-                licenseNumber: driverData.license_number || 'L01-99-123456',
-                franchiseNumber: driverData.franchise_number || 'MTOP-PENDING',
-                todaName: `${todaNameStr} (${todaAcronymStr})`,
-                rating: 5.0,
-                isOnline: false,
-                isPaused: false,
-                accountStatus: driverData.account_status,
-                verificationStage: driverData.account_status === 'Verified' ? 'Stage 2 Approved' : 'Stage 1 TODA Review',
-              })
-            );
-
-            if (driverData.account_status === 'Verified') {
-              navigate('/driver/home', { replace: true });
-            } else if (driverData.account_status === 'Rejected') {
-              navigate('/driver/status', {
-                replace: true,
-                state: {
-                  driverName: driverData.full_name,
-                  accountStatus: 'Rejected',
-                  rejectionReason: driverData.verification?.remarks || 'Application rejected',
-                },
-              });
-            } else {
-              if (!driverData.verification || !driverData.verification.submitted_license_number) {
-                navigate('/driver/prepare-documents', {
-                  replace: true,
-                  state: {
-                    phone: e164Phone,
-                    driverName: driverData.full_name,
-                  },
-                });
-              } else {
-                const isEndorsed =
-                  driverData.verification.verification_status === 'Approved' ||
-                  driverData.verification.verification_status === 'TODA Approved' ||
-                  driverData.verification.verification_status === 'Endorsed to LGU' ||
-                  driverData.account_status === 'TODA Approved' ||
-                  driverData.account_status === 'Endorsed to LGU';
-
-                navigate('/driver/status', {
-                  replace: true,
-                  state: {
-                    driverName: driverData.full_name,
-                    accountStatus: isEndorsed ? 'Endorsed to LGU' : 'Pending Verification',
-                  },
-                });
-              }
-            }
-            return;
-          } else {
-            setToastError(
-              language === 'tl'
-                ? 'Walang nahanap na account para sa numerong ito. Mangyaring mag-register muna.'
-                : 'No account found for this mobile number. Please register first.'
-            );
-            return;
-          }
-        }
+        const e164Phone = formatPhoneToE164(targetPhone);
+        try {
+          localStorage.setItem('sakay_driver_phone', e164Phone);
+        } catch {}
 
         setLoading(false);
-        if (state?.isRecovery) {
-          navigate('/driver/reset-password', { replace: true, state: { phone: e164Phone } });
-        } else {
-          navigate('/driver/terms-of-service', {
-            replace: true,
-            state: {
-              driverName: state?.driverName || 'Bagong Drayber',
-              phone: e164Phone,
-              fromRegistration: true,
-            },
-          });
-        }
+        navigate('/driver/terms-of-service', {
+          replace: true,
+          state: {
+            driverName: state?.driverName || 'Bagong Drayber',
+            phone: e164Phone,
+            fromRegistration: true,
+          },
+        });
       } catch {
         setLoading(false);
         setToastError(language === 'tl' ? 'Hindi makumpleto ang verification.' : 'Verification service unavailable. Please check your connection.');
       }
     },
-    [loading, navigate, state, language]
+    [loading, navigate, state, language, targetPhone]
   );
 
   const handleIncomingSmsOtp = useCallback(
@@ -385,7 +198,7 @@ export const DriverVerifyOtp: React.FC = () => {
     setToastInfo(null);
 
     try {
-      const res = await sendDriverOtp(state?.phone || '');
+      const res = await sendDriverOtp(targetPhone);
       if (res.success) {
         hasAutoApprovedRef.current = false;
         setOtp(['', '', '', '', '', '']);
@@ -409,7 +222,7 @@ export const DriverVerifyOtp: React.FC = () => {
     executeVerification(enteredCode);
   };
 
-  const phoneCandidates = getPhoneLookupCandidates(state?.phone || '09181234567');
+  const phoneCandidates = getPhoneLookupCandidates(targetPhone);
   const displayPhone = formatDisplayPhone(phoneCandidates.phone09);
 
   return (
@@ -452,9 +265,7 @@ export const DriverVerifyOtp: React.FC = () => {
       >
         <IconButton
           onClick={() => {
-            if (state?.isRecovery) navigate('/driver/forgot-password');
-            else if (state?.isOtpLogin) navigate('/driver/login');
-            else if (window.history.length > 1) navigate(-1);
+            if (window.history.length > 1) navigate(-1);
             else navigate('/driver/register');
           }}
           sx={{

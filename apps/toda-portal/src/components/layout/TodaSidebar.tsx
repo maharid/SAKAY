@@ -541,7 +541,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                 TODA Organization
               </Typography>
               <Typography sx={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {profile?.name || 'Calapan Central TODA'} ({profile?.acronym || 'CCTODA'})
+                {profile?.name || 'Your TODA'}{profile?.acronym ? ` (${profile.acronym})` : ''}
               </Typography>
             </Box>
 

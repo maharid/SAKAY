@@ -22,7 +22,6 @@ import { useLanguage } from '../../../../utils/LanguageContext';
 import {
   ensurePassengerAuthSession,
   formatPhoneToE164,
-  lookupPassengerByPhone,
 } from '../../../../services/passengerApiService';
 
 export const formatMobileNumber = (value: string): string => {
@@ -217,24 +216,18 @@ export const Register: React.FC = () => {
       return;
     }
 
-    // Check if phone number is already registered and Active
-    const existing = await lookupPassengerByPhone(cleanPhoneDigits);
-    if (existing && (existing.account_status === 'Active' || existing.account_status === 'Verified')) {
-      const msg = language === 'tl'
-        ? 'Ang mobile number na ito ay nakarehistro na. Mag-log in o i-recover ang password.'
-        : 'This mobile number is already registered. Please log in or recover your password.';
-      setPhoneRegisteredError(msg);
-      setAccountError(msg);
-      setToastMessage(msg);
-      return;
-    }
-
     setSubmitted(true);
 
     try {
       const authResult = await ensurePassengerAuthSession(e164Phone, password, fullName);
       if (!authResult.success) {
-        setAccountError(authResult.error || (language === 'tl' ? 'Hindi maikonekta ang account sa database.' : 'Failed to initialize account.'));
+        const msg = authResult.error || (language === 'tl' ? 'Hindi maikonekta ang account sa database.' : 'Failed to initialize account.');
+        // "already registered" comes back from the sign-up itself (there is no separate look-up of who has an account)
+        if (/already registered|nakarehistro na/i.test(msg)) {
+          setPhoneRegisteredError(msg);
+          setToastMessage(msg);
+        }
+        setAccountError(msg);
         setSubmitted(false);
         return;
       }
@@ -248,14 +241,12 @@ export const Register: React.FC = () => {
     try {
       localStorage.removeItem('sakay_passenger_registration_draft');
       localStorage.setItem('sakay_passenger_phone', e164Phone);
-      localStorage.setItem('sakay_passenger_password', password);
     } catch {}
 
     navigate('/verify-otp', {
       state: {
         phone: e164Phone,
         identifier: e164Phone,
-        password: password,
         passengerName: fullName,
         fullName: fullName,
         role: 'passenger',

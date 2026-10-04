@@ -37,7 +37,7 @@ export const DriverPrepareLicense: React.FC = () => {
     navigate('/driver/scan-license-front', {
       state: {
         driverName: state?.driverName || 'Aurelio Bautista',
-        phone: state?.phone || '09181234567',
+        phone: state?.phone || localStorage.getItem('sakay_driver_phone') || '',
       },
     });
   };

@@ -38,18 +38,24 @@ export const startDispatch = async (bookingId: string) => {
     const pickupLat = Number(dbBooking.pickup_latitude) || 13.4117;
     const pickupLng = Number(dbBooking.pickup_longitude) || 121.1803;
 
-    // Helper to calculate distance with safe coordinate fallback
-    const getDriverDistance = (driver: any): number => {
-      const dLat = Number(driver.current_latitude) || 13.4117;
-      const dLng = Number(driver.current_longitude) || 121.1803;
-      return getDistanceKm(pickupLat, pickupLng, dLat, dLng);
+    // Drivers are not read from the driver table (a passenger cannot see other people's records). The database answers, for THIS booking
+    // only, with the drivers that are Available and verified and have not been offered it yet: id, TODA and distance from the pickup
+    // (rounded to 0.1 km), nearest first. A driver whose position is unknown has no distance and is only tried in the last round.
+    interface Candidate { driver_id: string; toda_id: string | null; distance_km: number | null }
+    const fetchCandidates = async (): Promise<Candidate[]> => {
+      const { data, error } = await supabase.rpc('find_candidate_drivers', { p_booking_id: bookingId, p_max_km: 100, p_limit: 50 });
+      if (error) {
+        console.warn('[dispatchService] find_candidate_drivers:', error.message);
+        return [];
+      }
+      return (data ?? []) as Candidate[];
     };
+    const getDriverDistance = (candidate: Candidate): number =>
+      candidate.distance_km === null || candidate.distance_km === undefined ? Number.POSITIVE_INFINITY : Number(candidate.distance_km);
 
     // 1. Priority TODA Identification
-    const { data: todas } = await supabase
-      .from('toda')
-      .select('toda_id, terminal_latitude, terminal_longitude, account_status')
-      .eq('account_status', 'Active');
+    // The public directory of accredited TODAs (id, name, terminal position): the toda table itself is not readable by passengers.
+    const { data: todas } = await supabase.rpc('list_accredited_todas');
 
     let priorityTodaId: string | null = null;
     let closestTodaDistance = Infinity;
@@ -89,7 +95,7 @@ export const startDispatch = async (bookingId: string) => {
           return true; // Someone accepted or cancelled
         }
 
-        console.log(`[dispatchService] Offering to driver ${driver.driver_id} (${driver.full_name || 'Driver'}, Rank ${i + 1})`);
+        console.log(`[dispatchService] Offering to driver ${driver.driver_id} (Rank ${i + 1})`);
         
         // Insert dispatch attempt
         const { data: attempt, error: attemptError } = await supabase
@@ -176,11 +182,7 @@ export const startDispatch = async (bookingId: string) => {
     };
 
     // Pre-fetch available verified drivers
-    const { data: onlineDrivers } = await supabase
-      .from('driver')
-      .select('*')
-      .eq('availability_status', 'Available')
-      .eq('account_status', 'Verified');
+    const onlineDrivers = await fetchCandidates();
 
     // --- TIER 1: Priority TODA (<= 1.5km) OR Any Driver within Immediate Vicinity (<= 0.8km) ---
     console.log('[dispatchService] Executing Tier 1');
@@ -235,11 +237,7 @@ export const startDispatch = async (bookingId: string) => {
       const { data: pastAttempts } = await supabase.from('dispatch_attempt').select('driver_id').eq('booking_id', bookingId);
       const pastDriverIds = new Set(pastAttempts?.map(a => a.driver_id) || []);
 
-      const { data: currentDrivers } = await supabase
-        .from('driver')
-        .select('*')
-        .eq('availability_status', 'Available')
-        .eq('account_status', 'Verified');
+      const currentDrivers = await fetchCandidates();
 
       if (currentDrivers && currentDrivers.length > 0) {
         const eligibleTier3 = currentDrivers.filter(d => {
@@ -260,11 +258,7 @@ export const startDispatch = async (bookingId: string) => {
     // --- FALLBACK: Offer to Any Remaining Available Verified Driver ---
     if (isDispatchActive) {
       console.log('[dispatchService] Fallback: Checking any available verified driver...');
-      const { data: allAvailable } = await supabase
-        .from('driver')
-        .select('*')
-        .eq('availability_status', 'Available')
-        .eq('account_status', 'Verified');
+      const allAvailable = await fetchCandidates();
 
       if (allAvailable && allAvailable.length > 0) {
         const { data: pastAttempts } = await supabase.from('dispatch_attempt').select('driver_id').eq('booking_id', bookingId);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -8,82 +8,17 @@ import Alert from "@mui/material/Alert";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
-import SuccessModal from "../../../../common/components/SuccessModal";
-import { RegisterInput } from "../../../../common/components/RegisterInput";
-import { supabase } from "../../../../services/supabaseClient";
-import { formatPhoneToE164 } from "../../../../utils/phone";
 
+/**
+ * Password reset is switched off for now.
+ *
+ * The old screen looked up whether a mobile number was registered before anything else (anybody could use it to find out who has an
+ * account), then "sent" a code through a path that approved any code. A safe reset needs a server-checked code tied to the account;
+ * that is the OTP redesign, and until it ships this screen only tells the user where to get help. Nothing here reads or writes data.
+ */
 const ForgotPassword: React.FC = () => {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const navigate = useNavigate();
-
-  // Input states
-  const [identifier, setIdentifier] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!identifier.trim()) {
-      setError(t.phoneRequired);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const formattedPhone = formatPhoneToE164(identifier);
-
-      // Check if user exists before triggering OTP
-      const { data: existingPassenger } = await supabase
-        .from('passenger')
-        .select('passenger_id')
-        .eq('contact_number', formattedPhone)
-        .maybeSingle();
-
-      const { data: existingDriver } = await supabase
-        .from('driver')
-        .select('driver_id')
-        .eq('contact_number', formattedPhone)
-        .maybeSingle();
-
-      if (!existingPassenger && !existingDriver) {
-        setError(language === "tl" ? "Hindi rehistrado ang mobile number na ito." : "This mobile number is not registered.");
-        setLoading(false);
-        return;
-      }
-
-      // Request recovery OTP via Supabase (proceeds with simulated OTP if SMS platform is not yet configured)
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
-
-      if (otpError) {
-        console.warn('[ForgotPassword] Supabase SMS provider not yet integrated, proceeding with auto-approved OTP flow:', otpError.message);
-      }
-
-      setLoading(false);
-      setSuccess(true);
-      
-      setTimeout(() => {
-        // Navigate to verify OTP, passing phone and recovery type in state
-        navigate("/verify-otp", {
-          state: {
-            identifier: formattedPhone,
-            type: 'recovery',
-          },
-        });
-      }, 1500);
-
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred while requesting reset.';
-      setError(errMsg);
-      setLoading(false);
-    }
-  };
 
   return (
     <Box
@@ -151,55 +86,22 @@ const ForgotPassword: React.FC = () => {
           }}
         >
           {language === "tl"
-            ? "Ilagay ang iyong email o mobile number para i-reset ang iyong password."
-            : "Enter your email or mobile number to reset your password."}
+            ? "Pansamantalang hindi available ang pag-reset ng password sa app."
+            : "Resetting your password in the app is temporarily unavailable."}
         </Typography>
       </Box>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ width: "100%", marginTop: "24px", borderRadius: "12px" }}>
-          {error}
-        </Alert>
-      )}
+      <Alert severity="info" sx={{ width: "100%", marginTop: "24px", borderRadius: "12px" }}>
+        {language === "tl"
+          ? "Para mabawi ang iyong account, makipag-ugnayan sa SAKAY support o sa tanggapan ng LGU. Dalhin ang iyong valid ID at ang mobile number na ginamit mo sa pagpaparehistro."
+          : "To recover your account, please contact SAKAY support or the LGU transport office. Bring a valid ID and the mobile number you registered with."}
+      </Alert>
 
-      {/* Form */}
-      <Box
-        component="form"
-        onSubmit={handleSubmit}
-        className="anim-fade-in"
-        sx={{
-          marginTop: "32px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          width: "100%",
-        }}
-      >
-        <Box sx={{ width: "100%" }}>
-          <RegisterInput
-            label={language === "tl" ? "Email o Mobile Number" : "Email or Mobile Number"}
-            value={identifier}
-            onChange={(val) => setIdentifier(val)}
-            required
-            error={Boolean(error)}
-            readOnly={loading}
-          />
-        </Box>
-
-        <Box sx={{ marginTop: "24px", width: "100%" }}>
-          <PrimaryButton type="submit" fullWidth loading={loading}>
-            {language === "tl" ? "Ipadala ang Reset Code" : "Send Reset Code"}
-          </PrimaryButton>
-        </Box>
+      <Box sx={{ marginTop: "32px", width: "100%" }}>
+        <PrimaryButton fullWidth onClick={() => navigate("/login")}>
+          {language === "tl" ? "Bumalik sa Login" : "Back to Log In"}
+        </PrimaryButton>
       </Box>
-
-      {/* Success Modal */}
-      <SuccessModal
-        open={success}
-        title={language === "tl" ? "Naipadala na ang Code!" : "Code Sent!"}
-        message={language === "tl" ? "Naipadala na ang reset code sa iyong email o mobile number." : "Reset code has been sent to your email or mobile number."}
-      />
     </Box>
   );
 };

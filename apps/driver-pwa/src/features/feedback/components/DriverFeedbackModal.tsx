@@ -137,8 +137,9 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
     if (alreadyRated) return;
     setSubmitting(true);
 
-    const activeDriverId = localStorage.getItem('sakay_driver_id') || booking?.driver_id || 'DRV-DEMO';
-    const activePassengerId = booking?.passenger_id || 'PSG-DEMO';
+    // Real ids only: with either one missing the rating is kept on the device but nothing is sent to the database.
+    const activeDriverId = localStorage.getItem('sakay_driver_id') || booking?.driver_id || '';
+    const activePassengerId = booking?.passenger_id || '';
 
     const record = {
       bookingId,
@@ -150,7 +151,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
     };
 
     try {
-      if (bookingId) {
+      if (bookingId && activeDriverId && activePassengerId) {
         await supabase.from('rating').insert([
           {
             booking_id: bookingId,

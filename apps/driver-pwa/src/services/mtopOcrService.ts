@@ -1,4 +1,6 @@
 import { createWorker } from 'tesseract.js';
+import { apiFetch } from '@sakay/shared';
+import { supabase } from './supabaseClient';
 import type { MtopExtractedData } from './driverOnboardingCache';
 import { cropRoiCanvas } from './imageEnhancementService';
 import { formatDateToMmDdYyyy } from './licenseOcrService';
@@ -528,10 +530,10 @@ export async function parseMtopImage(
     try {
       onProgress?.(15, 'Scanning with Gemini Vision AI...');
       const payloadImage = rawImageDataUrl || imageDataUrl;
-      const response = await fetch('/api/ocr/mtop', {
+      const response = await apiFetch(supabase, '/api/ocr/mtop', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: payloadImage }),
+        timeoutMs: 45000,
       });
 
       if (response.ok) {

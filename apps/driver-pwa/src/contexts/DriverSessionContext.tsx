@@ -271,7 +271,7 @@ export const DriverSessionProvider: React.FC<{
         // Fetch booking details
         const { data, error: bookingError } = await supabase
           .from('booking')
-          .select('*, passenger:passenger_id(*)')
+          .select('*')
           .eq('booking_id', attempt.booking_id)
           .single();
 
@@ -280,14 +280,18 @@ export const DriverSessionProvider: React.FC<{
           return;
         }
 
+        // The passenger's NAME for an offer comes from a function that discloses just that (the phone stays hidden until the driver
+        // accepts); the passenger table itself is not readable by a driver.
+        const { data: parties } = await supabase.rpc('get_booking_counterparties', { p_booking_ids: [attempt.booking_id] });
+        const party = ((parties ?? []) as Array<{ passenger_name?: string | null; passenger_phone?: string | null }>)[0];
+
         // Only pop up if booking is actually still pending/searching
         if (data && (data.booking_status === 'Pending' || data.booking_status === 'Searching Driver')) {
-          const p = Array.isArray(data.passenger) ? data.passenger[0] : data.passenger;
           const mapped: BookingRecord = {
             booking_id: data.booking_id,
-            passenger_id: data.passenger_id || 'passenger-demo',
-            passenger_name: data.passenger_name || p?.full_name || 'Passenger',
-            passenger_phone: p?.contact_number || data.passenger_phone || '+63 917 123 4567',
+            passenger_id: data.passenger_id || '',
+            passenger_name: party?.passenger_name || data.passenger_name || 'Passenger',
+            passenger_phone: party?.passenger_phone || '',
             booking_type: data.booking_type || 'Immediate',
             is_shared_trip: Boolean(data.is_shared_trip),
             passenger_count: data.passenger_count || 1,

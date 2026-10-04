@@ -132,21 +132,20 @@ export interface AffiliationOption {
   statusLabel: string;
 }
 
-/** The driver's OWN affiliations (Rules 3.1 / 3.10). Only verified ones can be selected. */
-export async function fetchMyAffiliationOptions(driverId: string): Promise<AffiliationOption[]> {
+/**
+ * The driver's OWN affiliations (Rules 3.1 / 3.10). Only verified ones can be selected.
+ * They come from a database function that returns only the caller's rows together with each TODA's display fields (name, status,
+ * accreditation expiry): the toda table itself is not readable by a driver, so an embed of it would come back empty.
+ */
+export async function fetchMyAffiliationOptions(_driverId?: string): Promise<AffiliationOption[]> {
   try {
-    const { data, error } = await supabase
-      .from('driver_toda_affiliation')
-      .select('affiliation_id, toda_id, toda_endorsement_status, lgu_verification_status, is_active_selection, toda:toda_id(toda_name, toda_acronym, toda_status, certificate_expiry, service_coverage_area, barangay)')
-      .eq('driver_id', driverId)
-      .order('submitted_at', { ascending: true });
+    const { data, error } = await supabase.rpc('get_my_toda_affiliations');
     if (error || !data) return [];
 
     const today = new Date().toISOString().slice(0, 10);
-    return data.map((row: any) => {
-      const toda = Array.isArray(row.toda) ? row.toda[0] : row.toda;
+    return (data as any[]).map((row: any) => {
       const verified = row.toda_endorsement_status === 'Endorsed' && row.lgu_verification_status === 'Approved';
-      const todaOk = !!toda && toda.toda_status === 'Active' && (!toda.certificate_expiry || String(toda.certificate_expiry).slice(0, 10) >= today);
+      const todaOk = row.toda_status === 'Active' && (!row.certificate_expiry || String(row.certificate_expiry).slice(0, 10) >= today);
       let statusLabel = 'Verified';
       if (!verified) {
         statusLabel = row.toda_endorsement_status !== 'Endorsed' ? `TODA review: ${row.toda_endorsement_status}` : `LGU review: ${row.lgu_verification_status}`;
@@ -156,9 +155,9 @@ export async function fetchMyAffiliationOptions(driverId: string): Promise<Affil
       return {
         affiliationId: row.affiliation_id,
         todaId: row.toda_id,
-        todaName: toda?.toda_name || 'TODA',
-        todaAcronym: toda?.toda_acronym || 'TODA',
-        coverage: toda?.service_coverage_area || toda?.barangay || 'Calapan City',
+        todaName: row.toda_name || 'TODA',
+        todaAcronym: row.toda_acronym || 'TODA',
+        coverage: row.service_coverage_area || row.barangay || 'Calapan City',
         isActive: !!row.is_active_selection,
         isSelectable: verified && todaOk,
         statusLabel,

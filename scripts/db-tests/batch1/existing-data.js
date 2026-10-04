@@ -101,9 +101,13 @@ const BEFORE_BATCH1 = '20260927020000_fix_all_security_advisor_red_notices.sql';
         (SELECT count(*) FROM public.toda WHERE toda_status = 'Active')::int AS todas,
         (SELECT count(*) FROM public.lgu_admin)::int AS lgu,
         (SELECT count(*) FROM public.toda_admin)::int AS toda_admins,
+        (SELECT count(*) FROM auth.users WHERE email IN ('admin@gmail.com', 'cctoda@toda.sakay.internal', 'bltoda@toda.sakay.internal',
+                                                         'svtoda@toda.sakay.internal', 'lptoda@toda.sakay.internal'))::int AS seeded_logins,
         (SELECT count(*) FROM public.fare_matrix)::int AS fares`)).rows[0];
-      check('the seed leaves 3 Active TODAs, an LGU admin, 3 TODA admins and a fare matrix',
-        seeded.todas === 3 && seeded.lgu === 1 && seeded.toda_admins === 3 && seeded.fares >= 1, seeded);
+      // Perimeter lockdown (D-SEC-5): the seed holds master data only. It used to create an LGU administrator and TODA administrators
+      // with passwords written in the file; no login account comes from it any more.
+      check('the seed leaves 3 Active TODAs and a fare matrix, and creates NO login account (no administrator, nothing in auth.users)',
+        seeded.todas === 3 && seeded.lgu === 0 && seeded.toda_admins === 0 && seeded.seeded_logins === 0 && seeded.fares >= 1, seeded);
     }
   }
 

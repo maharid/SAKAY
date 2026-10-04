@@ -46,9 +46,19 @@ CREATE SCHEMA storage;
 CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
 CREATE TABLE storage.objects (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bucket_id text, name text, owner uuid);
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql AS $$ SELECT string_to_array(name, '/') $$;
+-- Same behaviour as Supabase's storage.foldername(): the folder parts WITHOUT the file name ('a/b/c.png' -> {a,b}; 'c.png' -> {}).
+CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE plpgsql AS $$
+DECLARE _parts text[];
+BEGIN
+  SELECT string_to_array(name, '/') INTO _parts;
+  RETURN _parts[1:array_length(_parts, 1) - 1];
+END $$;
 
 GRANT USAGE ON SCHEMA public, auth TO anon, authenticated, service_role;
+-- Supabase gives the API roles broad table privileges on storage; the row policies on storage.objects decide.
+GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
+GRANT ALL ON storage.objects TO anon, authenticated, service_role;
+GRANT SELECT ON storage.buckets TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;

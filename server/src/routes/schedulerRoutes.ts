@@ -1,32 +1,15 @@
 import express, { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { executeSlaCascadeRun } from '../services/slaSchedulerService';
+import { createSchedulerGuard } from '../middleware/schedulerSecret';
 
 const router = express.Router();
 
 /**
- * Middleware: Enforce Secret Protection on Scheduler endpoints (Requirement 6, Checkpoint b)
- * Never accessible to anonymous/unauthenticated public callers.
+ * Scheduler endpoints are for a cron service, never for people or browsers. The guard fails CLOSED (503) when SCHEDULER_SECRET is not
+ * set (it used to fall back to a default secret that was written in this file) and compares the secret in constant time.
  */
-function enforceSchedulerSecret(req: Request, res: Response, next: express.NextFunction) {
-  const configuredSecret = process.env.SCHEDULER_SECRET || 'sakay-internal-scheduler-secret';
-  const providedSecret =
-    req.header('X-Scheduler-Secret') ||
-    (req.header('Authorization')?.startsWith('Bearer ')
-      ? req.header('Authorization')?.slice(7)
-      : null);
-
-  if (!providedSecret || providedSecret !== configuredSecret) {
-    console.warn(`[Scheduler Security] Unauthorized cron trigger attempt from IP: ${req.ip}`);
-    res.status(401).json({
-      success: false,
-      error: 'Access Denied: Invalid or missing scheduler secret header (X-Scheduler-Secret).',
-    });
-    return;
-  }
-
-  next();
-}
+const enforceSchedulerSecret = createSchedulerGuard();
 
 /**
  * POST /api/scheduler/run-sla-checks

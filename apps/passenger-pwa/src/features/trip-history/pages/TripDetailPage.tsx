@@ -36,7 +36,8 @@ export const TripDetailPage: React.FC = () => {
   const pickupAddress = stateTrip?.pickup || "Rizal Ave, Batangas City, Batangas, Philippines";
   const dropoffAddress = stateTrip?.dropoff || "Batangas State University-Alangilan Campus";
   const driverName = stateTrip?.driverName || "Aurelio Bautista";
-  const driverPhone = stateTrip?.driverPhone || "+639171234567";
+  // The driver's number is shown only when the server gave it (while the trip is live); never an invented one.
+  const driverPhone: string = stateTrip?.driverPhone || "";
   const price = stateTrip?.price || "₱110.00";
   const status = stateTrip?.status || "Completed";
 
@@ -123,7 +124,7 @@ export const TripDetailPage: React.FC = () => {
   };
 
   const handleOpenSMS = () => {
-    window.location.href = `sms:${driverPhone}`;
+    if (driverPhone) window.location.href = `sms:${driverPhone}`;
   };
 
   return (
@@ -431,7 +432,7 @@ export const TripDetailPage: React.FC = () => {
                 {driverName}
               </Typography>
               <Typography sx={{ fontSize: "11.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                {driverPhone}
+                {driverPhone || (language === "tl" ? "Hindi na ibinabahagi ang numero pagkatapos ng biyahe" : "The number is not shared after the trip")}
               </Typography>
             </Box>
           </Box>
@@ -440,6 +441,7 @@ export const TripDetailPage: React.FC = () => {
             variant="outlined"
             startIcon={<ChatOutlinedIcon />}
             onClick={handleOpenSMS}
+            disabled={!driverPhone}
             sx={{
               borderRadius: "999px",
               borderColor: "#FF6B00",

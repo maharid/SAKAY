@@ -22,6 +22,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
+import { refreshStorageUrl } from '@sakay/shared';
+import { supabase } from '../../services/supabaseClient';
 
 export interface DocumentPreviewModalProps {
   open: boolean;
@@ -48,7 +50,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   onApproveDocument,
   onRequestResubmit,
 }) => {
-  const allUrls: string[] = urls && urls.length > 0 ? urls.filter(Boolean) : (url ? [url] : []);
+  const sourceUrls: string[] = urls && urls.length > 0 ? urls.filter(Boolean) : (url ? [url] : []);
+  // Links that were signed when a list loaded may be past their short life (10 minutes): they are signed again when the preview opens.
+  const [allUrls, setAllUrls] = useState<string[]>([]);
+  const [resolving, setResolving] = useState<boolean>(false);
   const [photoIndex, setPhotoIndex] = useState<number>(0);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [imgLoading, setImgLoading] = useState<boolean>(true);
@@ -59,6 +64,29 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     setZoomLevel(1);
     setImgLoading(true);
     setImgError(false);
+  }, [open, url, urls]);
+
+  useEffect(() => {
+    if (!open) {
+      setAllUrls([]);
+      return;
+    }
+    let cancelled = false;
+    setResolving(true);
+    Promise.all(sourceUrls.map((u) => refreshStorageUrl(supabase, u)))
+      .then((list) => {
+        if (!cancelled) setAllUrls(list.map((u, i) => u || sourceUrls[i]));
+      })
+      .catch(() => {
+        if (!cancelled) setAllUrls(sourceUrls);
+      })
+      .finally(() => {
+        if (!cancelled) setResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, url, urls]);
 
   const activeUrl = allUrls[photoIndex] || null;
@@ -371,6 +399,11 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               />
             </Box>
           )
+        ) : resolving ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+            <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
+            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>Preparing secure link...</Typography>
+          </Box>
         ) : (
           <Box
             sx={{

@@ -15,6 +15,7 @@ import PageHeader from "../../../../common/components/PageHeader";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { supabase } from "../../../../services/supabaseClient";
+import { SIGNED_URL_TTL, ownedObjectPath, signedStorageUrl } from "@sakay/shared";
 
 export const ProfileEditor: React.FC = () => {
   const { language, t } = useLanguage();
@@ -73,7 +74,7 @@ export const ProfileEditor: React.FC = () => {
       if (profile) {
         setFullName(profile.full_name || user.user_metadata?.full_name || "");
         setAddress(profile.residential_address || "");
-        setProfilePhotoUrl(profile.profile_photo_url || "");
+        setProfilePhotoUrl((await signedStorageUrl(supabase, "profiles", profile.profile_photo_url, SIGNED_URL_TTL.avatar)) || "");
         if (profile.contact_number) {
           setContactNumber(profile.contact_number);
           setInitialContactNumber(profile.contact_number);
@@ -113,9 +114,9 @@ export const ProfileEditor: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User session not found.");
 
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      // Files live in the owner's own folder of the private "profiles" bucket: <auth uid>/avatar-<time>.<ext>
+      const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const filePath = ownedObjectPath(user.id, `avatar-${Date.now()}.${fileExt}`);
 
       const { error: uploadErr } = await supabase.storage
         .from("profiles")
@@ -125,29 +126,22 @@ export const ProfileEditor: React.FC = () => {
         throw new Error(uploadErr.message);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from("profiles")
-        .getPublicUrl(filePath);
-
-      setProfilePhotoUrl(publicUrl);
-
+      // Only the storage path is kept in the database; the screen gets a signed URL.
       const { error: updateErr } = await supabase
         .from("passenger")
-        .update({ profile_photo_url: publicUrl })
+        .update({ profile_photo_url: filePath })
         .eq("auth_user_id", user.id);
 
       if (updateErr) {
         throw new Error(updateErr.message);
       }
 
-      await supabase.auth.updateUser({
-        data: { profile_photo_url: publicUrl },
-      });
+      setProfilePhotoUrl((await signedStorageUrl(supabase, "profiles", filePath, SIGNED_URL_TTL.avatar)) || "");
     } catch (err: unknown) {
       const errMsg =
         err instanceof Error
           ? err.message
-          : "Failed to upload photo. Make sure a public storage bucket named 'profiles' is configured.";
+          : "Failed to upload the photo. Please try again.";
       setError(errMsg);
     } finally {
       setUploadingPhoto(false);

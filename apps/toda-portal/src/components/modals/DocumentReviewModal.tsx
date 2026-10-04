@@ -30,6 +30,7 @@ import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import { parseDriverRoster, DriverRosterRow } from '../../utils/rosterParser';
+import { refreshStorageUrl, signedStorageUrlFromAny } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 
 interface DocumentReviewModalProps {
@@ -95,17 +96,13 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
       let currentUrl = fileUrl;
       if (fileObj) {
         currentUrl = URL.createObjectURL(fileObj);
-      } else if (fileUrl && !fileUrl.startsWith('http') && !fileUrl.startsWith('blob:') && !fileUrl.startsWith('data:')) {
-        const buckets = ['barangay-clearances', 'toda-accredited-driver-lists', 'toda-bylaws'];
-        for (const b of buckets) {
-          try {
-            const { data } = await supabase.storage.from(b).createSignedUrl(fileUrl, 86400);
-            if (data?.signedUrl) {
-              currentUrl = data.signedUrl;
-              break;
-            }
-          } catch {}
-        }
+      } else if (fileUrl && /^https?:\/\//i.test(fileUrl)) {
+        // a link that was signed when the list loaded may be past its short life (10 minutes): sign it again
+        currentUrl = (await refreshStorageUrl(supabase, fileUrl)) || fileUrl;
+      } else if (fileUrl && !fileUrl.startsWith('blob:') && !fileUrl.startsWith('data:')) {
+        // a bare storage path
+        currentUrl =
+          (await signedStorageUrlFromAny(supabase, ['barangay-clearances', 'toda-accredited-driver-lists', 'toda-bylaws'], fileUrl)) || fileUrl;
       }
 
       if (isMounted) {

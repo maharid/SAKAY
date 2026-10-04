@@ -11,6 +11,7 @@ import Alert from "@mui/material/Alert";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import { supabase } from "../../../../services/supabaseClient";
+import { SIGNED_URL_TTL, signedStorageUrl } from "@sakay/shared";
 import MapView from "../../../../common/components/MapView";
 import HomeHeader from "./HomeHeader";
 import HomeBottomSheet from "./HomeBottomSheet";
@@ -148,7 +149,7 @@ const Dashboard: React.FC = () => {
 
           if (profile) {
             setProfileName(profile.full_name || user.user_metadata?.full_name || "");
-            setProfilePhoto(profile.profile_photo_url || "");
+            setProfilePhoto((await signedStorageUrl(supabase, "profiles", profile.profile_photo_url, SIGNED_URL_TTL.avatar)) || "");
             setContactNumber(profile.contact_number || "");
           } else if (user.user_metadata?.full_name) {
             setProfileName(user.user_metadata.full_name);

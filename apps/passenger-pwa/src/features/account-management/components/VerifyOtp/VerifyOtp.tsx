@@ -43,13 +43,12 @@ export const VerifyOtp: React.FC = () => {
   const state = location.state as {
     phone?: string;
     identifier?: string;
-    password?: string;
     isRecovery?: boolean;
     isPhoneChange?: boolean;
     returnTo?: string;
     passengerName?: string;
     fullName?: string;
-    debugOtp?: string;
+    date_of_birth?: string;
   } | undefined;
 
   const resolvedPhone = state?.phone || state?.identifier || '';
@@ -140,8 +139,16 @@ export const VerifyOtp: React.FC = () => {
       setToastError(null);
 
       try {
+        // The server checks the code for the account that is signed in. After registration the browser is signed in already; if
+        // the session is gone the user logs in again (no password is kept anywhere, no default password, no account is created here).
         const activeAuthUser = (await supabase.auth.getUser()).data.user;
-        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, resolvedName, activeAuthUser?.id);
+        if (!activeAuthUser) {
+          hasAutoApprovedRef.current = false;
+          setLoading(false);
+          setToastError(language === 'tl' ? 'Mag-login muli para ma-verify ang iyong numero.' : 'Please log in again to verify your number.');
+          return;
+        }
+        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, state?.date_of_birth);
         if (!result.success) {
           hasAutoApprovedRef.current = false;
           setLoading(false);
@@ -150,114 +157,23 @@ export const VerifyOtp: React.FC = () => {
           return;
         }
 
-        // Establish / update active Supabase Auth session for passenger
+        // The server has verified the code and activated this account. Nothing is activated from the browser any more (no
+        // activate_passenger_otp call, no status written into the profile, no sign-up fallback, no default password).
         const candidates = getPhoneLookupCandidates(resolvedPhone);
         const e164Phone = candidates.e164;
-        const passengerPassword = state?.password || localStorage.getItem('sakay_passenger_password') || `SakayPassenger#2026_${candidates.phoneRaw.slice(-4)}`;
-
-        if (resolvedPhone) {
-          try {
-            let authUser = (await supabase.auth.getUser()).data.user;
-
-            if (!authUser) {
-              const { data: signInRes, error: signInErr } = await supabase.auth.signInWithPassword({
-                email: `passenger_${candidates.phone63NoPlus}@sakay.ph`,
-                password: passengerPassword,
-              });
-              if (!signInErr && signInRes?.user) {
-                authUser = signInRes.user;
-              }
-            }
-
-            if (!authUser) {
-              const { data: signUpRes } = await supabase.auth.signUp({
-                email: `passenger_${candidates.phone63NoPlus}@sakay.ph`,
-                password: passengerPassword,
-                options: {
-                  data: {
-                    role: 'passenger',
-                    phone: e164Phone,
-                    contact_number: e164Phone,
-                    full_name: resolvedName,
-                  },
-                },
-              });
-              authUser = signUpRes?.user || null;
-            }
-
-            // Link or update passenger record in public.passenger to Active
-            const { data: existingRows } = await supabase
-              .from('passenger')
-              .select('passenger_id, auth_user_id')
-              .or(`contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}${authUser ? `,auth_user_id.eq.${authUser.id}` : ''}`)
-              .limit(1);
-
-            const existing = existingRows?.[0] || null;
-
-            try {
-              await supabase.rpc('activate_passenger_otp', { p_contact_number: e164Phone });
-            } catch (rpcErr) {
-              console.debug('[PassengerVerifyOtp] activate_passenger_otp RPC note:', rpcErr);
-            }
-
-            try {
-              await supabase.auth.updateUser({
-                data: {
-                  account_status: 'Active',
-                  otp_verified: true,
-                  phone_verified: true,
-                },
-              });
-            } catch {}
-
-            if (existing) {
-              const updateData: Record<string, any> = {
-                contact_number: e164Phone,
-                account_status: 'Active',
-              };
-              if (authUser) updateData.auth_user_id = authUser.id;
-              if (resolvedName && resolvedName !== 'Passenger') updateData.full_name = resolvedName;
-
-              await supabase
-                .from('passenger')
-                .update(updateData)
-                .eq('passenger_id', existing.passenger_id);
-            } else if (authUser) {
-              await supabase
-                .from('passenger')
-                .upsert(
-                  [
-                    {
-                      auth_user_id: authUser.id,
-                      full_name: resolvedName,
-                      contact_number: e164Phone,
-                      account_status: 'Active',
-                    },
-                  ],
-                  { onConflict: 'auth_user_id' }
-                );
-            }
-          } catch (authErr) {
-            console.warn('[PassengerVerifyOtp] Auth session setup warning:', authErr);
-          } finally {
-            try {
-              localStorage.setItem('sakay_passenger_phone', e164Phone);
-              localStorage.setItem('sakay_passenger_status', 'Active');
-              localStorage.removeItem('sakay_passenger_password');
-            } catch {}
-          }
-        }
+        try {
+          localStorage.setItem('sakay_passenger_phone', e164Phone);
+          localStorage.setItem('sakay_passenger_status', 'Active');
+          localStorage.removeItem('sakay_passenger_password');
+        } catch {}
 
         setLoading(false);
 
-        const isRecovery = Boolean(state?.isRecovery || (state as any)?.type === 'recovery');
         const isPhoneChange = Boolean(state?.isPhoneChange);
         const returnTo = state?.returnTo || '/profile';
 
         if (isPhoneChange) {
           navigate(returnTo, { state: { phoneUpdated: true }, replace: true });
-        } else if (isRecovery) {
-          navigate('/reset-password', { state: { phone: e164Phone, identifier: e164Phone } });
         } else {
           navigate('/terms-of-service', {
             state: {

@@ -86,8 +86,8 @@ const persistToHistoryIfTerminal = (b: BookingRecord) => {
       time: createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       dateGroup: isToday ? 'NGAYONG ARAW' : 'NAKARAANG ARAW',
       dateString: createdDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      driverName: b.driver_name || 'Aurelio Bautista',
-      bodyNumber: b.franchise_no || 'CAL-2025-0773',
+      driverName: b.driver_name || '',
+      bodyNumber: b.franchise_no || '',
       isLiveRecord: true,
       status: b.booking_status,
     });
@@ -106,9 +106,9 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
   isCreatingBooking = true;
   const now = new Date().toISOString();
   
-  let validPassengerId = payload.passenger_id || localStorage.getItem('sakay_passenger_id');
-
-  // 1. Resolve passenger UUID from active session if available
+  // The booking belongs to the passenger who is signed in: their record is found from the session. It is never a guess, never the
+  // first passenger in the table, and never an id kept in local storage (those were fallbacks that could book in someone else's name).
+  let validPassengerId: string | null = null;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.id) {
@@ -124,30 +124,14 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
       }
     }
   } catch (e) {
-    // ignore
+    // handled below: no passenger, no booking
   }
 
-  if (!payload.passenger_name) {
-    payload.passenger_name = localStorage.getItem('sakay_passenger_name') || 'Maria Santos';
-  }
-  if (!payload.passenger_phone) {
-    payload.passenger_phone = localStorage.getItem('sakay_passenger_phone') || '+639123456789';
-  }
-
-  // 2. If validPassengerId is still not a valid UUID, look up first registered passenger in Supabase
   if (!validPassengerId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validPassengerId)) {
-    try {
-      const { data: firstP } = await supabase
-        .from('passenger')
-        .select('passenger_id, full_name, contact_number')
-        .limit(1)
-        .maybeSingle();
-      if (firstP?.passenger_id) {
-        validPassengerId = firstP.passenger_id;
-      }
-    } catch (e) {
-      // ignore
-    }
+    isCreatingBooking = false;
+    throw new Error(
+      'Mag-login muli bago mag-book.\n\n(Please log in again before booking.)'
+    );
   }
 
   const insertPayload: any = {
@@ -172,9 +156,7 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     fare_confirmation_status: 'Matched',
   };
 
-  if (validPassengerId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validPassengerId)) {
-    insertPayload.passenger_id = validPassengerId;
-  }
+  insertPayload.passenger_id = validPassengerId;
 
   // 3. Attempt database insertion into public.booking
   const { data: dbData, error } = await supabase
@@ -227,9 +209,9 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
   const generatedId = dbData.booking_id;
   const newBooking: BookingRecord = {
     booking_id: generatedId,
-    passenger_id: validPassengerId || payload.passenger_id || 'PSG-DEMO-001',
-    passenger_name: payload.passenger_name || 'Juan Dela Cruz',
-    passenger_phone: payload.passenger_phone || '+63 917 123 4567',
+    passenger_id: validPassengerId,
+    passenger_name: payload.passenger_name || '',
+    passenger_phone: payload.passenger_phone || '',
     booking_type: payload.booking_type || 'Immediate',
     is_shared_trip: payload.is_shared_trip,
     passenger_count: payload.passenger_count,

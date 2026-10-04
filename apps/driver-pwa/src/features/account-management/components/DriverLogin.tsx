@@ -18,7 +18,7 @@ import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
 import { describeRestriction, fetchOwnAccountRestriction } from '@sakay/shared';
-import { getPhoneLookupCandidates, lookupDriverByPhoneSecure, rotateDriverSession } from '../../../services/driverApiService';
+import { fetchOwnDriverRecord, getPhoneLookupCandidates, rotateDriverSession } from '../../../services/driverApiService';
 
 export const formatMobileNumber = (value: string): string => {
   const digits = value.replace(/\D/g, '');
@@ -94,117 +94,60 @@ export const DriverLogin: React.FC = () => {
     }
 
     const candidates = getPhoneLookupCandidates(rawDigits);
-    const phone09 = candidates.phone09;
     const phone63 = candidates.phone63WithPlus;
+    // The login e-mail is derived from the mobile number. Nothing is looked up about the number before the password is checked, so this
+    // screen cannot be used to find out which numbers are registered.
+    const loginEmails = Array.from(new Set(candidates.authCandidates.map((c) => c.email).filter((e): e is string => Boolean(e))));
 
     setLoading(true);
 
     try {
-      // 1. Pre-fetch driver record if available
-      let driverData = await lookupDriverByPhoneSecure(phone63);
-
-      // 2. Attempt authentication with Supabase Auth across candidate credentials
+      // 1. Sign in with the mobile number's login e-mail and the typed password
       let sessionUser: any = null;
-
-      const authCandidates = [...candidates.authCandidates];
-      if (driverData?.email && !authCandidates.some((c: any) => c.email === driverData.email)) {
-        authCandidates.unshift({ email: driverData.email });
-      }
-
-      for (const candidate of authCandidates) {
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-          ...candidate,
-          password: password,
-        });
+      for (const email of loginEmails) {
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
 
         if (!signInErr && signInData?.user) {
           sessionUser = signInData.user;
           break;
         }
+        // Only a wrong e-mail / password pair is worth trying another spelling for; a rate limit or an outage is not.
+        if (signInErr && signInErr.status !== 400) throw signInErr;
       }
 
-      // 3. If Supabase Auth succeeded but pre-lookup didn't find driverData:
-      if (sessionUser && !driverData) {
-        driverData = await lookupDriverByPhoneSecure(phone63);
-        if (!driverData) {
-          const { data: userRows } = await supabase
-            .from('driver')
-            .select(`
-              driver_id,
-              auth_user_id,
-              full_name,
-              contact_number,
-              email,
-              plate_number,
-              license_number,
-              franchise_number,
-              account_status,
-              toda:toda_id (
-                toda_id,
-                toda_name,
-                toda_acronym
-              )
-            `)
-            .or(`auth_user_id.eq.${sessionUser.id},contact_number.eq.${phone63},contact_number.eq.${phone09}`)
-            .limit(1);
-
-          if (userRows && userRows.length > 0) {
-            driverData = userRows[0];
-          }
-        }
-      }
-
-      // 4. If password was incorrect or user not found:
+      // 2. Wrong number or password: one message for every cause, so it does not say whether the number is registered
       if (!sessionUser) {
         setLoading(false);
-        if (driverData) {
-          triggerErrorToast(
-            language === 'tl'
-              ? 'Mali ang numero o password. Pakisubukang muli.'
-              : 'Invalid mobile number or password.'
-          );
-        } else {
-          triggerErrorToast(
-            language === 'tl'
-              ? 'Walang nahanap na account para sa numerong ito. Mangyaring mag-register muna o suriin ang inyong numero.'
-              : 'No account found for this mobile number. Please register first or check your mobile number.'
-          );
-        }
+        triggerErrorToast(
+          language === 'tl'
+            ? 'Mali ang numero o password. Pakisubukang muli.'
+            : 'Invalid mobile number or password.'
+        );
         return;
       }
 
-      // 5. Session established! Link driver record to sessionUser if unlinked or provision if missing
+      // 3. The signed-in driver's OWN record (row security shows a driver nobody else's)
+      let driverData = await fetchOwnDriverRecord();
       if (!driverData) {
-        const newDriverObj = {
+        // A login that has no driver record (for example one that was removed): create the pending record registration would have made
+        const { error: provisionErr } = await supabase.from('driver').insert([{
           auth_user_id: sessionUser.id,
           contact_number: phone63,
           full_name: sessionUser.user_metadata?.full_name || 'Driver Applicant',
           account_status: 'Pending Verification',
-        };
-        const { data: createdDriver } = await supabase
-          .from('driver')
-          .insert([newDriverObj])
-          .select('*, toda:toda_id(*)')
-          .maybeSingle();
-
-        driverData = createdDriver || {
-          driver_id: sessionUser.id,
-          auth_user_id: sessionUser.id,
-          full_name: sessionUser.user_metadata?.full_name || 'Driver Applicant',
-          contact_number: phone63,
-          account_status: 'Pending Verification',
-        };
-      } else if (sessionUser?.id && !driverData.auth_user_id) {
-        await supabase
-          .from('driver')
-          .update({ auth_user_id: sessionUser.id, contact_number: phone63 })
-          .eq('driver_id', driverData.driver_id);
-      } else if (driverData.contact_number !== phone63) {
-        supabase
-          .from('driver')
-          .update({ contact_number: phone63 })
-          .eq('driver_id', driverData.driver_id)
-          .then(() => {});
+          availability_status: 'Offline',
+        }]);
+        if (!provisionErr) driverData = await fetchOwnDriverRecord();
+      }
+      if (!driverData) {
+        setLoading(false);
+        await supabase.auth.signOut();
+        triggerErrorToast(
+          language === 'tl'
+            ? 'Hindi ma-load ang inyong driver account. Pakisubukang muli.'
+            : 'We could not load your driver account. Please try again.'
+        );
+        return;
       }
 
       // A suspended or deactivated driver cannot log in (Section 1). The database decides, and
@@ -308,7 +251,11 @@ export const DriverLogin: React.FC = () => {
       setLoading(false);
       console.error('[DriverLogin] Login exception:', err);
       triggerErrorToast(
-        err?.message ||
+        err?.status === 429
+          ? (language === 'tl'
+              ? 'Masyadong maraming pagtatangka. Maghintay ng ilang minuto bago subukang muli.'
+              : 'Too many attempts. Please wait a few minutes before trying again.')
+          : err?.message ||
           (language === 'tl'
             ? 'Hindi makakonekta sa database. Pakisubukang muli.'
             : 'Unable to connect to the database. Please try again.')

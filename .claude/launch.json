@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "passenger-pwa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:passenger"],
+      "port": 5173
+    },
+    {
+      "name": "driver-pwa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:driver"],
+      "port": 5176
+    },
+    {
+      "name": "lgu-portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:lgu"],
+      "port": 5174
+    },
+    {
+      "name": "toda-portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:toda"],
+      "port": 5175
+    }
+  ]
+}

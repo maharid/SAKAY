@@ -236,7 +236,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 
   const adminName = adminProfile?.full_name || 'City Administrator';
-  const adminEmail = adminProfile?.email || user?.email || 'admin@gmail.com';
+  const adminEmail = adminProfile?.email || user?.email || '';
 
   const handleSignOutConfirm = async () => {
     setLogoutModalOpen(false);

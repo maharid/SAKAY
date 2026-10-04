@@ -21,7 +21,7 @@ import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
-import { lookupDriverByPhoneSecure } from '../../../services/driverApiService';
+import { fetchOwnDriverRecord } from '../../../services/driverApiService';
 import {
   parseRejectionComment,
   hydrateOnboardingCacheFromExisting,
@@ -60,71 +60,21 @@ export const DriverStatusMonitor: React.FC = () => {
   const checkStatus = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      let driverData: any = null;
-
-      // 1. Try by active Supabase auth user session
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('driver')
-          .select(`
-            driver_id,
-            account_status,
-            full_name,
-            contact_number,
-            plate_number,
-            license_number,
-            franchise_number,
-            toda:toda_id (
-              toda_id,
-              toda_name,
-              toda_acronym
-            )
-          `)
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
-        if (data) driverData = data;
+      // The status page is for a signed-in driver: without a session there is nothing to show, so go to the login screen.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/driver/login', { replace: true });
+        return;
       }
 
-      // 2. Fallback lookup by stored driver_id or stored phone
-      if (!driverData) {
-        const storedDriverId = localStorage.getItem('sakay_driver_id');
-        const storedPhone = localStorage.getItem('sakay_driver_phone') || state?.phone;
-
-        if (storedDriverId) {
-          const { data } = await supabase
-            .from('driver')
-            .select(`
-              driver_id,
-              account_status,
-              full_name,
-              contact_number,
-              plate_number,
-              license_number,
-              franchise_number,
-              toda:toda_id (
-                toda_id,
-                toda_name,
-                toda_acronym
-              )
-            `)
-            .eq('driver_id', storedDriverId)
-            .maybeSingle();
-
-          if (data) driverData = data;
-        }
-
-        if (!driverData && storedPhone) {
-          driverData = await lookupDriverByPhoneSecure(storedPhone);
-        }
-      }
+      // The driver's OWN record, found from the session (row security shows a driver nobody else's). It is never looked up by phone number.
+      const driverData: any = await fetchOwnDriverRecord();
 
       if (driverData) {
         // Sync local profile cache
         const todaInfo = Array.isArray(driverData.toda) ? driverData.toda[0] : driverData.toda;
-        const todaNameStr = todaInfo?.toda_name || 'Calapan Central TODA';
-        const todaAcronymStr = todaInfo?.toda_acronym || 'CCTODA';
+        const todaNameStr = todaInfo?.toda_name || '';
+        const todaAcronymStr = todaInfo?.toda_acronym || '';
 
         localStorage.setItem('sakay_driver_id', driverData.driver_id);
         if (driverData.contact_number) {
@@ -136,10 +86,10 @@ export const DriverStatusMonitor: React.FC = () => {
           JSON.stringify({
             name: driverData.full_name,
             phone: driverData.contact_number,
-            vehiclePlate: driverData.plate_number || 'MV-101',
-            licenseNumber: driverData.license_number || 'L01-99-123456',
-            franchiseNumber: driverData.franchise_number || 'MTOP-PENDING',
-            todaName: `${todaNameStr} (${todaAcronymStr})`,
+            vehiclePlate: driverData.plate_number || '',
+            licenseNumber: driverData.license_number || '',
+            franchiseNumber: driverData.franchise_number || '',
+            todaName: todaInfo ? `${todaNameStr} (${todaAcronymStr})` : '',
             rating: 5.0,
             isOnline: false,
             isPaused: false,

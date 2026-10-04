@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
+import { maskPhone } from '../utils/phone';
 
 dotenv.config();
 
@@ -11,15 +13,22 @@ const getGatewayConfig = () => ({
   deviceId: (process.env.SMS_GATEWAY_DEVICE_ID || '').trim(),
 });
 
-// In-memory OTP cache with 5-minute TTL
+/** OTP lifetime. (Still a copy of the 5-minute rule: Batch 2 moves it to the central policy configuration.) */
+const OTP_TTL_MS = 5 * 60 * 1000;
+/** A code that is entered wrongly this many times is thrown away and a new one must be requested. */
+const OTP_MAX_ATTEMPTS = 5;
+
+// In-memory OTP cache. Only a hash of the code is kept. The cache lives in this process: it is lost on a restart.
 interface OtpEntry {
-  code: string;
+  codeHash: Buffer;
   createdAt: number;
   expiresAt: number;
   attempts: number;
 }
 
 const otpStore = new Map<string, OtpEntry>();
+
+const hashCode = (code: string): Buffer => createHash('sha256').update(code).digest();
 
 // Clean up expired entries every minute
 setInterval(() => {
@@ -29,7 +38,7 @@ setInterval(() => {
       otpStore.delete(phone);
     }
   }
-}, 60 * 1000);
+}, 60 * 1000).unref();
 
 export const normalizePhilippinePhone = (raw: string): string => {
   const digits = raw.replace(/\D/g, '');
@@ -107,26 +116,24 @@ async function sendViaAndroidGateway(
       clearTimeout(timeout);
 
       if (response.ok) {
-        console.log(`[SMS Service] Dispatched via Android SMS Gateway (${gatewayUrl}, SIM ${configuredSim}) to ${formattedPhone}`);
+        console.log(`[SMS Service] Dispatched via Android SMS Gateway to ${maskPhone(formattedPhone)}`);
         return { success: true, message: 'SMS dispatched successfully via Android Gateway.' };
       }
 
       const errBody = await response.text();
-      console.warn(`[SMS Service] Android Gateway attempt ${attempt} HTTP ${response.status}: ${errBody}`);
+      console.warn(`[SMS Service] Android Gateway attempt ${attempt} HTTP ${response.status}: ${errBody.slice(0, 200)}`);
       if (attempt === 1) {
-        console.log('[SMS Service] Pausing 1s before retrying Android Gateway dispatch...');
         await new Promise((resolve) => setTimeout(resolve, 1000));
         continue;
       }
       return {
         success: false,
-        error: `Gateway returned HTTP ${response.status}: ${errBody || 'Unknown error'}`,
+        error: `Gateway returned HTTP ${response.status}`,
       };
     } catch (err: any) {
       const errorMsg = err.name === 'AbortError' ? 'Connection to Android Gateway timed out.' : err.message;
-      console.warn(`[SMS Service] Attempt ${attempt} failed to connect to Android SMS Gateway at ${gatewayUrl}:`, errorMsg);
+      console.warn(`[SMS Service] Attempt ${attempt} failed to connect to the Android SMS Gateway:`, errorMsg);
       if (attempt === 1) {
-        console.log('[SMS Service] Pausing 1s before retrying Android Gateway dispatch...');
         await new Promise((resolve) => setTimeout(resolve, 1000));
         continue;
       }
@@ -138,7 +145,8 @@ async function sendViaAndroidGateway(
 }
 
 /**
- * Universal Raw SMS Dispatcher (for notifications, driver messages, alerts)
+ * Universal Raw SMS Dispatcher (for notifications, driver messages, alerts).
+ * The message text and the full number are NOT logged.
  */
 export const sendRawSms = async (
   rawPhone: string,
@@ -146,11 +154,7 @@ export const sendRawSms = async (
 ): Promise<{ success: boolean; message?: string; error?: string; formattedPhone: string; isGatewayDispatched?: boolean }> => {
   const formattedPhone = normalizePhilippinePhone(rawPhone);
 
-  console.log(`\n======================================================`);
-  console.log(`[SMS Service] DISPATCHING SMS:`);
-  console.log(`   ➜ Recipient : ${formattedPhone}`);
-  console.log(`   ➜ Message   : "${messageText}"`);
-  console.log(`======================================================\n`);
+  console.log(`[SMS Service] Sending an SMS (${messageText.length} characters) to ${maskPhone(formattedPhone)}`);
 
   const { url: gatewayUrl } = getGatewayConfig();
 
@@ -168,7 +172,7 @@ export const sendRawSms = async (
     console.warn('[SMS Service] Android Gateway dispatch failed:', gatewayResult.error);
     return {
       success: false,
-      error: `Hindi maipadala ang SMS. Pakisuri kung bukas at aktibo ang Android SMS Gateway sa ${gatewayUrl}: ${gatewayResult.error || 'Connection failed'}`,
+      error: 'Hindi maipadala ang SMS. Pakisuri kung bukas at aktibo ang Android SMS Gateway.',
       formattedPhone,
       isGatewayDispatched: false,
     };
@@ -182,23 +186,40 @@ export const sendRawSms = async (
 };
 
 /**
+ * Development convenience, OFF unless BOTH NODE_ENV=development AND OTP_DEV_ECHO=1 are set: when no SMS gateway is configured the code is printed
+ * in the server console (the developer reads it there, as they would read the SMS) and the request succeeds. It is never accepted
+ * without having been issued, never sent to the browser, and never active in production.
+ */
+const devEchoEnabled = (): boolean =>
+  process.env.NODE_ENV === 'development' && process.env.OTP_DEV_ECHO === '1' && !getGatewayConfig().url;
+
+/**
  * OTP SMS Dispatcher
  */
 export const sendOtpSms = async (
   rawPhone: string
 ): Promise<{ success: boolean; message?: string; error?: string; formattedPhone: string }> => {
   const formattedPhone = normalizePhilippinePhone(rawPhone);
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpCode = randomInt(100000, 1000000).toString();
   const now = Date.now();
 
   // Clean plain text message without links or domains to bypass PH telco anti-smishing filters
   const otpMessage = `Ang iyong SAKAY verification code ay: ${otpCode}. Valid ito ng 5 minuto. Huwag ibahagi ang code na ito kaninuman.`;
 
+  const store = () =>
+    otpStore.set(formattedPhone, { codeHash: hashCode(otpCode), createdAt: now, expiresAt: now + OTP_TTL_MS, attempts: 0 });
+
+  if (devEchoEnabled()) {
+    store();
+    console.log(`[SMS Service] DEV ONLY (OTP_DEV_ECHO=1, no gateway configured): code for ${maskPhone(formattedPhone)} is ${otpCode}`);
+    return { success: true, message: 'OTP generated (development echo, no SMS sent).', formattedPhone };
+  }
+
   // Actually dispatch through the cellular network first
   const dispatchResult = await sendRawSms(formattedPhone, otpMessage);
 
   if (!dispatchResult.success) {
-    console.error(`[SMS Service] Failed to dispatch OTP to ${formattedPhone}:`, dispatchResult.error);
+    console.error(`[SMS Service] Failed to dispatch an OTP to ${maskPhone(formattedPhone)}:`, dispatchResult.error);
     return {
       success: false,
       error: dispatchResult.error || 'Nabigong ipadala ang SMS gamit ang Android SMS Gateway.',
@@ -207,19 +228,8 @@ export const sendOtpSms = async (
   }
 
   // Only store OTP if physical dispatch succeeded
-  otpStore.set(formattedPhone, {
-    code: otpCode,
-    createdAt: now,
-    expiresAt: now + 5 * 60 * 1000,
-    attempts: 0,
-  });
-
-  console.log(`\n======================================================`);
-  console.log(`[SMS Service] OTP VERIFICATION CODE GENERATED & DISPATCHED:`);
-  console.log(`   ➜ Recipient: ${formattedPhone}`);
-  console.log(`   ➜ OTP Code : >>> ${otpCode} <<<`);
-  console.log(`   ➜ Valid for: 5 minutes`);
-  console.log(`======================================================\n`);
+  store();
+  console.log(`[SMS Service] OTP issued for ${maskPhone(formattedPhone)} (valid 5 minutes)`);
 
   return {
     success: true,
@@ -228,42 +238,36 @@ export const sendOtpSms = async (
   };
 };
 
+export type OtpVerdict =
+  | { success: true }
+  | { success: false; error: string; reason: 'not_found' | 'expired' | 'wrong' | 'too_many' };
+
 /**
- * Verifies entered 6-digit OTP code against the store
+ * Verifies an entered 6-digit OTP against the store. There is no master code: only the code that was issued to this number, once,
+ * within five minutes, with at most five wrong tries.
  */
-export const verifyOtpCode = (
-  rawPhone: string,
-  enteredCode: string
-): { success: boolean; error?: string } => {
+export const verifyOtpCode = (rawPhone: string, enteredCode: string): OtpVerdict => {
   const formattedPhone = normalizePhilippinePhone(rawPhone);
   const code = (enteredCode || '').trim();
 
-  // Universal sandbox fallback code in development
-  if (process.env.NODE_ENV === 'development' && (code === '123456' || code === '654321')) {
-    return { success: true };
-  }
-
   const entry = otpStore.get(formattedPhone);
-
   if (!entry) {
-    if (process.env.NODE_ENV === 'development' && code === '123456') {
-      return { success: true };
-    }
-    return { success: false, error: 'OTP expired or not found. Please request a new code.' };
+    return { success: false, reason: 'not_found', error: 'OTP expired or not found. Please request a new code.' };
   }
 
   if (Date.now() > entry.expiresAt) {
     otpStore.delete(formattedPhone);
-    return { success: false, error: 'OTP has expired. Please request a new code.' };
+    return { success: false, reason: 'expired', error: 'OTP has expired. Please request a new code.' };
   }
 
-  if (entry.code !== code && code !== '123456') {
+  const matches = /^\d{6}$/.test(code) && timingSafeEqual(hashCode(code), entry.codeHash);
+  if (!matches) {
     entry.attempts += 1;
-    if (entry.attempts >= 5) {
+    if (entry.attempts >= OTP_MAX_ATTEMPTS) {
       otpStore.delete(formattedPhone);
-      return { success: false, error: 'Too many incorrect attempts. Please request a new code.' };
+      return { success: false, reason: 'too_many', error: 'Too many incorrect attempts. Please request a new code.' };
     }
-    return { success: false, error: 'Incorrect OTP code. Please try again.' };
+    return { success: false, reason: 'wrong', error: 'Incorrect OTP code. Please try again.' };
   }
 
   // Verification successful, consume the OTP
@@ -271,4 +275,5 @@ export const verifyOtpCode = (
   return { success: true };
 };
 
-
+/** For tests: forget every issued code. */
+export const _clearOtpStore = (): void => otpStore.clear();

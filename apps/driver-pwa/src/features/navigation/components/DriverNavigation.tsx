@@ -32,7 +32,7 @@ export const DriverNavigation: React.FC = () => {
   profileRef.current = profile;
   const navigate = useNavigate();
   const location = useLocation();
-  const bookingId = (location.state as { bookingId?: string })?.bookingId || 'BKG-9011';
+  const bookingId = (location.state as { bookingId?: string })?.bookingId || '';
 
   const [booking, setBooking] = useState<any>(null);
   const driverLocation = {
@@ -47,18 +47,21 @@ export const DriverNavigation: React.FC = () => {
     Promise.resolve(
       supabase
         .from('booking')
-        .select('*, passenger:passenger_id(*)')
+        .select('*')
         .eq('booking_id', bookingId)
         .maybeSingle()
     )
-      .then(({ data }: any) => {
+      .then(async ({ data }: any) => {
         if (data) {
-          const p = Array.isArray(data.passenger) ? data.passenger[0] : data.passenger;
+          // The passenger's name, and phone while the trip is live, come from a function that discloses just that (the passenger table
+          // is not readable by a driver).
+          const { data: parties } = await supabase.rpc('get_booking_counterparties', { p_booking_ids: [bookingId] });
+          const party = ((parties ?? []) as Array<{ passenger_name?: string | null; passenger_phone?: string | null }>)[0];
           setBooking({
             booking_id: data.booking_id,
             passenger_id: data.passenger_id,
-            passenger_name: data.passenger_name || p?.full_name || 'Passenger',
-            passenger_phone: p?.contact_number || '+63 917 000 0000',
+            passenger_name: party?.passenger_name || data.passenger_name || 'Passenger',
+            passenger_phone: party?.passenger_phone || '',
             booking_type: data.booking_type || 'Immediate',
             is_shared_trip: Boolean(data.is_shared_trip),
             passenger_count: data.passenger_count || 1,
@@ -154,7 +157,7 @@ export const DriverNavigation: React.FC = () => {
   };
 
   const passengerName = booking?.passenger_name || 'Passenger';
-  const passengerPhone = booking?.passenger_phone || '+63 917 555 1001';
+  const passengerPhone = booking?.passenger_phone || '';
   const pickupAddress = booking?.pickup_address || 'JP Rizal St. Central Terminal, Calapan City';
   const fare = booking?.estimated_fare ?? 0;
   const pickupLat = Number(booking?.pickup_latitude) || 13.4150;
