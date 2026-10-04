@@ -12,3 +12,11 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Perimeter lockdown: the scheduler endpoint answers 503 to everybody until this is set (16+ random characters; the cron service sends it
+      # in the X-Scheduler-Secret header). There is no default any more.
+      - key: SCHEDULER_SECRET
+        sync: false
+      # Comma-separated browser origins allowed to call the API (e.g. https://sakay-passenger.example.ph,https://sakay-lgu.example.ph).
+      # In production nothing is allowed when this is empty.
+      - key: CORS_ORIGIN
+        sync: false

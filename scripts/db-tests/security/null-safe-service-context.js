@@ -71,7 +71,7 @@ async function onFresh(dump, run) {
       run: async (tx) => { await tx.query(`UPDATE public.passenger SET strikes_count = 7 WHERE passenger_id = $1`, [ID.P1]);
         await tx.query('RESET ROLE'); return (await tx.query(`SELECT strikes_count v FROM public.passenger WHERE passenger_id = $1`, [ID.P1])).rows[0].v; },
       open: (v) => v === 7 },
-    { name: 'an ANONYMOUS caller edits any passenger\'s strike count', who: { uid: null, role: 'anon' }, refused: /policy engine/,
+    { name: 'an ANONYMOUS caller edits any passenger\'s strike count', who: { uid: null, role: 'anon' }, refused: /policy engine|permission denied for table passenger/,   // since S3 anon has no table privilege at all
       run: async (tx) => { await tx.query(`UPDATE public.passenger SET strikes_count = 9 WHERE passenger_id = $1`, [ID.P2]);
         await tx.query('RESET ROLE'); return (await tx.query(`SELECT strikes_count v FROM public.passenger WHERE passenger_id = $1`, [ID.P2])).rows[0].v; },
       open: (v) => v === 9 },

@@ -66,83 +66,13 @@ const Login: React.FC = () => {
 
     setLoading(true);
 
-    const phone09 = candidates.phone09;
-    const phone63 = candidates.phone63WithPlus;
-
-    // Instant Verified Test Passenger Login (for live map & ride testing)
-    const isTestPassenger =
-      (phone09 === '09123456789' || phone09 === '09170000000' || phone09 === '09181234567' || phone09 === '09999999999') &&
-      (password === 'Password123!' || password === '@Dmin_123' || password === 'password' || password === '123456');
-
-    if (isTestPassenger) {
-      setLoading(false);
-      localStorage.setItem('sakay_passenger_phone', phone63);
-      localStorage.setItem('sakay_passenger_name', 'Maria Santos');
-      localStorage.setItem('sakay_passenger_id', '99999999-9999-9999-9999-999999999999');
-      localStorage.removeItem('sakay_recent_destinations');
-
-      // Guarantee test passenger record exists in public.passenger
-      supabase
-        .from('passenger')
-        .upsert({
-          passenger_id: '99999999-9999-9999-9999-999999999999',
-          full_name: 'Maria Santos',
-          contact_number: phone63,
-          account_status: 'Active',
-        })
-        .then(() => {});
-
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/dashboard', {
-          replace: true,
-          state: {
-            name: 'Maria Santos',
-          },
-        });
-      }, 1000);
-      return;
-    }
-
     try {
-      let signInResponse: any = null;
-
-      // 1. Traverse generated auth candidates (email variants & phone credentials)
-      for (const authCand of candidates.authCandidates) {
-        const res = await supabase.auth.signInWithPassword({
-          ...(authCand as any),
-          password: password,
-        });
-
-        if (!res.error && res.data?.user) {
-          signInResponse = res;
-          break;
-        } else {
-          if (!signInResponse) signInResponse = res;
-        }
-      }
-
-      // 2. Fallback to custom aliased email from passenger table
-      if (signInResponse?.error) {
-        const { data: profileRecord } = await supabase
-          .from("passenger")
-          .select("email")
-          .or(
-            `contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`
-          )
-          .limit(1)
-          .maybeSingle();
-
-        if (profileRecord?.email) {
-          const profileEmailResponse = await supabase.auth.signInWithPassword({
-            email: profileRecord.email,
-            password: password,
-          });
-          if (!profileEmailResponse.error && profileEmailResponse.data?.user) {
-            signInResponse = profileEmailResponse;
-          }
-        }
-      }
+      // The login address is derived from the mobile number (the same one registration created). There is no lookup of
+      // somebody's email before signing in, and no built-in test account: a login either works with real credentials or it does not.
+      const signInResponse: any = await supabase.auth.signInWithPassword({
+        email: `passenger_${candidates.phone63NoPlus}@sakay.ph`,
+        password: password,
+      });
 
       if (signInResponse?.error) {
         console.warn("Supabase signIn warning:", signInResponse.error.message);
@@ -156,87 +86,63 @@ const Login: React.FC = () => {
       }
 
       const user = signInResponse?.data?.user;
-      const role = user?.user_metadata?.role || "passenger";
 
       if (user?.id) {
-        if (role === "passenger") {
-          let { data: profile } = await supabase
-            .from("passenger")
-            .select("passenger_id, account_status, full_name, auth_user_id, session_id")
-            .or(`auth_user_id.eq.${user.id},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
-            .limit(1)
-            .maybeSingle();
+        // What this account IS is decided by its passenger record in the database, not by anything the account says about itself.
+        const { data: profile } = await supabase
+          .from("passenger")
+          .select("passenger_id, account_status")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
 
-          // BATCH 2 FIX: Update single-session token upon new login
-          if (profile?.passenger_id) {
-            try {
-              await rotatePassengerSession(profile.passenger_id);
-            } catch (err) {
-              console.warn("Failed to rotate session:", err);
-            }
-          }
-
-          if (profile && !profile.auth_user_id) {
-            await supabase
-              .from("passenger")
-              .update({ auth_user_id: user.id })
-              .eq("passenger_id", profile.passenger_id);
-            profile.auth_user_id = user.id;
-          }
-
-          if (profile) {
-            if (profile.account_status === "Pending OTP Verification") {
-              // Block login and inform user
-              triggerErrorToast(
-                language === "tl"
-                  ? "Ang inyong account ay naghihintay ng OTP verification."
-                  : "Your account is pending OTP verification."
-              );
-              setLoading(false);
-              await supabase.auth.signOut();
-              return;
-            }
-
-            // The database decides suspension / deactivation (and lifts a suspension whose
-            // period has ended). Falls back to the status column if the check is unavailable.
-            const restriction = await getOwnAccountRestriction("passenger");
-            const isRestricted = restriction
-              ? restriction.restricted
-              : profile.account_status === "Suspended" || profile.account_status === "Deactivated";
-            if (isRestricted) {
-              triggerErrorToast(
-                restriction
-                  ? describeRestriction(restriction, language === "tl" ? "tl" : "en")
-                  : language === "tl"
-                    ? "Ang inyong account ay suspendido o na-deactivate."
-                    : "Your account has been suspended or deactivated."
-              );
-              setLoading(false);
-              await supabase.auth.signOut();
-              return;
-            }
-          }
-        } else if (role === "driver") {
-          const { data: profile } = await supabase
-            .from("driver")
-            .select("account_status")
-            .eq("auth_user_id", user.id)
-            .maybeSingle();
-
-          if (profile) {
-            if (profile.account_status === "Suspended" || profile.account_status === "Deactivated") {
-              triggerErrorToast(
-                language === "tl"
-                  ? "Ang inyong account ay suspendido o na-deactivate."
-                  : "Your account has been suspended or deactivated."
-              );
-              setLoading(false);
-              await supabase.auth.signOut();
-              return;
-            }
-          }
+        if (!profile) {
+          triggerErrorToast(
+            language === "tl"
+              ? "Walang passenger account para sa numerong ito. Magparehistro muna."
+              : "No passenger account was found for this number. Please register first."
+          );
+          setLoading(false);
+          await supabase.auth.signOut();
+          return;
         }
 
+        // BATCH 2 FIX: Update single-session token upon new login
+        try {
+          await rotatePassengerSession(profile.passenger_id);
+        } catch (err) {
+          console.warn("Failed to rotate session:", err);
+        }
+
+        if (profile.account_status === "Pending OTP Verification") {
+          // Block login and inform user
+          triggerErrorToast(
+            language === "tl"
+              ? "Ang inyong account ay naghihintay ng OTP verification."
+              : "Your account is pending OTP verification."
+          );
+          setLoading(false);
+          await supabase.auth.signOut();
+          return;
+        }
+
+        // The database decides suspension / deactivation (and lifts a suspension whose
+        // period has ended). Falls back to the status column if the check is unavailable.
+        const restriction = await getOwnAccountRestriction("passenger");
+        const isRestricted = restriction
+          ? restriction.restricted
+          : profile.account_status === "Suspended" || profile.account_status === "Deactivated";
+        if (isRestricted) {
+          triggerErrorToast(
+            restriction
+              ? describeRestriction(restriction, language === "tl" ? "tl" : "en")
+              : language === "tl"
+                ? "Ang inyong account ay suspendido o na-deactivate."
+                : "Your account has been suspended or deactivated."
+          );
+          setLoading(false);
+          await supabase.auth.signOut();
+          return;
+        }
       } else {
         triggerErrorToast(
           language === "tl"

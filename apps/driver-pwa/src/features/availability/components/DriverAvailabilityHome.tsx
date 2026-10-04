@@ -29,7 +29,7 @@ import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
 import { DriverForegroundReminder } from '../../../common/components/DriverPresenceNotices';
 import { supabase } from '../../../services/supabaseClient';
-import { checkDriverDocumentaryRestriction, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
+import { checkDriverDocumentaryRestriction, fetchAccreditedTodas, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
 import { fetchMyAffiliationOptions } from '../../../services/driverPresenceService';
 import type { AffiliationOption } from '../../../services/driverPresenceService';
 import {
@@ -183,17 +183,18 @@ export const DriverAvailabilityHome: React.FC = () => {
   useEffect(() => {
     async function loadLiveDriver() {
       try {
-        const storedId = localStorage.getItem('sakay_driver_id');
-        const storedPhone = localStorage.getItem('sakay_driver_phone');
-
         const { data: { user } } = await supabase.auth.getUser();
+        // The home screen is for a signed-in driver; nothing can be read without a session.
+        if (!user?.id) return;
 
         // Ask the database before reading the profile: it decides suspension / deactivation and
         // lifts a suspension whose period has ended, so the status read below is current.
-        const ownRestriction = user?.id ? await fetchOwnAccountRestriction(supabase, 'driver') : null;
+        const ownRestriction = await fetchOwnAccountRestriction(supabase, 'driver');
         setAccountRestriction(ownRestriction?.restricted ? ownRestriction : null);
 
-        let query = supabase
+        // The driver's OWN row (row security shows a driver nobody else's). The TODA's name comes from the public directory below:
+        // the toda table itself is not readable by a driver.
+        const { data: driverData } = await supabase
           .from('driver')
           .select(`
             driver_id,
@@ -207,25 +208,10 @@ export const DriverAvailabilityHome: React.FC = () => {
             weighted_average_rating,
             current_latitude,
             current_longitude,
-            toda:toda_id (
-              toda_id,
-              toda_name,
-              toda_acronym
-            )
-          `);
-
-        if (user?.id) {
-          query = query.eq('auth_user_id', user.id);
-        } else if (storedId && storedId !== 'test-driver-001') {
-          query = query.eq('driver_id', storedId);
-        } else if (storedPhone) {
-          const clean = storedPhone.replace(/\D/g, '');
-          query = query.or(`contact_number.eq.${clean},contact_number.eq.+63${clean.replace(/^0/, '')}`);
-        } else {
-          return;
-        }
-
-        const { data: driverData } = await query.maybeSingle();
+            toda_id
+          `)
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
 
         if (driverData) {
           // A suspended / deactivated driver stays on the home screen with the reason and end date;
@@ -265,8 +251,8 @@ export const DriverAvailabilityHome: React.FC = () => {
             }
           }
 
-          const todaObj = Array.isArray(driverData.toda) ? driverData.toda[0] : driverData.toda;
-          const todaNameStr = todaObj ? `${todaObj.toda_name} (${todaObj.toda_acronym})` : '';
+          const todaObj = (await fetchAccreditedTodas()).find((t) => t.id === driverData.toda_id);
+          const todaNameStr = todaObj ? `${todaObj.name} (${todaObj.acronym})` : '';
 
           const cached = getCachedDevicePosition();
           const resolvedLat = cached?.latitude || (driverData.current_latitude ? Number(driverData.current_latitude) : 13.4117);
@@ -288,7 +274,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               licenseNumber: licenseNumber || prev.licenseNumber,
               franchiseNumber: franchiseNumber || prev.franchiseNumber,
               todaName: todaNameStr || prev.todaName,
-              selectedTodaId: todaObj?.toda_id || prev.selectedTodaId,
+              selectedTodaId: driverData.toda_id || prev.selectedTodaId,
               rating: Number(driverData.weighted_average_rating) || 5.0,
               totalTrips: completedTripsCount || 0,
               accountStatus: driverData.account_status,

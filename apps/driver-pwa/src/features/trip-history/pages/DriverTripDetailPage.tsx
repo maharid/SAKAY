@@ -32,9 +32,9 @@ export const DriverTripDetailPage: React.FC = () => {
 
   const stateTrip = (location.state as { trip?: any })?.trip;
 
-  const rawTripId = params.id || stateTrip?.id || stateTrip?.bookingCode || "BKG-DEMO-001";
+  const rawTripId = params.id || stateTrip?.id || stateTrip?.bookingCode || "";
   const passengerName = stateTrip?.passengerName || stateTrip?.passenger_name || "Juan Dela Cruz";
-  const passengerPhone = stateTrip?.passengerPhone || stateTrip?.passenger_phone || "+63 917 123 4567";
+  const passengerPhone: string = stateTrip?.passengerPhone || stateTrip?.passenger_phone || "";
   const pickupAddress = stateTrip?.pickupLocation || stateTrip?.pickup || "Rizal Ave, Batangas City, Batangas, Philippines";
   const dropoffAddress = stateTrip?.dropoffLocation || stateTrip?.dropoff || "Batangas State University-Alangilan Campus";
   const dateString = stateTrip?.date || "22 Sep 2026";
@@ -276,20 +276,24 @@ export const DriverTripDetailPage: React.FC = () => {
               <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                 {passengerName}
               </Typography>
-              <Typography sx={{ fontSize: "11.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                {passengerPhone}
-              </Typography>
+              {passengerPhone && (
+                <Typography sx={{ fontSize: "11.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                  {passengerPhone}
+                </Typography>
+              )}
             </Box>
           </Box>
 
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <IconButton onClick={handleCallPassenger} sx={{ backgroundColor: "#E6F4EA", color: "#1E8E3E" }}>
-              <PhoneOutlinedIcon fontSize="small" />
-            </IconButton>
-            <IconButton onClick={handleOpenSMS} sx={{ backgroundColor: "#FFF8F0", color: "#FF6B00" }}>
-              <ChatOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Box>
+          {passengerPhone && (
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <IconButton onClick={handleCallPassenger} sx={{ backgroundColor: "#E6F4EA", color: "#1E8E3E" }}>
+                <PhoneOutlinedIcon fontSize="small" />
+              </IconButton>
+              <IconButton onClick={handleOpenSMS} sx={{ backgroundColor: "#FFF8F0", color: "#FF6B00" }}>
+                <ChatOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
         </Paper>
 
         {/* Driver Earnings Breakdown Card */}

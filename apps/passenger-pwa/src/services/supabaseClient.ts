@@ -11,3 +11,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
+
+// Earlier versions kept the account password in this browser (plain text) so the OTP screen could sign in again. Nothing reads it any
+// more; remove whatever those versions left behind.
+try {
+  localStorage.removeItem('sakay_passenger_password');
+} catch {
+  // storage can be unavailable (private mode): then there is nothing to clean up
+}

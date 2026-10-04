@@ -25,6 +25,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import { ownedObjectPath } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 import { DateCalendarPopover } from '../popovers/DateCalendarPopover';
 import SakayPhoneInput from '../common/SakayPhoneInput';
@@ -95,22 +96,6 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
     driverList: null,
   });
 
-  // OTP
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [resendTimer]);
-  
   const [showPassword, setShowPassword] = useState(false);
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
 
@@ -177,8 +162,12 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         setErrorMsg('Please fill in all required Organization fields.');
         return;
       }
-      if (!otpVerified) {
-        setErrorMsg('Please verify your contact number before proceeding.');
+      if (isEmailInvalid || isPasswordInvalid) {
+        setErrorMsg('Please enter a valid email address and a password of at least 8 characters.');
+        return;
+      }
+      if (formData.contactNumber.length !== 10) {
+        setErrorMsg('Please enter a valid 10-digit mobile number starting with 9.');
         return;
       }
     } else if (activeStep === 4) {
@@ -196,109 +185,17 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
     setActiveStep((prev) => prev - 1);
   };
 
-  const handleSendOtp = async () => {
-    setErrorMsg(null);
-    if (!formData.contactNumber || formData.contactNumber.length !== 10) {
-      setErrorMsg('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    try {
-      setIsSubmitting(true);
-      const normalizedPhone = '+63' + formData.contactNumber;
-      console.log(`[OTP] Requesting verification for: +63${formData.contactNumber.substring(0, 3)}****${formData.contactNumber.substring(7)}`);
-      
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: normalizedPhone,
-      });
-
-      if (error) {
-        console.warn('[OTP] Supabase SMS service returned warning, enabling dev mode verification:', error.message);
-      }
-      
-      setOtpSent(true);
-      setResendTimer(45);
-    } catch (err: any) {
-      console.warn('[OTP] Exception during send, continuing with test OTP code:', err);
-      setOtpSent(true);
-      setResendTimer(45);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setErrorMsg(null);
-    try {
-      setIsSubmitting(true);
-      
-      // Development & test OTP validation (000000 or valid Supabase token)
-      const DEV_OTP_BYPASS_CODE = '000000';
-      if (otpCode === DEV_OTP_BYPASS_CODE || otpCode.length === 6) {
-        console.log('[OTP] Verification code accepted.');
-        setOtpVerified(true);
-        setIsSubmitting(false);
-        return;
-      }
-
-      const normalizedPhone = '+63' + formData.contactNumber;
-      const { error } = await supabase.auth.verifyOtp({
-        phone: normalizedPhone,
-        token: otpCode,
-        type: 'sms',
-      });
-      
-      if (error) {
-        console.warn('[OTP] Supabase verification error, checking fallback code:', error.message);
-        throw new Error('The verification code is incorrect. Use 000000 for test verification.');
-      }
-      
-      setOtpVerified(true);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'The verification code is incorrect. Enter 000000 for test verification.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+  // The registration, in the only order that works with locked-down storage and row security:
+  //   1. the registrant's own login (nothing in the sign-up grants a role)
+  //   2. the documents, into that login's own folder of the private buckets (<auth uid>/<file>)
+  //   3. one database function creates the TODA (Pending Verification) and makes THIS login its administrator
+  // There are no fallback table inserts and no development codes: if a step fails, the registration stops with a message.
   const handleSubmit = async () => {
     setErrorMsg(null);
     setIsSubmitting(true);
     try {
-      let barangayClearanceUrl = `clearance_${Date.now()}.png`;
-      let accreditedDriversUrl = `drivers_${Date.now()}.csv`;
-
-      // Upload Barangay Clearance if present
-      if (docs.barangayClearance) {
-        const ext = docs.barangayClearance.name.split('.').pop() || 'png';
-        const fileName = `${Date.now()}_clearance.${ext}`;
-        try {
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('barangay-clearances')
-            .upload(fileName, docs.barangayClearance, { upsert: true });
-          
-          if (!uploadError && uploadData) {
-            barangayClearanceUrl = fileName;
-          }
-        } catch (storageErr) {
-          console.warn('[TODA Registration] Storage upload warning (using file ref):', storageErr);
-        }
-      }
-
-      // Upload Accredited Drivers List if present
-      if (docs.driverList) {
-        const ext = docs.driverList.name.split('.').pop() || 'csv';
-        const fileName = `${Date.now()}_drivers.${ext}`;
-        try {
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('toda-accredited-driver-lists')
-            .upload(fileName, docs.driverList, { upsert: true });
-          
-          if (!uploadError && uploadData) {
-            accreditedDriversUrl = fileName;
-          }
-        } catch (storageErr) {
-          console.warn('[TODA Registration] Storage upload warning (using file ref):', storageErr);
-        }
+      if (!docs.barangayClearance || !docs.driverList) {
+        throw new Error('Please upload both required documents.');
       }
 
       // Format date established from MM/DD/YYYY to YYYY-MM-DD
@@ -314,123 +211,88 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         }
       }
 
-      let authUserId: string | null = null;
+      const adminEmail = formData.email.trim();
 
-      // 1. Create the Auth user in Supabase and sign in to get active session
-      try {
-        const { data: signUpData } = await supabase.auth.signUp({
-          email: formData.email.trim(),
-          password: formData.password,
-          options: {
-            data: {
-              role: 'toda_admin',
-              full_name: formData.presidentName,
-              phone: '+63' + formData.contactNumber,
-            },
+      // 1. The registrant's own login
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: adminEmail,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.presidentName.trim(),
+            phone: '+63' + formData.contactNumber,
           },
-        });
-
-        if (signUpData?.user) {
-          authUserId = signUpData.user.id;
-        }
-
-        // Establish authenticated session so auth.uid() is active for RPC
-        await supabase.auth.signInWithPassword({
-          email: formData.email.trim(),
-          password: formData.password,
-        });
-      } catch (authErr) {
-        console.warn('[TODA Registration] Auth signUp notice:', authErr);
+        },
+      });
+      const signUpMessage = (signUpError?.message || '').toLowerCase();
+      const alreadyRegistered = Boolean(
+        signUpError && (signUpMessage.includes('already registered') || signUpMessage.includes('already exists') || (signUpError as any)?.code === 'user_already_exists')
+      );
+      if (signUpError && !alreadyRegistered) {
+        throw new Error(signUpError.message);
       }
 
-      // 2. Register TODA record via RPC (Exact 16 parameters matching database function)
-      let rpcSucceeded = false;
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('register_toda_with_admin', {
-          p_toda_name: formData.todaName.trim(),
-          p_toda_acronym: formData.todaAcronym ? formData.todaAcronym.trim() : formData.todaName.slice(0, 4).toUpperCase(),
-          p_registration_number: formData.registrationNumber.trim(),
-          p_date_established: formattedDate,
-          p_active_drivers: parseInt(formData.activeDrivers) || 1,
-          p_registered_tricycles: parseInt(formData.registeredTricycles) || 1,
-          p_terminal_latitude: 13.4117,
-          p_terminal_longitude: 121.1803,
-          p_terminal_location_name: formData.terminalLocation || 'Calapan City Terminal',
-          p_barangay: formData.barangay || 'San Vicente Central',
-          p_service_coverage_area: formData.serviceCoverageArea || 'Calapan City Corridor',
-          p_president_name: formData.presidentName.trim(),
-          p_admin_email: formData.email.trim(),
-          p_admin_contact_number: '+63' + formData.contactNumber,
-          p_barangay_clearance_url: barangayClearanceUrl,
-          p_accredited_drivers_url: accreditedDriversUrl,
-        });
-
-        if (!rpcError && rpcData) {
-          rpcSucceeded = true;
-        } else if (rpcError) {
-          console.warn('[TODA Registration] RPC notice:', rpcError.message);
+      // Signed in: a new sign-up already is; an unfinished earlier attempt is resumed with the SAME password
+      let authUser = !alreadyRegistered ? signUpData?.session?.user ?? null : null;
+      if (!authUser) {
+        const signIn = await supabase.auth.signInWithPassword({ email: adminEmail, password: formData.password });
+        if (signIn.error || !signIn.data?.user) {
+          throw new Error(
+            alreadyRegistered
+              ? 'An account with this email already exists. Use its password to continue, or register with a different email.'
+              : (signIn.error?.message || 'Could not sign in to complete the registration.')
+          );
         }
-      } catch (rpcEx) {
-        console.warn('[TODA Registration] RPC invocation notice:', rpcEx);
+        authUser = signIn.data.user;
       }
 
-      // 3. Direct Table Insert Fallback (Generate toda_id directly to avoid SELECT RLS on pending rows)
-      if (!rpcSucceeded) {
-        const safeUUID = () => {
-          if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.randomUUID === 'function') {
-            return window.crypto.randomUUID();
-          }
-          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-            const r = (Math.random() * 16) | 0;
-            const v = c === 'x' ? r : (r & 0x3) | 0x8;
-            return v.toString(16);
-          });
-        };
-        const generatedTodaId = safeUUID();
-        const { error: todaInsertError } = await supabase
-          .from('toda')
-          .insert([
-            {
-              toda_id: generatedTodaId,
-              toda_name: formData.todaName.trim(),
-              toda_acronym: formData.todaAcronym ? formData.todaAcronym.trim() : formData.todaName.slice(0, 4).toUpperCase(),
-              registration_number: formData.registrationNumber.trim(),
-              date_established: formattedDate,
-              active_driver_count: parseInt(formData.activeDrivers) || 1,
-              registered_tricycle_count: parseInt(formData.registeredTricycles) || 1,
-              terminal_latitude: 13.4117,
-              terminal_longitude: 121.1803,
-              barangay: formData.barangay || 'San Vicente Central',
-              service_coverage_area: formData.serviceCoverageArea || formData.terminalLocation || 'Calapan City',
-              president_name: formData.presidentName.trim(),
-              president_contact: '+63' + formData.contactNumber,
-              account_status: 'Pending Verification',
-              barangay_clearance_url: barangayClearanceUrl,
-              accredited_drivers_url: accreditedDriversUrl,
-            },
-          ]);
+      // 2. Documents, into the registrant's own folder
+      const stamp = Date.now();
+      const clearanceExt = (docs.barangayClearance.name.split('.').pop() || 'png').toLowerCase();
+      const clearancePath = ownedObjectPath(authUser.id, `${stamp}_clearance.${clearanceExt}`);
+      const { error: clearanceError } = await supabase.storage
+        .from('barangay-clearances')
+        .upload(clearancePath, docs.barangayClearance, { upsert: true });
+      if (clearanceError) {
+        throw new Error('The Barangay Clearance could not be uploaded: ' + clearanceError.message);
+      }
 
-        if (todaInsertError) {
-          console.error('[TODA Registration] Direct insert notice:', todaInsertError);
-          throw new Error('Database save error: ' + todaInsertError.message);
-        }
+      const rosterExt = (docs.driverList.name.split('.').pop() || 'csv').toLowerCase();
+      const rosterPath = ownedObjectPath(authUser.id, `${stamp}_drivers.${rosterExt}`);
+      const { error: rosterError } = await supabase.storage
+        .from('toda-accredited-driver-lists')
+        .upload(rosterPath, docs.driverList, { upsert: true });
+      if (rosterError) {
+        throw new Error('The driver roster could not be uploaded: ' + rosterError.message);
+      }
 
-        if (authUserId) {
-          try {
-            await supabase.from('toda_admin').insert([
-              {
-                auth_user_id: authUserId,
-                toda_id: generatedTodaId,
-                full_name: formData.presidentName.trim(),
-                email: formData.email.trim(),
-                contact_number: '+63' + formData.contactNumber,
-                account_status: 'Active',
-              },
-            ]);
-          } catch (adminErr) {
-            console.warn('[TODA Registration] toda_admin link notice:', adminErr);
-          }
+      // 3. The registration itself
+      const { data: registeredTodaId, error: rpcError } = await supabase.rpc('register_toda_with_admin', {
+        p_toda_name: formData.todaName.trim(),
+        p_toda_acronym: formData.todaAcronym ? formData.todaAcronym.trim() : formData.todaName.slice(0, 4).toUpperCase(),
+        p_registration_number: formData.registrationNumber.trim(),
+        p_date_established: formattedDate,
+        p_active_drivers: parseInt(formData.activeDrivers) || 1,
+        p_registered_tricycles: parseInt(formData.registeredTricycles) || 1,
+        p_terminal_latitude: 13.4117,
+        p_terminal_longitude: 121.1803,
+        p_terminal_location_name: formData.terminalLocation || 'Calapan City Terminal',
+        p_barangay: formData.barangay || 'San Vicente Central',
+        p_service_coverage_area: formData.serviceCoverageArea || 'Calapan City Corridor',
+        p_president_name: formData.presidentName.trim(),
+        p_admin_email: adminEmail,
+        p_admin_contact_number: '+63' + formData.contactNumber,
+        p_barangay_clearance_url: clearancePath,
+        p_accredited_drivers_url: rosterPath,
+        p_auth_user_id: authUser.id,
+      });
+
+      if (rpcError || !registeredTodaId) {
+        const detail = rpcError?.message || '';
+        if (detail.includes('ERR_ALREADY_TODA_ADMIN')) {
+          throw new Error('This login already administers a TODA. Use a different email to register another TODA.');
         }
+        throw new Error(detail ? 'The registration could not be saved: ' + detail : 'The registration could not be saved. Please try again.');
       }
 
       // Clean up session so LGU portal is left unauthenticated for LGU login
@@ -639,52 +501,18 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
             />
             <Box sx={{ gridColumn: '1 / -1', mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography sx={{ fontSize: '14px', color: '#86868B', maxWidth: '100%' }}>
-                We need to verify the contact number provided to secure your administrator account.
+                This number is kept on your administrator account. The LGU confirms it with you when it reviews your application.
               </Typography>
-              
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                <Box sx={{ flex: 1, maxWidth: '320px' }}>
-                  <SakayPhoneInput
-                    label="Contact Number"
-                    value={formData.contactNumber}
-                    onChange={(val) => setFormData({ ...formData, contactNumber: val })}
-                    required
-                    error={isPhoneInvalid}
-                    helperText={isPhoneInvalid ? 'Please enter a valid 10-digit mobile number starting with 9.' : ''}
-                  />
-                </Box>
-                
-                {!otpSent ? (
-                  <Button variant="outlined" onClick={handleSendOtp} disabled={isSubmitting || !formData.contactNumber || isPhoneInvalid} sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, height: '48px', px: 3, color: '#FF6B00', borderColor: '#FF6B00', '&:hover': { backgroundColor: '#FFF4EB', borderColor: '#FF6B00' } }}>
-                    Send OTP via SMS
-                  </Button>
-                ) : otpVerified ? (
-                  <Alert severity="success" sx={{ borderRadius: '12px', width: '100%', maxWidth: '320px', justifyContent: 'center' }}>Number verified securely.</Alert>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <FormInput name="otpCode" label="6-Digit OTP" placeholder="000000" value={otpCode} onChange={(e: any) => setOtpCode(e.target.value.replace(/\D/g, '').substring(0, 6))} sx={{ ...inputStyles, width: '120px' }} slotProps={{ htmlInput: { style: { textAlign: 'center', letterSpacing: '8px', fontSize: '20px', fontWeight: 600 } } }} />
-                      <Button variant="contained" onClick={handleVerifyOtp} disabled={isSubmitting || otpCode.length !== 6} sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, height: '48px', px: 3, backgroundColor: '#FF6B00', color: '#FFFFFF', boxShadow: 'none', '&:hover': { backgroundColor: '#E65A00', boxShadow: '0 4px 8px rgba(255, 107, 0, 0.25)' } }}>
-                        Verify Code
-                      </Button>
-                    </Box>
-                    <Typography sx={{ fontSize: '12px', color: '#FF6B00', fontWeight: 500 }}>
-                      💡 Test Mode: Enter <b>000000</b> to verify immediately.
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                      <Typography sx={{ fontSize: '13px', color: '#86868B' }}>
-                        Didn't receive the code?
-                      </Typography>
-                      <Button 
-                        variant="text" 
-                        onClick={() => { setOtpCode('000000'); }}
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '13px', color: '#FF6B00', p: 0, minWidth: 0, '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' } }}
-                      >
-                        Auto-fill 000000
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
+
+              <Box sx={{ maxWidth: '320px' }}>
+                <SakayPhoneInput
+                  label="Contact Number"
+                  value={formData.contactNumber}
+                  onChange={(val) => setFormData({ ...formData, contactNumber: val })}
+                  required
+                  error={isPhoneInvalid}
+                  helperText={isPhoneInvalid ? 'Please enter a valid 10-digit mobile number starting with 9.' : ''}
+                />
               </Box>
             </Box>
           </Box>
@@ -784,7 +612,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
               <ValidationItem label="Organization Information Completeness" valid={true} />
               <ValidationItem label="Location & Service Completeness" valid={true} />
               <ValidationItem label="Required Documents Uploaded" valid={true} />
-              <ValidationItem label="Contact Number Verified" valid={otpVerified} />
+              <ValidationItem label="Contact Number Provided (confirmed by the LGU during review)" valid={formData.contactNumber.length === 10} />
               <ValidationItem label="TODA Registration Uniqueness" valid={true} />
             </Box>
             <Typography sx={{ fontSize: '13px', color: '#86868B', textAlign: 'center', px: 2 }}>
@@ -833,7 +661,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         <Button 
           variant="contained" 
           onClick={activeStep === STEPS.length - 1 ? handleSubmit : handleNext} 
-          disabled={isSubmitting || (activeStep === 3 && !otpVerified && otpSent)}
+          disabled={isSubmitting}
           sx={{ ...primaryButtonStyles, width: '160px', height: '44px' }}
         >
           {isSubmitting ? <CircularProgress size={20} sx={{ color: '#fff' }}/> : activeStep === STEPS.length - 1 ? 'Submit' : 'Continue'}

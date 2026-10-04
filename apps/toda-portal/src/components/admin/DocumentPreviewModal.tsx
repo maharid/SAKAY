@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -18,6 +18,8 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { refreshStorageUrl } from '@sakay/shared';
+import { supabase } from '../../services/supabaseClient';
 
 interface DocumentPreviewModalProps {
   open: boolean;
@@ -32,11 +34,40 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   onClose,
   documentName,
   documentType = 'Official Document Proof',
-  imageUrl,
+  imageUrl: sourceUrl,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [imgLoading, setImgLoading] = useState<boolean>(true);
   const [imgError, setImgError] = useState<boolean>(false);
+
+  // A link that was signed when a list loaded may be past its short life (10 minutes): it is signed again when the preview opens.
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [resolving, setResolving] = useState<boolean>(false);
+
+  useEffect(() => {
+    setZoomLevel(1);
+    setImgLoading(true);
+    setImgError(false);
+    if (!open || !sourceUrl) {
+      setImageUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setResolving(true);
+    refreshStorageUrl(supabase, sourceUrl)
+      .then((fresh) => {
+        if (!cancelled) setImageUrl(fresh || sourceUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setImageUrl(sourceUrl);
+      })
+      .finally(() => {
+        if (!cancelled) setResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, sourceUrl]);
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));
@@ -170,6 +201,11 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 display: imgLoading ? 'none' : 'block',
               }}
             />
+          </Box>
+        ) : resolving ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+            <CircularProgress size={36} sx={{ color: 'var(--sakay-orange)' }} />
+            <Typography sx={{ fontSize: '13px', color: '#A1A1AA' }}>Preparing secure link...</Typography>
           </Box>
         ) : (
           <Box

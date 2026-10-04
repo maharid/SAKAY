@@ -21,7 +21,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164, lookupDriverByPhoneSecure } from '../../../services/driverApiService';
+import { ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164 } from '../../../services/driverApiService';
 import { saveRegisteredNameParts } from '../../../services/driverOnboardingCache';
 
 export const formatMobileNumber = (value: string): string => {
@@ -194,16 +194,6 @@ export const DriverRegister: React.FC = () => {
 
     setSubmitted(true);
 
-    const existing = await lookupDriverByPhoneSecure(cleanPhoneDigits);
-    if (existing && (existing.account_status === 'Active' || existing.account_status === 'Verified' || existing.account_status === 'Approved')) {
-      const msg = language === 'tl'
-        ? 'Ang mobile number na ito ay nakarehistro na. Mangyaring gumamit ng ibang numero o mag-log in.'
-        : 'This mobile number is already registered. Please use another number or log in.';
-      setAccountError(msg);
-      setSubmitted(false);
-      return;
-    }
-
     const sessionResult = await ensureDriverAuthSession(e164Phone, password, fullName, selectedTodaId);
     if (!sessionResult.success) {
       setSubmitted(false);
@@ -220,7 +210,6 @@ export const DriverRegister: React.FC = () => {
     try {
       localStorage.removeItem('sakay_driver_registration_draft');
       localStorage.setItem('sakay_driver_phone', e164Phone);
-      localStorage.setItem('sakay_driver_password', password);
       localStorage.setItem('sakay_driver_toda_id', selectedTodaId);
       saveRegisteredNameParts({
         firstName: firstName.trim(),
@@ -234,7 +223,6 @@ export const DriverRegister: React.FC = () => {
     navigate('/driver/verify-otp', {
       state: {
         phone: e164Phone,
-        password: password,
         driverName: fullName,
         firstName: firstName.trim(),
         middleName: middleName.trim(),

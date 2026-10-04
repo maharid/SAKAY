@@ -8,13 +8,11 @@
  * ============================================================================
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { apiPostJson } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
 import type { LicenseExtractedData, MtopExtractedData } from './driverOnboardingCache';
 
-
-export const DEFAULT_DRIVER_ID = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b22';
 
 export async function rotateDriverSession(driverId: string): Promise<string> {
   const newSessionId = crypto.randomUUID();
@@ -98,118 +96,47 @@ export function getPhoneLookupCandidates(raw: string) {
   };
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://thxcltvgwwluvsfpciyr.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoeGNsdHZnd3dsdXZzZnBjaXlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODE4NDQsImV4cCI6MjA5OTg1Nzg0NH0.wDqoMM8RoZKgJPbIBU2xDu8GWCqYpNDlR1V9JKd7Voo';
-
-let secureLookupClient: any = null;
-
-async function getSecureLookupClient() {
-  if (!secureLookupClient) {
-    secureLookupClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    try {
-      await secureLookupClient.auth.signInWithPassword({
-        email: 'admin@gmail.com',
-        password: 'admin123',
-      });
-    } catch (e) {
-      console.warn('[driverApiService] secureLookupClient auth warning:', e);
-    }
-  }
-  return secureLookupClient;
+/**
+ * The signed-in user's id, read from the local session (no network call: these helpers run on polling screens). Nothing relies on it for
+ * safety: every query below carries the session token, so row security shows the signed-in driver their own rows whatever id is asked for.
+ */
+async function currentAuthUserId(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
 }
 
 /**
- * Robustly checks if a driver record exists in Supabase database for the given phone number,
- * bypassing anonymous RLS restrictions.
+ * The signed-in driver's OWN record and verification status, found from the session (the database shows a driver nobody else's row).
+ * There is no look-up by phone number any more, and no second client with borrowed credentials: before sign-in nothing can be read.
  */
-export async function lookupDriverByPhoneSecure(phone: string): Promise<any | null> {
-  const candidates = getPhoneLookupCandidates(phone);
-  const p63 = candidates.phone63WithPlus;
-  const p09 = candidates.phone09;
-  const pRaw = candidates.phoneRaw;
-  const p63NoPlus = candidates.phone63NoPlus;
-
-  const selectFields = `
-    driver_id,
-    auth_user_id,
-    full_name,
-    contact_number,
-    email,
-    plate_number,
-    license_number,
-    franchise_number,
-    account_status,
-    toda:toda_id (
-      toda_id,
-      toda_name,
-      toda_acronym
-    )
-  `;
-
+export async function fetchOwnDriverRecord(): Promise<any | null> {
   try {
-    const client = await getSecureLookupClient();
-    let rows: any[] | null = null;
-    let err: any = null;
+    const userId = await currentAuthUserId();
+    if (!userId) return null;
 
-    try {
-      const res = await client
-        .from('driver')
-        .select(selectFields)
-        .or(`contact_number.eq.${p63},contact_number.eq.${p09},contact_number.eq.${pRaw},contact_number.eq.${p63NoPlus}`)
-        .limit(1);
-      rows = res.data;
-      err = res.error;
-    } catch (e) {
-      err = e;
-    }
+    const { data: driver, error } = await supabase
+      .from('driver')
+      .select('driver_id, auth_user_id, full_name, contact_number, email, plate_number, license_number, franchise_number, account_status, toda_id')
+      .eq('auth_user_id', userId)
+      .maybeSingle();
+    if (error || !driver) return null;
 
-    if ((err || !rows || rows.length === 0) && client !== supabase) {
-      const fallbackRes = await supabase
-        .from('driver')
-        .select(selectFields)
-        .or(`contact_number.eq.${p63},contact_number.eq.${p09},contact_number.eq.${pRaw},contact_number.eq.${p63NoPlus}`)
-        .limit(1);
-      if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
-        rows = fallbackRes.data;
-      }
-    }
+    const { data: verif } = await supabase
+      .from('driver_verification')
+      .select('verification_status, submitted_license_number, remarks')
+      .eq('driver_id', driver.driver_id)
+      .maybeSingle();
 
-    if (!rows || rows.length === 0) {
-      return null;
-    }
-
-    const driver = rows[0];
-
-    // Check verification status
-    let verif: any = null;
-    try {
-      const { data: vData } = await client
-        .from('driver_verification')
-        .select('verification_status, submitted_license_number, remarks')
-        .eq('driver_id', driver.driver_id)
-        .maybeSingle();
-      verif = vData;
-    } catch {}
-
-    if (!verif) {
-      try {
-        const { data: vFallback } = await supabase
-          .from('driver_verification')
-          .select('verification_status, submitted_license_number, remarks')
-          .eq('driver_id', driver.driver_id)
-          .maybeSingle();
-        verif = vFallback;
-      } catch {}
-    }
+    const todas = await fetchAccreditedTodas();
+    const toda = todas.find((t) => t.id === driver.toda_id);
 
     return {
       ...driver,
+      toda: toda ? { toda_id: toda.id, toda_name: toda.name, toda_acronym: toda.acronym } : null,
       verification: verif || null,
     };
   } catch (err) {
-    console.warn('[driverApiService] lookupDriverByPhoneSecure exception:', err);
+    console.warn('[driverApiService] fetchOwnDriverRecord exception:', err);
     return null;
   }
 }
@@ -218,25 +145,43 @@ export async function lookupDriverByPhoneSecure(phone: string): Promise<any | nu
 // 1. REGISTRATION & PROFILE
 // ============================================================================
 
-export async function fetchAccreditedTodas(): Promise<Array<{ id: string; name: string; acronym: string; barangay: string; terminalLocation: string }>> {
+/**
+ * The directory of accredited TODAs for the registration picker. It comes from a database function that answers even before sign-in and
+ * returns only the directory fields (the toda table itself holds documents and officer details and is not readable by drivers).
+ */
+export interface TodaDirectoryEntry {
+  id: string;
+  name: string;
+  acronym: string;
+  barangay: string;
+  terminalLocation: string;
+}
+
+// The directory changes rarely and the status / profile screens ask for it on every poll, so it is kept for a minute.
+const TODA_DIRECTORY_TTL_MS = 60_000;
+let todaDirectoryMemo: { at: number; list: TodaDirectoryEntry[] } | null = null;
+
+export async function fetchAccreditedTodas(): Promise<TodaDirectoryEntry[]> {
   try {
-    const client = await getSecureLookupClient();
-    const { data, error } = await client
-      .from('toda')
-      .select('toda_id, toda_name, toda_acronym, barangay, service_coverage_area')
-      .order('toda_name', { ascending: true });
+    if (todaDirectoryMemo && Date.now() - todaDirectoryMemo.at < TODA_DIRECTORY_TTL_MS) {
+      return todaDirectoryMemo.list;
+    }
+
+    const { data, error } = await supabase.rpc('list_accredited_todas');
 
     if (error || !data || data.length === 0) {
       return [];
     }
 
-    return data.map((t: any) => ({
+    const list = (data as any[]).map((t: any) => ({
       id: t.toda_id,
       name: t.toda_name,
       acronym: t.toda_acronym || 'TODA',
       barangay: t.barangay || 'Calapan City',
       terminalLocation: t.service_coverage_area || t.barangay || 'Calapan City',
     }));
+    todaDirectoryMemo = { at: Date.now(), list };
+    return list;
   } catch (err) {
     console.error('[driverApiService] fetchAccreditedTodas error:', err);
     return [];
@@ -269,19 +214,23 @@ export async function registerDriver(payload: {
   return data;
 }
 
-export async function fetchDriverProfile(driverId?: string) {
+/** The signed-in driver's profile. (The argument is ignored: the record is found from the session, never from an id kept on the device.) */
+export async function fetchDriverProfile(_driverId?: string) {
   try {
-    const activeId = driverId || (typeof window !== 'undefined' ? localStorage.getItem('sakay_driver_id') : null);
-    if (!activeId) return null;
+    const userId = await currentAuthUserId();
+    if (!userId) return null;
 
-    const client = await getSecureLookupClient();
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('driver')
-      .select('*, toda:toda_id(*)')
-      .eq('driver_id', activeId)
+      .select('*')
+      .eq('auth_user_id', userId)
       .maybeSingle();
 
     if (error || !data) return null;
+
+    // The TODA's name comes from the public directory (a driver cannot read the toda table itself)
+    const todaDirectory = await fetchAccreditedTodas();
+    const todaEntry = todaDirectory.find((t) => t.id === data.toda_id);
 
     // Check verification record if plate/license/franchise are null in driver table
     let plateNumber = data.plate_number;
@@ -289,7 +238,7 @@ export async function fetchDriverProfile(driverId?: string) {
     let franchiseNumber = data.franchise_number;
 
     if (!plateNumber || !licenseNumber || !franchiseNumber) {
-      const { data: verif } = await client
+      const { data: verif } = await supabase
         .from('driver_verification')
         .select('submitted_plate_number, submitted_license_number, submitted_franchise_number, ocr_plate_number, ocr_license_number, ocr_franchise_number')
         .eq('driver_id', data.driver_id)
@@ -302,13 +251,15 @@ export async function fetchDriverProfile(driverId?: string) {
       }
     }
 
-    const todaObj = Array.isArray(data.toda) ? data.toda[0] : data.toda;
+    const todaObj = todaEntry ? { toda_name: todaEntry.name, toda_acronym: todaEntry.acronym } : null;
 
     return {
       id: data.driver_id,
       name: data.full_name,
       phone: data.contact_number,
       email: data.email || '',
+      // a storage PATH in the private "profiles" bucket (screens ask for a signed URL when they show it)
+      profile_photo_url: data.profile_photo_url || '',
       vehiclePlate: plateNumber || '',
       licenseNumber: licenseNumber || '',
       franchiseNumber: franchiseNumber || '',
@@ -330,7 +281,7 @@ export async function fetchDriverProfile(driverId?: string) {
   }
 }
 
-export async function updateDriverProfile(driverId: string = DEFAULT_DRIVER_ID, updates: Partial<{ fullName: string; contactNumber: string; plateNumber: string; licenseNumber: string }>) {
+export async function updateDriverProfile(driverId: string, updates: Partial<{ fullName: string; contactNumber: string; plateNumber: string; licenseNumber: string }>) {
   const payload: any = {};
   if (updates.fullName) payload.full_name = updates.fullName;
   if (updates.contactNumber) payload.contact_number = updates.contactNumber;
@@ -353,27 +304,36 @@ export async function updateDriverProfile(driverId: string = DEFAULT_DRIVER_ID, 
 // 3. BOOKINGS & ACTIVE TRIPS
 // ============================================================================
 
-export async function fetchDriverTrips(driverId?: string) {
+/** The signed-in driver's trips (the argument is ignored: the driver is found from the session). */
+export async function fetchDriverTrips(_driverId?: string) {
   try {
-    const activeId = driverId || (typeof window !== 'undefined' ? localStorage.getItem('sakay_driver_id') : null);
-    if (!activeId) return [];
+    const userId = await currentAuthUserId();
+    if (!userId) return [];
+    const { data: own } = await supabase.from('driver').select('driver_id').eq('auth_user_id', userId).maybeSingle();
+    if (!own?.driver_id) return [];
 
-    const client = await getSecureLookupClient();
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('booking')
-      .select('*, passenger:passenger_id(*)')
-      .eq('driver_id', activeId)
-      .order('created_at', { ascending: false });
+      .select('*')
+      .eq('driver_id', own.driver_id)
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error || !data || data.length === 0) return [];
 
+    // The passenger's name (and phone, only while a trip is live) comes from a function that discloses just that; the passenger table
+    // itself is not readable by a driver.
+    const parties = new Map<string, { passenger_name?: string | null; passenger_phone?: string | null }>();
+    const { data: counterparties } = await supabase.rpc('get_booking_counterparties', { p_booking_ids: data.map((b: any) => b.booking_id) });
+    for (const row of (counterparties ?? []) as any[]) parties.set(row.booking_id, row);
+
     return data.map((b: any) => {
-      const p = Array.isArray(b.passenger) ? b.passenger[0] : b.passenger;
+      const p = parties.get(b.booking_id);
       return {
         id: b.booking_id,
         bookingCode: `BKG-${b.booking_id.slice(0, 8).toUpperCase()}`,
-        passengerName: b.passenger_name || p?.full_name || 'Passenger',
-        passengerPhone: p?.contact_number || '',
+        passengerName: p?.passenger_name || 'Passenger',
+        passengerPhone: p?.passenger_phone || '',
         pickupLocation: b.pickup_address || b.pickup_location_address || 'Calapan City',
         pickupLat: Number(b.pickup_latitude) || 13.4115,
         pickupLng: Number(b.pickup_longitude) || 121.1803,
@@ -457,18 +417,19 @@ export async function fetchDriverEarnings(driverId?: string) {
 
 export async function fetchDriverNotifications(): Promise<any[]> {
   try {
-    const client = await getSecureLookupClient();
-    const { data: { user } } = await client.auth.getUser();
+    const userId = await currentAuthUserId();
     let driverId: string | null = null;
-    if (user?.id) {
-      const { data: d } = await client.from('driver').select('driver_id').eq('auth_user_id', user.id).maybeSingle();
+    if (userId) {
+      const { data: d } = await supabase.from('driver').select('driver_id').eq('auth_user_id', userId).maybeSingle();
       driverId = d?.driver_id || null;
     }
+    // driverId is interpolated into a filter string below: only ever a UUID
+    const isUuid = (v: string | null): v is string => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
     const [announcementsRes, notifsRes] = await Promise.all([
-      client.from('announcement').select('*').order('created_at', { ascending: false }).limit(20),
-      driverId
-        ? client.from('notification').select('*').or(`recipient_id.eq.${driverId},driver_id.eq.${driverId}`).order('sent_at', { ascending: false }).limit(20)
+      supabase.from('announcement').select('*').order('created_at', { ascending: false }).limit(20),
+      isUuid(driverId)
+        ? supabase.from('notification').select('*').or(`recipient_id.eq.${driverId},driver_id.eq.${driverId}`).order('sent_at', { ascending: false }).limit(20)
         : Promise.resolve({ data: [] as any[], error: null }),
     ]);
 
@@ -504,19 +465,6 @@ export async function fetchDriverNotifications(): Promise<any[]> {
 // 5. OTP SMS DISPATCH & VERIFICATION
 // ============================================================================
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1200): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
-
 export function normalizePhoneE164(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (digits.startsWith('63') && digits.length === 12) return `+${digits}`;
@@ -526,102 +474,54 @@ export function normalizePhoneE164(raw: string): string {
   return `+${digits}`;
 }
 
-export async function sendDriverOtp(phone: string): Promise<{ success: boolean; message?: string; error?: string; debugOtp?: string }> {
+/**
+ * Asks the server to send an OTP SMS to the signed-in driver's own number (the server refuses any other number and applies the
+ * 30-second cooldown and the 5-per-day cap).
+ */
+export async function sendDriverOtp(phone: string): Promise<{ success: boolean; message?: string; error?: string }> {
   const e164Phone = normalizePhoneE164(phone);
   try {
-    const response = await fetchWithTimeout('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone }),
-    }, 8000);
-    if (response.ok) {
-      const result = await response.json();
-      return result;
-    }
-    const errResult = await response.json().catch(() => ({}));
-    if (errResult && errResult.error) {
-      return { success: false, error: errResult.error };
-    }
+    const { ok, data } = await apiPostJson(supabase, '/api/auth/send-otp', { phone: e164Phone, role: 'driver' }, { timeoutMs: 20000 });
+    if (ok && data.success) return { success: true, message: data.message };
+    return { success: false, error: data.error || 'Failed to send OTP SMS.' };
   } catch (backendErr) {
     console.warn('[driverApiService] Backend server not reachable or timed out:', backendErr);
     return { success: false, error: 'Hindi maabot ang SMS server. Pakisubukang muli.' };
   }
-
-  return { success: false, error: 'Failed to send OTP SMS.' };
-}
-
-export async function verifyDriverOtp(phone: string, code: string): Promise<{ success: boolean; error?: string }> {
-  const e164Phone = normalizePhoneE164(phone);
-  const trimmed = code.trim();
-
-  // Universal sandbox fallback code
-  if (trimmed === '123456' || trimmed === '654321') {
-    fetchWithTimeout('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone, code: trimmed, role: 'driver' }),
-    }, 4000).catch(() => {});
-    return { success: true };
-  }
-
-  try {
-    const response = await fetchWithTimeout('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone, code: trimmed, role: 'driver' }),
-    }, 8000);
-    if (response.ok) {
-      const result = await response.json();
-      return result;
-    }
-    const errResult = await response.json().catch(() => ({}));
-    if (errResult && errResult.error) {
-      return { success: false, error: errResult.error };
-    }
-  } catch (backendErr) {
-    console.warn('[driverApiService] Backend server not reachable or timed out, verified via sandbox:', backendErr);
-    return { success: true };
-  }
-
-  return { success: false, error: 'Maling OTP code o nag-expire na ito.' };
 }
 
 /**
- * Sends a real SMS from Driver to Passenger during an active trip
+ * Asks the server to check the code. There is no sandbox code and no "success when the server is unreachable": if the server cannot be
+ * reached, the code is NOT verified.
+ */
+export async function verifyDriverOtp(phone: string, code: string): Promise<{ success: boolean; error?: string }> {
+  const e164Phone = normalizePhoneE164(phone);
+  try {
+    const { ok, data } = await apiPostJson(supabase, '/api/auth/verify-otp', { phone: e164Phone, code: code.trim(), role: 'driver' }, { timeoutMs: 15000 });
+    if (ok && data.success) return { success: true };
+    return { success: false, error: data.error || 'Maling OTP code o nag-expire na ito.' };
+  } catch (backendErr) {
+    console.warn('[driverApiService] Backend server not reachable or timed out:', backendErr);
+    return { success: false, error: getLocalizedError('Hindi makakonekta sa server. Pakisubukang muli.', 'Unable to connect to the server. Please try again.') };
+  }
+}
+
+/**
+ * A driver texts the passenger of the trip they are on. The server accepts only that passenger's number, only while the trip is live,
+ * and only from a verified driver (it used to be an open SMS relay). A failure is reported as a failure.
  */
 export async function sendDriverPassengerSms(
   passengerPhone: string,
-  message: string,
-  driverName?: string
+  message: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   const e164Phone = normalizePhoneE164(passengerPhone);
   try {
-    const response = await fetchWithTimeout('/api/communication/send-sms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone: e164Phone,
-        message,
-        senderRole: 'driver',
-        senderName: driverName || 'Driver',
-      }),
-    }, 8000);
-
-    const data = await response.json().catch(() => ({}));
-    if (response.ok && data.success) {
-      return { success: true, message: data.message };
-    }
-    return {
-      success: false,
-      error: data.error || 'Failed to dispatch SMS to passenger.',
-    };
+    const { ok, data } = await apiPostJson(supabase, '/api/communication/send-sms', { phone: e164Phone, message }, { timeoutMs: 20000 });
+    if (ok && data.success) return { success: true, message: data.message };
+    return { success: false, error: data.error || 'Failed to dispatch SMS to passenger.' };
   } catch (err: any) {
     console.warn('[driverApiService] Error sending SMS to passenger:', err.message);
-    // Return simulated success in offline dev mode
-    return {
-      success: true,
-      message: 'SMS sent (simulated mode).',
-    };
+    return { success: false, error: getLocalizedError('Hindi maipadala ang SMS. Pakisubukang muli.', 'The SMS could not be sent. Please try again.') };
   }
 }
 
@@ -630,9 +530,11 @@ export async function sendDriverPassengerSms(
 // ============================================================================
 
 /**
- * Creates (or recovers) the driver's Supabase Auth account and ensures an
- * authenticated session is active in this browser before verification data
- * is written anywhere.
+ * Creates the driver's Supabase Auth account (or resumes an unfinished registration with the same password), makes sure this browser is
+ * signed in, and makes sure the driver's own record exists as Pending Verification.
+ *
+ * Perimeter lockdown: no look-up of anybody else's record, no guessing of other passwords, no second account under an alias for a
+ * number that is taken. "Already registered" is learned from the sign-up itself.
  */
 export async function ensureDriverAuthSession(
   phone: string,
@@ -643,94 +545,22 @@ export async function ensureDriverAuthSession(
   const candidates = getPhoneLookupCandidates(phone);
   const e164Phone = candidates.e164;
   const driverEmail = `driver_${candidates.phone63NoPlus}@sakay.ph`;
-
-  console.log('[DRIVER REGISTRATION AUTH] ========================================');
-  console.log('[DRIVER REGISTRATION AUTH] Starting fresh driver registration auth');
-  console.log('[DRIVER REGISTRATION AUTH] Phone (E.164):', e164Phone);
-  console.log('[DRIVER REGISTRATION AUTH] Identifier Email:', driverEmail);
-  console.log('[DRIVER REGISTRATION AUTH] Target TODA ID:', todaId);
+  const alreadyRegistered = {
+    success: false,
+    error: getLocalizedError(
+      'Ang mobile number na ito ay nakarehistro na. Mangyaring mag-login na lamang.',
+      'This mobile number is already registered. Please log in instead.'
+    ),
+  };
 
   try {
-    // 1. Check existing active session
-    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-    console.log('[DRIVER REGISTRATION AUTH] Existing session check:', {
-      exists: Boolean(sessionData?.session),
-      userId: sessionData?.session?.user?.id || null,
-      error: sessionErr ? sessionErr.message : null,
-    });
-
-    // Helper to ensure public.driver record is provisioned and linked to auth_user_id
-    const syncDriverProfileRecord = async (userId: string, emailToSave?: string) => {
-      try {
-        const { data: existingRows } = await supabase
-          .from('driver')
-          .select('driver_id, toda_id, contact_number')
-          .or(`auth_user_id.eq.${userId},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
-          .limit(1);
-
-        const existing = existingRows?.[0] || null;
-
-        if (existing) {
-          const updateObj: Record<string, any> = {
-            auth_user_id: userId,
-            contact_number: e164Phone,
-          };
-          if (fullName) updateObj.full_name = fullName;
-          if (todaId) updateObj.toda_id = todaId;
-          if (emailToSave) updateObj.email = emailToSave;
-
-          await supabase.from('driver').update(updateObj).eq('driver_id', existing.driver_id);
-          return existing.driver_id;
-        } else {
-          const insertObj: Record<string, any> = {
-            auth_user_id: userId,
-            contact_number: e164Phone,
-            full_name: fullName || 'Driver Applicant',
-            account_status: 'Pending Verification',
-            availability_status: 'Offline',
-          };
-          if (todaId) insertObj.toda_id = todaId;
-          if (emailToSave) insertObj.email = emailToSave;
-
-          const { data: inserted, error: insErr } = await supabase
-            .from('driver')
-            .insert([insertObj])
-            .select('driver_id')
-            .maybeSingle();
-
-          if (insErr) {
-            console.warn('[DRIVER REGISTRATION AUTH] Direct driver insert note:', insErr.message);
-          }
-          return inserted?.driver_id || null;
-        }
-      } catch (profileSyncErr) {
-        console.warn('[DRIVER REGISTRATION AUTH] Profile sync exception:', profileSyncErr);
-        return null;
-      }
-    };
-
-    if (sessionData?.session?.user) {
-      const activeUserId = sessionData.session.user.id;
-      const { data: driverRows } = await supabase
-        .from('driver')
-        .select('driver_id, auth_user_id, contact_number, toda_id')
-        .or(`auth_user_id.eq.${activeUserId},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phoneRaw}`)
-        .limit(1);
-
-      const driverRow = driverRows?.[0] || null;
-
-      if (driverRow) {
-        console.log('[DRIVER REGISTRATION AUTH] Active session matches driver profile:', driverRow.driver_id);
-        await syncDriverProfileRecord(activeUserId);
-        return { success: true };
-      }
-
-      console.warn('[DRIVER REGISTRATION AUTH] Active session is unlinked or stale for user:', activeUserId, '. Signing out...');
+    // 1. A clean slate: sign out any session left in this browser.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session) {
       await supabase.auth.signOut();
     }
 
-    // 2. FRESH REGISTRATION: Call signUp with trigger metadata fields
-    console.log('[DRIVER REGISTRATION AUTH] Invoking signUp with driver credentials & trigger metadata...');
+    // 2. Create the login. Sign-up data is only used to create a PENDING record; no role is ever granted from it.
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: driverEmail,
       password: password,
@@ -739,123 +569,63 @@ export async function ensureDriverAuthSession(
           role: 'driver',
           full_name: fullName || null,
           contact_number: e164Phone,
-          phone: e164Phone,
           toda_id: todaId || null,
         },
       },
     });
-
-    console.log('[DRIVER REGISTRATION AUTH] signUp result:', {
-      userCreated: Boolean(signUpData?.user),
-      userId: signUpData?.user?.id || null,
-      sessionCreated: Boolean(signUpData?.session),
-      errorCode: signUpError?.code || null,
-      errorMessage: signUpError?.message || null,
-    });
-
-    if (!signUpError && (signUpData?.session || signUpData?.user)) {
-      const activeId = signUpData?.session?.user?.id || signUpData?.user?.id;
-      console.log('[DRIVER REGISTRATION AUTH] Fresh registration signUp SUCCESS. User:', activeId);
-      if (activeId) await syncDriverProfileRecord(activeId, driverEmail);
-      return { success: true };
-    }
-
-    // 3. Attempt signInWithPassword across candidate email / phone formats
-    console.log('[DRIVER REGISTRATION AUTH] Attempting candidate sign-in for existing user...');
-    for (const candidate of candidates.authCandidates) {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        ...candidate,
-        password: password,
-      });
-
-      if (!signInError && signInData?.session) {
-        console.log('[DRIVER REGISTRATION AUTH] Session established via candidate signIn:', candidate, signInData.session.user.id);
-        await syncDriverProfileRecord(signInData.session.user.id, candidate.email);
-        return { success: true };
-      }
-    }
-
     const message = (signUpError?.message || '').toLowerCase();
-    const isAlreadyRegistered = message.includes('already registered') || message.includes('already exists');
-    if (isAlreadyRegistered) {
-      // Check if a driver record actually exists in the database!
-      const { data: existingProfiles } = await supabase
-        .from('driver')
-        .select('driver_id, contact_number, auth_user_id')
-        .or(`contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
-        .limit(1);
-
-      const existingProfile = existingProfiles?.[0] || null;
-
-      if (existingProfile) {
-        console.warn('[DRIVER REGISTRATION AUTH] Account already exists in driver table with different credentials.');
-        return {
-          success: false,
-          error: getLocalizedError(
-            'Ang mobile number na ito ay nakarehistro na sa ibang password. Pakisubukang mag-login.',
-            'This mobile number is already registered with a different password. Please try logging in.'
-          ),
-        };
-      }
-
-      // If driver table was wiped or has no records, reclaim auth or create alias
-      console.log('[DRIVER REGISTRATION AUTH] Auth account exists in Supabase Auth but not in driver table. Reclaiming...');
-
-      const fallbackPasswords = [
-        'Password123!',
-        'NewPassword123!',
-        `SakayDriver#2026_${candidates.phoneRaw.slice(-4)}`,
-        'SakayDriver#2026',
-        'Sakay#2026',
-        '@Dmin_123',
-      ];
-      for (const fp of fallbackPasswords) {
-        const { data: fpRes, error: fpErr } = await supabase.auth.signInWithPassword({
-          email: driverEmail,
-          password: fp,
-        });
-        if (!fpErr && fpRes?.user) {
-          console.log('[DRIVER REGISTRATION AUTH] Reclaimed existing auth user with fallback password, updating password...');
-          await supabase.auth.updateUser({ password }).catch(() => {});
-          await syncDriverProfileRecord(fpRes.user.id, driverEmail);
-          return { success: true };
-        }
-      }
-
-      // Create fresh auth user using unique alias so user is never blocked by deleted DB tables
-      const usedEmail = `driver_${candidates.phone63NoPlus}+${Date.now().toString().slice(-6)}@sakay.ph`;
-      const altSignUp = await supabase.auth.signUp({
-        email: usedEmail,
-        password: password,
-        options: {
-          data: {
-            role: 'driver',
-            full_name: fullName || null,
-            contact_number: e164Phone,
-            phone: e164Phone,
-            toda_id: todaId || null,
-          },
-        },
-      });
-
-      if (!altSignUp.error && (altSignUp.data?.session || altSignUp.data?.user)) {
-        const activeId = altSignUp.data?.session?.user?.id || altSignUp.data?.user?.id;
-        console.log('[DRIVER REGISTRATION AUTH] Fresh driver alias auth created:', activeId, usedEmail);
-        if (activeId) await syncDriverProfileRecord(activeId, usedEmail);
-        try {
-          localStorage.setItem('sakay_driver_auth_email', usedEmail);
-        } catch {}
-        return { success: true };
-      }
+    // An existing login is reported as an error, or (when confirmation e-mails are on) as a "user" that has no identities.
+    const exists = Boolean(
+      (signUpError && (message.includes('already registered') || message.includes('already exists') || (signUpError as any)?.code === 'user_already_exists')) ||
+      (!signUpError && signUpData?.user && Array.isArray(signUpData.user.identities) && signUpData.user.identities.length === 0)
+    );
+    if (signUpError && !exists) {
+      console.warn('[DRIVER REGISTRATION AUTH] signUp error:', signUpError.message);
+      return { success: false, error: signUpError.message };
     }
 
-    return {
-      success: false,
-      error: getLocalizedError(
-        'Hindi maihanda ang inyong account. Pakisuri ang koneksyon at subukang muli.',
-        'Unable to prepare your account. Please check your connection and try again.'
-      ),
-    };
+    // 3. Be signed in. A new sign-up already is; an unfinished registration is resumed by signing in with the SAME password,
+    //    and a wrong password for an existing login ends here.
+    let authUser = !exists ? signUpData?.session?.user ?? null : null;
+    if (!authUser) {
+      const signIn = await supabase.auth.signInWithPassword({ email: driverEmail, password: password });
+      if (signIn.error || !signIn.data?.user) {
+        return exists ? alreadyRegistered : { success: false, error: signIn.error?.message || 'Failed to sign in after registration.' };
+      }
+      authUser = signIn.data.user;
+    }
+
+    // 4. The driver's own record (row security shows each driver only their own).
+    const { data: own, error: ownErr } = await supabase
+      .from('driver')
+      .select('driver_id, account_status')
+      .eq('auth_user_id', authUser.id)
+      .maybeSingle();
+    if (ownErr) return { success: false, error: ownErr.message };
+
+    if (own) {
+      if (own.account_status !== 'Pending Verification' && own.account_status !== 'Resubmission Required') {
+        await supabase.auth.signOut();
+        return alreadyRegistered;
+      }
+      const updateObj: Record<string, any> = { contact_number: e164Phone, email: driverEmail };
+      if (fullName) updateObj.full_name = fullName;
+      const { error: upErr } = await supabase.from('driver').update(updateObj).eq('driver_id', own.driver_id);
+      if (upErr) return { success: false, error: upErr.message };
+    } else {
+      const insertObj: Record<string, any> = {
+        auth_user_id: authUser.id,
+        contact_number: e164Phone,
+        full_name: fullName || 'Driver Applicant',
+        account_status: 'Pending Verification',
+        availability_status: 'Offline',
+        email: driverEmail,
+      };
+      if (todaId) insertObj.toda_id = todaId;
+      const { error: insErr } = await supabase.from('driver').insert([insertObj]);
+      if (insErr) return { success: false, error: insErr.message };
+    }
+    return { success: true };
   } catch (err: any) {
     console.error('[DRIVER REGISTRATION AUTH] Exception in ensureDriverAuthSession:', err);
     return {

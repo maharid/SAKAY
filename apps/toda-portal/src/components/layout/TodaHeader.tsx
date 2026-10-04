@@ -71,7 +71,7 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
   }, [todaAdminProfile]);
 
   const adminName = todaAdminProfile?.full_name || 'TODA Administrator';
-  const adminEmail = todaAdminProfile?.email || user?.email || 'toda.admin@gmail.com';
+  const adminEmail = todaAdminProfile?.email || user?.email || '';
   const associationName = todaAdminProfile?.toda?.toda_name || todaName;
 
   const handleSignOutConfirm = async () => {

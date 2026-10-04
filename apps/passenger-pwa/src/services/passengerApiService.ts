@@ -8,7 +8,7 @@
  * ============================================================================
  */
 
-import { fetchOwnAccountRestriction, type AccountRestriction } from '@sakay/shared';
+import { apiPostJson, fetchOwnAccountRestriction, type AccountRestriction } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 
 /**
@@ -82,24 +82,6 @@ export function getPhoneLookupCandidates(raw: string) {
   };
 }
 
-/**
- * Looks up a passenger row in public.passenger by any valid phone variant
- */
-export async function lookupPassengerByPhone(rawPhone: string) {
-  const candidates = getPhoneLookupCandidates(rawPhone);
-  const { data, error } = await supabase
-    .from('passenger')
-    .select('*')
-    .or(`contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.warn('[lookupPassengerByPhone] Lookup error:', error);
-    return null;
-  }
-  return data;
-}
 
 // ============================================================================
 // OTP SMS DISPATCH & VERIFICATION
@@ -115,51 +97,16 @@ export function normalizePhoneE164(raw: string): string {
 }
 
 /**
- * Sends an OTP SMS to the given phone number.
- * Checks server-side OTP lockout (via the fixed check_otp_lockout RPC) before dispatching.
+ * Asks the server to send an OTP SMS to the signed-in passenger's own number.
+ * The server checks the lockout, the 30-second cooldown and the daily cap, and refuses any number that is not this account's.
  */
-export async function sendPassengerOtp(phone: string): Promise<{ success: boolean; message?: string; error?: string; debugOtp?: string }> {
+export async function sendPassengerOtp(phone: string): Promise<{ success: boolean; message?: string; error?: string }> {
   const e164Phone = normalizePhoneE164(phone);
   try {
-    // ── OTP lockout check (Rule 4.7) ──────────────────────────────────────────
-    // The RPC now accepts TEXT (phone number), not UUID.
-    const { data: lockoutData, error: lockoutErr } = await supabase.rpc('check_otp_lockout', {
-      p_contact_number: e164Phone,
-    });
-    if (lockoutErr) {
-      console.warn('[passengerApiService] OTP lockout RPC error:', lockoutErr.message);
+    const { ok, data } = await apiPostJson(supabase, '/api/auth/send-otp', { phone: e164Phone }, { timeoutMs: 20000 });
+    if (ok && data.success) {
+      return { success: true, message: data.message || 'OTP SMS sent successfully.' };
     }
-    if (lockoutData?.is_locked) {
-      const mins = lockoutData.minutes_remaining ?? 15;
-      return {
-        success: false,
-        error: getLocalizedError(
-          `Ang inyong OTP ay naka-lock. Subukan muli pagkatapos ng ${mins} minuto.`,
-          `Too many failed OTP attempts. Please try again in ${mins} minute(s).`
-        ),
-      };
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-    const response = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: e164Phone }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const data = await response.json().catch(() => ({}));
-    if (response.ok && data.success) {
-      return {
-        success: true,
-        message: data.message || 'OTP SMS sent successfully.',
-      };
-    }
-
     return {
       success: false,
       error: data.error || getLocalizedError('Nabigong ipadala ang OTP SMS.', 'Failed to send OTP SMS.'),
@@ -173,74 +120,34 @@ export async function sendPassengerOtp(phone: string): Promise<{ success: boolea
   }
 }
 
+/**
+ * Asks the server to check the code. When it is right the SERVER activates this account (nothing is activated from the browser) and
+ * counts a wrong code against the lockout; the age rule (Rule 4.3) is enforced there too, using the birth date on the record
+ * or the one passed here.
+ */
 export async function verifyPassengerOtp(
   phone: string,
   code: string,
-  fullName?: string,
-  authUserId?: string
+  dateOfBirth?: string
 ): Promise<{ success: boolean; error?: string }> {
   const e164Phone = normalizePhoneE164(phone);
-  const trimmedCode = (code || '').trim();
-
-  const payload: Record<string, any> = {
-    phone: e164Phone,
-    code: trimmedCode,
-    role: 'passenger',
-    passengerName: fullName,
-    fullName,
-  };
-  if (authUserId) {
-    payload.auth_user_id = authUserId;
-    payload.userId = authUserId;
-  }
-
-  // Fast sandbox dev codes - still trigger database activation
-  if (trimmedCode === '123456' || trimmedCode === '654321') {
-    fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-    return { success: true };
-  }
+  const payload: Record<string, unknown> = { phone: e164Phone, code: (code || '').trim() };
+  if (dateOfBirth) payload.date_of_birth = dateOfBirth;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const response = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const data = await response.json().catch(() => ({}));
-    if (response.ok && data.success) {
-      // Successful OTP verification – reset DB attempt counters and rotate session_id
-      const passenger = await lookupPassengerByPhone(phone);
-      if (passenger?.passenger_id) {
-        await supabase.rpc('reset_failed_otp', { p_passenger_id: passenger.passenger_id });
-        // Write a new session token that the Login page will persist locally for comparison
-        const newSessionId = crypto.randomUUID();
-        await supabase
-          .from('passenger')
-          .update({ session_id: newSessionId })
-          .eq('passenger_id', passenger.passenger_id);
-        // Persist locally so Login.tsx comparison works immediately after registration
-        try {
-          localStorage.setItem('sakay_session_token', newSessionId);
-        } catch {}
+    const { ok, data } = await apiPostJson(supabase, '/api/auth/verify-otp', payload, { timeoutMs: 15000 });
+    if (ok && data.success) {
+      // A fresh login-session token for this device (single-session rule). Own record only.
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user?.id) {
+          const { data: own } = await supabase.from('passenger').select('passenger_id').eq('auth_user_id', userData.user.id).maybeSingle();
+          if (own?.passenger_id) await rotatePassengerSession(own.passenger_id);
+        }
+      } catch (sessionErr) {
+        console.warn('[passengerApiService] could not rotate the login session after verification:', sessionErr);
       }
       return { success: true };
-    }
-
-    // OTP verification failed – increment DB attempt counter
-    const passenger = await lookupPassengerByPhone(phone);
-    if (passenger?.passenger_id) {
-      await supabase.rpc('increment_failed_otp', { p_passenger_id: passenger.passenger_id });
     }
     return {
       success: false,
@@ -286,11 +193,12 @@ export async function rotatePassengerSession(passengerId: string): Promise<strin
 }
 
 /**
- * Creates (or recovers) the passenger's Supabase Auth account and ensures an
- * authenticated session is active in this browser.
+ * Creates the passenger's Supabase Auth account (or resumes an unfinished registration with the same password) and makes sure an
+ * authenticated session is active in this browser, then makes sure the passenger's own record exists, as Pending OTP Verification.
  *
- * BATCH 2 FIX: blocks re-registration when account_status is 'Pending OTP Verification'
- * (previously only blocked 'Active' / 'Verified').
+ * Perimeter lockdown: nothing here looks at anybody else's record, tries other passwords, or writes an account status.
+ * "Already registered" is learned from the sign-up itself: a login that already exists answers with an error, and the only way past
+ * it is to know its password (an unfinished registration, still Pending).
  */
 export async function ensurePassengerAuthSession(
   phone: string,
@@ -300,113 +208,23 @@ export async function ensurePassengerAuthSession(
   const candidates = getPhoneLookupCandidates(phone);
   const e164Phone = candidates.e164;
   const passengerEmail = `passenger_${candidates.phone63NoPlus}@sakay.ph`;
-
-  console.log('[PASSENGER REGISTRATION AUTH] ========================================');
-  console.log('[PASSENGER REGISTRATION AUTH] Starting passenger registration auth');
-  console.log('[PASSENGER REGISTRATION AUTH] Phone (E.164):', e164Phone);
-  console.log('[PASSENGER REGISTRATION AUTH] Identifier Email:', passengerEmail);
+  const alreadyRegistered = {
+    success: false,
+    error: getLocalizedError(
+      'Ang numerong ito ay nakarehistro na. Mangyaring mag-log in na lamang.',
+      'This mobile number is already registered. Please log in instead.'
+    ),
+  };
 
   try {
-    // 1. Strict Duplicate Check — block ALL existing accounts regardless of status.
-    //    Previously only blocked Active/Verified; now also blocks Pending OTP Verification
-    //    so a user cannot start a second registration while one is in flight (Rule 4.2).
-    const existingPassenger = await lookupPassengerByPhone(phone);
-    if (existingPassenger) {
-      const status: string = existingPassenger.account_status || '';
-      if (status === 'Active' || status === 'Verified') {
-        console.warn('[PASSENGER REGISTRATION AUTH] Phone already Active:', e164Phone);
-        return {
-          success: false,
-          error: getLocalizedError(
-            'Ang numerong ito ay nakarehistro na. Mangyaring mag-log in na lamang o gamitin ang "Nakalimutan ang Password".',
-            'This mobile number is already registered. Please log in or use "Forgot Password".'
-          ),
-        };
-      }
-      if (status === 'Pending OTP Verification') {
-        console.warn('[PASSENGER REGISTRATION AUTH] Phone already pending OTP:', e164Phone);
-        return {
-          success: false,
-          error: getLocalizedError(
-            'May naghihintay na OTP verification para sa numerong ito. Suriin ang inyong SMS o humingi ng bagong code.',
-            'A registration is already pending OTP verification for this number. Check your SMS or request a new code.'
-          ),
-        };
-      }
-    }
-
-    // 2. Sign out any existing session to ensure a clean registration flow
+    // 1. A clean slate: sign out any session left in this browser.
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData?.session) {
       await supabase.auth.signOut();
     }
 
-    // Helper to ensure public.passenger record is provisioned and linked to auth_user_id
-    const syncPassengerProfileRecord = async (userId: string, usedEmail: string = passengerEmail) => {
-      try {
-        const { data: existingRows, error: findErr } = await supabase
-          .from('passenger')
-          .select('passenger_id, contact_number, auth_user_id')
-          .or(`auth_user_id.eq.${userId},contact_number.eq.${candidates.phone63WithPlus},contact_number.eq.${candidates.phone09},contact_number.eq.${candidates.phone63NoPlus},contact_number.eq.${candidates.phoneRaw}`)
-          .limit(1);
-
-        if (findErr) {
-          console.warn('[PASSENGER REGISTRATION AUTH] Passenger search note:', findErr.message);
-        }
-
-        const existing = existingRows?.[0] || null;
-
-        if (existing) {
-          const updateObj: Record<string, any> = {
-            auth_user_id: userId,
-            contact_number: e164Phone,
-            email: usedEmail,
-          };
-          if (fullName) updateObj.full_name = fullName;
-
-          const { error: upErr } = await supabase
-            .from('passenger')
-            .update(updateObj)
-            .eq('passenger_id', existing.passenger_id);
-
-          if (upErr) {
-            console.error('[PASSENGER REGISTRATION AUTH] CRITICAL Update Error:', upErr.message, upErr.details, upErr.code);
-            return { success: false, error: upErr.message };
-          }
-          return { success: true, passengerId: existing.passenger_id };
-        } else {
-          const insertObj: Record<string, any> = {
-            auth_user_id: userId,
-            contact_number: e164Phone,
-            email: usedEmail,
-            full_name: fullName || 'Passenger',
-            account_status: 'Pending OTP Verification',
-          };
-
-          const { data: inserted, error: insErr } = await supabase
-            .from('passenger')
-            .insert([insertObj])
-            .select('passenger_id, auth_user_id')
-            .maybeSingle();
-
-          if (insErr) {
-            console.error('[PASSENGER REGISTRATION AUTH] CRITICAL Insert Error:', insErr.message, insErr.details, insErr.code);
-            return { success: false, error: insErr.message };
-          }
-          return { success: true, passengerId: inserted?.passenger_id };
-        }
-      } catch (profileSyncErr: any) {
-        console.error('[PASSENGER REGISTRATION AUTH] Profile sync exception:', profileSyncErr);
-        return { success: false, error: profileSyncErr.message || 'Profile persistence exception' };
-      }
-    };
-
-    // 3. FRESH REGISTRATION: Call signUp with trigger metadata fields
-    console.log('[PASSENGER REGISTRATION AUTH] Invoking signUp with passenger credentials & trigger metadata...');
-    let authUser: any = null;
-    let usedEmail = passengerEmail;
-
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    // 2. Create the login. (Only sign-up data that is needed to create a PENDING record; roles are never granted from it.)
+    const { error: signUpError } = await supabase.auth.signUp({
       email: passengerEmail,
       password: password,
       options: {
@@ -414,79 +232,63 @@ export async function ensurePassengerAuthSession(
           role: 'passenger',
           full_name: fullName || null,
           contact_number: e164Phone,
-          phone: e164Phone,
         },
       },
     });
-
-    if (!signUpError && (signUpData?.session || signUpData?.user)) {
-      authUser = signUpData?.session?.user || signUpData?.user;
-    }
-
-    // Ensure client session is active so auth.uid() is populated for RLS
-    const signInImmediate = await supabase.auth.signInWithPassword({
-      email: passengerEmail,
-      password: password,
-    });
-
-    if (!signInImmediate.error && signInImmediate.data?.user) {
-      authUser = signInImmediate.data.user;
-    }
-
-    // 4. If Supabase Auth already has an account for this email, reclaim/synchronize it
-    if (!authUser && signUpError && (signUpError.message?.toLowerCase().includes('already registered') || (signUpError as any)?.code === 'user_already_exists')) {
-      console.log('[PASSENGER REGISTRATION AUTH] Auth account exists but not in passenger table. Reclaiming...');
-
-      const signInDirect = await supabase.auth.signInWithPassword({
-        email: passengerEmail,
-        password: password,
-      });
-
-      if (!signInDirect.error && signInDirect.data?.user) {
-        authUser = signInDirect.data.user;
-      } else {
-        const fallbackPasswords = [
-          'Password123!',
-          'MyNewPassword#2026',
-          'NewPassword123!',
-          `SakayPassenger#2026_${candidates.phoneRaw.slice(-4)}`,
-          'SakayPass#2026',
-          'SakayPassenger#2026',
-          'Sakay#2026',
-          'Admin123!',
-          'TestPass123!',
-          'sakay123',
-          'sakay123!',
-          '12345678',
-        ];
-        for (const fp of fallbackPasswords) {
-          const fpRes = await supabase.auth.signInWithPassword({
-            email: passengerEmail,
-            password: fp,
-          });
-          if (!fpRes.error && fpRes.data?.user) {
-            authUser = fpRes.data.user;
-            await supabase.auth.updateUser({ password }).catch(() => {});
-            break;
-          }
-        }
-      }
-    }
-
-    if (authUser?.id) {
-      console.log('[PASSENGER REGISTRATION AUTH] Registration session established. User UUID:', authUser.id);
-      const syncResult = await syncPassengerProfileRecord(authUser.id, usedEmail);
-      if (!syncResult.success) {
-        return { success: false, error: syncResult.error };
-      }
-      return { success: true };
-    }
-
-    if (signUpError) {
+    const exists = Boolean(
+      signUpError &&
+        (signUpError.message?.toLowerCase().includes('already registered') || (signUpError as any)?.code === 'user_already_exists')
+    );
+    if (signUpError && !exists) {
       console.error('[PASSENGER REGISTRATION AUTH] Registration error:', signUpError.message);
       return { success: false, error: signUpError.message };
     }
 
+    // 3. Be signed in (also how an unfinished registration is resumed). A wrong password for an existing login ends here.
+    const signIn = await supabase.auth.signInWithPassword({ email: passengerEmail, password: password });
+    if (signIn.error || !signIn.data?.user) {
+      return exists ? alreadyRegistered : { success: false, error: signIn.error?.message || 'Failed to sign in after registration.' };
+    }
+    const authUser = signIn.data.user;
+
+    // 4. The passenger's own record (Row-level security shows each passenger only their own).
+    const { data: own, error: ownErr } = await supabase
+      .from('passenger')
+      .select('passenger_id, account_status')
+      .eq('auth_user_id', authUser.id)
+      .maybeSingle();
+    if (ownErr) {
+      console.error('[PASSENGER REGISTRATION AUTH] Passenger lookup error:', ownErr.message);
+      return { success: false, error: ownErr.message };
+    }
+    if (own && own.account_status !== 'Pending OTP Verification') {
+      await supabase.auth.signOut();
+      return alreadyRegistered;
+    }
+
+    if (own) {
+      const updateObj: Record<string, any> = { contact_number: e164Phone, email: passengerEmail };
+      if (fullName) updateObj.full_name = fullName;
+      const { error: upErr } = await supabase.from('passenger').update(updateObj).eq('passenger_id', own.passenger_id);
+      if (upErr) {
+        console.error('[PASSENGER REGISTRATION AUTH] Update error:', upErr.message, upErr.code);
+        return { success: false, error: upErr.message };
+      }
+    } else {
+      const { error: insErr } = await supabase.from('passenger').insert([
+        {
+          auth_user_id: authUser.id,
+          contact_number: e164Phone,
+          email: passengerEmail,
+          full_name: fullName || 'Passenger',
+          account_status: 'Pending OTP Verification',
+        },
+      ]);
+      if (insErr) {
+        console.error('[PASSENGER REGISTRATION AUTH] Insert error:', insErr.message, insErr.code);
+        return { success: false, error: insErr.message };
+      }
+    }
     return { success: true };
   } catch (err: any) {
     console.error('[PASSENGER REGISTRATION AUTH] Exception in ensurePassengerAuthSession:', err);

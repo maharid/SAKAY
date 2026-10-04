@@ -15,6 +15,7 @@
 
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
+import { SIGNED_URL_TTL, apiFetch, apiPostJson, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   FareMatrixRecord,
   TodaApplicationRecord,
@@ -242,56 +243,14 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 // 2. TODA APPLICATIONS SERVICES (Live Supabase public.toda)
 // ============================================================================
 
-function extractStoragePath(bucket: string, rawVal?: string | null): string | null {
-  if (!rawVal) return null;
-  const str = String(rawVal).trim();
-  if (!str) return null;
-
-  if (str.includes(`/${bucket}/`)) {
-    return decodeURIComponent(str.split(`/${bucket}/`)[1].split('?')[0]);
-  }
-  if (str.includes('/storage/v1/object/public/')) {
-    const after = decodeURIComponent(str.split('/storage/v1/object/public/')[1].split('?')[0]);
-    if (after.startsWith(`${bucket}/`)) {
-      return after.slice(bucket.length + 1);
-    }
-    return after;
-  }
-  return str;
-}
-
+/**
+ * A link to a stored document for the review screens. Every bucket is private: the link is a SIGNED URL that lives 10 minutes and that
+ * Storage only issues if this administrator may read the file. The preview windows sign again when a document is opened, so a list that
+ * has been open for a while still works. There is no public-URL fallback (there are no public files).
+ */
 async function resolveStorageDocUrl(bucket: string, rawVal?: string | null, fallbackBucket?: string): Promise<string | null> {
   if (!rawVal) return null;
-  const str = String(rawVal).trim();
-  if (!str) return null;
-
-  const path = extractStoragePath(bucket, str);
-  if (!path) return str.startsWith('http') ? str : null;
-
-  try {
-    const { data: signedData, error: sErr } = await supabase.storage.from(bucket).createSignedUrl(path, 86400);
-    if (!sErr && signedData?.signedUrl) {
-      return signedData.signedUrl;
-    }
-  } catch {}
-
-  if (fallbackBucket) {
-    try {
-      const { data: signedData, error: sErr } = await supabase.storage.from(fallbackBucket).createSignedUrl(path, 86400);
-      if (!sErr && signedData?.signedUrl) {
-        return signedData.signedUrl;
-      }
-    } catch {}
-  }
-
-  try {
-    const { data: pubData } = supabase.storage.from(bucket).getPublicUrl(path);
-    if (pubData?.publicUrl) {
-      return pubData.publicUrl;
-    }
-  } catch {}
-
-  return str.startsWith('http') ? str : null;
+  return signedStorageUrlFromAny(supabase, fallbackBucket ? [bucket, fallbackBucket] : [bucket], rawVal, SIGNED_URL_TTL.document);
 }
 
 function extractActualFilename(rawUrlOrPath?: string | null, fallback = 'Document'): string {
@@ -327,18 +286,10 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
         ? Date.now() - new Date(row.created_at).getTime() > 5 * 24 * 60 * 60 * 1000
         : false;
 
-      // Resolve signed or direct public URLs for documents
-      const bcUrl = row.barangay_clearance_url?.startsWith('http')
-        ? row.barangay_clearance_url
-        : await resolveStorageDocUrl('barangay-clearances', row.barangay_clearance_url);
-
-      const adUrl = row.accredited_drivers_url?.startsWith('http')
-        ? row.accredited_drivers_url
-        : await resolveStorageDocUrl('toda-accredited-driver-lists', row.accredited_drivers_url);
-
-      const blUrl = row.bylaws_url?.startsWith('http')
-        ? row.bylaws_url
-        : await resolveStorageDocUrl('toda-bylaws', row.bylaws_url);
+      // Signed links for the documents (a stored value is a storage path; an older full storage URL is converted to one)
+      const bcUrl = await resolveStorageDocUrl('barangay-clearances', row.barangay_clearance_url);
+      const adUrl = await resolveStorageDocUrl('toda-accredited-driver-lists', row.accredited_drivers_url);
+      const blUrl = await resolveStorageDocUrl('toda-bylaws', row.bylaws_url);
 
       const docs = [];
       if (row.barangay_clearance_url || bcUrl) {
@@ -477,9 +428,8 @@ export async function approveTodaApplication(
   // 2. Secondary: Backend API endpoint using Supabase Service Role
   if (!updatedData) {
     try {
-      const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/approve`, {
+      const res = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${applicationId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ remarks, actor_name: 'City Administrator', acronym, name }),
       });
       if (res.ok) {
@@ -569,9 +519,8 @@ export async function returnTodaApplicationForCorrection(applicationId: string, 
   // 2. Secondary: Backend API endpoint
   if (!updatedData) {
     try {
-      const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/return-correction`, {
+      const res = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${applicationId}/return-correction`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
       });
       if (res.ok) {
@@ -625,9 +574,8 @@ export async function rejectTodaApplication(applicationId: string, reason: strin
   // 2. Secondary: Backend API endpoint
   if (!updatedData) {
     try {
-      const res = await fetch(`${API_BASE_URL}/toda/${applicationId}/reject`, {
+      const res = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${applicationId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
       });
       if (res.ok) {
@@ -1113,6 +1061,24 @@ async function resolveLguAffiliationId(driverOrAffiliationId: string): Promise<s
   return aff?.affiliation_id || driverOrAffiliationId;
 }
 
+/**
+ * Tells a driver applicant the outcome of their application by SMS. The browser says only WHICH message and for WHICH driver; the server
+ * takes the number from the driver's own record, writes the text from a template and refuses a message the record does not support
+ * (server/src/routes/driverNotifyRoutes.ts). A failure is logged and never undoes the decision that was just saved.
+ */
+async function notifyDriverOutcome(
+  driverId: string,
+  kind: 'approved' | 'rejected' | 'returned',
+  details: { reason?: string; notes?: string; documents?: string[] } = {}
+): Promise<void> {
+  try {
+    const { ok, data } = await apiPostJson(supabase, `${API_BASE_URL}/admin/notify/driver`, { driverId, kind, ...details });
+    if (!ok) console.warn('[adminApiService] Driver SMS not sent:', data?.error || 'request refused');
+  } catch (smsErr) {
+    console.warn('[adminApiService] Driver SMS dispatch warning:', smsErr);
+  }
+}
+
 export async function verifyDriver(driverId: string, franchiseNumber?: string) {
   console.log('[adminApiService] Verifying driver accreditation for:', driverId);
   try {
@@ -1152,26 +1118,9 @@ export async function verifyDriver(driverId: string, franchiseNumber?: string) {
       console.warn('[adminApiService] driver account_status update warning:', driverErr);
     }
 
-    // 3. Dispatch official Tagalog approval SMS to driver's phone
-    if (driverData?.contact_number) {
-      try {
-        const firstName = driverData.full_name?.split(' ')[0] || driverData.full_name || 'Drayber';
-        const todaInfo = Array.isArray(driverData.toda) ? driverData.toda[0] : driverData.toda;
-        const todaName = todaInfo?.toda_name || 'TODA';
-        const smsMessage = `SAKAY Alert: Magandang araw, ${firstName}! Ang iyong aplikasyon bilang drayber ay opisyal nang inaprubahan ng City LGU Franchising Office at ${todaName}. Beripikado na ang iyong account! Maaari ka nang mag-log in sa SAKAY Driver app upang magsimulang pumasada. Ingat sa biyahe!`;
-
-        console.log(`[adminApiService] Dispatching LGU approval SMS to ${driverData.contact_number}...`);
-        await fetch(`${API_BASE_URL}/communication/send-sms`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phone: driverData.contact_number,
-            message: smsMessage,
-          }),
-        });
-      } catch (smsErr) {
-        console.warn('[adminApiService] Approval SMS dispatch warning:', smsErr);
-      }
+    // 3. Tell the driver (the number is the one on the driver's record; the server writes the Tagalog message)
+    if (driverData?.account_status === 'Verified') {
+      await notifyDriverOutcome(driverId, 'approved');
     }
 
     return { success: true, data: driverData };
@@ -1209,29 +1158,8 @@ export async function rejectDriver(driverId: string, reason: string, notes?: str
         .eq('driver_id', driverId);
     } catch {}
 
-    // Dispatch rejection SMS
-    try {
-      const { data: dInfo } = await supabase
-        .from('driver')
-        .select('full_name, contact_number')
-        .eq('driver_id', driverId)
-        .maybeSingle();
-
-      if (dInfo?.contact_number) {
-        const firstName = dInfo.full_name?.split(' ')[0] || dInfo.full_name || 'Drayber';
-        const smsMessage = `SAKAY Alert: Paumanhin, ${firstName}. Ang iyong aplikasyon bilang drayber ay hindi naaprubahan ng City LGU. Dahilan: ${reason}. Para sa katanungan, maaaring sumangguni sa City Franchising Office.`;
-        await fetch(`${API_BASE_URL}/communication/send-sms`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phone: dInfo.contact_number,
-            message: smsMessage,
-          }),
-        });
-      }
-    } catch (smsErr) {
-      console.warn('[adminApiService] Rejection SMS dispatch warning:', smsErr);
-    }
+    // Tell the driver
+    await notifyDriverOutcome(driverId, 'rejected', { reason });
 
     return { success: true };
   } catch (err: any) {
@@ -1301,37 +1229,8 @@ export async function returnDriverForCorrection(
     } catch {}
 
 
-    // Dispatch return for correction SMS
-    try {
-      const { data: dInfo } = await supabase
-        .from('driver')
-        .select('full_name, contact_number')
-        .eq('driver_id', driverId)
-        .maybeSingle();
-
-      if (dInfo?.contact_number) {
-        const firstName = dInfo.full_name?.split(' ')[0] || dInfo.full_name || 'Drayber';
-        const docNamesTagalog: Record<string, string> = {
-          license: "Driver's License",
-          mtop: 'MTOP / Franchise',
-          tricycle: 'Photo ng Tricycle',
-          selfie: 'Photo / Selfie',
-        };
-        const docListStr = faultyDocuments.map((d) => docNamesTagalog[d] || d).join(', ');
-        const smsMessage = `SAKAY Alert: Magandang araw, ${firstName}! May kailangang iwasto sa iyong ${docListStr} para sa SAKAY Driver registration. Dahilan: ${notes || reason}. Pakibuksan ang app upang mai-resubmit ang iyong dokumento.`;
-
-        await fetch(`${API_BASE_URL}/communication/send-sms`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phone: dInfo.contact_number,
-            message: smsMessage,
-          }),
-        });
-      }
-    } catch (smsErr) {
-      console.warn('[adminApiService] Return for correction SMS dispatch warning:', smsErr);
-    }
+    // Tell the driver which documents to correct
+    await notifyDriverOutcome(driverId, 'returned', { reason, notes, documents: faultyDocuments });
 
     return { success: true };
   } catch (err: any) {

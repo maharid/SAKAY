@@ -251,13 +251,18 @@ export const TripMonitoring: React.FC = () => {
   const { language } = useLanguage();
 
   const stateBookingId = (location.state as { bookingId?: string })?.bookingId;
-  const activeBookingId = stateBookingId || sessionStorage.getItem('current_active_booking_id') || 'BKG-DEMO-001';
+  const activeBookingId = stateBookingId || sessionStorage.getItem('current_active_booking_id') || '';
 
   useEffect(() => {
     if (stateBookingId) {
       sessionStorage.setItem('current_active_booking_id', stateBookingId);
     }
   }, [stateBookingId]);
+
+  // There is no demo trip any more: without a booking to show, go back to the dashboard.
+  useEffect(() => {
+    if (!activeBookingId) navigate('/dashboard', { replace: true });
+  }, [activeBookingId, navigate]);
 
   const handleRetrySearch = async () => {
     try {
@@ -274,28 +279,25 @@ export const TripMonitoring: React.FC = () => {
   };
 
   const [booking, setBooking] = useState<BookingRecord | null>(() => {
+    // Until the real booking is loaded from the database this is an EMPTY placeholder (the map starts on the city centre). It
+    // used to be a made-up trip with a made-up driver, phone number, plate and fare, which a passenger could see as if it were real.
     return getBooking(activeBookingId) || {
       booking_id: activeBookingId,
-      passenger_id: 'PSG-001',
-      passenger_name: 'Juan Dela Cruz',
-      passenger_phone: '+63 917 123 4567',
-      driver_name: 'Aurelio Bautista',
-      franchise_no: 'CAL-2025-0773',
-      vehicle_plate: '773-MV',
-      toda_name: 'Calapan Central TODA (CCTODA)',
+      passenger_id: '',
+      passenger_name: '',
+      passenger_phone: '',
       booking_type: 'Immediate',
       is_shared_trip: false,
       passenger_count: 1,
-      pickup_address: 'JP Rizal St. Central Terminal',
-      pickup_latitude: 13.4124,
-      pickup_longitude: 121.1834,
-      dropoff_address: 'Calapan City Public Market',
-      dropoff_latitude: 13.4150,
-      dropoff_longitude: 121.1810,
-      estimated_distance_km: 2.4,
-      estimated_fare: 18.0,
+      pickup_address: '',
+      pickup_latitude: 13.4117,
+      pickup_longitude: 121.1803,
+      dropoff_address: '',
+      dropoff_latitude: 13.4117,
+      dropoff_longitude: 121.1803,
+      estimated_distance_km: 0,
+      estimated_fare: 0,
       booking_status: 'Pending',
-      eta_minutes: 4,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -478,25 +480,21 @@ export const TripMonitoring: React.FC = () => {
             estimated_distance_km,
             is_shared_trip,
             passenger_count,
-            driver_id,
-            driver:driver_id (
-              driver_id,
-              full_name,
-              contact_number,
-              franchise_number,
-              plate_number,
-              current_latitude,
-              current_longitude,
-              toda:toda_id (toda_name)
-            )
+            driver_id
           `)
           .eq('booking_id', activeBookingId)
           .maybeSingle();
 
         if (!error && data) {
           const d = data as any;
-          const driverInfo = Array.isArray(d.driver) ? d.driver[0] : d.driver;
-          const todaInfo = driverInfo?.toda ? (Array.isArray(driverInfo.toda) ? driverInfo.toda[0] : driverInfo.toda) : null;
+          // The assigned driver: name, vehicle, TODA and (while the trip is live) position, from a function that answers only for the
+          // passenger of this booking.
+          let driverInfo: any = null;
+          if (d.driver_id) {
+            const { data: details } = await supabase.rpc('get_assigned_driver_details', { p_booking_id: activeBookingId });
+            driverInfo = Array.isArray(details) ? details[0] : details;
+          }
+          const todaInfo = driverInfo?.toda_name ? { toda_name: driverInfo.toda_name as string } : null;
 
           const mappedStatus = mapBookingStatus(d.booking_status);
 
@@ -517,15 +515,15 @@ export const TripMonitoring: React.FC = () => {
             const updated: BookingRecord = {
               ...(prev || ({} as any)),
               booking_id: d.booking_id,
-              passenger_id: d.passenger_id || prev?.passenger_id || 'PSG-001',
-              passenger_name: prev?.passenger_name || 'Juan Dela Cruz',
-              passenger_phone: prev?.passenger_phone || '+63 917 123 4567',
+              passenger_id: d.passenger_id || prev?.passenger_id || '',
+              passenger_name: prev?.passenger_name || '',
+              passenger_phone: prev?.passenger_phone || '',
               driver_id: d.driver_id || prev?.driver_id,
-              driver_name: driverInfo?.full_name || prev?.driver_name || 'Aurelio Bautista',
-              driver_phone: driverInfo?.contact_number || prev?.driver_phone || '+63 917 111 0201',
-              franchise_no: driverInfo?.franchise_number || prev?.franchise_no || 'CAL-2025-0773',
-              vehicle_plate: driverInfo?.plate_number || prev?.vehicle_plate || '773-MV',
-              toda_name: todaInfo?.toda_name || prev?.toda_name || 'Calapan Central TODA',
+              driver_name: driverInfo?.full_name || prev?.driver_name || '',
+              driver_phone: driverInfo?.contact_number || prev?.driver_phone || '',
+              franchise_no: driverInfo?.franchise_number || prev?.franchise_no || '',
+              vehicle_plate: driverInfo?.plate_number || prev?.vehicle_plate || '',
+              toda_name: todaInfo?.toda_name || prev?.toda_name || '',
               booking_status: mappedStatus as any,
               pickup_address: d.pickup_address || prev?.pickup_address || '',
               dropoff_address: d.dropoff_address || prev?.dropoff_address || '',
@@ -574,11 +572,7 @@ export const TripMonitoring: React.FC = () => {
             created_at,
             driver_id,
             cancelled_by,
-            cancellation_reason,
-            driver:driver_id (
-              current_latitude,
-              current_longitude
-            )
+            cancellation_reason
           `)
           .eq('booking_id', activeBookingId)
           .maybeSingle();
@@ -590,7 +584,12 @@ export const TripMonitoring: React.FC = () => {
             setDriverCancelledAlertOpen(true);
           }
 
-          const drv = Array.isArray(d.driver) ? d.driver[0] : d.driver;
+          // The driver's position comes from get_assigned_driver_details, which shares it only while the trip is live.
+          let drv: any = null;
+          if (d.driver_id && !hasLiveDriverGpsRef.current) {
+            const { data: details } = await supabase.rpc('get_assigned_driver_details', { p_booking_id: activeBookingId });
+            drv = Array.isArray(details) ? details[0] : details;
+          }
           if (drv?.current_latitude && drv?.current_longitude && !hasLiveDriverGpsRef.current) {
             setDriverPos({
               lat: Number(drv.current_latitude),
@@ -767,11 +766,12 @@ export const TripMonitoring: React.FC = () => {
     setCustomSms('');
   };
 
-  const driverName = booking?.driver_name || 'Aurelio Bautista';
-  const driverPhone = booking?.driver_phone || '+63 917 111 0201';
-  const franchiseNo = booking?.franchise_no || 'CAL-2025-0773';
-  const plateNo = booking?.vehicle_plate || '773-MV';
-  const todaName = booking?.toda_name || 'Calapan Central TODA';
+  // Shown exactly as the database says. When something is not known yet it is left blank or "-", never replaced by an invented driver.
+  const driverName = booking?.driver_name || (language === 'tl' ? 'Drayber' : 'Driver');
+  const driverPhone = booking?.driver_phone || '';
+  const franchiseNo = booking?.franchise_no || '-';
+  const plateNo = booking?.vehicle_plate || '-';
+  const todaName = booking?.toda_name || '-';
   // The final fare is the one the database wrote when the trip arrived; until then it is the estimate (Rule 6.2).
   const passengerPayableFare = booking?.actual_fare ?? booking?.estimated_fare ?? 0;
   const fareOrdinance = booking?.fare_breakdown?.rule.ordinance_reference ?? null;
@@ -1106,7 +1106,7 @@ export const TripMonitoring: React.FC = () => {
             {/* Quick Communication Actions (only available once driver assigned) */}
             {status !== 'Searching Driver' && (
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <IconButton onClick={() => (window.location.href = `tel:${driverPhone}`)} sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E' }}>
+                <IconButton disabled={!driverPhone} onClick={() => (window.location.href = `tel:${driverPhone}`)} sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E' }}>
                   <PhoneIcon fontSize="small" />
                 </IconButton>
                 <IconButton onClick={handleOpenCommModal} sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00' }}>

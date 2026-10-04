@@ -8,7 +8,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 async function runTest() {
   const timestamp = Date.now();
   const email = `test_passenger_${timestamp}@sakay.com`;
-  const password = "TestPassword123!";
+  // A throw-away password for this one run (no password is kept in the codebase)
+  const password = `Tmp-${globalThis.crypto.randomUUID()}-aA1!`;
 
   console.log("1. Signing up test user:", email);
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({

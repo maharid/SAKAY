@@ -24,6 +24,7 @@ import SuccessModal from '../../../common/components/SuccessModal';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { SIGNED_URL_TTL, ownedObjectPath, signedStorageUrl } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { fetchDriverProfile, formatPhoneToE164 } from '../../../services/driverApiService';
 
@@ -56,7 +57,9 @@ export const DriverProfileEditor: React.FC = () => {
   const [phone, setPhone] = useState(profile.phone || '');
   const [initialPhone, setInitialPhone] = useState(profile.phone || '');
   const [email, setEmail] = useState(profile.email || '');
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState(profile.profile_photo_url || '');
+  // What the database keeps is a storage PATH; the picture on screen comes from a short-lived signed URL.
+  const [profilePhotoPath, setProfilePhotoPath] = useState<string>(profile.profile_photo_url || '');
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,12 +85,22 @@ export const DriverProfileEditor: React.FC = () => {
         setInitialPhone(combined.phone || '');
         setEmail(combined.email || '');
         if ((combined as any).profile_photo_url) {
-          setProfilePhotoUrl((combined as any).profile_photo_url);
+          setProfilePhotoPath((combined as any).profile_photo_url);
         }
         localStorage.setItem('sakay_driver_profile', JSON.stringify(combined));
       }
     });
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    signedStorageUrl(supabase, 'profiles', profilePhotoPath, SIGNED_URL_TTL.avatar).then((url) => {
+      if (!cancelled) setProfilePhotoUrl(url || '');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profilePhotoPath]);
 
   useEffect(() => {
     if (locationState?.phoneUpdated) {
@@ -104,10 +117,14 @@ export const DriverProfileEditor: React.FC = () => {
     setUploadingPhoto(true);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error(isTagalog ? 'Mag-login muli bago mag-upload.' : 'Please sign in again before uploading.');
+      }
       const activeId = profile.id || localStorage.getItem('sakay_driver_id');
-      const fileExt = file.name.split('.').pop();
-      const fileName = `driver-${activeId || Date.now()}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      // Files live in the owner's own folder of the private "profiles" bucket: <auth uid>/avatar-<time>.<ext>
+      const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const filePath = ownedObjectPath(user.id, `avatar-${Date.now()}.${fileExt}`);
 
       const { error: uploadErr } = await supabase.storage
         .from('profiles')
@@ -117,18 +134,17 @@ export const DriverProfileEditor: React.FC = () => {
         throw new Error(uploadErr.message);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
-
-      setProfilePhotoUrl(publicUrl);
-
+      // Only the storage path is kept in the database; the screen gets a signed URL.
       if (activeId) {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('driver')
-          .update({ profile_photo_url: publicUrl })
+          .update({ profile_photo_url: filePath })
           .eq('driver_id', activeId);
+        if (updateErr) {
+          throw new Error(updateErr.message);
+        }
       }
+      setProfilePhotoPath(filePath);
     } catch (err: any) {
       setError(err?.message || (isTagalog ? 'Hindi ma-upload ang larawan.' : 'Failed to upload photo.'));
     } finally {
@@ -155,7 +171,7 @@ export const DriverProfileEditor: React.FC = () => {
       name: fullName.trim(),
       phone: formattedPhone,
       email: email.trim(),
-      profile_photo_url: profilePhotoUrl,
+      profile_photo_url: profilePhotoPath,
     };
 
     try {
@@ -167,7 +183,7 @@ export const DriverProfileEditor: React.FC = () => {
             full_name: fullName.trim(),
             contact_number: formattedPhone,
             email: email.trim() || null,
-            profile_photo_url: profilePhotoUrl || null,
+            profile_photo_url: profilePhotoPath || null,
           })
           .eq('driver_id', activeId);
       }

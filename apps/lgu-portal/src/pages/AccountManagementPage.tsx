@@ -460,7 +460,7 @@ export const AccountManagementPage: React.FC = () => {
   const [isUpdatingName, setIsUpdatingName] = useState(false);
 
   // Email State
-  const [email, setEmail] = useState(user?.email || adminProfile?.email || 'admin@gmail.com');
+  const [email, setEmail] = useState(user?.email || adminProfile?.email || '');
   const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
 
@@ -602,7 +602,7 @@ export const AccountManagementPage: React.FC = () => {
   };
 
   const displayName = adminProfile?.full_name || fullName || 'City Administrator';
-  const displayEmail = adminProfile?.email || user?.email || email || 'admin@gmail.com';
+  const displayEmail = adminProfile?.email || user?.email || email || '';
   const initial = displayName.charAt(0).toUpperCase();
 
   return (

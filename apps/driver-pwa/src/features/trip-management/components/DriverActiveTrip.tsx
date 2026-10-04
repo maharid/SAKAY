@@ -39,7 +39,7 @@ export const DriverActiveTrip: React.FC = () => {
   const { profile } = useDriverSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const bookingId = (location.state as { bookingId?: string })?.bookingId || 'BKG-9011';
+  const bookingId = (location.state as { bookingId?: string })?.bookingId || '';
 
   const [booking, setBooking] = useState<any>(null);
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
@@ -85,19 +85,22 @@ export const DriverActiveTrip: React.FC = () => {
       try {
         const { data } = await supabase
           .from('booking')
-          .select('*, passenger:passenger_id(*)')
+          .select('*')
           .eq('booking_id', bookingId)
           .maybeSingle();
 
         if (data) {
-          const p = Array.isArray(data.passenger) ? data.passenger[0] : data.passenger;
+          // The passenger's name, and phone while the trip is live, come from a function that discloses just that (the passenger table
+          // is not readable by a driver).
+          const { data: parties } = await supabase.rpc('get_booking_counterparties', { p_booking_ids: [bookingId] });
+          const party = ((parties ?? []) as Array<{ passenger_name?: string | null; passenger_phone?: string | null }>)[0];
           const fare = Number(data.actual_fare ?? data.estimated_fare) || 0;
 
           setBooking({
             booking_id: data.booking_id,
             passenger_id: data.passenger_id,
-            passenger_name: p?.full_name || data.passenger_name || 'Passenger',
-            passenger_phone: p?.contact_number || '+63 917 000 0000',
+            passenger_name: party?.passenger_name || data.passenger_name || 'Passenger',
+            passenger_phone: party?.passenger_phone || '',
             booking_type: data.booking_type || 'Immediate',
             is_shared_trip: Boolean(data.is_shared_trip),
             passenger_count: data.passenger_count || 1,
@@ -387,7 +390,7 @@ export const DriverActiveTrip: React.FC = () => {
   }
 
   const passengerName = booking?.passenger_name || 'Passenger';
-  const passengerPhone = booking?.passenger_phone || '+63 917 123 4567';
+  const passengerPhone = booking?.passenger_phone || '';
   const dropoffAddress = booking?.dropoff_address || 'Calapan Public Market';
 
   const isPreTrip =
@@ -527,7 +530,7 @@ export const DriverActiveTrip: React.FC = () => {
             <IconButton
               onClick={(e) => {
                 e.stopPropagation();
-                window.location.href = `tel:${passengerPhone}`;
+                if (passengerPhone) window.location.href = `tel:${passengerPhone}`;
               }}
               sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E', width: 34, height: 34, borderRadius: '10px' }}
               title={language === 'tl' ? 'Tawagan ang pasahero' : 'Call passenger'}
