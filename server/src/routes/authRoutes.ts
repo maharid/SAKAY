@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendOtpSms, verifyOtpCode } from '../services/smsService';
 import { supabase as defaultSupabase } from '../config/supabase';
 import { isPhMobile, maskPhone, normalizePhone, samePhone } from '../utils/phone';
+import { devConfigHint } from '../config/env';
+import { isProduction } from '../middleware/security';
 
 /**
  * One-time passwords for registration (passenger and driver).
@@ -80,6 +82,10 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
   const fail = (res: Response, status: number, error: string, extra: Record<string, unknown> = {}) =>
     res.status(status).json({ success: false, error, ...extra });
 
+  /** 503 for "the verification service cannot decide": generic in production, with the cause appended in development. */
+  const unavailable = (res: Response, cause: string) =>
+    fail(res, 503, `Verification is temporarily unavailable. Please try again.${isProduction() ? '' : ` [development detail: ${cause}]`}`);
+
   /** Resolves who is asking and whether the number is theirs; answers the request itself when not. */
   function ownSubject(req: Request, res: Response): { subject: Subject; e164: string } | null {
     const phone = (req.body as { phone?: unknown } | undefined)?.phone;
@@ -100,12 +106,12 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
   }
 
   /** The database-side OTP lockout (5 wrong codes, 15 minutes). Fails closed: if it cannot be checked, nothing is sent or verified. */
-  async function lockedOut(e164: string): Promise<{ locked: boolean; minutes: number } | 'unavailable'> {
-    if (!db) return 'unavailable';
+  async function lockedOut(e164: string): Promise<{ locked: boolean; minutes: number } | { unavailable: string }> {
+    if (!db) return { unavailable: `Supabase is not configured on the server.${devConfigHint()}` };
     const { data, error } = await db.rpc('check_otp_lockout', { p_contact_number: e164 });
     if (error) {
       console.error('[Auth] check_otp_lockout failed:', error.message);
-      return 'unavailable';
+      return { unavailable: `check_otp_lockout failed: ${error.message}` };
     }
     return { locked: Boolean(data?.is_locked), minutes: Number(data?.minutes_remaining ?? 15) };
   }
@@ -125,7 +131,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
         }
         // 1. lockout
         const lock = await lockedOut(e164);
-        if (lock === 'unavailable') { fail(res, 503, 'Verification is temporarily unavailable. Please try again.'); return; }
+        if ('unavailable' in lock) { unavailable(res, lock.unavailable); return; }
         if (lock.locked) {
           fail(res, 429, `Too many failed OTP attempts. Please try again in ${lock.minutes.toFixed(0)} minute(s).`, { is_locked: true, minutes_remaining: lock.minutes });
           return;
@@ -133,7 +139,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
         // 2. cooldown and daily cap, from the passenger's own columns
         const { data: row, error: rowErr } = await db!.from('passenger')
           .select('otp_last_sent_at, otp_daily_count, otp_daily_reset_at').eq('passenger_id', subject.id).maybeSingle();
-        if (rowErr) { console.error('[Auth] passenger OTP counters:', rowErr.message); fail(res, 503, 'Verification is temporarily unavailable. Please try again.'); return; }
+        if (rowErr) { console.error('[Auth] passenger OTP counters:', rowErr.message); unavailable(res, `passenger OTP counters: ${rowErr.message}`); return; }
         const today = now.toISOString().slice(0, 10);
         if (row?.otp_last_sent_at) {
           const elapsedSec = (now.getTime() - new Date(row.otp_last_sent_at).getTime()) / 1000;
@@ -192,7 +198,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
       // 1. lockout BEFORE the code is looked at (passengers; the counters are on their record)
       if (subject.kind === 'passenger') {
         const lock = await lockedOut(e164);
-        if (lock === 'unavailable') { fail(res, 503, 'Verification is temporarily unavailable. Please try again.'); return; }
+        if ('unavailable' in lock) { unavailable(res, lock.unavailable); return; }
         if (lock.locked) {
           fail(res, 429, `Too many failed OTP attempts. Please try again in ${lock.minutes.toFixed(0)} minute(s).`, { is_locked: true, minutes_remaining: lock.minutes });
           return;
@@ -221,7 +227,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
         return;
       }
       const { data: row, error: rowErr } = await db!.from('passenger').select('date_of_birth').eq('passenger_id', subject.id).maybeSingle();
-      if (rowErr) { console.error('[Auth] passenger lookup:', rowErr.message); fail(res, 503, 'Verification is temporarily unavailable. Please try again.'); return; }
+      if (rowErr) { console.error('[Auth] passenger lookup:', rowErr.message); unavailable(res, `passenger lookup: ${rowErr.message}`); return; }
       const bodyDob = (req.body as { date_of_birth?: unknown }).date_of_birth;
       const dob = (row?.date_of_birth as string | null) || (typeof bodyDob === 'string' ? bodyDob : null);
       if (dob) {

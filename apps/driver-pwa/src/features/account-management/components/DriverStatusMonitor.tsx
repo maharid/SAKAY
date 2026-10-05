@@ -22,6 +22,7 @@ import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
 import { fetchOwnDriverRecord } from '../../../services/driverApiService';
+import { fetchMyAffiliationOptions, type AffiliationOption } from '../../../services/driverPresenceService';
 import {
   parseRejectionComment,
   hydrateOnboardingCacheFromExisting,
@@ -56,6 +57,17 @@ export const DriverStatusMonitor: React.FC = () => {
   const [isDocIncomplete, setIsDocIncomplete] = useState(false);
   const [incompleteDriverInfo, setIncompleteDriverInfo] = useState<{ phone: string; driverName: string } | null>(null);
   const [isResubmittedApplication, setIsResubmittedApplication] = useState(false);
+  // One row per TODA the driver applied to: each affiliation is reviewed on its own (TODA first, then the LGU).
+  const [affiliations, setAffiliations] = useState<AffiliationOption[]>([]);
+  React.useEffect(() => {
+    let alive = true;
+    fetchMyAffiliationOptions().then((rows) => {
+      if (alive) setAffiliations(rows);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [profileStatus]);
 
   const checkStatus = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
@@ -818,6 +830,50 @@ export const DriverStatusMonitor: React.FC = () => {
               </Box>
             </Paper>
 
+            {/* Per-TODA review status (Driver Module 2.1 / Policy 3.1) */}
+            {affiliations.length > 0 && (
+              <Paper
+                elevation={0}
+                sx={{
+                  width: '100%',
+                  maxWidth: 340,
+                  p: 2.5,
+                  borderRadius: '16px',
+                  backgroundColor: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  textAlign: 'left',
+                  mb: 2,
+                }}
+              >
+                <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
+                  {isTagalog ? 'Ang iyong mga TODA' : 'Your TODAs'}
+                </Typography>
+                {affiliations.map((aff) => (
+                  <Box
+                    key={aff.affiliationId}
+                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, py: 0.5 }}
+                  >
+                    <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{aff.todaAcronym}</Typography>
+                    <Chip
+                      label={aff.statusLabel}
+                      size="small"
+                      sx={{
+                        backgroundColor: aff.isSelectable ? '#DCFCE7' : '#FEF3C7',
+                        color: aff.isSelectable ? '#15803D' : '#B45309',
+                        fontWeight: 800,
+                        fontSize: '11px',
+                      }}
+                    />
+                  </Box>
+                ))}
+                <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
+                  {isTagalog
+                    ? 'Bawat TODA ay sinusuri nang hiwalay. Maaari kang mag-online kapag may kahit isa nang ganap na aprubado.'
+                    : 'Each TODA is reviewed separately. You can go online once at least one is fully approved.'}
+                </Typography>
+              </Paper>
+            )}
+
             {/* Notification Switch Preference Card */}
             <Paper
               elevation={0}
@@ -924,6 +980,7 @@ export const DriverStatusMonitor: React.FC = () => {
               localStorage.removeItem('sakay_driver_id');
               localStorage.removeItem('sakay_driver_profile');
               localStorage.removeItem('sakay_driver_toda_id');
+              localStorage.removeItem('sakay_driver_toda_ids');
               localStorage.removeItem('sakay_driver_onboarding_cache');
               sessionStorage.clear();
             } catch {}

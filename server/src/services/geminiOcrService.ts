@@ -1,7 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import '../config/env'; // loads server/.env from an explicit path before the API key is read
 
 export interface MtopParsedData {
   operatorName: string;

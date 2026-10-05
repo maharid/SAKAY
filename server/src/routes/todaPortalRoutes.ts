@@ -2,6 +2,17 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { forbidDirectAccountAction } from './disabledEndpoints';
 
+/**
+ * NOT MOUNTED (see app.ts) and not a place to build on: this router only returns hard-coded sample data, is not scoped to any TODA and no
+ * client calls it. Its "applicants" are sample ids, not rows of the database.
+ *
+ * The real TODA applicant flow is per AFFILIATION (a driver may apply to several TODAs; each affiliation is reviewed by its own TODA, then
+ * by the LGU) and does not go through this file:
+ *   list     apps/toda-portal/src/services/todaApiService.ts  fetchDriverApplicants   rows of driver_toda_affiliation of the signed-in TODA
+ *   decide   endorse_driver_affiliation / return_driver_affiliation / reject_driver_affiliation (database functions, one affiliation each)
+ *   notify   POST /api/toda-admin/notify/driver (routes/driverNotifyRoutes.ts), checked against THAT TODA's affiliation of the driver
+ * Mount this router again only after it reads the signed-in administrator's own affiliations from the database.
+ */
 const router = Router();
 
 // In-Memory Seed State for TODA Portal (Calapan Central TODA - CCTODA)

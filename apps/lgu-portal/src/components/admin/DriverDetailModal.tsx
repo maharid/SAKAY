@@ -167,6 +167,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   // Dialog states
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  // The TODA application (affiliation) the Approve / Reject decision applies to. null = the one waiting for the LGU (driver.actionAffiliationId).
+  const [targetAffiliationId, setTargetAffiliationId] = useState<string | null>(null);
   const [returnSummaryDialogOpen, setReturnSummaryDialogOpen] = useState(false);
   const [configureDocIssue, setConfigureDocIssue] = useState<{
     docType: FaultyDocumentType;
@@ -363,18 +365,33 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   const isAccountActive = driver.accountStatus === 'Active';
   const isVerified = driver.verificationStatus === 'Verified';
 
+  // Per-TODA applications: every affiliation is verified by its TODA first and then decided by the LGU on its own.
+  const affiliations = driver.affiliations ?? [];
+  const isAwaitingLgu = (a: { todaStage: string; lguStage: string }) => a.todaStage === 'Endorsed' && a.lguStage === 'Pending';
+  const awaitingAffiliations = affiliations.filter(isAwaitingLgu);
+  const decisionAffiliationId = targetAffiliationId ?? driver.actionAffiliationId;
+  const decisionAffiliation = affiliations.find((a) => a.affiliationId === decisionAffiliationId);
+  /** Which TODA a decision is about, for the dialogs: "Balite TODA", or the driver's TODA name when there is only one. */
+  const decisionTodaLabel = decisionAffiliation ? decisionAffiliation.todaName : driver.todaName;
+
   /**
    * Action Handler: Approve Stage 2 LGU Verification
    */
   const handleVerifyConfirm = async () => {
     try {
-      await verifyDriver(driver.id);
-      setSnackbarMsg(`Driver ${driver.name} successfully verified and accredited.`);
+      await verifyDriver(driver.id, undefined, decisionAffiliationId);
+      setSnackbarMsg(`Driver ${driver.name} successfully verified and accredited${decisionAffiliation ? ` for ${decisionAffiliation.todaName}` : ''}.`);
+      const approvedId = decisionAffiliationId;
+      const nextAffiliations = affiliations.map((a) =>
+        a.affiliationId === approvedId ? { ...a, lguStage: 'Approved' as const } : a
+      );
       const updated: DriverRecord = {
         ...driver,
         verificationStatus: 'Verified',
         lguVerificationStatus: 'Verified',
         accountStatus: 'Active',
+        affiliations: nextAffiliations,
+        actionAffiliationId: nextAffiliations.find(isAwaitingLgu)?.affiliationId,
       };
       if (onDriverUpdated) onDriverUpdated(updated);
       if (onStatusChange) onStatusChange(driver.id, 'Active');
@@ -383,6 +400,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       setSnackbarMsg(`Error: ${(err as Error).message}`);
     }
     setVerifyDialogOpen(false);
+    setTargetAffiliationId(null);
   };
 
   /**
@@ -391,21 +409,34 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   const handleRejectConfirm = async (reason?: string) => {
     const finalReason = reason || 'Non-compliance with LGU franchise documentary guidelines.';
     try {
-      await rejectDriver(driver.id, finalReason);
-      setSnackbarMsg(`Driver application for ${driver.name} has been rejected.`);
-      const updated: DriverRecord = {
-        ...driver,
-        accountStatus: 'Inactive',
-        verificationStatus: 'Rejected',
-        lguVerificationStatus: 'Rejected',
-      };
+      await rejectDriver(driver.id, finalReason, undefined, decisionAffiliationId);
+      setSnackbarMsg(`Driver application for ${driver.name}${decisionAffiliation ? ` to ${decisionAffiliation.todaName}` : ''} has been rejected.`);
+      const rejectedId = decisionAffiliationId;
+      const nextAffiliations = affiliations.map((a) =>
+        a.affiliationId === rejectedId ? { ...a, lguStage: 'Rejected' as const } : a
+      );
+      // The driver is rejected as a whole only when no other TODA application is left alive (the database does the same).
+      const otherAlive = nextAffiliations.some(
+        (a) => a.affiliationId !== rejectedId && a.todaStage !== 'Rejected' && a.lguStage !== 'Rejected'
+      );
+      const updated: DriverRecord = otherAlive
+        ? { ...driver, affiliations: nextAffiliations, actionAffiliationId: nextAffiliations.find(isAwaitingLgu)?.affiliationId }
+        : {
+            ...driver,
+            accountStatus: 'Inactive',
+            verificationStatus: 'Rejected',
+            lguVerificationStatus: 'Rejected',
+            affiliations: nextAffiliations,
+            actionAffiliationId: undefined,
+          };
       if (onDriverUpdated) onDriverUpdated(updated);
-      if (onStatusChange) onStatusChange(driver.id, 'Inactive');
+      if (!otherAlive && onStatusChange) onStatusChange(driver.id, 'Inactive');
     } catch (err) {
       console.error('[DriverDetailModal] Rejection error:', err);
       setSnackbarMsg(`Error: ${(err as Error).message}`);
     }
     setRejectDialogOpen(false);
+    setTargetAffiliationId(null);
   };
 
   /**
@@ -670,7 +701,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   if (!isVerified) {
     primaryActionLabel = 'Approve Stage 2 Verification';
     primaryActionColor = 'primary';
-    primaryActionDisabled = !allDocumentsVerified || pendingReturnCount > 0;
+    // With TODA applications on record, the LGU can only decide one that its TODA has already endorsed (sequential review, Policy 3.1).
+    const nothingWaitingForLgu = affiliations.length > 0 && !decisionAffiliation;
+    primaryActionDisabled = !allDocumentsVerified || pendingReturnCount > 0 || nothingWaitingForLgu;
     onPrimaryAction = () => setVerifyDialogOpen(true);
   } else {
     primaryActionLabel = isAccountActive ? 'Suspend Driver' : 'Reactivate Driver';
@@ -743,6 +776,66 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           ) : undefined
         }
       >
+        {/* TODA applications (Driver Module 2.1 / Policy 3.1): one row per affiliation, each with its own TODA and LGU stage */}
+        {affiliations.length > 0 && (
+          <Box sx={{ mb: 2, p: 2, borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
+              TODA Applications ({affiliations.length})
+            </Typography>
+            {affiliations.map((aff) => {
+              const waiting = isAwaitingLgu(aff);
+              const selected = waiting && decisionAffiliationId === aff.affiliationId;
+              const chipTone = (stage: string) =>
+                stage === 'Endorsed' || stage === 'Approved'
+                  ? { backgroundColor: '#DCFCE7', color: '#15803D' }
+                  : stage === 'Rejected'
+                  ? { backgroundColor: '#FEE2E2', color: '#B91C1C' }
+                  : stage === 'Resubmission Required'
+                  ? { backgroundColor: '#FEF3C7', color: '#B45309' }
+                  : { backgroundColor: '#E2E8F0', color: '#475569' };
+              return (
+                <Box
+                  key={aff.affiliationId}
+                  onClick={waiting ? () => setTargetAffiliationId(aff.affiliationId) : undefined}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1.5,
+                    py: 1,
+                    px: 1.25,
+                    borderRadius: '8px',
+                    cursor: waiting ? 'pointer' : 'default',
+                    border: selected ? '1.5px solid #FF6B00' : '1.5px solid transparent',
+                    backgroundColor: selected ? '#FFF7ED' : 'transparent',
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
+                      {aff.todaName}
+                      {aff.isActive ? ' • Active' : ''}
+                    </Typography>
+                    <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
+                      {[aff.membershipNo && `Member no. ${aff.membershipNo}`, aff.assignedTerminal, aff.barangayServiceArea].filter(Boolean).join(' • ') || 'No membership details'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Chip size="small" label={`TODA: ${aff.todaStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.todaStage) }} />
+                    <Chip size="small" label={`LGU: ${aff.lguStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.lguStage) }} />
+                  </Box>
+                </Box>
+              );
+            })}
+            <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
+              {awaitingAffiliations.length > 1
+                ? 'Several TODA applications are waiting for the LGU. Click the one the Approve / Reject action applies to.'
+                : awaitingAffiliations.length === 1
+                ? 'The Approve / Reject action applies to the application waiting for the LGU. Each TODA application is decided on its own.'
+                : 'No TODA application is waiting for the LGU: a TODA must endorse its application first.'}
+            </Typography>
+          </Box>
+        )}
+
         {/* Resubmission Required Alert Banner */}
         {driver.verificationStatus === 'Resubmission Required' && (() => {
           let displayReason = driver.rejectionReason || 'Documentary Issue';
@@ -1294,9 +1387,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       {/* Confirmation Dialogs */}
       <MacConfirmDialog
         open={verifyDialogOpen}
-        onClose={() => setVerifyDialogOpen(false)}
+        onClose={() => { setVerifyDialogOpen(false); setTargetAffiliationId(null); }}
         title="Approve Stage 2 Driver Verification?"
-        message={`Authorize driver "${driver.name}" (${driver.todaName}) for official franchise operations in Calapan City.`}
+        message={`Authorize driver "${driver.name}" (${decisionTodaLabel}) for official franchise operations in Calapan City.`}
         confirmLabel="Approve Driver"
         confirmVariant="orange"
         onConfirm={handleVerifyConfirm}
@@ -1623,9 +1716,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
       <MacConfirmDialog
         open={rejectDialogOpen}
-        onClose={() => setRejectDialogOpen(false)}
+        onClose={() => { setRejectDialogOpen(false); setTargetAffiliationId(null); }}
         title="Reject Driver Application?"
-        message={`Disapprove Stage 2 LGU verification for "${driver.name}" (${driver.todaName}). Specify the reason for rejection or return for correction.`}
+        message={`Disapprove Stage 2 LGU verification for "${driver.name}" (${decisionTodaLabel}). Only this TODA application is rejected; the driver's other TODA applications are not affected. Specify the reason for rejection or return for correction.`}
         confirmLabel="Reject Application"
         confirmVariant="danger"
         requireReason

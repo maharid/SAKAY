@@ -269,7 +269,15 @@ export const TodaDriverVerificationPage: React.FC = () => {
     if (!selectedApplicant) return;
 
     const finalReason = selectedRejectReason === 'Iba pa' ? (customRejectComment || 'Hindi tinanggap ng TODA Admin.') : selectedRejectReason;
-    await rejectDriverApplicant(selectedApplicant.id, finalReason, customRejectComment);
+    const rejectRes = await rejectDriverApplicant(selectedApplicant.id, finalReason, customRejectComment);
+    if (!rejectRes || !rejectRes.success) {
+      // Each affiliation is decided by the database: show its refusal instead of pretending the application was rejected.
+      console.error('[TodaVerification] Rejection was not saved:', (rejectRes as any)?.error);
+      setToastMessage('Hindi na-save ang pagtanggi sa aplikasyon. Pakisubukang muli.');
+      setToastSeverity('error');
+      setToastOpen(true);
+      return;
+    }
 
     setApplicants((prev) =>
       prev.map((a) => (a.id === selectedApplicant.id ? { ...a, todaStageStatus: 'Rejected' } : a))

@@ -9,6 +9,7 @@
  */
 
 import { apiPostJson } from '@sakay/shared';
+import type { ApplyDriverTodaAffiliationsResponse, DriverTodaApplicationInput } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
 import type { LicenseExtractedData, MtopExtractedData } from './driverOnboardingCache';
@@ -529,29 +530,46 @@ export async function sendDriverPassengerSms(
 // 5b. SUPABASE AUTH SESSION LIFECYCLE (DRIVER REGISTRATION)
 // ============================================================================
 
+/** Why a registration could not start. The screen shows `error` as it is: it says what was found and where. */
+export type DriverAuthFailureCode =
+  | 'login_exists_wrong_password'   // a login (Supabase Auth) for this number exists and the password does not open it
+  | 'login_exists_sign_in_failed'   // a login exists but signing in failed for another reason (e-mail not confirmed, rate limit...)
+  | 'driver_account_exists'         // a driver account for this number is already past registration (Verified, Rejected, ...)
+  | 'sign_up_failed'                // anything else the sign-up said
+  | 'unexpected';
+
+export interface DriverAuthSessionResult {
+  success: boolean;
+  error?: string;
+  code?: DriverAuthFailureCode;
+}
+
 /**
  * Creates the driver's Supabase Auth account (or resumes an unfinished registration with the same password), makes sure this browser is
  * signed in, and makes sure the driver's own record exists as Pending Verification.
  *
  * Perimeter lockdown: no look-up of anybody else's record, no guessing of other passwords, no second account under an alias for a
  * number that is taken. "Already registered" is learned from the sign-up itself.
+ *
+ * What "taken" means here, and what the answer says (this used to be one message for every case, and the register screen then replaced
+ * every error that contained "already" / "exists" with it):
+ *   - a LOGIN for the number exists (the alias driver_63XXXXXXXXXX@sakay.ph in Supabase Auth). With the same password it is the
+ *     driver's own unfinished registration and is resumed; with another password it cannot be told apart from somebody else's login,
+ *     so registration stops and says exactly that (a login left behind by an earlier test is the usual cause; it is removed with
+ *     supabase/scripts/safe_test_data_cleanup.sql);
+ *   - a DRIVER ACCOUNT in public.driver exists and is past registration: log in instead.
+ * A login whose driver record was deleted is therefore still reported when its password is not known. Nothing in the browser can
+ * decide that such a login is dead.
  */
 export async function ensureDriverAuthSession(
   phone: string,
   password: string,
   fullName?: string,
   todaId?: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<DriverAuthSessionResult> {
   const candidates = getPhoneLookupCandidates(phone);
   const e164Phone = candidates.e164;
   const driverEmail = `driver_${candidates.phone63NoPlus}@sakay.ph`;
-  const alreadyRegistered = {
-    success: false,
-    error: getLocalizedError(
-      'Ang mobile number na ito ay nakarehistro na. Mangyaring mag-login na lamang.',
-      'This mobile number is already registered. Please log in instead.'
-    ),
-  };
 
   try {
     // 1. A clean slate: sign out any session left in this browser.
@@ -581,7 +599,7 @@ export async function ensureDriverAuthSession(
     );
     if (signUpError && !exists) {
       console.warn('[DRIVER REGISTRATION AUTH] signUp error:', signUpError.message);
-      return { success: false, error: signUpError.message };
+      return { success: false, code: 'sign_up_failed', error: signUpError.message };
     }
 
     // 3. Be signed in. A new sign-up already is; an unfinished registration is resumed by signing in with the SAME password,
@@ -590,7 +608,29 @@ export async function ensureDriverAuthSession(
     if (!authUser) {
       const signIn = await supabase.auth.signInWithPassword({ email: driverEmail, password: password });
       if (signIn.error || !signIn.data?.user) {
-        return exists ? alreadyRegistered : { success: false, error: signIn.error?.message || 'Failed to sign in after registration.' };
+        if (!exists) {
+          return { success: false, code: 'sign_up_failed', error: signIn.error?.message || 'Failed to sign in after registration.' };
+        }
+        const signInMessage = signIn.error?.message || '';
+        const wrongPassword = (signIn.error as any)?.code === 'invalid_credentials' || /invalid login credentials/i.test(signInMessage);
+        if (wrongPassword) {
+          return {
+            success: false,
+            code: 'login_exists_wrong_password',
+            error: getLocalizedError(
+              'May login na para sa mobile number na ito mula sa naunang pagrerehistro, at hindi ito mabuksan ng password na inilagay. Mag-log in na lamang, i-reset ang password sa "Nakalimutan ang password", o hilingin sa LGU na alisin ang lumang login.',
+              'A login for this mobile number already exists from an earlier registration, and the password you entered does not open it. Log in instead, reset the password with "Forgot password", or ask the LGU to remove the old login.'
+            ),
+          };
+        }
+        return {
+          success: false,
+          code: 'login_exists_sign_in_failed',
+          error: getLocalizedError(
+            `May login na para sa mobile number na ito, ngunit hindi ito nagawang buksan: ${signInMessage || 'hindi kilalang dahilan'}.`,
+            `A login for this mobile number already exists, but signing in to it failed: ${signInMessage || 'unknown reason'}.`
+          ),
+        };
       }
       authUser = signIn.data.user;
     }
@@ -601,18 +641,26 @@ export async function ensureDriverAuthSession(
       .select('driver_id, account_status')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
-    if (ownErr) return { success: false, error: ownErr.message };
+    if (ownErr) return { success: false, code: 'unexpected', error: ownErr.message };
 
     if (own) {
       if (own.account_status !== 'Pending Verification' && own.account_status !== 'Resubmission Required') {
         await supabase.auth.signOut();
-        return alreadyRegistered;
+        return {
+          success: false,
+          code: 'driver_account_exists',
+          error: getLocalizedError(
+            `Ang mobile number na ito ay may driver account na (katayuan: ${own.account_status}). Mangyaring mag-login na lamang.`,
+            `This mobile number already has a driver account (status: ${own.account_status}). Please log in instead.`
+          ),
+        };
       }
       const updateObj: Record<string, any> = { contact_number: e164Phone, email: driverEmail };
       if (fullName) updateObj.full_name = fullName;
       const { error: upErr } = await supabase.from('driver').update(updateObj).eq('driver_id', own.driver_id);
-      if (upErr) return { success: false, error: upErr.message };
+      if (upErr) return { success: false, code: 'unexpected', error: upErr.message };
     } else {
+      // No driver record behind this login: a registration that stopped after the sign-up, resumed with its own password.
       const insertObj: Record<string, any> = {
         auth_user_id: authUser.id,
         contact_number: e164Phone,
@@ -621,18 +669,51 @@ export async function ensureDriverAuthSession(
         availability_status: 'Offline',
         email: driverEmail,
       };
+      // The primary TODA (the first one selected) is the legacy single pointer; the real applications are the affiliations.
       if (todaId) insertObj.toda_id = todaId;
       const { error: insErr } = await supabase.from('driver').insert([insertObj]);
-      if (insErr) return { success: false, error: insErr.message };
+      if (insErr) return { success: false, code: 'unexpected', error: insErr.message };
     }
     return { success: true };
   } catch (err: any) {
     console.error('[DRIVER REGISTRATION AUTH] Exception in ensureDriverAuthSession:', err);
     return {
       success: false,
+      code: 'unexpected',
       error: getLocalizedError(
         'Hindi maihanda ang inyong account. Pakisuri ang koneksyon at subukang muli.',
         'Unable to prepare your account. Please check your connection and try again.'
+      ),
+    };
+  }
+}
+
+/**
+ * Applies the signed-in driver to ONE OR MORE accredited TODAs (Driver Module 2.1, Policy 3.1): one `driver_toda_affiliation` row per
+ * selected TODA, each starting as Submitted / Pending, each with its own membership number, terminal and barangay. Each affiliation
+ * is then reviewed on its own, first by that TODA's administrator and then by the LGU. Safe to repeat (a waiting application only has
+ * its description refreshed; an application that is already past the TODA stage is left alone).
+ */
+export async function applyDriverTodaAffiliations(
+  selections: DriverTodaApplicationInput[]
+): Promise<ApplyDriverTodaAffiliationsResponse> {
+  if (selections.length === 0) {
+    return { success: false, error: getLocalizedError('Pumili ng kahit isang TODA.', 'Select at least one TODA.') };
+  }
+  try {
+    const { data, error } = await supabase.rpc('apply_driver_toda_affiliations', { p_applications: selections });
+    if (error) {
+      console.warn('[driverApiService] apply_driver_toda_affiliations error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return data as ApplyDriverTodaAffiliationsResponse;
+  } catch (err: any) {
+    console.error('[driverApiService] applyDriverTodaAffiliations exception:', err);
+    return {
+      success: false,
+      error: getLocalizedError(
+        'Hindi maipadala ang inyong mga TODA. Pakisuri ang koneksyon at subukang muli.',
+        'Could not submit your TODAs. Please check your connection and try again.'
       ),
     };
   }

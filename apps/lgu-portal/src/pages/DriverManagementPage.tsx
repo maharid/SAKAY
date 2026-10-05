@@ -78,7 +78,7 @@ export const DriverManagementPage: React.FC = () => {
       (verificationFilter === 'Resubmitted' || verificationFilter === 'Resubmitted (Awaiting Review)'
         ? (Boolean(d.isResubmitted) || d.verificationStatus === 'Resubmitted (Awaiting Review)')
         : verificationFilter === 'Pending'
-        ? (d.verificationStatus === 'Pending' || d.verificationStatus === 'Endorsed to LGU')
+        ? (d.verificationStatus === 'Pending' || d.verificationStatus === 'Endorsed to LGU' || Boolean(d.actionAffiliationId))
         : d.verificationStatus === verificationFilter);
     const matchesOnline = onlineFilter === 'All' || d.onlineStatus === onlineFilter;
 

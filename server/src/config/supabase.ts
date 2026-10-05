@@ -1,7 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import './env'; // loads server/.env from an explicit path before anything below reads process.env
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
@@ -28,7 +26,10 @@ if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
     console.warn('[Supabase] Warning: Failed to initialize Supabase client:', error);
   }
 } else {
-  console.log('[Supabase] Running in local development mode without live Supabase credentials.');
+  // Names only, never values. Everything that needs the database answers 503 until these are set (see logServerEnv at start-up).
+  const missing = [!supabaseUrl && 'SUPABASE_URL', !supabaseKey && 'SUPABASE_SERVICE_ROLE_KEY'].filter(Boolean);
+  const why = missing.length > 0 ? `missing: ${missing.join(', ')}` : 'SUPABASE_URL looks like a placeholder';
+  console.error(`[Supabase] Not configured (${why}). Authentication and every database call will answer 503.`);
 }
 
 export { supabase };

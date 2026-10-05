@@ -1,8 +1,6 @@
-import dotenv from 'dotenv';
+import '../config/env'; // loads server/.env from an explicit path before the gateway settings are read
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { maskPhone } from '../utils/phone';
-
-dotenv.config();
 
 // Android SMS Gateway Configuration (capcom6/android-sms-gateway)
 const getGatewayConfig = () => ({

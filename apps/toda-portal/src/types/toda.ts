@@ -72,7 +72,15 @@ export interface TodaProfile {
 }
 
 export interface DriverApplicant {
+  /** The AFFILIATION id (driver x this TODA). One driver applying to two TODAs is two applicants, one in each TODA's list. */
   id: string;
+  affiliationId?: string;
+  /** The person behind the application. */
+  driverId?: string;
+  /** This TODA's own data for the application (each affiliation keeps its own). */
+  membershipNo?: string;
+  assignedTerminal?: string;
+  barangayServiceArea?: string;
   name: string;
   phone: string;
   licenseNo: string;

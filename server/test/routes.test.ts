@@ -514,6 +514,33 @@ describe('POST /notify/driver (the LGU tells a driver the outcome of their appli
     } finally { await srv.close(); }
   });
 
+  it('PER AFFILIATION: with an affiliationId the message is checked against THAT affiliation and names THAT TODA (not the driver\'s overall status)', async () => {
+    const OTHER = { id: uuid(32), name: 'Balite TODA' };
+    const world2 = () => {
+      const db = notifyWorld('Pending Verification');          // overall status says "not Verified" ...
+      db.tables.toda!.push({ toda_id: OTHER.id, toda_name: OTHER.name });
+      db.tables.driver_toda_affiliation = [
+        { affiliation_id: uuid(81), driver_id: APPLICANT.id, toda_id: OTHER.id, lgu_verification_status: 'Approved' },   // ... but this affiliation was approved
+        { affiliation_id: uuid(82), driver_id: APPLICANT.id, toda_id: TODA.id, lgu_verification_status: 'Pending' },
+      ];
+      return db;
+    };
+    const ok = await notifyApp(world2());
+    try {
+      const r = await send(ok.srv.url, { driverId: APPLICANT.id, kind: 'approved', affiliationId: uuid(81) });
+      assert.equal(r.status, 200);
+      assert.ok(ok.sent[0].text.includes('Balite TODA'), 'names the approving TODA, not the driver\'s pointer');
+      assert.ok(!ok.sent[0].text.includes('Central Calapan TODA'));
+    } finally { await ok.srv.close(); }
+    const notYet = await notifyApp(world2());
+    try {
+      assert.equal((await send(notYet.srv.url, { driverId: APPLICANT.id, kind: 'approved', affiliationId: uuid(82) })).status, 409, 'that affiliation is still Pending');
+      assert.equal((await send(notYet.srv.url, { driverId: uuid(99), kind: 'approved', affiliationId: uuid(81) })).status, 404, 'an affiliation of another driver');
+      assert.equal((await send(notYet.srv.url, { driverId: APPLICANT.id, kind: 'approved', affiliationId: 'nope' })).status, 400);
+      assert.deepEqual(notYet.sent, []);
+    } finally { await notYet.srv.close(); }
+  });
+
   it('a message the record does not support is refused: approved needs Verified, rejected needs Rejected, returned needs Resubmission Required', async () => {
     const cases: [string, string][] = [['approved', 'Pending Verification'], ['approved', 'Rejected'], ['rejected', 'Verified'], ['returned', 'Verified'], ['returned', 'Pending Verification']];
     for (const [kind, status] of cases) {
@@ -585,16 +612,33 @@ describe('POST /toda-admin/notify/driver (a TODA administrator tells an applican
   const MINE = { id: uuid(51), phone: '+639176666666' };
   const THEIRS = { id: uuid(52), phone: '+639177777777' };
 
-  function todaWorld(verificationStatus: string | null, over: { adminStatus?: string } = {}) {
+  const MULTI = { id: uuid(53), phone: '+639178888888' };   // driver.toda_id points at ANOTHER TODA, but also applied to MY_TODA
+
+  function todaWorld(affiliationStatus: string | null, over: { adminStatus?: string; multiMine?: string; multiOther?: string } = {}) {
     const db = world();
     db.tables.toda_admin = [{ auth_user_id: TADM.user, admin_id: TADM.adminId, toda_id: MY_TODA, account_status: over.adminStatus ?? 'Active' }];
     db.tables.driver.push(
       { auth_user_id: uuid(61), driver_id: MINE.id, account_status: 'Pending Verification', contact_number: MINE.phone, toda_id: MY_TODA, full_name: 'Jose Rizal Santos' },
       { auth_user_id: uuid(62), driver_id: THEIRS.id, account_status: 'Pending Verification', contact_number: THEIRS.phone, toda_id: OTHER_TODA, full_name: 'Andres Bonifacio' },
     );
-    db.tables.driver_verification = verificationStatus
-      ? [{ driver_id: MINE.id, verification_status: verificationStatus, submitted_at: '2026-10-01' }, { driver_id: THEIRS.id, verification_status: verificationStatus, submitted_at: '2026-10-01' }]
-      : [];
+    db.tables.driver.push(
+      { auth_user_id: uuid(63), driver_id: MULTI.id, account_status: 'Pending Verification', contact_number: MULTI.phone, toda_id: OTHER_TODA, full_name: 'Emilio Aguinaldo' },
+    );
+    // one row per (driver, TODA): each TODA's stage is its own
+    db.tables.driver_toda_affiliation = [
+      ...(affiliationStatus
+        ? [
+            { affiliation_id: uuid(71), driver_id: MINE.id, toda_id: MY_TODA, toda_endorsement_status: affiliationStatus },
+            { affiliation_id: uuid(72), driver_id: THEIRS.id, toda_id: OTHER_TODA, toda_endorsement_status: affiliationStatus },
+          ]
+        : []),
+      ...(over.multiMine
+        ? [
+            { affiliation_id: uuid(73), driver_id: MULTI.id, toda_id: MY_TODA, toda_endorsement_status: over.multiMine },
+            { affiliation_id: uuid(74), driver_id: MULTI.id, toda_id: OTHER_TODA, toda_endorsement_status: over.multiOther ?? 'Submitted' },
+          ]
+        : []),
+    ];
     db.tables.toda = [{ toda_id: MY_TODA, toda_name: 'Balite TODA', toda_acronym: 'BTODA' }];
     return db;
   }
@@ -614,7 +658,7 @@ describe('POST /toda-admin/notify/driver (a TODA administrator tells an applican
   const send = (url: string, body: unknown, token = todaToken) => call(`${url}/tn/driver`, { token, body });
 
   it('endorsed: texts the applicant\'s OWN number from a template that names the TODA, whatever number or text the request carries', async () => {
-    const { srv, sent } = await todaApp(todaWorld('Approved'));
+    const { srv, sent } = await todaApp(todaWorld('Endorsed'));
     try {
       const r = await send(srv.url, { driverId: MINE.id, kind: 'endorsed', phone: '+639179999999', message: 'free load' });
       assert.equal(r.status, 200);
@@ -627,19 +671,39 @@ describe('POST /toda-admin/notify/driver (a TODA administrator tells an applican
   });
 
   it('a driver of ANOTHER TODA is treated as not found, and nothing is sent', async () => {
-    const { srv, sent } = await todaApp(todaWorld('Approved'));
+    const { srv, sent } = await todaApp(todaWorld('Endorsed'));
     try {
       assert.equal((await send(srv.url, { driverId: THEIRS.id, kind: 'endorsed' })).status, 404);
       assert.deepEqual(sent, []);
     } finally { await srv.close(); }
   });
 
-  it('the message must match the stage of the application: endorsed needs Approved, returned needs Resubmission Required, rejected needs Rejected', async () => {
-    const cases: [string, string | null][] = [['endorsed', 'Pending'], ['endorsed', 'Rejected'], ['returned', 'Approved'], ['rejected', 'Approved'], ['endorsed', null]];
+  it('PER AFFILIATION: a driver whose driver.toda_id is ANOTHER TODA can still be told what MY TODA decided, whatever the other TODA decided', async () => {
+    const { srv, sent } = await todaApp(todaWorld(null, { multiMine: 'Endorsed', multiOther: 'Rejected' }));
+    try {
+      const r = await send(srv.url, { driverId: MULTI.id, kind: 'endorsed' });
+      assert.equal(r.status, 200);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].phone, MULTI.phone);
+      assert.ok(sent[0].text.includes('Balite TODA (BTODA)'));
+    } finally { await srv.close(); }
+  });
+
+  it('PER AFFILIATION: the other TODA\'s decision does not stand in for mine (it endorsed, mine is still Submitted -> refused)', async () => {
+    const { srv, sent } = await todaApp(todaWorld(null, { multiMine: 'Submitted', multiOther: 'Endorsed' }));
+    try {
+      assert.equal((await send(srv.url, { driverId: MULTI.id, kind: 'endorsed' })).status, 409);
+      assert.deepEqual(sent, []);
+    } finally { await srv.close(); }
+  });
+
+  it('the message must match the TODA stage of the affiliation: endorsed needs Endorsed, returned needs Resubmission Required, rejected needs Rejected', async () => {
+    const cases: [string, string | null][] = [['endorsed', 'Submitted'], ['endorsed', 'Rejected'], ['returned', 'Endorsed'], ['rejected', 'Endorsed'], ['endorsed', null]];
     for (const [kind, status] of cases) {
       const { srv, sent } = await todaApp(todaWorld(status));
       try {
-        assert.equal((await send(srv.url, { driverId: MINE.id, kind, reason: 'x' })).status, 409, `${kind} when ${status}`);
+        // no affiliation with this TODA at all is "not found" (404), exactly like a driver who does not exist; a wrong stage is a 409
+        assert.equal((await send(srv.url, { driverId: MINE.id, kind, reason: 'x' })).status, status === null ? 404 : 409, `${kind} when ${status}`);
         assert.deepEqual(sent, []);
       } finally { await srv.close(); }
     }
@@ -661,7 +725,7 @@ describe('POST /toda-admin/notify/driver (a TODA administrator tells an applican
 
   it('only an active TODA administrator may use it (a driver, a passenger, a stranger, a suspended administrator)', async () => {
     for (const [who, token, adminStatus] of [['driver', tokens.drv, 'Active'], ['passenger', tokens.pax, 'Active'], ['stranger', tokens.nobody, 'Active'], ['suspended TODA admin', todaToken, 'Suspended']] as const) {
-      const { srv, sent } = await todaApp(todaWorld('Approved', { adminStatus }));
+      const { srv, sent } = await todaApp(todaWorld('Endorsed', { adminStatus }));
       try {
         assert.equal((await send(srv.url, { driverId: MINE.id, kind: 'endorsed' }, token)).status, 403, who);
         assert.deepEqual(sent, []);
@@ -670,13 +734,13 @@ describe('POST /toda-admin/notify/driver (a TODA administrator tells an applican
   });
 
   it('refuses malformed requests, and reports a gateway failure as a 502', async () => {
-    const { srv, sent } = await todaApp(todaWorld('Approved'));
+    const { srv, sent } = await todaApp(todaWorld('Endorsed'));
     try {
       assert.equal((await send(srv.url, { driverId: 'nope', kind: 'endorsed' })).status, 400);
       assert.equal((await send(srv.url, { driverId: MINE.id, kind: 'approved' })).status, 400);
       assert.deepEqual(sent, []);
     } finally { await srv.close(); }
-    const down = await todaApp(todaWorld('Approved'), async (p) => ({ success: false, error: 'gateway down', formattedPhone: p }));
+    const down = await todaApp(todaWorld('Endorsed'), async (p) => ({ success: false, error: 'gateway down', formattedPhone: p }));
     try {
       const r = await send(down.srv.url, { driverId: MINE.id, kind: 'endorsed' });
       assert.equal(r.status, 502);

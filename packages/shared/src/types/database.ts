@@ -292,6 +292,9 @@ export interface DriverTodaAffiliation {
   driver_id: string;
   toda_id: string;
   toda_membership_number?: string;
+  /** Per affiliation: a driver under two TODAs has a terminal and a service barangay for each (20261009000002). */
+  assigned_terminal?: string;
+  barangay_service_area?: string;
   toda_endorsement_status: 'Submitted' | 'Endorsed' | 'Resubmission Required' | 'Rejected';
   toda_endorsed_at?: string;
   toda_endorsed_by?: string;
@@ -307,6 +310,33 @@ export interface DriverTodaAffiliation {
   resubmitted_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+/** One TODA a driver applies to at registration (Driver Module 2.1 / Policy 3.1). Sent to apply_driver_toda_affiliations(). */
+export interface DriverTodaApplicationInput {
+  toda_id: string;
+  toda_membership_number?: string;
+  assigned_terminal?: string;
+  barangay_service_area?: string;
+}
+
+/** What apply_driver_toda_affiliations() answers for each TODA of the request. */
+export interface DriverTodaApplicationResult {
+  toda_id?: string;
+  success: boolean;
+  /** created: a new Submitted application | updated: the description of a waiting application was refreshed | unchanged: already past the TODA stage */
+  outcome?: 'created' | 'updated' | 'unchanged';
+  affiliation_id?: string;
+  toda_endorsement_status?: DriverTodaAffiliation['toda_endorsement_status'];
+  lgu_verification_status?: DriverTodaAffiliation['lgu_verification_status'];
+  error?: string;
+}
+
+export interface ApplyDriverTodaAffiliationsResponse {
+  success: boolean;
+  applied?: number;
+  results?: DriverTodaApplicationResult[];
+  error?: string;
 }
 
 export interface AdminReviewFlag {

@@ -1,8 +1,8 @@
-import dotenv from 'dotenv';
+import { logServerEnv } from './config/env'; // first: loads server/.env from an explicit path before the modules below run
 import { createApp } from './app';
 import { startSlaScheduler } from './services/slaSchedulerService';
 
-dotenv.config();
+logServerEnv();
 
 const PORT = process.env.PORT || 5000;
 

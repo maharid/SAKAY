@@ -13,7 +13,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Select, MenuItem } from '@mui/material';
+import { Select, MenuItem, Checkbox } from '@mui/material';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
@@ -21,7 +21,9 @@ import SakayToast from '../../../common/components/SakayToast';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164 } from '../../../services/driverApiService';
+import { applyDriverTodaAffiliations, ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164 } from '../../../services/driverApiService';
+import type { TodaDirectoryEntry } from '../../../services/driverApiService';
+import type { DriverTodaApplicationInput } from '@sakay/shared';
 import { saveRegisteredNameParts } from '../../../services/driverOnboardingCache';
 
 export const formatMobileNumber = (value: string): string => {
@@ -59,8 +61,10 @@ export const DriverRegister: React.FC = () => {
   const [lastName, setLastName] = useState('');
   const [suffix, setSuffix] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedTodaId, setSelectedTodaId] = useState('');
-  const [todaList, setTodaList] = useState<Array<{ id: string; name: string; acronym: string; barangay: string }>>([]);
+  // One or more TODAs (Driver Module 2.1). The order of selection matters only for the legacy single pointer: the first one is the primary.
+  const [selectedTodaIds, setSelectedTodaIds] = useState<string[]>([]);
+  const [membershipByToda, setMembershipByToda] = useState<Record<string, string>>({});
+  const [todaList, setTodaList] = useState<TodaDirectoryEntry[]>([]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -161,10 +165,16 @@ export const DriverRegister: React.FC = () => {
   const e164Phone = formatPhoneToE164(cleanPhoneDigits);
   const isValidPhone = cleanPhoneDigits.length === 11 && cleanPhoneDigits.startsWith('09');
 
+  const hasTodaSelection = selectedTodaIds.length > 0;
+  const todaLabelOf = (id: string): string => {
+    const matched = todaList.find((item) => item.id === id);
+    return matched ? matched.acronym : id;
+  };
+
   const isAllRequiredFilled = Boolean(
     firstName.trim() &&
     lastName.trim() &&
-    selectedTodaId &&
+    hasTodaSelection &&
     phone.trim() &&
     password.trim() &&
     confirmPassword.trim()
@@ -173,7 +183,7 @@ export const DriverRegister: React.FC = () => {
   const isFormValid = Boolean(
     firstName.trim() &&
     lastName.trim() &&
-    selectedTodaId &&
+    hasTodaSelection &&
     isValidPhone &&
     isPasswordValid &&
     password === confirmPassword
@@ -194,23 +204,49 @@ export const DriverRegister: React.FC = () => {
 
     setSubmitted(true);
 
-    const sessionResult = await ensureDriverAuthSession(e164Phone, password, fullName, selectedTodaId);
+    const primaryTodaId = selectedTodaIds[0];
+    const sessionResult = await ensureDriverAuthSession(e164Phone, password, fullName, primaryTodaId);
     if (!sessionResult.success) {
       setSubmitted(false);
-      const isAlreadyReg = sessionResult.error?.toLowerCase().includes('already') || sessionResult.error?.toLowerCase().includes('registered') || sessionResult.error?.toLowerCase().includes('exists');
-      const errToastMsg = isAlreadyReg
-        ? (language === 'tl'
-            ? 'Ang mobile number na ito ay nakarehistro na. Mangyaring gumamit ng ibang numero o mag-log in.'
-            : 'This mobile number is already registered. Please use another number or log in.')
-        : (sessionResult.error || (language === 'tl' ? 'Hindi maihanda ang inyong account. Pakisubukang muli.' : 'Unable to prepare your account. Please try again.'));
-      setAccountError(errToastMsg);
+      // The service says what it found and where ("a login for this number exists...", "a driver account ... status: Verified"); show it as is.
+      setAccountError(
+        sessionResult.error ||
+          (language === 'tl' ? 'Hindi maihanda ang inyong account. Pakisubukang muli.' : 'Unable to prepare your account. Please try again.')
+      );
+      return;
+    }
+
+    // One affiliation per selected TODA, each with its own membership number; the terminal and the barangay come from that TODA.
+    const applications: DriverTodaApplicationInput[] = selectedTodaIds.map((id) => {
+      const toda = todaList.find((item) => item.id === id);
+      return {
+        toda_id: id,
+        toda_membership_number: (membershipByToda[id] || '').trim() || undefined,
+        assigned_terminal: toda?.terminalLocation || undefined,
+        barangay_service_area: toda?.barangay || undefined,
+      };
+    });
+    const applied = await applyDriverTodaAffiliations(applications);
+    const failedApplications = (applied.results || []).filter((result) => !result.success);
+    if (!applied.success || failedApplications.length > 0) {
+      setSubmitted(false);
+      const detail = failedApplications.length > 0
+        ? failedApplications.map((result) => `${todaLabelOf(result.toda_id || '')}: ${result.error || ''}`).join(' ')
+        : applied.error || '';
+      setAccountError(
+        (language === 'tl'
+          ? 'Hindi naisumite ang aplikasyon sa piniling TODA. Alisin ito sa listahan o subukang muli. '
+          : 'Your application to the selected TODA could not be submitted. Remove it from the list or try again. ') + detail
+      );
       return;
     }
 
     try {
       localStorage.removeItem('sakay_driver_registration_draft');
       localStorage.setItem('sakay_driver_phone', e164Phone);
-      localStorage.setItem('sakay_driver_toda_id', selectedTodaId);
+      // The primary (first) TODA is the single legacy pointer the later onboarding steps still read; the full list is kept beside it.
+      localStorage.setItem('sakay_driver_toda_id', primaryTodaId);
+      localStorage.setItem('sakay_driver_toda_ids', JSON.stringify(selectedTodaIds));
       saveRegisteredNameParts({
         firstName: firstName.trim(),
         middleName: middleName.trim(),
@@ -228,7 +264,8 @@ export const DriverRegister: React.FC = () => {
         middleName: middleName.trim(),
         lastName: lastName.trim(),
         suffix: suffix.trim(),
-        todaId: selectedTodaId,
+        todaId: primaryTodaId,
+        todaIds: selectedTodaIds,
         isRecovery: false,
       },
     });
@@ -364,10 +401,10 @@ export const DriverRegister: React.FC = () => {
             </Box>
           </Box>
 
-          {/* TODA Selection Combobox */}
+          {/* TODA Selection (one or more accredited TODAs, Driver Module 2.1) */}
           <Box sx={{ width: '100%' }}>
             <Box
-              className={shakeTrigger > 0 && hasAttemptedSubmit && !selectedTodaId ? 'anim-shake' : ''}
+              className={shakeTrigger > 0 && hasAttemptedSubmit && !hasTodaSelection ? 'anim-shake' : ''}
               sx={{
                 width: '100%',
                 minHeight: '62px',
@@ -375,7 +412,7 @@ export const DriverRegister: React.FC = () => {
                 borderRadius: '16px',
                 backgroundColor: todaFocused ? '#FFFFFF' : '#F1F3F5',
                 border: `1.5px solid ${
-                  hasAttemptedSubmit && !selectedTodaId
+                  hasAttemptedSubmit && !hasTodaSelection
                     ? '#DC2626'
                     : todaFocused
                     ? '#FF6B00'
@@ -396,20 +433,20 @@ export const DriverRegister: React.FC = () => {
                 sx={{
                   position: 'absolute',
                   left: '16px',
-                  top: selectedTodaId ? '8px' : '50%',
-                  transform: selectedTodaId ? 'translateY(0)' : 'translateY(-50%)',
-                  fontSize: selectedTodaId ? '9.5px' : '15px',
-                  fontWeight: selectedTodaId ? 700 : 500,
+                  top: hasTodaSelection ? '8px' : '50%',
+                  transform: hasTodaSelection ? 'translateY(0)' : 'translateY(-50%)',
+                  fontSize: hasTodaSelection ? '9.5px' : '15px',
+                  fontWeight: hasTodaSelection ? 700 : 500,
                   color:
-                    hasAttemptedSubmit && !selectedTodaId
+                    hasAttemptedSubmit && !hasTodaSelection
                       ? '#DC2626'
                       : todaFocused
                       ? '#FF6B00'
-                      : selectedTodaId
+                      : hasTodaSelection
                       ? '#64748B'
                       : '#94A3B8',
-                  letterSpacing: selectedTodaId ? '0.5px' : '0px',
-                  textTransform: selectedTodaId ? 'uppercase' : 'none',
+                  letterSpacing: hasTodaSelection ? '0.5px' : '0px',
+                  textTransform: hasTodaSelection ? 'uppercase' : 'none',
                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   pointerEvents: 'none',
                   zIndex: 1,
@@ -418,29 +455,36 @@ export const DriverRegister: React.FC = () => {
                   gap: '4px',
                 }}
               >
-                {language === 'tl' ? 'TODA NA KINABABILANGAN' : 'AFFILIATED TODA'}
+                {language === 'tl' ? 'MGA TODA NA KINABABILANGAN' : 'AFFILIATED TODA(S)'}
                 <Box component="span" sx={{ color: '#DC2626', fontWeight: 800 }}>
                   *
                 </Box>
               </Typography>
               <Select
-                value={selectedTodaId}
-                onChange={(e) => setSelectedTodaId(e.target.value as string)}
+                multiple
+                value={selectedTodaIds}
+                onChange={(e) => {
+                  const next = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                  setSelectedTodaIds(next);
+                }}
                 onOpen={() => setTodaFocused(true)}
                 onClose={() => setTodaFocused(false)}
                 onFocus={() => setTodaFocused(true)}
                 onBlur={() => setTodaFocused(false)}
                 displayEmpty
                 renderValue={(selected) => {
-                  if (!selected) return null;
-                  const matched = todaList.find((t) => t.id === selected);
-                  return matched ? `${matched.name} (${matched.acronym})` : selected;
+                  if (selected.length === 0) return null;
+                  return (
+                    <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selected.map((id) => todaLabelOf(id)).join(', ')}
+                    </Box>
+                  );
                 }}
                 IconComponent={ExpandMoreIcon}
                 fullWidth
                 sx={{
                   height: '100%',
-                  pt: selectedTodaId ? '16px' : 0,
+                  pt: hasTodaSelection ? '16px' : 0,
                   '& .MuiSelect-select': {
                     fontSize: '15px',
                     fontWeight: 600,
@@ -453,22 +497,44 @@ export const DriverRegister: React.FC = () => {
                   '& fieldset': { border: 'none' },
                 }}
               >
-                <MenuItem value="" disabled sx={{ color: '#94A3B8', fontSize: '14px' }}>
-                  {language === 'tl' ? 'Piliin ang inyong TODA' : 'Select your TODA'}
-                </MenuItem>
                 {todaList.map((toda) => (
                   <MenuItem key={toda.id} value={toda.id} sx={{ fontSize: '14px', fontWeight: 500 }}>
+                    <Checkbox
+                      size="small"
+                      checked={selectedTodaIds.includes(toda.id)}
+                      sx={{ p: 0.5, mr: 1, color: '#94A3B8', '&.Mui-checked': { color: '#FF6B00' } }}
+                    />
                     {toda.name} ({toda.acronym})
                   </MenuItem>
                 ))}
               </Select>
             </Box>
-            {hasAttemptedSubmit && !selectedTodaId && (
+            {hasAttemptedSubmit && !hasTodaSelection ? (
               <Typography sx={{ color: '#DC2626', fontSize: '12px', mt: 0.5, px: 1, fontWeight: 500 }}>
-                {language === 'tl' ? 'Pakipili muna ang inyong TODA.' : 'Please select your TODA.'}
+                {language === 'tl' ? 'Pumili ng kahit isang TODA.' : 'Please select at least one TODA.'}
+              </Typography>
+            ) : (
+              <Typography sx={{ color: '#64748B', fontSize: '12px', mt: 0.5, px: 1, fontWeight: 500 }}>
+                {language === 'tl'
+                  ? 'Maaaring pumili ng higit sa isang TODA. Bawat TODA ay susuriin nang hiwalay, bago ang LGU.'
+                  : 'You may choose more than one TODA. Each TODA reviews your application separately, then the LGU.'}
               </Typography>
             )}
           </Box>
+
+          {/* One membership number per selected TODA (each affiliation keeps its own) */}
+          {selectedTodaIds.map((id) => (
+            <RegisterInput
+              key={`membership-${id}`}
+              label={
+                language === 'tl'
+                  ? `NUMERO NG MIYEMBRO SA ${todaLabelOf(id)} (OPSYONAL)`
+                  : `MEMBERSHIP NO. IN ${todaLabelOf(id)} (OPTIONAL)`
+              }
+              value={membershipByToda[id] || ''}
+              onChange={(val) => setMembershipByToda((prev) => ({ ...prev, [id]: val }))}
+            />
+          ))}
 
           <SakayPhoneInput
             label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}

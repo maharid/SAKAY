@@ -104,8 +104,30 @@ export interface StrikeItem {
 /** Restriction state decided by the database (public.account_restriction_state). */
 export type AccountRestrictionKind = RestrictionKind;
 
+/**
+ * One application of a driver to ONE TODA (a row of driver_toda_affiliation). A driver may apply to several TODAs; each affiliation is
+ * verified first by that TODA's administrator and then by the LGU, independently of the others.
+ */
+export interface DriverAffiliationRecord {
+  affiliationId: string;
+  todaId: string;
+  todaName: string;
+  todaAcronym: string;
+  membershipNo?: string;
+  assignedTerminal?: string;
+  barangayServiceArea?: string;
+  todaStage: 'Submitted' | 'Endorsed' | 'Resubmission Required' | 'Rejected';
+  lguStage: 'Pending' | 'Approved' | 'Resubmission Required' | 'Rejected';
+  /** The affiliation the driver goes Online under (Policy 3.10). */
+  isActive: boolean;
+}
+
 export interface DriverRecord {
   id: string;
+  /** Every TODA application of this driver, oldest first. Empty or missing for a driver that has none. */
+  affiliations?: DriverAffiliationRecord[];
+  /** The affiliation the LGU decides on by default: the oldest one its TODA has endorsed and the LGU has not decided yet. */
+  actionAffiliationId?: string;
   name: string;
   licenseNo: string;
   licenseExpiry: string;

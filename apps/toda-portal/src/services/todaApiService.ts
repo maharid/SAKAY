@@ -73,9 +73,9 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
 
     if (!data) return null;
 
-    // Count real drivers in database
+    // Count real drivers in database: one per affiliation with this TODA (driver.toda_id is only the pointer to ONE of a driver's TODAs)
     const { count: driverCount } = await supabase
-      .from('driver')
+      .from('driver_toda_affiliation')
       .select('*', { count: 'exact', head: true })
       .eq('toda_id', data.toda_id);
 
@@ -542,6 +542,31 @@ export async function resubmitTodaApplication(todaId: string, updatedData: any) 
 // 2. DRIVER MANAGEMENT & SCREENING
 // ============================================================================
 
+/**
+ * The driver rows affiliated with ONE TODA (any stage), newest first, each carrying THAT affiliation's membership number, terminal and
+ * barangay in place of the driver's single legacy columns. (Row security lets a TODA administrator read exactly these drivers.)
+ */
+async function fetchAffiliatedDrivers(todaId: string): Promise<any[]> {
+  const { data } = await supabase
+    .from('driver_toda_affiliation')
+    .select('toda_membership_number, assigned_terminal, barangay_service_area, submitted_at, driver:driver_id(*)')
+    .eq('toda_id', todaId)
+    .order('submitted_at', { ascending: false });
+
+  return (data || [])
+    .map((aff: any) => {
+      const d = Array.isArray(aff.driver) ? aff.driver[0] : aff.driver;
+      if (!d) return null;
+      return {
+        ...d,
+        toda_membership_number: aff.toda_membership_number || d.toda_membership_number || null,
+        assigned_terminal: aff.assigned_terminal || d.assigned_terminal || null,
+        barangay_service_area: aff.barangay_service_area || d.barangay_service_area || null,
+      };
+    })
+    .filter((row: any) => row !== null);
+}
+
 export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMember[]> {
   try {
     const currentTodaId = await getEffectiveTodaId(todaId);
@@ -556,12 +581,9 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
       todaRecord = directToda;
     }
 
-    // 2. Fetch all drivers currently registered in the database for this TODA
-    const { data: registeredDrivers } = currentTodaId
-      ? await supabase.from('driver').select('*').eq('toda_id', currentTodaId).order('created_at', { ascending: false })
-      : { data: [] };
-
-    const driverList = registeredDrivers || [];
+    // 2. Fetch all drivers currently registered in the database for this TODA: one per AFFILIATION with it (a driver of two TODAs is a
+    //    member of both; driver.toda_id points at only one of them), with this TODA's own membership number and service barangay.
+    const driverList = currentTodaId ? await fetchAffiliatedDrivers(currentTodaId) : [];
 
     // 3. If an accredited driver roster file was uploaded, parse and render from the submitted document
     if (todaRecord?.accredited_drivers_url) {
@@ -677,7 +699,7 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
     if (driverList.length > 0) {
       return driverList.map((d: any, idx: number) => ({
         id: d.driver_id,
-        membershipNo: `MEM-${String(idx + 1).padStart(3, '0')}`,
+        membershipNo: d.toda_membership_number || `MEM-${String(idx + 1).padStart(3, '0')}`,
         name: d.full_name,
         phone: d.contact_number,
         vehiclePlate: d.plate_number || 'N/A',
@@ -715,27 +737,34 @@ async function resolveStorageImageUrl(preferredBucket: string, path?: string | n
   return (await signedStorageUrlFromAny(supabase, fallbackBucket ? [preferredBucket, fallbackBucket] : [preferredBucket], path, SIGNED_URL_TTL.document)) || '';
 }
 
+/**
+ * The applicants of ONE TODA, one row per AFFILIATION (driver x TODA). A driver may apply to several TODAs (Driver Module 2.1, Policy 3.1):
+ * every TODA sees only its own affiliation of that driver, with its own stage, membership number and terminal, and what another TODA
+ * decided about the same driver is invisible here and changes nothing here. `id` is the AFFILIATION id (what the decision functions
+ * take); `driverId` is the person.
+ */
 export async function fetchDriverApplicants(todaId?: string): Promise<DriverApplicant[]> {
   try {
     const targetTodaId = await getEffectiveTodaId(todaId);
 
     const { data, error } = await supabase
-      .from('driver')
-      .select('*, driver_verification(*)')
-      .eq('toda_id', targetTodaId);
+      .from('driver_toda_affiliation')
+      .select('*, driver:driver_id(*, driver_verification(*))')
+      .eq('toda_id', targetTodaId)
+      .order('submitted_at', { ascending: false });
 
     if (error || !data || data.length === 0) return [];
 
-    return await Promise.all(data.map(async (d: any) => {
+    return await Promise.all(data.map(async (aff: any) => {
+      const d = Array.isArray(aff.driver) ? aff.driver[0] : aff.driver;
+      if (!d) return null;
       const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
-      const isEndorsed = verif?.verification_status === 'Approved' || verif?.verification_status === 'TODA Approved' || d.account_status === 'TODA Approved';
-      const isRejected = verif?.verification_status === 'Rejected' || d.account_status === 'Rejected';
-      const isResubmit = verif?.verification_status === 'Resubmission Required' || d.account_status === 'Resubmission Required';
 
+      // The stage is THIS affiliation's TODA stage, never the shared verification record or the driver's overall status.
       let stageStatus: DriverApplicant['todaStageStatus'] = 'Awaiting Screening';
-      if (isEndorsed) stageStatus = 'Endorsed to LGU';
-      else if (isRejected) stageStatus = 'Rejected';
-      else if (isResubmit) stageStatus = 'Resubmission Required';
+      if (aff.toda_endorsement_status === 'Endorsed') stageStatus = 'Endorsed to LGU';
+      else if (aff.toda_endorsement_status === 'Rejected') stageStatus = 'Rejected';
+      else if (aff.toda_endorsement_status === 'Resubmission Required') stageStatus = 'Resubmission Required';
 
       const authId = d.auth_user_id;
       const licFrontPath = verif?.license_front_photo_path || (authId ? `${authId}/license_front.jpg` : null);
@@ -752,8 +781,14 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         resolveStorageImageUrl('driver-selfies', selfiePath, 'driver-licenses'),
       ]);
 
-      return {
-        id: d.driver_id,
+      // The review clock of this affiliation starts when it was submitted, or resubmitted after a correction.
+      const sinceMs = new Date(aff.resubmitted_at || aff.submitted_at || aff.created_at || Date.now()).getTime();
+      const daysPending = Math.max(0, Math.floor((Date.now() - sinceMs) / 86_400_000));
+
+      const applicant: DriverApplicant = {
+        id: aff.affiliation_id,
+        affiliationId: aff.affiliation_id,
+        driverId: d.driver_id,
         name: d.full_name,
         phone: d.contact_number,
         licenseNo: d.license_number || verif?.submitted_license_number || 'N/A',
@@ -761,9 +796,12 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         chassisNo: d.chassis_number || verif?.submitted_chassis_number || 'N/A',
         motorNo: d.motor_number || verif?.submitted_motor_number || 'N/A',
         franchiseNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
-        submittedDate: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US') : 'Recent',
-        daysPending: 1,
-        isOverdue: false,
+        membershipNo: aff.toda_membership_number || undefined,
+        assignedTerminal: aff.assigned_terminal || undefined,
+        barangayServiceArea: aff.barangay_service_area || undefined,
+        submittedDate: aff.submitted_at ? new Date(aff.submitted_at).toLocaleDateString('en-US') : 'Recent',
+        daysPending,
+        isOverdue: aff.toda_endorsement_status === 'Submitted' && daysPending > 3,
         onSubmittedRoster: true,
         tricyclePhotoUrl: tricyclePhotoUrl || d.profile_photo_url || '',
         licenseFrontUrl,
@@ -773,38 +811,55 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         photoVerified: true,
         rosterVerified: true,
         todaStageStatus: stageStatus,
+        rejectionReason: aff.toda_rejection_reason || aff.toda_return_notes || undefined,
       };
-    }));
+      return applicant;
+    })).then((rows) => rows.filter((row): row is DriverApplicant => row !== null));
   } catch (err) {
     console.error('[todaApiService] fetchDriverApplicants error:', err);
     return [];
   }
 }
 
-async function resolveAffiliationId(driverOrAffiliationId: string): Promise<string> {
-  const { data: affCheck } = await supabase
+/**
+ * The affiliation a decision is about. The portal passes the affiliation id (that is what an applicant's `id` is now). A driver id is still
+ * accepted, but only ever resolves to the affiliation with THIS administrator's own TODA: it can never pick "the latest affiliation"
+ * of the driver, which could belong to another TODA.
+ */
+async function resolveAffiliation(driverOrAffiliationId: string): Promise<{ affiliationId: string; driverId: string } | null> {
+  const { data: byId } = await supabase
     .from('driver_toda_affiliation')
-    .select('affiliation_id')
+    .select('affiliation_id, driver_id')
     .eq('affiliation_id', driverOrAffiliationId)
     .maybeSingle();
+  if (byId?.affiliation_id) return { affiliationId: byId.affiliation_id, driverId: byId.driver_id };
 
-  if (affCheck?.affiliation_id) return affCheck.affiliation_id;
-
-  const { data: aff } = await supabase
+  const myTodaId = await getEffectiveTodaId();
+  const { data: byDriver } = await supabase
     .from('driver_toda_affiliation')
-    .select('affiliation_id')
+    .select('affiliation_id, driver_id')
     .eq('driver_id', driverOrAffiliationId)
-    .order('submitted_at', { ascending: false })
-    .limit(1)
+    .eq('toda_id', myTodaId)
     .maybeSingle();
+  return byDriver?.affiliation_id ? { affiliationId: byDriver.affiliation_id, driverId: byDriver.driver_id } : null;
+}
 
-  return aff?.affiliation_id || driverOrAffiliationId;
+/** Runs one of the affiliation decision functions; they answer { success, error } instead of raising. */
+async function decideAffiliation(
+  fn: 'endorse_driver_affiliation' | 'return_driver_affiliation' | 'reject_driver_affiliation',
+  args: Record<string, unknown>
+): Promise<{ ok: true; data: any } | { ok: false; error: Error }> {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) return { ok: false, error: new Error(error.message) };
+  if (!data || data.success !== true) return { ok: false, error: new Error(data?.error || 'The decision was not accepted by the database.') };
+  return { ok: true, data };
 }
 
 /**
  * Tells a driver applicant of THIS TODA what the TODA decided, by SMS. The browser says only WHICH message and for WHICH driver; the
  * server takes the number from the driver's own record, writes the text from a template and refuses a message the application's stage
- * does not support (server/src/routes/driverNotifyRoutes.ts). A failure is logged and never undoes the decision that was just saved.
+ * does not support (server/src/routes/driverNotifyRoutes.ts: it checks THIS TODA's affiliation of the driver). A failure is logged and
+ * never undoes the decision that was just saved.
  */
 async function notifyApplicant(driverId: string, kind: 'endorsed' | 'returned' | 'rejected', reason?: string): Promise<void> {
   try {
@@ -815,59 +870,28 @@ async function notifyApplicant(driverId: string, kind: 'endorsed' | 'returned' |
   }
 }
 
+/**
+ * The TODA stage of ONE affiliation: Submitted -> Endorsed (and on to the LGU). Only this affiliation changes; the driver's other TODAs,
+ * their stages and the driver's own account status are untouched. (endorse_driver_affiliation checks that the caller administers this
+ * affiliation's TODA, that the TODA is active, and records the roster match.)
+ */
 export async function endorseDriverApplicant(applicantId: string, actorName: string = 'TODA President') {
-  console.log('[todaApiService] Endorsing driver applicant to LGU:', applicantId, 'by:', actorName);
+  console.log('[todaApiService] Endorsing driver affiliation to LGU:', applicantId, 'by:', actorName);
   try {
-    const now = new Date().toISOString();
-    const updatePayload: Record<string, any> = {
-      verification_status: 'Approved',
-      endorsed_at: now,
-      remarks: `Endorsed by ${actorName}`,
-      rejection_reason: null,
-      rejection_comment: null,
-      rejected_by: null,
-      rejected_at: null,
-    };
+    const target = await resolveAffiliation(applicantId);
+    if (!target) return { success: false, error: new Error('This application was not found for your TODA.') };
 
-    // 1. Update public.driver_verification directly
-    const { data: verifData, error: verifErr } = await supabase
-      .from('driver_verification')
-      .update(updatePayload)
-      .or(`driver_id.eq.${applicantId},verification_id.eq.${applicantId}`)
-      .select();
-
-    if (verifErr) {
-      console.warn('[todaApiService] driver_verification direct update note:', verifErr);
+    const res = await decideAffiliation('endorse_driver_affiliation', {
+      p_affiliation_id: target.affiliationId,
+      p_remarks: `Endorsed by ${actorName}`,
+    });
+    if (!res.ok) {
+      console.error('[todaApiService] Failed to persist driver endorsement:', res.error.message);
+      return { success: false, error: res.error };
     }
 
-    // 2. If no record was updated, check if we need to insert a verification record
-    if (!verifData || verifData.length === 0) {
-      const { data: insertData, error: insertErr } = await supabase
-        .from('driver_verification')
-        .insert([{
-          driver_id: applicantId,
-          ...updatePayload,
-        }])
-        .select();
-
-      if (insertErr) {
-        console.error('[todaApiService] Failed to persist driver endorsement:', insertErr);
-        return { success: false, error: new Error(insertErr.message) };
-      }
-    }
-
-    // 3. Optional soft update to driver.account_status if permissible
-    try {
-      await supabase
-        .from('driver')
-        .update({ account_status: 'TODA Approved', updated_at: now })
-        .eq('driver_id', applicantId);
-    } catch {}
-
-    // 4. Tell the applicant
-    await notifyApplicant(applicantId, 'endorsed');
-
-    return { success: true, data: verifData, rosterMatched: true };
+    await notifyApplicant(target.driverId, 'endorsed');
+    return { success: true, data: res.data?.data, rosterMatched: res.data?.roster_matched !== false };
   } catch (err: any) {
     console.error('[todaApiService] endorseDriverApplicant exception:', err);
     return { success: false, error: err };
@@ -876,32 +900,24 @@ export async function endorseDriverApplicant(applicantId: string, actorName: str
 
 export const forwardApplicantToLgu = endorseDriverApplicant;
 
+/** Returns ONE affiliation to the driver for correction (its TODA stage becomes Resubmission Required). */
 export async function returnDriverApplicant(applicantId: string, remarks: string) {
-  console.log('[todaApiService] Returning driver application for resubmission:', applicantId);
+  console.log('[todaApiService] Returning driver affiliation for resubmission:', applicantId);
   try {
-    const now = new Date().toISOString();
-    const updatePayload: Record<string, any> = {
-      verification_status: 'Resubmission Required',
-      rejection_reason: remarks,
-      rejection_comment: remarks,
-      remarks: remarks,
-      rejected_at: now,
-    };
+    const target = await resolveAffiliation(applicantId);
+    if (!target) return { success: false, error: new Error('This application was not found for your TODA.') };
 
-    const { data: verifData, error: verifErr } = await supabase
-      .from('driver_verification')
-      .update(updatePayload)
-      .or(`driver_id.eq.${applicantId},verification_id.eq.${applicantId}`)
-      .select();
-
-    if (verifErr) {
-      console.warn('[todaApiService] driver_verification resubmission update error:', verifErr);
-      return { success: false, error: new Error(verifErr.message) };
+    const res = await decideAffiliation('return_driver_affiliation', {
+      p_affiliation_id: target.affiliationId,
+      p_reason: remarks,
+      p_notes: null,
+    });
+    if (!res.ok) {
+      console.warn('[todaApiService] affiliation return error:', res.error.message);
+      return { success: false, error: res.error };
     }
 
-    // Tell the applicant
-    await notifyApplicant(applicantId, 'returned', remarks);
-
+    await notifyApplicant(target.driverId, 'returned', remarks);
     return { success: true, remarks };
   } catch (err: any) {
     console.error('[todaApiService] returnDriverApplicant exception:', err);
@@ -909,33 +925,30 @@ export async function returnDriverApplicant(applicantId: string, remarks: string
   }
 }
 
+/** The database accepts two rejection categories (Rule 3.8); document problems are "returned", not rejected. */
+function rejectionCategoryOf(reason: string): 'ineligible' | 'fraudulent' {
+  return /fraud|pekeng|peke/i.test(reason) ? 'fraudulent' : 'ineligible';
+}
+
+/** Rejects ONE affiliation at the TODA stage. The driver's other TODAs are not rejected by this. */
 export async function rejectDriverApplicant(applicantId: string, reason: string, customComment?: string, actorName: string = 'TODA President') {
-  console.log('[todaApiService] Rejecting driver application:', applicantId);
+  console.log('[todaApiService] Rejecting driver affiliation:', applicantId);
   try {
-    const now = new Date().toISOString();
     const finalComment = customComment ? `${reason}: ${customComment}` : reason;
-    const updatePayload: Record<string, any> = {
-      verification_status: 'Rejected',
-      rejection_reason: reason,
-      rejection_comment: finalComment,
-      remarks: `Rejected by ${actorName}: ${finalComment}`,
-      rejected_at: now,
-    };
+    const target = await resolveAffiliation(applicantId);
+    if (!target) return { success: false, error: new Error('This application was not found for your TODA.') };
 
-    const { data: verifData, error: verifErr } = await supabase
-      .from('driver_verification')
-      .update(updatePayload)
-      .or(`driver_id.eq.${applicantId},verification_id.eq.${applicantId}`)
-      .select();
-
-    if (verifErr) {
-      console.warn('[todaApiService] driver_verification rejection update error:', verifErr);
-      return { success: false, error: new Error(verifErr.message) };
+    const res = await decideAffiliation('reject_driver_affiliation', {
+      p_affiliation_id: target.affiliationId,
+      p_reason_category: rejectionCategoryOf(reason),
+      p_notes: `${actorName}: ${finalComment}`,
+    });
+    if (!res.ok) {
+      console.warn('[todaApiService] affiliation rejection error:', res.error.message);
+      return { success: false, error: res.error };
     }
 
-    // Tell the applicant
-    await notifyApplicant(applicantId, 'rejected', finalComment);
-
+    await notifyApplicant(target.driverId, 'rejected', finalComment);
     return { success: true };
   } catch (err: any) {
     console.error('[todaApiService] rejectDriverApplicant exception:', err);
@@ -1015,8 +1028,8 @@ export interface TodaVehicleUnit {
 export async function fetchTodaFleet(todaId?: string): Promise<TodaVehicleUnit[]> {
   try {
     const effectiveTodaId = await getEffectiveTodaId(todaId);
-    const { data, error } = await supabase.from('driver').select('*').eq('toda_id', effectiveTodaId);
-    if (error || !data || data.length === 0) return [];
+    const data = await fetchAffiliatedDrivers(effectiveTodaId);
+    if (data.length === 0) return [];
 
     return data.map((d: any, idx: number) => ({
       id: `UNIT-${String(idx + 1).padStart(3, '0')}`,

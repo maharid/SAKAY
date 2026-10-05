@@ -171,10 +171,19 @@ export const DriverConfirmAllInfo: React.FC = () => {
 
   React.useEffect(() => {
     fetchAccreditedTodas().then((list) => {
+      // Registration may select several TODAs: show all of them (the single id is the primary one, kept for the older steps).
+      let storedIds: string[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('sakay_driver_toda_ids') || '[]');
+        if (Array.isArray(parsed)) storedIds = parsed.filter((id): id is string => typeof id === 'string');
+      } catch {}
       const storedId = localStorage.getItem('sakay_driver_toda_id');
-      const matched = list.find((t) => t.id === storedId);
-      if (matched) {
-        setTodaName(`${matched.name} (${matched.acronym})`);
+      if (storedIds.length === 0 && storedId) storedIds = [storedId];
+      const matchedList = storedIds
+        .map((id) => list.find((t) => t.id === id))
+        .filter((t): t is NonNullable<typeof t> => Boolean(t));
+      if (matchedList.length > 0) {
+        setTodaName(matchedList.map((m) => `${m.name} (${m.acronym})`).join(', '));
       } else if (list.length > 0) {
         setTodaName(`${list[0].name} (${list[0].acronym})`);
       }
@@ -403,7 +412,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
               <ReviewFieldRow label={isTagalog ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"} value={licenseData.dob} />
               <ReviewFieldRow label={isTagalog ? "KASARIAN" : "GENDER"} value={licenseData.gender} />
               <ReviewFieldRow label={isTagalog ? "TIRAHAN" : "ADDRESS"} value={licenseData.address} />
-              <ReviewFieldRow label={isTagalog ? "KINABABALIKANG TODA" : "AFFILIATED TODA"} value={todaName} />
+              <ReviewFieldRow label={isTagalog ? "MGA KINABABILANGANG TODA" : "AFFILIATED TODA(S)"} value={todaName} />
               <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
             </Box>
 

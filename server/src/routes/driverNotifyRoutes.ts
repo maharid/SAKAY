@@ -14,12 +14,22 @@ import { isPhMobile, maskPhone } from '../utils/phone';
  *   - the text comes from a fixed template (only the driver's first name, the TODA name and a short reason are filled in);
  *   - a message is refused when the record does not support it: "approved" only for a Verified driver, "rejected" only for a Rejected
  *     one, "returned" only for a driver whose application was returned for correction.
+ *   - a driver may be affiliated with several TODAs and each affiliation is decided on its own. When the request carries an
+ *     `affiliationId`, the message is checked against THAT affiliation (its LGU stage) and names THAT TODA; the driver's overall
+ *     account_status is then not what decides it (it can be Verified through another TODA, or still Pending after one rejection).
  */
 export type DriverNotificationKind = 'approved' | 'rejected' | 'returned';
 
 /** What the driver's account_status must be for each message. */
 export const REQUIRED_STATUS: Record<DriverNotificationKind, string> = {
   approved: 'Verified',
+  rejected: 'Rejected',
+  returned: 'Resubmission Required',
+};
+
+/** What the LGU stage of ONE affiliation must be for each message. */
+export const REQUIRED_LGU_AFFILIATION_STATUS: Record<DriverNotificationKind, string> = {
+  approved: 'Approved',
   rejected: 'Rejected',
   returned: 'Resubmission Required',
 };
@@ -64,11 +74,30 @@ export function createDriverNotifyRouter(deps: DriverNotifyDeps): Router {
 
   router.post('/driver', async (req: Request, res: Response): Promise<void> => {
     try {
-      const { driverId, kind, reason, notes, documents } = (req.body ?? {}) as Record<string, unknown>;
+      const { driverId, kind, reason, notes, documents, affiliationId } = (req.body ?? {}) as Record<string, unknown>;
       if (typeof driverId !== 'string' || !UUID.test(driverId)) { fail(res, 400, 'A valid driver id is required.'); return; }
       if (typeof kind !== 'string' || !(kind in REQUIRED_STATUS)) { fail(res, 400, 'Unknown notification type.'); return; }
+      if (affiliationId !== undefined && (typeof affiliationId !== 'string' || !UUID.test(affiliationId))) { fail(res, 400, 'The affiliation id is not valid.'); return; }
       const type = kind as DriverNotificationKind;
       if (!deps.supabase) { fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
+
+      // One affiliation (the TODA the LGU just decided on), or the legacy driver-level message.
+      let affiliationTodaId: string | null = null;
+      if (typeof affiliationId === 'string') {
+        const aff = await deps.supabase
+          .from('driver_toda_affiliation')
+          .select('affiliation_id, driver_id, toda_id, lgu_verification_status')
+          .eq('affiliation_id', affiliationId)
+          .maybeSingle();
+        if (aff.error) { console.error('[DriverNotify] affiliation lookup:', aff.error.message); fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
+        const row = aff.data as { driver_id: string; toda_id: string; lgu_verification_status: string } | null;
+        if (!row || row.driver_id !== driverId) { fail(res, 404, 'Affiliation not found.'); return; }
+        if (row.lgu_verification_status !== REQUIRED_LGU_AFFILIATION_STATUS[type]) {
+          fail(res, 409, `This message needs the affiliation's LGU stage to be "${REQUIRED_LGU_AFFILIATION_STATUS[type]}"; it is "${row.lgu_verification_status}".`);
+          return;
+        }
+        affiliationTodaId = row.toda_id;
+      }
 
       const found = await deps.supabase
         .from('driver')
@@ -78,15 +107,16 @@ export function createDriverNotifyRouter(deps: DriverNotifyDeps): Router {
       if (found.error) { console.error('[DriverNotify] driver lookup:', found.error.message); fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
       const driver = found.data as { full_name: string | null; contact_number: string | null; account_status: string; toda_id: string | null } | null;
       if (!driver) { fail(res, 404, 'Driver not found.'); return; }
-      if (driver.account_status !== REQUIRED_STATUS[type]) {
+      if (affiliationTodaId === null && driver.account_status !== REQUIRED_STATUS[type]) {
         fail(res, 409, `This message needs the driver's status to be "${REQUIRED_STATUS[type]}"; it is "${driver.account_status}".`);
         return;
       }
       if (!driver.contact_number || !isPhMobile(driver.contact_number)) { fail(res, 422, 'The driver has no valid mobile number on record.'); return; }
 
       let todaName: string | undefined;
-      if (type === 'approved' && driver.toda_id) {
-        const toda = await deps.supabase.from('toda').select('toda_name').eq('toda_id', driver.toda_id).maybeSingle();
+      const namedTodaId = affiliationTodaId ?? driver.toda_id;
+      if (type === 'approved' && namedTodaId) {
+        const toda = await deps.supabase.from('toda').select('toda_name').eq('toda_id', namedTodaId).maybeSingle();
         todaName = clean((toda.data as { toda_name?: string } | null)?.toda_name, 60) || undefined;
       }
 
@@ -112,12 +142,14 @@ export function createDriverNotifyRouter(deps: DriverNotifyDeps): Router {
 
 // ── the TODA administrator's side ─────────────────────────────────────────────────────────────────────────────────────────────────
 // POST /api/toda-admin/notify/driver: a TODA administrator tells an applicant of THEIR OWN TODA what the TODA decided.
-// Same rules as above, with the TODA's own checks: the driver must belong to the caller's TODA, and the message must match the stage
-// the driver's verification record is in (endorsed -> Approved by the TODA, returned -> Resubmission Required, rejected -> Rejected).
+// Same rules as above, with the TODA's own checks, now PER AFFILIATION: the driver must have an affiliation with the caller's TODA
+// (a driver can apply to several TODAs, and driver.toda_id points at only one of them), and the message must match the TODA stage of
+// THAT affiliation (endorsed -> Endorsed, returned -> Resubmission Required, rejected -> Rejected). What another TODA decided about the
+// same driver changes nothing here.
 export type TodaNotificationKind = 'endorsed' | 'returned' | 'rejected';
 
-export const REQUIRED_VERIFICATION_STATUS: Record<TodaNotificationKind, string> = {
-  endorsed: 'Approved',
+export const REQUIRED_AFFILIATION_STATUS: Record<TodaNotificationKind, string> = {
+  endorsed: 'Endorsed',
   returned: 'Resubmission Required',
   rejected: 'Rejected',
 };
@@ -148,31 +180,34 @@ export function createTodaDriverNotifyRouter(deps: DriverNotifyDeps): Router {
 
       const { driverId, kind, reason } = (req.body ?? {}) as Record<string, unknown>;
       if (typeof driverId !== 'string' || !UUID.test(driverId)) { fail(res, 400, 'A valid driver id is required.'); return; }
-      if (typeof kind !== 'string' || !(kind in REQUIRED_VERIFICATION_STATUS)) { fail(res, 400, 'Unknown notification type.'); return; }
+      if (typeof kind !== 'string' || !(kind in REQUIRED_AFFILIATION_STATUS)) { fail(res, 400, 'Unknown notification type.'); return; }
       const type = kind as TodaNotificationKind;
       if (!deps.supabase) { fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
 
+      // The affiliation of THIS driver with the caller's TODA. A driver who never applied to this TODA is reported exactly like one that
+      // does not exist.
+      const aff = await deps.supabase
+        .from('driver_toda_affiliation')
+        .select('affiliation_id, toda_endorsement_status')
+        .eq('driver_id', driverId)
+        .eq('toda_id', todaId)
+        .maybeSingle();
+      if (aff.error) { console.error('[TodaNotify] affiliation lookup:', aff.error.message); fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
+      const affiliation = aff.data as { toda_endorsement_status?: string } | null;
+      if (!affiliation) { fail(res, 404, 'Driver not found.'); return; }
+
       const found = await deps.supabase
         .from('driver')
-        .select('driver_id, full_name, contact_number, toda_id')
+        .select('driver_id, full_name, contact_number')
         .eq('driver_id', driverId)
         .maybeSingle();
       if (found.error) { console.error('[TodaNotify] driver lookup:', found.error.message); fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
-      const driver = found.data as { full_name: string | null; contact_number: string | null; toda_id: string | null } | null;
-      // a driver of another TODA is reported exactly like one that does not exist
-      if (!driver || driver.toda_id !== todaId) { fail(res, 404, 'Driver not found.'); return; }
+      const driver = found.data as { full_name: string | null; contact_number: string | null } | null;
+      if (!driver) { fail(res, 404, 'Driver not found.'); return; }
 
-      const verif = await deps.supabase
-        .from('driver_verification')
-        .select('verification_status')
-        .eq('driver_id', driverId)
-        .order('submitted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (verif.error) { console.error('[TodaNotify] verification lookup:', verif.error.message); fail(res, 503, 'Messaging is temporarily unavailable.'); return; }
-      const status = (verif.data as { verification_status?: string } | null)?.verification_status;
-      if (status !== REQUIRED_VERIFICATION_STATUS[type]) {
-        fail(res, 409, `This message needs the application's status to be "${REQUIRED_VERIFICATION_STATUS[type]}"; it is "${status ?? 'not submitted'}".`);
+      const status = affiliation.toda_endorsement_status;
+      if (status !== REQUIRED_AFFILIATION_STATUS[type]) {
+        fail(res, 409, `This message needs the application's status to be "${REQUIRED_AFFILIATION_STATUS[type]}"; it is "${status ?? 'not submitted'}".`);
         return;
       }
       if (!driver.contact_number || !isPhMobile(driver.contact_number)) { fail(res, 422, 'The driver has no valid mobile number on record.'); return; }
