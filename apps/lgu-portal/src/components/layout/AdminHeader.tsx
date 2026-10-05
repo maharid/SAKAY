@@ -68,20 +68,17 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       try {
         const readSet = getReadNotifIds();
 
-        const [resubVerifs, endorsedVerifs, pendingTodas, notifsRes, logsRes] = await Promise.all([
+        // The applications waiting for the LGU (TODA endorsed, LGU not decided), from the applications themselves. Whether one of them came back
+        // from an LGU correction is read from the documents it returned (below), never from a remark on the shared verification record: a remark
+        // outlives the correction it described and then mislabels later applications.
+        const [awaitingLgu, pendingTodas, notifsRes, logsRes] = await Promise.all([
           supabase
-            .from('driver_verification')
-            .select('verification_id, driver_id, submitted_full_name, remarks, submitted_at, updated_at')
-            .ilike('remarks', '%resubmitted%')
-            .order('submitted_at', { ascending: false })
-            .limit(10),
-          supabase
-            .from('driver_verification')
-            .select('verification_id, driver_id, submitted_full_name, remarks, endorsed_at, submitted_at')
-            .in('verification_status', ['Approved', 'TODA Approved', 'TODA Endorsed'])
-            .is('lgu_approved_at', null)
-            .order('submitted_at', { ascending: false })
-            .limit(5),
+            .from('driver_toda_affiliation')
+            .select('affiliation_id, driver_id, resubmitted_at, toda_endorsed_at, submitted_at, updated_at, driver:driver_id(full_name)')
+            .eq('toda_endorsement_status', 'Endorsed')
+            .eq('lgu_verification_status', 'Pending')
+            .order('updated_at', { ascending: false })
+            .limit(15),
           supabase
             .from('toda')
             .select('toda_id, toda_name, toda_acronym, toda_status, account_status, created_at')
@@ -99,6 +96,32 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             .order('performed_at', { ascending: false })
             .limit(5),
         ]);
+
+        const awaitingRows = (awaitingLgu.data || []) as any[];
+        const resubmittedToLgu = new Set<string>();
+        if (awaitingRows.length > 0) {
+          try {
+            const { data: docRows } = await supabase.rpc('get_affiliation_document_reviews', {
+              p_affiliation_ids: awaitingRows.map((a) => a.affiliation_id),
+            });
+            for (const r of (docRows || []) as any[]) {
+              if (r.state === 'resubmitted' && r.returned_by_stage === 'LGU') resubmittedToLgu.add(r.affiliation_id);
+            }
+          } catch {
+            // without the document reviews every row is simply an endorsement, never a guessed resubmission
+          }
+        }
+        const nameOf = (a: any): string => (Array.isArray(a.driver) ? a.driver[0] : a.driver)?.full_name || 'Driver applicant';
+        const resubVerifs = {
+          data: awaitingRows.filter((a) => resubmittedToLgu.has(a.affiliation_id)).slice(0, 10).map((a) => ({
+            id: a.affiliation_id, name: nameOf(a), ts: a.resubmitted_at || a.updated_at,
+          })),
+        };
+        const endorsedVerifs = {
+          data: awaitingRows.filter((a) => !resubmittedToLgu.has(a.affiliation_id)).slice(0, 5).map((a) => ({
+            id: a.affiliation_id, name: nameOf(a), ts: a.toda_endorsed_at || a.submitted_at,
+          })),
+        };
 
         const items: NotificationItem[] = [];
         const seenIds = new Set<string>();
@@ -125,16 +148,16 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         });
 
         // 2. Resubmitted driver applications
-        (resubVerifs.data || []).forEach((v: any) => {
-          const id = `resub-${v.verification_id}`;
+        resubVerifs.data.forEach((v) => {
+          const id = `resub-${v.id}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
-            const ts = v.submitted_at || v.updated_at;
+            const ts = v.ts;
             const isRead = readSet.has(id);
             items.push({
               id,
               title: 'Driver Resubmitted Documents',
-              description: `${v.submitted_full_name || 'Driver applicant'} resubmitted updated documents for Stage 2 review.`,
+              description: `${v.name} resubmitted updated documents for Stage 2 review.`,
               time: formatRelativeTime(ts),
               rawTimestamp: ts,
               category: 'resubmission',
@@ -147,17 +170,16 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         });
 
         // 3. TODA Endorsements awaiting LGU review
-        (endorsedVerifs.data || []).forEach((v: any) => {
-          if (v.remarks && v.remarks.toLowerCase().includes('resubmitted')) return;
-          const id = `endorse-${v.verification_id}`;
+        endorsedVerifs.data.forEach((v) => {
+          const id = `endorse-${v.id}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
-            const ts = v.endorsed_at || v.submitted_at;
+            const ts = v.ts;
             const isRead = readSet.has(id);
             items.push({
               id,
               title: 'Driver Application Endorsed',
-              description: `${v.submitted_full_name || 'Driver applicant'} endorsed by TODA for Stage 2 LGU inspection.`,
+              description: `${v.name} endorsed by TODA for Stage 2 LGU inspection.`,
               time: formatRelativeTime(ts),
               rawTimestamp: ts,
               category: 'endorsement',

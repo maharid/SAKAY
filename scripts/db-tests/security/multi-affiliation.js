@@ -5,6 +5,10 @@ const path = require('path');
 const { setup, AFF, ID, attempt, check, summary, asUser } = require('../b4fixtures');
 const { freshDb } = require('../tlib');
 
+// This world has an empty TODA roster, so the applicants are "not on the roster" and, since 20261010000005, the LGU needs a reason to approve
+// them. These approvals are about the per-affiliation workflow, so they give one (the override itself is tested in roster-match-and-override.js).
+const ROSTER_OVERRIDE = 'workflow test: roster is empty in this world';
+
 const U = {
   DX_AUTH: '21000000-0000-0000-0000-0000000000a1', DX: 'b1000000-0000-0000-0000-0000000000a1',   // registers under TODA1 + TODA2
   DY_AUTH: '21000000-0000-0000-0000-0000000000a2', DY: 'b1000000-0000-0000-0000-0000000000a2',   // one Submitted application (sequence check)
@@ -99,7 +103,7 @@ const err = (r) => (r.ok ? null : String(r.error).slice(0, 160));
   let s = await st();
   check('TODA2 endorses ITS affiliation; TODA1\'s affiliation is untouched and still waiting', e2.success === true && s[ID.TODA2].e === 'Endorsed' && s[ID.TODA1].e === 'Submitted', { e2, s });
   check('TODA1 cannot decide TODA2\'s affiliation', crossT1.success === false && /Access Denied/.test(crossT1.error), crossT1);
-  const ret1 = await rpcAs(ID.T_AUTH, 'return_driver_affiliation', [aT1, 'Blurry licence', 'retake']);
+  const ret1 = await rpcAs(ID.T_AUTH, 'return_driver_documents', [aT1, JSON.stringify([{ document_type: 'license', reason_code: 'blurry', reason: 'Blurry licence, please retake' }])]);
   s = await st();
   check('TODA1 returning ITS affiliation does not change TODA2\'s endorsement', ret1.success === true && s[ID.TODA1].e === 'Resubmission Required' && s[ID.TODA2].e === 'Endorsed', s);
   const res1 = await rpcAs(U.DX_AUTH, 'resubmit_driver_application', [aT1]);
@@ -113,13 +117,13 @@ const err = (r) => (r.ok ? null : String(r.error).slice(0, 160));
   const [aY] = (await q(`SELECT affiliation_id FROM driver_toda_affiliation WHERE driver_id='${U.DY}'`)).map((r) => r.affiliation_id);
   const early = await rpcAs(ID.L_AUTH, 'verify_driver_affiliation', [aY]);
   check('the LGU cannot verify an affiliation its TODA has not endorsed yet', early.success === false && /Sequential violation/.test(early.error), early);
-  const v2 = await rpcAs(ID.L_AUTH, 'verify_driver_affiliation', [aT2]);
+  const v2 = await rpcAs(ID.L_AUTH, 'verify_driver_affiliation', [aT2, null, null, null, ROSTER_OVERRIDE]);
   s = await st();
   const dX = await one(`SELECT account_status, toda_id FROM driver WHERE driver_id='${U.DX}'`);
   check('LGU verifies the TODA2 affiliation: that one is Approved and active, the TODA1 affiliation is still Pending',
     v2.success === true && s[ID.TODA2].l === 'Approved' && s[ID.TODA2].a === true && s[ID.TODA1].l === 'Pending' && s[ID.TODA1].a === false, s);
   check('...the driver becomes Verified and the legacy pointer follows the active affiliation', dX.account_status === 'Verified' && dX.toda_id === ID.TODA2, dX);
-  const v1 = await rpcAs(ID.L_AUTH, 'verify_driver_affiliation', [aT1]);
+  const v1 = await rpcAs(ID.L_AUTH, 'verify_driver_affiliation', [aT1, null, null, null, ROSTER_OVERRIDE]);
   s = await st();
   check('LGU verifies the TODA1 affiliation too: both verified, still exactly ONE active selection (TODA2)',
     v1.success === true && s[ID.TODA1].l === 'Approved' && s[ID.TODA1].a === false && s[ID.TODA2].a === true, s);

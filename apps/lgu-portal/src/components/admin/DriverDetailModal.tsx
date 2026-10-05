@@ -373,17 +373,19 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   const decisionAffiliation = affiliations.find((a) => a.affiliationId === decisionAffiliationId);
   /** Which TODA a decision is about, for the dialogs: "Balite TODA", or the driver's TODA name when there is only one. */
   const decisionTodaLabel = decisionAffiliation ? decisionAffiliation.todaName : driver.todaName;
+  /** The application being approved has an open Roster Mismatch flag: the database refuses the approval without a written reason. */
+  const rosterOverrideNeeded = Boolean(decisionAffiliation?.rosterMismatchOpen);
 
   /**
    * Action Handler: Approve Stage 2 LGU Verification
    */
-  const handleVerifyConfirm = async () => {
+  const handleVerifyConfirm = async (overrideReason?: string) => {
     try {
-      await verifyDriver(driver.id, undefined, decisionAffiliationId);
+      await verifyDriver(driver.id, undefined, decisionAffiliationId, overrideReason);
       setSnackbarMsg(`Driver ${driver.name} successfully verified and accredited${decisionAffiliation ? ` for ${decisionAffiliation.todaName}` : ''}.`);
       const approvedId = decisionAffiliationId;
       const nextAffiliations = affiliations.map((a) =>
-        a.affiliationId === approvedId ? { ...a, lguStage: 'Approved' as const } : a
+        a.affiliationId === approvedId ? { ...a, lguStage: 'Approved' as const, rosterMismatchOpen: false } : a
       );
       const updated: DriverRecord = {
         ...driver,
@@ -488,7 +490,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           grounds: i.grounds,
           notes: i.notes,
         })),
-        currentVerified
+        currentVerified,
+        decisionAffiliationId
       );
 
       const updatedDocuments = docList.map((d) => {
@@ -820,6 +823,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {aff.rosterMismatchOpen && (
+                      <Chip size="small" label="Roster mismatch" sx={{ fontWeight: 700, fontSize: '11px', backgroundColor: '#FEF3C7', color: '#92400E' }} />
+                    )}
                     <Chip size="small" label={`TODA: ${aff.todaStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.todaStage) }} />
                     <Chip size="small" label={`LGU: ${aff.lguStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.lguStage) }} />
                   </Box>
@@ -1388,11 +1394,18 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={verifyDialogOpen}
         onClose={() => { setVerifyDialogOpen(false); setTargetAffiliationId(null); }}
-        title="Approve Stage 2 Driver Verification?"
-        message={`Authorize driver "${driver.name}" (${decisionTodaLabel}) for official franchise operations in Calapan City.`}
-        confirmLabel="Approve Driver"
+        title={rosterOverrideNeeded ? 'Approve despite the Roster Mismatch?' : 'Approve Stage 2 Driver Verification?'}
+        message={
+          rosterOverrideNeeded
+            ? `"${driver.name}" is NOT on the ${decisionTodaLabel} master roster (open Roster Mismatch flag, Rule 2.4). You may still approve, but you must write why. The reason is recorded on the flag and in the audit log under your name.`
+            : `Authorize driver "${driver.name}" (${decisionTodaLabel}) for official franchise operations in Calapan City.`
+        }
+        confirmLabel={rosterOverrideNeeded ? 'Approve with Override' : 'Approve Driver'}
         confirmVariant="orange"
-        onConfirm={handleVerifyConfirm}
+        requireReason={rosterOverrideNeeded}
+        minReasonLength={10}
+        reasonPlaceholder="Why is this applicant approved although they are not on the TODA roster? (e.g. checked the franchise record with the TODA president)"
+        onConfirm={(reason) => handleVerifyConfirm(rosterOverrideNeeded ? reason : undefined)}
       />
 
       {/* Return for Resubmission Summary Dialog (Rule 3.8 Return Flow) */}

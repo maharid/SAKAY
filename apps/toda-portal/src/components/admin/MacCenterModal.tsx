@@ -25,6 +25,9 @@ interface MacCenterModalProps {
   onSecondaryAction?: () => void;
   leftActionLabel?: string;
   onLeftAction?: () => void;
+  /** A third action between Close and the primary one (for example "Return for Correction"). */
+  middleActionLabel?: string;
+  onMiddleAction?: () => void;
   maxWidth?: number | string;
 }
 
@@ -43,6 +46,8 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
   onSecondaryAction,
   leftActionLabel,
   onLeftAction,
+  middleActionLabel,
+  onMiddleAction,
   maxWidth = 720,
 }) => {
   return (
@@ -116,7 +121,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
       </DialogContent>
 
       {/* Modal Footer */}
-      {(primaryActionLabel || secondaryActionLabel || leftActionLabel) && (
+      {(primaryActionLabel || secondaryActionLabel || leftActionLabel || middleActionLabel) && (
         <DialogActions
           sx={{
             padding: '18px 28px 24px',
@@ -178,6 +183,27 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
                 }}
               >
                 {secondaryActionLabel}
+              </Button>
+            )}
+
+            {middleActionLabel && (
+              <Button
+                variant="outlined"
+                onClick={onMiddleAction}
+                sx={{
+                  height: 40,
+                  padding: '0 20px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #D97706',
+                  color: '#B45309',
+                  fontSize: '14.5px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  backgroundColor: '#FFFFFF',
+                  '&:hover': { backgroundColor: '#FFFBEB', borderColor: '#B45309' },
+                }}
+              >
+                {middleActionLabel}
               </Button>
             )}
 

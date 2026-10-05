@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
 import Logo from '../../../../common/components/Logo';
 import PrimaryButton from '../../../../common/components/PrimaryButton';
@@ -49,34 +50,101 @@ export const VerifyOtp: React.FC = () => {
     passengerName?: string;
     fullName?: string;
     date_of_birth?: string;
+    fromLogin?: boolean;
   } | undefined;
 
-  const resolvedPhone = state?.phone || state?.identifier || '';
-  const resolvedName = state?.passengerName || state?.fullName || 'Passenger';
+  // The account's own record, used when the screen was opened without route state (a page reload on this screen loses it).
+  const [ownRecord, setOwnRecord] = useState<{ phone: string; name: string; dob?: string } | null>(null);
+
+  const resolvedPhone = state?.phone || state?.identifier || ownRecord?.phone || '';
+  const resolvedName = state?.passengerName || state?.fullName || ownRecord?.name || 'Passenger';
+  const resolvedDob = state?.date_of_birth || ownRecord?.dob;
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
   const [toastInfo, setToastInfo] = useState<string | null>(null);
-  const [resendTimer, setResendTimer] = useState(60);
+  // Two different waits, two different clocks:
+  //   resendCooldown  seconds before another code may be requested (about a minute after every send)
+  //   lockRemaining   seconds the number is LOCKED after too many wrong codes (15 minutes); nothing can be entered or requested
+  const [resendCooldown, setResendCooldown] = useState(60);
+  const [lockRemaining, setLockRemaining] = useState(0);
   const [resendKey, setResendKey] = useState(0);
-  const [isLockedOut, setIsLockedOut] = useState(false);
+  const isLockedOut = lockRemaining > 0;
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const hasAutoApprovedRef = useRef(false);
   const hasDispatchedInitialOtpRef = useRef(false);
   const isComplete = otp.every((digit) => digit !== '');
 
-  const checkLockout = useCallback((errMsg?: string) => {
-    if (!errMsg) return;
-    const lower = errMsg.toLowerCase();
-    if (lower.includes('lock') || lower.includes('too many') || lower.includes('limit')) {
-      setIsLockedOut(true);
-      const match = errMsg.match(/(\d+)\s*minuto|(\d+)\s*minute/i);
-      const mins = match ? parseInt(match[1] || match[2], 10) : 15;
-      setResendTimer(mins * 60);
-    }
-  }, []);
+  const mmss = (seconds: number): string =>
+    `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+
+  // This screen needs the signed-in session (the server sends and checks the code for THAT account). Without one, the way forward is
+  // the login screen, which brings a pending account straight back here.
+  const sendToLogin = useCallback(() => {
+    navigate('/login', { replace: true, state: { otpSessionEnded: true } });
+  }, [navigate]);
+
+  // Opened without route state (reload): take the number from the signed-in account's own record; an account that is already active
+  // has nothing to verify.
+  useEffect(() => {
+    if (state?.phone || state?.identifier) return;
+    let alive = true;
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) {
+        if (alive) sendToLogin();
+        return;
+      }
+      const { data: own } = await supabase
+        .from('passenger')
+        .select('contact_number, full_name, date_of_birth, account_status')
+        .eq('auth_user_id', userId)
+        .maybeSingle();
+      if (!alive) return;
+      if (!own) {
+        sendToLogin();
+      } else if (own.account_status === 'Active') {
+        navigate('/dashboard', { replace: true });
+      } else {
+        setOwnRecord({ phone: own.contact_number || '', name: own.full_name || 'Passenger', dob: own.date_of_birth || undefined });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [state?.phone, state?.identifier, navigate, sendToLogin]);
+
+  /** Shows what the server said about a code request: a lock, a cooldown, the daily cap, or a plain failure. */
+  const applySendFailure = useCallback(
+    (result: Awaited<ReturnType<typeof sendPassengerOtp>>) => {
+      if (result.sessionMissing) {
+        sendToLogin();
+        return;
+      }
+      if (result.locked) {
+        setLockRemaining(result.lockSeconds || 15 * 60);
+        return;
+      }
+      if (result.cooldownSeconds && result.cooldownSeconds > 0) {
+        // a code was sent a moment ago (for example just before logging in): not an error, just wait
+        setResendCooldown(result.cooldownSeconds);
+        setToastInfo(
+          language === 'tl'
+            ? `May ipinadala nang code kani-kanina lang. Maaari kang humingi muli sa loob ng ${result.cooldownSeconds} segundo.`
+            : `A code was sent a moment ago. You can request another in ${result.cooldownSeconds} seconds.`
+        );
+        return;
+      }
+      setToastError(
+        result.error ||
+          (language === 'tl' ? 'Hindi maipadala ang OTP code. Pakisubukang muli.' : 'Failed to send OTP code. Please try again.')
+      );
+    },
+    [language, sendToLogin]
+  );
 
   // Automatically initiate sending OTP SMS as soon as the user lands on this screen
   useEffect(() => {
@@ -86,6 +154,11 @@ export const VerifyOtp: React.FC = () => {
     const dispatchInitialOtp = async () => {
       setToastError(null);
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          sendToLogin();
+          return;
+        }
         let result = await sendPassengerOtp(resolvedPhone);
         if (!result.success && result.error && result.error.toLowerCase().includes('unreachable')) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -93,15 +166,9 @@ export const VerifyOtp: React.FC = () => {
         }
 
         if (result.success) {
-          setResendTimer(60);
+          setResendCooldown(60);
         } else {
-          checkLockout(result.error);
-          setToastError(
-            result.error ||
-              (language === 'tl'
-                ? 'Hindi maipadala ang OTP code. Pakisubukang muli.'
-                : 'Failed to send OTP code. Please try again.')
-          );
+          applySendFailure(result);
         }
       } catch (err: any) {
         console.warn('[VerifyOtp] Initial OTP dispatch error:', err);
@@ -114,46 +181,58 @@ export const VerifyOtp: React.FC = () => {
     };
 
     dispatchInitialOtp();
-  }, [resolvedPhone, language, checkLockout]);
+  }, [resolvedPhone, language, applySendFailure, sendToLogin]);
 
-  // Countdown timer for resend (continues running every second until timer reaches 0)
+  // The resend cooldown counts down on its own clock ...
   useEffect(() => {
-    if (resendTimer <= 0) {
-      if (isLockedOut) setIsLockedOut(false);
-      return;
-    }
-    const timer = setInterval(() => {
-      setResendTimer((prev) => prev - 1);
-    }, 1000);
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((prev) => Math.max(0, prev - 1)), 1000);
     return () => clearInterval(timer);
-  }, [resendTimer, isLockedOut]);
+  }, [resendCooldown > 0]);
+
+  // ... and the lock on another. When the lock ends the boxes open again (the server decides the same thing: its lock is a time window).
+  useEffect(() => {
+    if (lockRemaining <= 0) return;
+    const timer = setInterval(() => setLockRemaining((prev) => Math.max(0, prev - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [lockRemaining > 0]);
 
   const [isResending, setIsResending] = useState(false);
 
   // Core verification function
   const executeVerification = useCallback(
     async (enteredCode: string) => {
-      if (enteredCode.length < 6 || loading) return;
+      if (enteredCode.length < 6 || loading || isLockedOut) return;
 
       setLoading(true);
       setToastError(null);
 
       try {
-        // The server checks the code for the account that is signed in. After registration the browser is signed in already; if
-        // the session is gone the user logs in again (no password is kept anywhere, no default password, no account is created here).
+        // The server checks the code for the account that is signed in. After registration, and after a login that found the number
+        // still unverified, the browser is signed in already. If the session is gone, the login screen brings the account back here.
         const activeAuthUser = (await supabase.auth.getUser()).data.user;
         if (!activeAuthUser) {
           hasAutoApprovedRef.current = false;
           setLoading(false);
-          setToastError(language === 'tl' ? 'Mag-login muli para ma-verify ang iyong numero.' : 'Please log in again to verify your number.');
+          sendToLogin();
           return;
         }
-        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, state?.date_of_birth);
+        const result = await verifyPassengerOtp(resolvedPhone, enteredCode, resolvedDob);
         if (!result.success) {
           hasAutoApprovedRef.current = false;
           setLoading(false);
-          checkLockout(result.error);
-          setToastError(result.error || (language === 'tl' ? 'Maling OTP code. Pakisubukang muli.' : 'Incorrect OTP code. Please try again.'));
+          if (result.sessionMissing) {
+            sendToLogin();
+            return;
+          }
+          setOtp(['', '', '', '', '', '']);
+          if (result.locked) {
+            // the wrong code that locked the number: show the countdown instead of a message about requesting a new code
+            setLockRemaining(result.lockSeconds || 15 * 60);
+          } else {
+            setToastError(result.error || (language === 'tl' ? 'Maling OTP code. Pakisubukang muli.' : 'Incorrect OTP code. Please try again.'));
+            setTimeout(() => inputRefs.current[0]?.focus(), 50);
+          }
           return;
         }
 
@@ -175,6 +254,7 @@ export const VerifyOtp: React.FC = () => {
         if (isPhoneChange) {
           navigate(returnTo, { state: { phoneUpdated: true }, replace: true });
         } else {
+          // Signed in and verified: on to the consent screens and then the dashboard. No second login.
           navigate('/terms-of-service', {
             state: {
               phone: e164Phone,
@@ -190,13 +270,13 @@ export const VerifyOtp: React.FC = () => {
         setToastError(language === 'tl' ? 'Hindi makumpleto ang pagpapatunay. Pakisubukang muli.' : 'Verification could not be completed. Please try again.');
       }
     },
-    [loading, resolvedPhone, state, language, resolvedName, navigate, checkLockout]
+    [loading, isLockedOut, resolvedPhone, resolvedDob, state, language, resolvedName, navigate, sendToLogin]
   );
 
   const handleIncomingSmsOtp = useCallback(
     (incomingCode: string) => {
       const cleaned = (incomingCode || '').replace(/\D/g, '').slice(0, 6);
-      if (cleaned.length !== 6 || hasAutoApprovedRef.current || loading) return;
+      if (cleaned.length !== 6 || hasAutoApprovedRef.current || loading || isLockedOut) return;
 
       hasAutoApprovedRef.current = true;
       const digits = cleaned.split('');
@@ -207,7 +287,7 @@ export const VerifyOtp: React.FC = () => {
         executeVerification(cleaned);
       }, 400);
     },
-    [loading, executeVerification]
+    [loading, isLockedOut, executeVerification]
   );
 
   useEffect(() => {
@@ -236,6 +316,7 @@ export const VerifyOtp: React.FC = () => {
   }, [handleIncomingSmsOtp, resendKey]);
 
   const handleOtpChange = (index: number, val: string) => {
+    if (isLockedOut) return;
     const rawChar = val.replace(/\D/g, '');
     const newOtp = [...otp];
 
@@ -286,7 +367,7 @@ export const VerifyOtp: React.FC = () => {
   };
 
   const handleResendOtp = async () => {
-    if (resendTimer > 0 || isResending || loading) return;
+    if (resendCooldown > 0 || isResending || loading || isLockedOut) return;
     setToastError(null);
     setToastInfo(null);
     setIsResending(true);
@@ -296,13 +377,12 @@ export const VerifyOtp: React.FC = () => {
       setIsResending(false);
       if (result.success) {
         hasAutoApprovedRef.current = false;
-        setResendTimer(60);
+        setResendCooldown(60);
         setOtp(['', '', '', '', '', '']);
         setResendKey((prev) => prev + 1);
         setToastInfo(language === 'tl' ? 'Matagumpay na naipadala ang bagong OTP code sa iyong numero.' : 'New OTP sent to your number.');
       } else {
-        checkLockout(result.error);
-        setToastError(result.error || (language === 'tl' ? 'Hindi maipadala ang OTP code. Pakisubukang muli.' : 'Failed to resend OTP. Please try again.'));
+        applySendFailure(result);
       }
     } catch {
       setIsResending(false);
@@ -310,6 +390,7 @@ export const VerifyOtp: React.FC = () => {
     }
   };
 
+  const resendBlocked = resendCooldown > 0 || isResending || loading || isLockedOut;
   const phoneCandidates = getPhoneLookupCandidates(resolvedPhone);
   const displayPhone = formatDisplayPhone(phoneCandidates.phone09);
 
@@ -416,6 +497,40 @@ export const VerifyOtp: React.FC = () => {
           </Typography>
         </Box>
 
+        {/* The lock after too many wrong codes: a live countdown, separate from the resend cooldown below */}
+        {isLockedOut && (
+          <Box
+            role="alert"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              p: '14px 16px',
+              borderRadius: '14px',
+              backgroundColor: '#FEF2F2',
+              border: '1.5px solid #FECACA',
+              mb: 1,
+            }}
+          >
+            <LockOutlinedIcon sx={{ color: '#DC2626', fontSize: 22, flexShrink: 0 }} />
+            <Box>
+              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#991B1B', lineHeight: 1.35 }}>
+                {language === 'tl'
+                  ? 'Masyadong maraming maling code. Subukan muli sa loob ng'
+                  : 'Too many incorrect attempts. Try again in'}{' '}
+                <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>
+                  {mmss(lockRemaining)}
+                </Box>
+              </Typography>
+              <Typography sx={{ fontSize: '12px', color: '#B91C1C', mt: 0.25 }}>
+                {language === 'tl'
+                  ? 'Hindi muna maaaring maglagay o humingi ng code habang naka-lock.'
+                  : 'You cannot enter or request a code while the number is locked.'}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
         {/* 6 OTP Input Boxes */}
         <Box
           sx={{
@@ -474,31 +589,31 @@ export const VerifyOtp: React.FC = () => {
           component="button"
           type="button"
           onClick={handleResendOtp}
-          disabled={resendTimer > 0 || isResending || loading || isLockedOut}
+          disabled={resendBlocked}
           sx={{
             width: '100%',
             height: '48px',
             borderRadius: '14px',
-            backgroundColor: (resendTimer > 0 || isResending || loading || isLockedOut) ? '#F8FAFC' : '#FFFFFF',
-            border: (resendTimer > 0 || isResending || loading || isLockedOut) ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
-            color: (resendTimer > 0 || isResending || loading || isLockedOut) ? '#94A3B8' : '#FF6B00',
+            backgroundColor: resendBlocked ? '#F8FAFC' : '#FFFFFF',
+            border: resendBlocked ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
+            color: resendBlocked ? '#94A3B8' : '#FF6B00',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 1,
-            cursor: (resendTimer > 0 || isResending || loading || isLockedOut) ? 'not-allowed' : 'pointer',
+            cursor: resendBlocked ? 'not-allowed' : 'pointer',
             outline: 'none',
             fontSize: '14.5px',
             fontWeight: 700,
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': (resendTimer > 0 || isResending || loading || isLockedOut) ? {} : {
+            '&:hover': resendBlocked ? {} : {
               backgroundColor: 'rgba(255, 107, 0, 0.06)',
               borderColor: '#E66000',
               color: '#E66000',
               transform: 'translateY(-1px)',
             },
-            '&:active': (resendTimer > 0 || isResending || loading || isLockedOut) ? {} : {
+            '&:active': resendBlocked ? {} : {
               backgroundColor: 'rgba(255, 107, 0, 0.12)',
               transform: 'translateY(0)',
             },
@@ -512,8 +627,10 @@ export const VerifyOtp: React.FC = () => {
           <Typography sx={{ fontSize: '14.5px', fontWeight: 700, color: 'inherit' }}>
             {isResending
               ? (language === 'tl' ? 'Ipinapadala...' : 'Sending...')
-              : resendTimer > 0
-              ? (language === 'tl' ? `Muling magpadala sa (${resendTimer}s)` : `Resend code in (${resendTimer}s)`)
+              : isLockedOut
+              ? (language === 'tl' ? 'Naka-lock ang numero' : 'Number locked')
+              : resendCooldown > 0
+              ? (language === 'tl' ? `Muling magpadala sa (${resendCooldown}s)` : `Resend code in (${resendCooldown}s)`)
               : (language === 'tl' ? 'Ipadala Muli ang Code' : 'Resend Code')}
           </Typography>
         </Box>

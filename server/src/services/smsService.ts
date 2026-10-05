@@ -55,6 +55,50 @@ export const normalizePhilippinePhone = (raw: string): string => {
   return `+${digits}`;
 };
 
+/** How long a code request waits to learn what the phone did with the message, and how often it asks. */
+const GATEWAY_STATUS_WAIT_MS = 6000;
+const GATEWAY_STATUS_EVERY_MS = 1000;
+
+/**
+ * The gateway answers "202 Accepted" the moment the MESSAGE IS QUEUED. That says nothing about the phone: it may be asleep, off the
+ * network, out of credit or refusing the SIM, and the message then sits in "Pending" or ends "Failed" while the app was already told
+ * "sent". This asks the gateway for the message's state (GET /message/{id}) for a few seconds:
+ *   Sent / Delivered  -> it left the phone
+ *   Failed            -> it did not: the request fails, and no code is stored for a message that was never sent
+ *   still Pending     -> inconclusive after the wait; reported as queued (the code is kept) and logged, so the operator can see it
+ * The state and the gateway's message id are logged; the number and the text never are.
+ */
+async function confirmGatewayDelivery(
+  gatewayUrl: string,
+  headers: Record<string, string>,
+  accepted: { id?: string; state?: string }
+): Promise<{ outcome: 'sent' | 'failed' | 'queued' | 'unknown'; state?: string; detail?: string }> {
+  if (!accepted.id) return { outcome: 'unknown' };
+  const deadline = Date.now() + GATEWAY_STATUS_WAIT_MS;
+  let state = accepted.state;
+  let detail: string | undefined;
+  while (Date.now() < deadline) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const r = await fetch(`${gatewayUrl}/message/${encodeURIComponent(accepted.id)}`, { method: 'GET', headers, signal: controller.signal });
+      clearTimeout(timeout);
+      if (r.ok) {
+        const body = (await r.json().catch(() => null)) as { state?: string; recipients?: { state?: string; error?: string }[] } | null;
+        const recipient = body?.recipients?.[0];
+        state = recipient?.state || body?.state || state;
+        detail = recipient?.error;
+        if (state === 'Sent' || state === 'Delivered') return { outcome: 'sent', state };
+        if (state === 'Failed') return { outcome: 'failed', state, detail };
+      }
+    } catch {
+      // the status lookup is best effort: a hiccup here is not a failure of the SMS
+    }
+    await new Promise((resolve) => setTimeout(resolve, GATEWAY_STATUS_EVERY_MS));
+  }
+  return { outcome: 'queued', state, detail };
+}
+
 /**
  * Sends SMS through an active Android SMS Gateway device (capcom6/android-sms-gateway)
  */
@@ -114,7 +158,16 @@ async function sendViaAndroidGateway(
       clearTimeout(timeout);
 
       if (response.ok) {
-        console.log(`[SMS Service] Dispatched via Android SMS Gateway to ${maskPhone(formattedPhone)}`);
+        const accepted = (await response.json().catch(() => ({}))) as { id?: string; state?: string };
+        const delivery = await confirmGatewayDelivery(gatewayUrl, headers, accepted);
+        console.log(`[SMS Service] Android SMS Gateway accepted a message for ${maskPhone(formattedPhone)}: gateway id ${accepted.id ?? '(none)'}, state ${delivery.state ?? accepted.state ?? '(unknown)'} -> ${delivery.outcome}`);
+        if (delivery.outcome === 'failed') {
+          console.error(`[SMS Service] The phone reported the message as Failed${delivery.detail ? ` (${delivery.detail})` : ''}.`);
+          return { success: false, error: `The SMS gateway phone could not send the message${delivery.detail ? `: ${delivery.detail}` : '.'}` };
+        }
+        if (delivery.outcome === 'queued') {
+          console.warn(`[SMS Service] The message is still "${delivery.state}" on the phone after ${GATEWAY_STATUS_WAIT_MS / 1000} s. Check that the gateway phone is awake, online and has SMS credit.`);
+        }
         return { success: true, message: 'SMS dispatched successfully via Android Gateway.' };
       }
 

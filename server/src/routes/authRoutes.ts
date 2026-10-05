@@ -162,6 +162,10 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
           .update({ otp_last_sent_at: now.toISOString(), otp_daily_count: countToday + 1, otp_daily_reset_at: today })
           .eq('passenger_id', subject.id);
         if (upErr) console.warn('[Auth] could not record the OTP send:', upErr.message);
+        // A new code starts with a clean count: the wrong entries made against the previous code do not carry over. (A lock that is
+        // still running never gets this far: it was refused above, so a lock cannot be cleared by asking for a code.)
+        const { error: clearErr } = await db!.rpc('reset_failed_otp', { p_passenger_id: subject.id });
+        if (clearErr) console.warn('[Auth] reset_failed_otp after a new code:', clearErr.message);
         res.json({ success: true, message: sent.message || 'OTP SMS sent successfully.' });
         return;
       }
@@ -208,9 +212,18 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
       // 2. the code
       const verdict = deps.sms.verifyOtpCode(e164, code.trim());
       if (!verdict.success) {
-        if (subject.kind === 'passenger' && db) {
+        // Only a WRONG guess counts towards the lock. "No code issued" and "the code expired" are not guesses (for example the code was
+        // lost when the server restarted), and counting them would lock somebody out for something that is not their mistake.
+        const isGuess = verdict.reason === 'wrong' || verdict.reason === 'too_many';
+        if (subject.kind === 'passenger' && db && isGuess) {
           const { error } = await db.rpc('increment_failed_otp', { p_passenger_id: subject.id });
           if (error) console.warn('[Auth] increment_failed_otp:', error.message);
+          // the guess that made it five: tell the app now, so it can show the countdown instead of "request a new code"
+          const now = await lockedOut(e164);
+          if (!('unavailable' in now) && now.locked) {
+            fail(res, 429, `Too many failed OTP attempts. Please try again in ${now.minutes.toFixed(0)} minute(s).`, { is_locked: true, minutes_remaining: now.minutes });
+            return;
+          }
         }
         fail(res, 400, verdict.error);
         return;

@@ -12,7 +12,9 @@ import { apiPostJson } from '@sakay/shared';
 import type { ApplyDriverTodaAffiliationsResponse, DriverTodaApplicationInput } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
-import type { LicenseExtractedData, MtopExtractedData } from './driverOnboardingCache';
+import type { FaultyDocType, LicenseExtractedData, MtopExtractedData } from './driverOnboardingCache';
+import { classifyApplication } from '@sakay/shared';
+import type { ApplicationReviewAffiliation } from '@sakay/shared';
 
 
 export async function rotateDriverSession(driverId: string): Promise<string> {
@@ -1045,7 +1047,6 @@ export async function saveDriverLicenseVerification(
       mime_type: 'image/jpeg',
       file_size: totalSizeBytes > 0 ? totalSizeBytes : null,
       scan_status: 'Clean',
-      verification_status: 'Pending',
       submitted_at: new Date().toISOString(),
     };
 
@@ -1474,11 +1475,16 @@ export async function saveDriverTricycleVerification(
 }
 
 /**
- * Finalizes driver registration submission in Supabase.
- * Marks public.driver as 'Pending Verification' & public.driver_verification as 'Submitted'.
+ * Finalizes the driver's submission in Supabase.
+ *   - First submission: saves every document's data on public.driver_verification (the application itself, one affiliation per TODA, was
+ *     created at registration and starts as Submitted).
+ *   - Correction (documents were returned): saves ONLY the returned documents and calls resubmit_driver_documents(), which moves the
+ *     affected applications back to review. The status columns are never written from here (the database refuses them to a driver).
+ * `options.returnedDocuments` is a hint from the screen; the database's own list of returned documents wins when the hint is empty.
  */
 export async function submitFinalDriverRegistration(
-  phone?: string
+  phone?: string,
+  options?: { returnedDocuments?: FaultyDocType[] }
 ): Promise<{ success: boolean; error?: string }> {
   console.log('[FINAL REGISTRATION SUBMIT] ========================================');
   console.log('[FINAL REGISTRATION SUBMIT] Finalizing registration submission...');
@@ -1555,32 +1561,43 @@ export async function submitFinalDriverRegistration(
       };
     }
 
-    // 2. Update public.driver with allowable profile details (name, dob, address)
-    const driverPayload: Record<string, any> = {
-      account_status: 'Pending Verification',
-      rejection_reason: null,
-      rejection_comment: null,
-      updated_at: new Date().toISOString(),
-    };
-    if (license?.fullName) driverPayload.full_name = license.fullName;
-    if (license?.dob) driverPayload.date_of_birth = parseDateForDb(license.dob);
-    if (license?.address) driverPayload.residential_address = license.address;
+    // 2. Is this a first submission, or the correction of documents that were returned? The DATABASE decides (it knows which documents
+    //    are waiting for the driver); what the screen remembers is only a hint. A correction rewrites ONLY the returned documents, so
+    //    everything else on file stays exactly as it was.
+    let returnedDocuments: FaultyDocType[] = options?.returnedDocuments || [];
+    if (returnedDocuments.length === 0) {
+      const review = await fetchMyApplicationReview();
+      const status = review ? classifyApplication(review.affiliations) : null;
+      if (status && status.kind === 'resubmission_required') returnedDocuments = status.documentsToResubmit;
+    }
+    const isResubmission = returnedDocuments.length > 0;
+    const includes = (doc: FaultyDocType): boolean => !isResubmission || returnedDocuments.includes(doc);
+
+    // 3. public.driver: the profile details of the documents being submitted. The decision columns (account_status, rejection_*) are NOT
+    //    written here: since the perimeter lockdown the database refuses them to a driver, and the status moves only through
+    //    resubmit_driver_documents() below.
+    const driverPayload: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (includes('license')) {
+      if (license?.fullName) driverPayload.full_name = license.fullName;
+      if (license?.dob) driverPayload.date_of_birth = parseDateForDb(license.dob);
+      if (license?.address) driverPayload.residential_address = license.address;
+    }
 
     // Optional extended profile fields (if migration was executed and triggers permit)
     const extendedDriverPayload = {
       ...driverPayload,
-      ...(license?.licenseNumber ? { license_number: license.licenseNumber } : {}),
-      ...(license?.expirationDate ? { license_expiry: parseDateForDb(license.expirationDate) } : {}),
-      ...(license?.dlCodes ? { dl_codes: license.dlCodes } : {}),
-      ...(mtop?.franchiseNumber ? { franchise_number: mtop.franchiseNumber } : {}),
-      ...(mtop?.plateNumber ? { plate_number: mtop.plateNumber } : {}),
-      ...(mtop?.chassisNumber ? { chassis_number: mtop.chassisNumber } : {}),
-      ...(mtop?.vehicleMake ? { vehicle_make: mtop.vehicleMake } : {}),
-      ...(mtop?.motorNumber ? { motor_number: mtop.motorNumber } : {}),
-      ...(mtop?.orNumber ? { or_number: mtop.orNumber } : {}),
-      ...(mtop?.authorizedRoute ? { authorized_route: mtop.authorizedRoute } : {}),
-      ...(mtop?.expirationDate ? { mtop_expiry: parseDateForDb(mtop.expirationDate) } : {}),
-      ...(tricyclePath ? { tricycle_photo_path: tricyclePath } : {}),
+      ...(includes('license') && license?.licenseNumber ? { license_number: license.licenseNumber } : {}),
+      ...(includes('license') && license?.expirationDate ? { license_expiry: parseDateForDb(license.expirationDate) } : {}),
+      ...(includes('license') && license?.dlCodes ? { dl_codes: license.dlCodes } : {}),
+      ...(includes('mtop') && mtop?.franchiseNumber ? { franchise_number: mtop.franchiseNumber } : {}),
+      ...(includes('mtop') && mtop?.plateNumber ? { plate_number: mtop.plateNumber } : {}),
+      ...(includes('mtop') && mtop?.chassisNumber ? { chassis_number: mtop.chassisNumber } : {}),
+      ...(includes('mtop') && mtop?.vehicleMake ? { vehicle_make: mtop.vehicleMake } : {}),
+      ...(includes('mtop') && mtop?.motorNumber ? { motor_number: mtop.motorNumber } : {}),
+      ...(includes('mtop') && mtop?.orNumber ? { or_number: mtop.orNumber } : {}),
+      ...(includes('mtop') && mtop?.authorizedRoute ? { authorized_route: mtop.authorizedRoute } : {}),
+      ...(includes('mtop') && mtop?.expirationDate ? { mtop_expiry: parseDateForDb(mtop.expirationDate) } : {}),
+      ...(includes('tricycle') && tricyclePath ? { tricycle_photo_path: tricyclePath } : {}),
     };
 
     const { error: primaryDriverErr } = await supabase
@@ -1596,95 +1613,65 @@ export async function submitFinalDriverRegistration(
         .eq('driver_id', driverId);
     }
 
-    // 3. Upsert public.driver_verification with complete submitted document fields
-    const verifPayload: Record<string, any> = {
-      driver_id: driverId,
-      submitted_full_name: license?.fullName || null,
-      submitted_license_number: license?.licenseNumber || null,
-      submitted_dob: license?.dob ? parseDateForDb(license.dob) : null,
-      submitted_address: license?.address || null,
-      submitted_dl_codes: license?.dlCodes || null,
-      license_expiry: license?.expirationDate ? parseDateForDb(license.expirationDate) : null,
-      submitted_franchise_number: mtop?.franchiseNumber || null,
-      submitted_operator_name: mtop?.operatorName || null,
-      submitted_plate_number: mtop?.plateNumber || null,
-      submitted_chassis_number: mtop?.chassisNumber || null,
-      submitted_vehicle_make: mtop?.vehicleMake || null,
-      submitted_motor_number: mtop?.motorNumber || null,
-      submitted_or_number: mtop?.orNumber || null,
-      franchise_expiry: mtop?.expirationDate ? parseDateForDb(mtop?.expirationDate) : null,
-      mtop_expiry: mtop?.expirationDate ? parseDateForDb(mtop?.expirationDate) : null,
-      submitted_authorized_route: mtop?.authorizedRoute || null,
-      license_front_photo_path: frontPath,
-      license_back_photo_path: backPath,
-      mtop_photo_path: mtopPath,
-      tricycle_photo_path: tricyclePath,
-      face_photo_path: selfiePath,
-      face_verification_status: face?.faceMatchPassed === false ? 'Flagged' : 'Passed',
-      scan_status: 'Clean',
-      verification_status: 'Pending',
-      rejection_reason: null,
-      rejection_comment: null,
-      rejected_by: null,
-      rejected_at: null,
-      remarks: 'Resubmitted by driver applicant with updated documents',
-      submitted_at: new Date().toISOString(),
-    };
-
+    // 4. public.driver_verification: the submitted fields of the documents being submitted (data only: no status, no rejection_* columns)
+    const verifPayload: Record<string, any> = { driver_id: driverId };
     // Core fallback payload in case newly added schema columns have not been migrated on remote PostgREST instance yet
-    const fallbackVerifPayload: Record<string, any> = {
-      driver_id: driverId,
-      submitted_full_name: license?.fullName || null,
-      submitted_license_number: license?.licenseNumber || null,
-      submitted_dob: license?.dob ? parseDateForDb(license.dob) : null,
-      submitted_address: license?.address || null,
-      submitted_dl_codes: license?.dlCodes || null,
-      license_expiry: license?.expirationDate ? parseDateForDb(license.expirationDate) : null,
-      submitted_franchise_number: mtop?.franchiseNumber || null,
-      submitted_operator_name: mtop?.operatorName || null,
-      submitted_plate_number: mtop?.plateNumber || null,
-      franchise_expiry: mtop?.expirationDate ? parseDateForDb(mtop?.expirationDate) : null,
-      license_front_photo_path: frontPath,
-      license_back_photo_path: backPath,
-      mtop_photo_path: mtopPath,
-      tricycle_photo_path: tricyclePath,
-      face_photo_path: selfiePath,
-      scan_status: 'Clean',
-      verification_status: 'Pending',
-      rejection_reason: null,
-      rejection_comment: null,
-      rejected_by: null,
-      rejected_at: null,
-      remarks: 'Resubmitted by driver applicant with updated documents',
-      submitted_at: new Date().toISOString(),
-    };
+    const fallbackVerifPayload: Record<string, any> = { driver_id: driverId };
+
+    if (includes('license')) {
+      const licenseFields = {
+        submitted_full_name: license?.fullName || null,
+        submitted_license_number: license?.licenseNumber || null,
+        submitted_dob: license?.dob ? parseDateForDb(license.dob) : null,
+        submitted_address: license?.address || null,
+        submitted_dl_codes: license?.dlCodes || null,
+        license_expiry: license?.expirationDate ? parseDateForDb(license.expirationDate) : null,
+        license_front_photo_path: frontPath,
+        license_back_photo_path: backPath,
+      };
+      Object.assign(verifPayload, licenseFields);
+      Object.assign(fallbackVerifPayload, licenseFields);
+    }
+    if (includes('mtop')) {
+      Object.assign(fallbackVerifPayload, {
+        submitted_franchise_number: mtop?.franchiseNumber || null,
+        submitted_operator_name: mtop?.operatorName || null,
+        submitted_plate_number: mtop?.plateNumber || null,
+        franchise_expiry: mtop?.expirationDate ? parseDateForDb(mtop?.expirationDate) : null,
+        mtop_photo_path: mtopPath,
+      });
+      Object.assign(verifPayload, fallbackVerifPayload, {
+        submitted_chassis_number: mtop?.chassisNumber || null,
+        submitted_vehicle_make: mtop?.vehicleMake || null,
+        submitted_motor_number: mtop?.motorNumber || null,
+        submitted_or_number: mtop?.orNumber || null,
+        mtop_expiry: mtop?.expirationDate ? parseDateForDb(mtop?.expirationDate) : null,
+        submitted_authorized_route: mtop?.authorizedRoute || null,
+      });
+    }
+    if (includes('tricycle')) {
+      verifPayload.tricycle_photo_path = tricyclePath;
+      fallbackVerifPayload.tricycle_photo_path = tricyclePath;
+    }
+    if (includes('selfie')) {
+      verifPayload.face_photo_path = selfiePath;
+      verifPayload.face_verification_status = face?.faceMatchPassed === false ? 'Flagged' : 'Passed';
+      fallbackVerifPayload.face_photo_path = selfiePath;
+    }
+    if (!isResubmission) {
+      // a first submission only: a correction leaves these as they are (resubmit_driver_documents() stamps the resubmission)
+      for (const payload of [verifPayload, fallbackVerifPayload]) {
+        payload.scan_status = 'Clean';
+        payload.remarks = 'Submitted by driver applicant';
+        payload.submitted_at = new Date().toISOString();
+      }
+    }
 
     const { data: existingVerif } = await supabase
       .from('driver_verification')
-      .select('verification_id, verification_status, endorsed_at')
+      .select('verification_id')
       .eq('driver_id', driverId)
       .maybeSingle();
-
-    const isResubmission =
-      existingVerif?.verification_status === 'Resubmission Required' ||
-      Boolean(existingVerif?.endorsed_at) ||
-      Boolean(localStorage.getItem('sakay_driver_resubmission_session'));
-
-    // driver_verification_verification_status_check allows: 'Pending', 'Approved', 'Rejected', 'Resubmission Required'
-    // An endorsed driver who resubmits maintains Stage 1 'Approved' (awaiting LGU Stage 2 review)
-    const targetVerificationStatus = isResubmission ? 'Approved' : 'Pending';
-
-    verifPayload.verification_status = targetVerificationStatus;
-    fallbackVerifPayload.verification_status = targetVerificationStatus;
-
-    if (isResubmission) {
-      verifPayload.remarks = 'Resubmitted by driver applicant with updated documents';
-      fallbackVerifPayload.remarks = 'Resubmitted by driver applicant with updated documents';
-      verifPayload.rejected_at = null;
-      verifPayload.rejected_by = null;
-      fallbackVerifPayload.rejected_at = null;
-      fallbackVerifPayload.rejected_by = null;
-    }
 
     if (existingVerif) {
       const { error: updateVerifErr } = await supabase
@@ -1694,10 +1681,20 @@ export async function submitFinalDriverRegistration(
 
       if (updateVerifErr) {
         console.warn('[FINAL REGISTRATION SUBMIT] Verification update warning, trying core fallback payload:', updateVerifErr);
-        await supabase
+        const { error: fallbackErr } = await supabase
           .from('driver_verification')
           .update(fallbackVerifPayload)
           .eq('verification_id', existingVerif.verification_id);
+        if (fallbackErr && isResubmission) {
+          // A correction whose new data could not be saved must not be reported as resubmitted.
+          return {
+            success: false,
+            error: getLocalizedError(
+              'Hindi na-save ang iyong mga bagong dokumento. Pakisubukang muli.',
+              'Your corrected documents could not be saved. Please try again.'
+            ),
+          };
+        }
       }
     } else {
       const { error: insertVerifErr } = await supabase
@@ -1712,26 +1709,24 @@ export async function submitFinalDriverRegistration(
       }
     }
 
+    // 5. A correction: tell the database which documents were replaced. It moves ONLY the applications whose returned documents are
+    //    all replaced back to review, restarts their 5-calendar-day clock, resets the reminder, and notifies their administrators.
     if (isResubmission) {
+      const result = await resubmitDriverDocuments(returnedDocuments);
+      if (!result.success) {
+        return {
+          success: false,
+          error:
+            result.error ||
+            getLocalizedError(
+              'Hindi naisumite ang pagwawasto. Pakisubukang muli.',
+              'The correction could not be submitted. Please try again.'
+            ),
+        };
+      }
       try {
-        localStorage.setItem('sakay_driver_just_resubmitted', 'true');
         localStorage.removeItem('sakay_driver_resubmission_session');
       } catch {}
-
-      try {
-        const applicantName = license?.fullName || 'Driver applicant';
-        await supabase.from('notification').insert([
-          {
-            driver_id: driverId,
-            title: 'Driver Resubmitted Documents',
-            message: `${applicantName} resubmitted documents for Stage 2 review.`,
-            notification_type: 'Driver Resubmission',
-            is_read: false,
-          },
-        ]);
-      } catch (notifErr) {
-        console.warn('[FINAL REGISTRATION SUBMIT] Notification insert warning:', notifErr);
-      }
     }
 
     console.log('[FINAL REGISTRATION SUBMIT] Complete submission finalized successfully for driver:', driverId);
@@ -1743,6 +1738,53 @@ export async function submitFinalDriverRegistration(
       error: getLocalizedError(
         'Hindi na-proseso ang huling submission. Pakisubukang muli.',
         'Could not process final submission. Please try again.'
+      ),
+    };
+  }
+}
+
+/** Why the driver is asked for a document again, and the driver's own view of every TODA application (one database call, safe to poll). */
+export interface MyApplicationReview {
+  affiliations: ApplicationReviewAffiliation[];
+  documents: Array<{
+    document_type: string;
+    document_status: 'Submitted' | 'Resubmission Required' | 'Resubmitted';
+    resubmission_count: number;
+    returned_at: string | null;
+    resubmitted_at: string | null;
+  }>;
+}
+
+export async function fetchMyApplicationReview(): Promise<MyApplicationReview | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_my_application_review');
+    if (error || !data) return null;
+    const review = data as MyApplicationReview;
+    return { affiliations: review.affiliations || [], documents: review.documents || [] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The driver replaced documents that were returned. Only the documents named here are resubmitted (a driver may fix them one at a time);
+ * each TODA application whose returned documents are ALL replaced goes back to review.
+ */
+export async function resubmitDriverDocuments(
+  documentTypes?: FaultyDocType[]
+): Promise<{ success: boolean; error?: string; backInReview?: number; stillReturned?: number }> {
+  try {
+    const { data, error } = await supabase.rpc('resubmit_driver_documents', { p_document_types: documentTypes ?? null });
+    if (error) return { success: false, error: error.message };
+    if (!data || data.success !== true) return { success: false, error: data?.error };
+    return { success: true, backInReview: (data.back_in_review || []).length, stillReturned: (data.still_returned || []).length };
+  } catch (err: any) {
+    console.warn('[driverApiService] resubmit_driver_documents exception:', err);
+    return {
+      success: false,
+      error: getLocalizedError(
+        'Hindi makakonekta sa server. Pakisubukang muli.',
+        'Unable to reach the server. Please try again.'
       ),
     };
   }

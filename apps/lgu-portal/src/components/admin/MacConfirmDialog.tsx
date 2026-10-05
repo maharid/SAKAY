@@ -15,6 +15,8 @@ interface MacConfirmDialogProps {
   confirmVariant?: 'orange' | 'danger';
   requireReason?: boolean;
   reasonPlaceholder?: string;
+  /** The reason must be at least this many characters once trimmed (default: any non-blank text). */
+  minReasonLength?: number;
   /** Optional required choice shown above the reason (e.g. the violation being recorded). */
   options?: MacConfirmDialogOption[];
   optionLabel?: string;
@@ -30,6 +32,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
   confirmVariant = 'orange',
   requireReason = false,
   reasonPlaceholder = 'Enter reason...',
+  minReasonLength = 1,
   options,
   optionLabel = 'Select an option',
   onConfirm,
@@ -110,7 +113,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         {requireReason && (
           <Box sx={{ mt: 2 }}>
             <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
-              Reason for Decision (Required)
+              Reason for Decision (Required{minReasonLength > 1 ? `, at least ${minReasonLength} characters` : ''})
             </Typography>
             <TextField
               fullWidth
@@ -159,7 +162,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
 
         <Button
           onClick={handleConfirm}
-          disabled={(requireReason && !reason.trim()) || (Boolean(options) && !option)}
+          disabled={(requireReason && reason.trim().length < minReasonLength) || (Boolean(options) && !option)}
           variant="contained"
           sx={{
             height: 38,

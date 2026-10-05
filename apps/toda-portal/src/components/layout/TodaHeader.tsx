@@ -67,7 +67,9 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
       }
     };
     loadData();
-    return () => { isMounted = false; };
+    // every 30 seconds, quietly: "driver resubmitted" notices arrive without reloading the page
+    const timer = setInterval(loadData, 30000);
+    return () => { isMounted = false; clearInterval(timer); };
   }, [todaAdminProfile]);
 
   const adminName = todaAdminProfile?.full_name || 'TODA Administrator';

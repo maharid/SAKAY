@@ -71,7 +71,31 @@ export interface TodaProfile {
   misteepComplaintsCount: number;
 }
 
+/** One document of an application, as THIS TODA's review sees it (database: get_affiliation_document_reviews). */
+export interface ApplicantDocumentReview {
+  documentType: 'license' | 'mtop' | 'tricycle' | 'selfie';
+  /**
+   * returned            this review returned it and the driver has not replaced it yet
+   * resubmitted         this review returned it and the driver has replaced it since
+   * returned_elsewhere  another TODA's review (or the LGU) flagged the shared document; its reason is not shown here
+   * replaced_elsewhere  the shared document was replaced after this application was submitted, because of another review
+   * not_returned        no issue was raised by this review
+   */
+  state: 'returned' | 'resubmitted' | 'returned_elsewhere' | 'replaced_elsewhere' | 'not_returned';
+  reasonCode?: string | null;
+  reason?: string | null;
+  returnedAt?: string | null;
+  returnedByStage?: 'TODA' | 'LGU' | null;
+  resubmittedAt?: string | null;
+}
+
 export interface DriverApplicant {
+  /** True while this application is back in TODA review after the driver replaced the documents it returned. */
+  isResubmitted?: boolean;
+  /** When the driver resubmitted: the 5-calendar-day review clock restarted here (Rule 3.6). ISO timestamp. */
+  resubmittedAt?: string;
+  /** Per document: what this review returned, why, and whether the driver has replaced it. */
+  documentReviews?: ApplicantDocumentReview[];
   /** The AFFILIATION id (driver x this TODA). One driver applying to two TODAs is two applicants, one in each TODA's list. */
   id: string;
   affiliationId?: string;
@@ -91,7 +115,10 @@ export interface DriverApplicant {
   submittedDate: string;
   daysPending: number;
   isOverdue: boolean; // >3 days warning
-  onSubmittedRoster: boolean; // Master Roster Mismatch detection
+  /** On the TODA's master roster by franchise or plate number, as decided by the DATABASE (the same rule as the endorsement). */
+  onSubmittedRoster: boolean;
+  /** False when the database could not answer (then neither "matched" nor "mismatch" is claimed). */
+  rosterMatchKnown?: boolean;
   tricyclePhotoUrl: string;
   licenseFrontUrl?: string;
   licenseBackUrl?: string;

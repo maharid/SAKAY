@@ -71,12 +71,14 @@ const path = require('path');
                                                 AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e') AND has_function_privilege('authenticated', p.oid, 'EXECUTE')`)).rows.map((r) => r.f);
   const before = new Set(await authFns(pre));
   const afterSet = new Set(await authFns(db));
-  const lost = [...before].filter((f) => !afterSet.has(f)).sort();
+  // 20261010000005 replaced verify_driver_affiliation(uuid, text, date, date) by a version with one more (defaulted) argument on purpose:
+  // the old signature disappears and the new one appears, so a changed signature is not a function "taken" from signed-in users.
+  const lost = [...before].filter((f) => !afterSet.has(f) && !/^verify_driver_affiliation\(/.test(f)).sort();
   const gained = [...afterSet].filter((f) => !before.has(f)).sort();
   check('exactly the five server-only functions were taken from signed-in users', same(lost.map((f) => f.split('(')[0]), ['activate_passenger_otp', 'check_otp_lockout', 'check_toda_excess_incidents', 'increment_failed_otp', 'reset_failed_otp']), lost);
-  // 20261009000002 (multi-TODA registration) adds two functions on purpose: the registration RPC and the read-only affiliation helper.
-  check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 multi-affiliation functions aside)',
-    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver)\(/.test(f)), gained);
+  // 20261009000002 (multi-TODA registration) and 20261010000001 (return for correction per document) add functions on purpose.
+  check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 / 20261010 affiliation, document-return and roster-match functions aside)',
+    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation)\(/.test(f)), gained);
   check(`signed-in users keep ${afterSet.size} functions (policy helpers, RPCs, workflow functions)`, afterSet.size > 60, afterSet.size);
   const serverOnly = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.activate_passenger_otp('+639170000001')`)));
   check('a signed-in passenger cannot activate an account (activate_passenger_otp)', permDenied(serverOnly), err(serverOnly));

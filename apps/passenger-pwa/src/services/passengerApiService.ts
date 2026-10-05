@@ -96,20 +96,48 @@ export function normalizePhoneE164(raw: string): string {
   return `+${digits}`;
 }
 
+/** What the server said about a code request. The lock, the resend cooldown and the daily cap are three different things. */
+export interface PassengerOtpSendResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  /** The number is locked out after too many wrong codes (15 minutes). No code can be requested or checked until it ends. */
+  locked?: boolean;
+  /** Seconds until the lock ends (from the server's own clock reading). */
+  lockSeconds?: number;
+  /** A code was sent a moment ago: seconds until another may be requested (the resend cooldown). */
+  cooldownSeconds?: number;
+  /** Five codes were sent today. */
+  dailyCapReached?: boolean;
+  /** There is no signed-in session: the request was not even sent. */
+  sessionMissing?: boolean;
+}
+
+/** Seconds from the server's `minutes_remaining` (a number, possibly fractional). */
+function secondsFromMinutes(minutes: unknown): number {
+  const m = Number(minutes);
+  return Number.isFinite(m) && m > 0 ? Math.ceil(m * 60) : 0;
+}
+
 /**
  * Asks the server to send an OTP SMS to the signed-in passenger's own number.
  * The server checks the lockout, the 30-second cooldown and the daily cap, and refuses any number that is not this account's.
  */
-export async function sendPassengerOtp(phone: string): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function sendPassengerOtp(phone: string): Promise<PassengerOtpSendResult> {
   const e164Phone = normalizePhoneE164(phone);
   try {
-    const { ok, data } = await apiPostJson(supabase, '/api/auth/send-otp', { phone: e164Phone }, { timeoutMs: 20000 });
+    const { ok, status, data } = await apiPostJson(supabase, '/api/auth/send-otp', { phone: e164Phone }, { timeoutMs: 20000 });
     if (ok && data.success) {
       return { success: true, message: data.message || 'OTP SMS sent successfully.' };
     }
     return {
       success: false,
       error: data.error || getLocalizedError('Nabigong ipadala ang OTP SMS.', 'Failed to send OTP SMS.'),
+      locked: Boolean(data.is_locked),
+      lockSeconds: data.is_locked ? secondsFromMinutes(data.minutes_remaining) || 15 * 60 : undefined,
+      cooldownSeconds: typeof data.cooldown_remaining_seconds === 'number' ? data.cooldown_remaining_seconds : undefined,
+      dailyCapReached: Boolean(data.daily_cap_reached),
+      sessionMissing: status === 401,
     };
   } catch (err: any) {
     console.warn('[passengerApiService] Error connecting to /api/auth/send-otp:', err.message);
@@ -125,17 +153,28 @@ export async function sendPassengerOtp(phone: string): Promise<{ success: boolea
  * counts a wrong code against the lockout; the age rule (Rule 4.3) is enforced there too, using the birth date on the record
  * or the one passed here.
  */
+export interface PassengerOtpVerifyResult {
+  success: boolean;
+  error?: string;
+  /** This wrong code was the one that locked the number (or it was already locked): 15 minutes, counted down on the screen. */
+  locked?: boolean;
+  lockSeconds?: number;
+  /** The server refused because the passenger is under the minimum age (Rule 4.3). */
+  underAge?: boolean;
+  sessionMissing?: boolean;
+}
+
 export async function verifyPassengerOtp(
   phone: string,
   code: string,
   dateOfBirth?: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<PassengerOtpVerifyResult> {
   const e164Phone = normalizePhoneE164(phone);
   const payload: Record<string, unknown> = { phone: e164Phone, code: (code || '').trim() };
   if (dateOfBirth) payload.date_of_birth = dateOfBirth;
 
   try {
-    const { ok, data } = await apiPostJson(supabase, '/api/auth/verify-otp', payload, { timeoutMs: 15000 });
+    const { ok, status, data } = await apiPostJson(supabase, '/api/auth/verify-otp', payload, { timeoutMs: 15000 });
     if (ok && data.success) {
       // A fresh login-session token for this device (single-session rule). Own record only.
       try {
@@ -152,6 +191,10 @@ export async function verifyPassengerOtp(
     return {
       success: false,
       error: data.error || getLocalizedError('Maling OTP code o nag-expire na ito.', 'Incorrect or expired OTP code.'),
+      locked: Boolean(data.is_locked),
+      lockSeconds: data.is_locked ? secondsFromMinutes(data.minutes_remaining) || 15 * 60 : undefined,
+      underAge: Boolean(data.under_age),
+      sessionMissing: status === 401,
     };
   } catch (err: any) {
     console.warn('[passengerApiService] Error connecting to /api/auth/verify-otp:', err.message);

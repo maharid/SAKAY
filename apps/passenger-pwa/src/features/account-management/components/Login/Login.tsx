@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -21,6 +21,7 @@ import { getOwnAccountRestriction, getPhoneLookupCandidates, rotatePassengerSess
 const Login: React.FC = () => {
   const { language, t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Form State
   const [phone, setPhone] = useState("");
@@ -45,6 +46,18 @@ const Login: React.FC = () => {
     setToastMessage(msg);
     setToastOpen(true);
   };
+
+  // The code screen sends a signed-out visitor here (its session ended): say why, once.
+  useEffect(() => {
+    if ((location.state as { otpSessionEnded?: boolean } | null)?.otpSessionEnded) {
+      triggerErrorToast(
+        language === "tl"
+          ? "Natapos ang iyong session. Mag-log in upang ipagpatuloy ang pag-verify ng iyong numero."
+          : "Your session ended. Log in to continue verifying your number."
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleBack = () => {
@@ -91,7 +104,7 @@ const Login: React.FC = () => {
         // What this account IS is decided by its passenger record in the database, not by anything the account says about itself.
         const { data: profile } = await supabase
           .from("passenger")
-          .select("passenger_id, account_status")
+          .select("passenger_id, account_status, full_name, date_of_birth, contact_number")
           .eq("auth_user_id", user.id)
           .maybeSingle();
 
@@ -114,14 +127,24 @@ const Login: React.FC = () => {
         }
 
         if (profile.account_status === "Pending OTP Verification") {
-          // Block login and inform user
-          triggerErrorToast(
-            language === "tl"
-              ? "Ang inyong account ay naghihintay ng OTP verification."
-              : "Your account is pending OTP verification."
-          );
+          // Not an error and not a dead end: the password was right, only the phone number is still unverified. Stay signed in and go
+          // to the code screen (it needs this session to send and check the code). Signing the user out here is what made the two
+          // screens send each other back and forth.
           setLoading(false);
-          await supabase.auth.signOut();
+          const pendingPhone = profile.contact_number || candidates.e164;
+          navigate("/verify-otp", {
+            replace: true,
+            state: {
+              phone: pendingPhone,
+              identifier: pendingPhone,
+              passengerName: profile.full_name || "Passenger",
+              fullName: profile.full_name || "Passenger",
+              role: "passenger",
+              date_of_birth: profile.date_of_birth || undefined,
+              isRecovery: false,
+              fromLogin: true,
+            },
+          });
           return;
         }
 
