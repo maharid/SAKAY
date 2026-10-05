@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,6 +24,8 @@ interface MacConfirmDialogProps {
   requireReason?: boolean;
   reasonPlaceholder?: string;
   isLoading?: boolean;
+  /** Shown inside the dialog when the action failed, so the person who clicked sees why (the dialog stays open). */
+  errorMessage?: string | null;
   onConfirm: (reason?: string) => void;
 }
 
@@ -37,6 +40,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
   requireReason = false,
   reasonPlaceholder = 'Please enter a reason...',
   isLoading = false,
+  errorMessage = null,
   onConfirm,
 }) => {
   const [reason, setReason] = useState('');
@@ -112,6 +116,12 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? 2 : 0 }}>
           {message}
         </Typography>
+
+        {errorMessage && (
+          <Alert severity="error" sx={{ mt: 2, borderRadius: '10px', fontSize: '13px' }}>
+            {errorMessage}
+          </Alert>
+        )}
 
         {requireReason && (
           <Box sx={{ mt: 2 }}>

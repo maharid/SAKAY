@@ -12,6 +12,7 @@ export interface RegisterInputProps {
   isPhone?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  onClick?: () => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   placeholder?: string;
   readOnly?: boolean;
@@ -32,6 +33,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
   endAdornment,
   onFocus,
   onBlur,
+  onClick,
   onKeyDown,
   placeholder,
   readOnly = false,
@@ -48,6 +50,8 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
     <Box sx={{ width: '100%' }}>
       <Box
         className={shake ? 'anim-shake' : ''}
+        onClick={onClick}
+        data-error={error ? 'true' : undefined}
         sx={{
           width: '100%',
           minHeight: multiline ? `${rows * 24 + 40}px` : '62px',

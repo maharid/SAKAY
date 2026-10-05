@@ -940,7 +940,8 @@ export async function endorseDriverApplicant(applicantId: string, actorName: str
       return { success: false, error: res.error };
     }
 
-    await notifyApplicant(target.driverId, 'endorsed');
+    // The decision is saved: the SMS goes out in the background (it can take many seconds) and never holds the screen
+    void notifyApplicant(target.driverId, 'endorsed');
     return { success: true, data: res.data?.data, rosterMatched: res.data?.roster_matched !== false };
   } catch (err: any) {
     console.error('[todaApiService] endorseDriverApplicant exception:', err);
@@ -986,7 +987,7 @@ export async function returnDriverDocuments(applicantId: string, documents: Docu
 
     // The SMS carries the same words the driver sees in the app
     const text = documents.map((d) => `${RETURN_DOCUMENT_LABEL[d.documentType]}: ${d.reason.trim()}`).join('; ');
-    await notifyApplicant(target.driverId, 'returned', text);
+    void notifyApplicant(target.driverId, 'returned', text);
     return { success: true, documents: res.data?.documents as string[] | undefined };
   } catch (err: any) {
     console.error('[todaApiService] returnDriverDocuments exception:', err);
@@ -1020,7 +1021,7 @@ export async function rejectDriverApplicant(applicantId: string, reason: Rejecti
     }
 
     // The SMS carries the same words the driver sees in the app
-    await notifyApplicant(target.driverId, 'rejected', cleanNote ? `${REJECTION_REASON_LABEL[reason]}: ${cleanNote}` : REJECTION_REASON_LABEL[reason]);
+    void notifyApplicant(target.driverId, 'rejected', cleanNote ? `${REJECTION_REASON_LABEL[reason]}: ${cleanNote}` : REJECTION_REASON_LABEL[reason]);
     return { success: true };
   } catch (err: any) {
     console.error('[todaApiService] rejectDriverApplicant exception:', err);

@@ -119,6 +119,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnForm, setReturnForm] = useState<ReturnForm>(emptyReturnForm());
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Why the last endorsement failed, shown INSIDE the confirm dialog (which stays open) as well as in the toast
+  const [forwardError, setForwardError] = useState<string | null>(null);
 
   // Toast / Snackbar Notification State
   const [toastOpen, setToastOpen] = useState<boolean>(false);
@@ -226,6 +228,33 @@ export const TodaDriverVerificationPage: React.FC = () => {
     setSelectedApplicant(app);
     setRosterChecked(app.rosterVerified);
     setPhotoChecked(app.photoVerified);
+    setForwardError(null);
+  };
+
+  /** What the database (or the network) said, as a sentence for the TODA administrator. Never empty. */
+  const reasonOf = (err: unknown): string => {
+    const text = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+    return text.trim() || 'Walang detalyeng ibinalik ng server.';
+  };
+
+  /**
+   * The "Endorse to City LGU" button. It always answers: with the checklist complete it opens the confirmation; otherwise it says which
+   * box is missing (it used to do nothing at all, which looked like a broken button).
+   */
+  const handleEndorseClick = () => {
+    if (!rosterChecked || !photoChecked) {
+      const missing = [!rosterChecked && 'roster', !photoChecked && 'photo'].filter(Boolean);
+      setToastMessage(
+        `Kumpletuhin muna ang TODA Officer Screening Checklist bago mag-endorse: lagyan ng tsek ang ${
+          missing.length === 2 ? 'dalawang kahon (roster at larawan)' : missing[0] === 'roster' ? 'kahon ng roster' : 'kahon ng larawan'
+        }.`
+      );
+      setToastSeverity('error');
+      setToastOpen(true);
+      return;
+    }
+    setForwardError(null);
+    setForwardDialogOpen(true);
   };
 
   const handleForwardConfirm = async () => {
@@ -236,14 +265,16 @@ export const TodaDriverVerificationPage: React.FC = () => {
       const res = await forwardApplicantToLgu(selectedApplicant.id);
 
       if (!res || !res.success) {
-        const errDetail = (res as any)?.error || 'Database save returned unsuccessful status';
-        console.error('[TodaVerification] Endorsement update failed in Supabase:', errDetail);
-        setToastMessage('Hindi ma-endorse ang aplikasyon sa LGU. Pakisubukang muli.');
+        // Say WHY, where the administrator is looking: inside the dialog (it stays open) and in the toast
+        const detail = reasonOf((res as any)?.error ?? 'Database save returned unsuccessful status');
+        console.error('[TodaVerification] Endorsement update failed in Supabase:', detail);
+        setForwardError(detail);
+        setToastMessage(`Hindi ma-endorse ang aplikasyon sa LGU: ${detail}`);
         setToastSeverity('error');
         setToastOpen(true);
-        setIsSubmitting(false);
         return;
       }
+      setForwardError(null);
 
       // ONLY update UI to "Endorsed to LGU" AFTER Supabase update succeeds!
       setApplicants((prev) =>
@@ -268,7 +299,9 @@ export const TodaDriverVerificationPage: React.FC = () => {
       loadApplicants();
     } catch (err) {
       console.error('[TodaVerification] Endorsement exception:', err);
-      setToastMessage('Hindi ma-endorse ang aplikasyon sa LGU. Pakisubukang muli.');
+      const detail = reasonOf(err);
+      setForwardError(detail);
+      setToastMessage(`Hindi ma-endorse ang aplikasyon sa LGU: ${detail}`);
       setToastSeverity('error');
       setToastOpen(true);
     } finally {
@@ -285,7 +318,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       if (!rejectRes || !rejectRes.success) {
         // Each affiliation is decided by the database: show its refusal instead of pretending the application was rejected.
         console.error('[TodaVerification] Rejection was not saved:', (rejectRes as any)?.error);
-        setToastMessage('Hindi na-save ang pagtanggi sa aplikasyon. Pakisubukang muli.');
+        setToastMessage(`Hindi na-save ang pagtanggi sa aplikasyon: ${reasonOf((rejectRes as any)?.error)}`);
         setToastSeverity('error');
         setToastOpen(true);
         return;
@@ -689,7 +722,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
           }
           maxWidth={760}
           primaryActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Endorse to City LGU" : undefined}
-          onPrimaryAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) && canEndorse ? () => setForwardDialogOpen(true) : undefined}
+          onPrimaryAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? handleEndorseClick : undefined}
           secondaryActionLabel="Close"
           onSecondaryAction={() => setSelectedApplicant(null)}
           leftActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Reject Application" : undefined}
@@ -824,6 +857,11 @@ export const TodaDriverVerificationPage: React.FC = () => {
                 label={
                   <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     Verify membership against active TODA Driver Roster
+                    {!rosterChecked && selectedApplicant.rosterMatchKnown !== false && !selectedApplicant.onSubmittedRoster && (
+                      <Typography component="span" sx={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#B45309' }}>
+                        Walang tugma sa roster. Lagyan ng tsek kapag na-verify mo na ang membership sa ibang paraan; maaari pa ring i-endorse (magkakaroon ng Roster Mismatch flag).
+                      </Typography>
+                    )}
                   </Typography>
                 }
               />
@@ -981,12 +1019,18 @@ export const TodaDriverVerificationPage: React.FC = () => {
       {/* Confirmation Dialogs */}
       <MacConfirmDialog
         open={forwardDialogOpen}
-        onClose={() => setForwardDialogOpen(false)}
+        onClose={() => { if (!isSubmitting) { setForwardDialogOpen(false); setForwardError(null); } }}
         title="Endorse ang Aplikasyon?"
-        message={`Kumpirmahin ang pag-endorse sa aplikasyon ni ${selectedApplicant?.name} (${selectedApplicant?.vehiclePlate}). Ang aplikasyong ito ay ipapasa sa LGU para sa susunod na pagsusuri.`}
+        message={
+          `Kumpirmahin ang pag-endorse sa aplikasyon ni ${selectedApplicant?.name} (${selectedApplicant?.vehiclePlate}). Ang aplikasyong ito ay ipapasa sa LGU para sa susunod na pagsusuri.` +
+          (selectedApplicant && selectedApplicant.rosterMatchKnown !== false && !selectedApplicant.onSubmittedRoster
+            ? ' Walang tugma sa Master Roster ang aplikante: maaari pa rin itong i-endorse, pero magkakaroon ng Roster Mismatch flag at kailangang magbigay ng nakasulat na dahilan ang LGU bago mag-apruba.'
+            : '')
+        }
         confirmLabel="Kumpirmahin ang Endorsement"
         confirmVariant="primary"
         isLoading={isSubmitting}
+        errorMessage={forwardError}
         onConfirm={handleForwardConfirm}
       />
 
@@ -1254,7 +1298,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       {/* Global Success / Error Toast Notification */}
       <Snackbar
         open={toastOpen}
-        autoHideDuration={5000}
+        autoHideDuration={toastSeverity === 'error' ? 12000 : 5000}
         onClose={() => setToastOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >

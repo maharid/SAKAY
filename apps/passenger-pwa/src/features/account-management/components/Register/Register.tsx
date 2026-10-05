@@ -5,7 +5,6 @@ import {
   Typography,
   IconButton,
   LinearProgress,
-  Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -20,6 +19,7 @@ import RegisterInput from '../../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../../utils/LanguageContext';
 import { isUnderMinimumAge } from '../../../../utils/passengerAge';
+import { scrollToFirstError } from '../../../../utils/scrollUtils';
 import {
   ensurePassengerAuthSession,
   formatPhoneToE164,
@@ -77,9 +77,7 @@ export const Register: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [accountError, setAccountError] = useState<string | null>(null);
-  // The date of birth was refused because the passenger is under the minimum age: the field itself goes red and shakes
-  const [dobUnderAge, setDobUnderAge] = useState(false);
+  const [dobTouched, setDobTouched] = useState(false);
   const [phoneRegisteredError, setPhoneRegisteredError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -183,33 +181,71 @@ export const Register: React.FC = () => {
     confirmPassword.trim()
   );
 
+  const isUnder12 = isUnderMinimumAge(dob);
+  const isDobValidationActive = dobTouched || hasAttemptedSubmit;
+  const isDobError = isDobValidationActive && (!dob.trim() || isUnder12);
+
+  const getDobHelperText = () => {
+    if (!isDobValidationActive) return '';
+    if (isUnder12) {
+      return t.under12Block;
+    }
+    return '';
+  };
+  const dobHelperText = getDobHelperText();
+
   const isFormValid = Boolean(
     firstName.trim() &&
     lastName.trim() &&
     isValidPhone &&
     !phoneRegisteredError &&
     dob.trim() &&
+    !isUnder12 &&
     isPasswordValid &&
     password === confirmPassword
   );
 
+  const triggerScrollToError = () => {
+    let firstErrorId: string | null = null;
+    if (!firstName.trim()) {
+      firstErrorId = 'field-first-name';
+    } else if (!lastName.trim()) {
+      firstErrorId = 'field-last-name';
+    } else if (!isValidPhone || phoneRegisteredError) {
+      firstErrorId = 'field-phone';
+    } else if (!dob.trim() || isUnder12) {
+      firstErrorId = 'field-dob';
+    } else if (!password || !isPasswordValid) {
+      firstErrorId = 'field-password';
+    } else if (isPasswordMismatched || !confirmPassword.trim()) {
+      firstErrorId = 'field-confirm-password';
+    }
+
+    if (firstErrorId) {
+      const el = document.getElementById(firstErrorId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    scrollToFirstError();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
-    setAccountError(null);
-    setDobUnderAge(false);
+    setDobTouched(true);
 
-    if (!isFormValid) {
+    if (isUnder12) {
+      setToastMessage(t.under12Block);
       setShakeTrigger((prev) => prev + 1);
+      triggerScrollToError();
       return;
     }
 
-    // --- CLIENT-SIDE AGE GATE (Under 12 years old block) ---
-    if (isUnderMinimumAge(dob)) {
-      setAccountError(t.under12Block);
-      setToastMessage(t.under12Block);
-      setDobUnderAge(true);
+    if (!isFormValid) {
       setShakeTrigger((prev) => prev + 1);
+      triggerScrollToError();
       return;
     }
 
@@ -219,19 +255,20 @@ export const Register: React.FC = () => {
       const authResult = await ensurePassengerAuthSession(e164Phone, password, fullName);
       if (!authResult.success) {
         const msg = authResult.error || (language === 'tl' ? 'Hindi maikonekta ang account sa database.' : 'Failed to initialize account.');
-        // "already registered" comes back from the sign-up itself (there is no separate look-up of who has an account)
         if (/already registered|nakarehistro na/i.test(msg)) {
           setPhoneRegisteredError(msg);
-          setToastMessage(msg);
         }
-        setAccountError(msg);
+        setToastMessage(msg);
         setSubmitted(false);
+        triggerScrollToError();
         return;
       }
     } catch (authErr: any) {
       console.warn('[Register] Auth session error:', authErr);
-      setAccountError(authErr.message || (language === 'tl' ? 'Nagkaroon ng aberya sa paglikha ng account.' : 'An error occurred creating account.'));
+      const msg = authErr.message || (language === 'tl' ? 'Nagkaroon ng aberya sa paglikha ng account.' : 'An error occurred creating account.');
+      setToastMessage(msg);
       setSubmitted(false);
+      triggerScrollToError();
       return;
     }
 
@@ -337,25 +374,21 @@ export const Register: React.FC = () => {
           </Typography>
         </Box>
 
-        {accountError && (
-          <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
-            {accountError}
-          </Alert>
-        )}
-
         {/* Input Fields Stack */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
           {/* Stacked Name Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <RegisterInput
-              label={language === 'tl' ? "UNANG PANGALAN" : "FIRST NAME"}
-              value={firstName}
-              onChange={setFirstName}
-              required
-              error={hasAttemptedSubmit && !firstName.trim()}
-              helperText={hasAttemptedSubmit && !firstName.trim() ? (language === 'tl' ? 'Kailangan ang unang pangalan.' : 'First name is required.') : ''}
-              shake={shakeTrigger > 0 && hasAttemptedSubmit && !firstName.trim()}
-            />
+            <Box id="field-first-name">
+              <RegisterInput
+                label={language === 'tl' ? "UNANG PANGALAN" : "FIRST NAME"}
+                value={firstName}
+                onChange={setFirstName}
+                required
+                error={hasAttemptedSubmit && !firstName.trim()}
+                helperText={hasAttemptedSubmit && !firstName.trim() ? (language === 'tl' ? 'Kailangan ang unang pangalan.' : 'First name is required.') : ''}
+                shake={shakeTrigger > 0 && hasAttemptedSubmit && !firstName.trim()}
+              />
+            </Box>
 
             <RegisterInput
               label={language === 'tl' ? "GITNANG PANGALAN" : "MIDDLE NAME"}
@@ -364,7 +397,7 @@ export const Register: React.FC = () => {
             />
 
             <Box sx={{ display: 'flex', gap: 1.5 }}>
-              <Box sx={{ flex: '7 7 70%', minWidth: 0 }}>
+              <Box id="field-last-name" sx={{ flex: '7 7 70%', minWidth: 0 }}>
                 <RegisterInput
                   label={language === 'tl' ? "APELYIDO" : "LAST NAME"}
                   value={lastName}
@@ -386,24 +419,26 @@ export const Register: React.FC = () => {
           </Box>
 
           {/* Mobile Number with SakayPhoneInput */}
-          <SakayPhoneInput
-            label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
-            value={phone}
-            onChange={(fullVal) => {
-              setPhone(fullVal);
-              if (phoneRegisteredError) setPhoneRegisteredError(null);
-            }}
-            required
-            error={(hasAttemptedSubmit && !isValidPhone) || Boolean(phoneRegisteredError)}
-            helperText={
-              phoneRegisteredError
-                ? phoneRegisteredError
-                : (hasAttemptedSubmit && !isValidPhone
-                    ? (language === 'tl' ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.' : 'Please enter a valid 10-digit mobile number starting with 9.')
-                    : '')
-            }
-            shake={shakeTrigger > 0 && ((hasAttemptedSubmit && !isValidPhone) || Boolean(phoneRegisteredError))}
-          />
+          <Box id="field-phone">
+            <SakayPhoneInput
+              label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
+              value={phone}
+              onChange={(fullVal) => {
+                setPhone(fullVal);
+                if (phoneRegisteredError) setPhoneRegisteredError(null);
+              }}
+              required
+              error={(hasAttemptedSubmit && !isValidPhone) || Boolean(phoneRegisteredError)}
+              helperText={
+                phoneRegisteredError
+                  ? phoneRegisteredError
+                  : (hasAttemptedSubmit && !isValidPhone
+                      ? (language === 'tl' ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.' : 'Please enter a valid 10-digit mobile number starting with 9.')
+                      : '')
+              }
+              shake={shakeTrigger > 0 && ((hasAttemptedSubmit && !isValidPhone) || Boolean(phoneRegisteredError))}
+            />
+          </Box>
           {phoneRegisteredError && (
             <Typography sx={{ fontSize: '12px', color: '#FF6B00', fontWeight: 600, px: 0.5, mt: -0.5, cursor: 'pointer' }}
               onClick={() => navigate('/forgot-password')}>
@@ -412,54 +447,54 @@ export const Register: React.FC = () => {
           )}
 
           {/* Date of Birth Input */}
-          <RegisterInput
-            label={language === 'tl' ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"}
-            type="date"
-            value={dob}
-            onChange={(value) => {
-              setDob(value);
-              setDobUnderAge(false);
-            }}
-            required
-            error={(hasAttemptedSubmit && !dob.trim()) || dobUnderAge}
-            helperText={
-              dobUnderAge
-                ? t.under12Block
-                : hasAttemptedSubmit && !dob.trim()
-                ? (language === 'tl' ? 'Kailangan ang petsa ng kapanganakan.' : 'Date of birth is required.')
-                : ''
-            }
-            shake={shakeTrigger > 0 && ((hasAttemptedSubmit && !dob.trim()) || dobUnderAge)}
-            max={new Date().toISOString().split('T')[0]} // Max date is today
-          />
+          <Box id="field-dob">
+            <RegisterInput
+              label={language === 'tl' ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"}
+              type="date"
+              value={dob}
+              onFocus={() => setDobTouched(true)}
+              onClick={() => setDobTouched(true)}
+              onChange={(value) => {
+                setDob(value);
+                setDobTouched(true);
+              }}
+              required
+              error={isDobError}
+              helperText={dobHelperText}
+              shake={shakeTrigger > 0 && isDobError}
+              max={new Date().toISOString().split('T')[0]} // Max date is today
+            />
+          </Box>
 
           {/* Password Input */}
-          <RegisterInput
-            label="PASSWORD"
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(val) => setPassword(val)}
-            required
-            error={hasAttemptedSubmit && (!password || !isPasswordValid)}
-            helperText={
-              hasAttemptedSubmit && !password
-                ? (language === 'tl' ? 'Kailangan ang password.' : 'Password is required.')
-                : (hasAttemptedSubmit && !isPasswordValid
-                    ? (language === 'tl' ? 'Kailangang sundin ang lahat ng pamantayan sa password.' : 'Password must meet all criteria.')
-                    : '')
-            }
-            shake={shakeTrigger > 0 && hasAttemptedSubmit && (!password || !isPasswordValid)}
-            endAdornment={
-              <IconButton
-                onClick={() => setShowPassword(!showPassword)}
-                edge="end"
-                size="small"
-                sx={{ color: '#64748B' }}
-              >
-                {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
-              </IconButton>
-            }
-          />
+          <Box id="field-password">
+            <RegisterInput
+              label="PASSWORD"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(val) => setPassword(val)}
+              required
+              error={hasAttemptedSubmit && (!password || !isPasswordValid)}
+              helperText={
+                hasAttemptedSubmit && !password
+                  ? (language === 'tl' ? 'Kailangan ang password.' : 'Password is required.')
+                  : (hasAttemptedSubmit && !isPasswordValid
+                      ? (language === 'tl' ? 'Kailangang sundin ang lahat ng pamantayan sa password.' : 'Password must meet all criteria.')
+                      : '')
+              }
+              shake={shakeTrigger > 0 && hasAttemptedSubmit && (!password || !isPasswordValid)}
+              endAdornment={
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  size="small"
+                  sx={{ color: '#64748B' }}
+                >
+                  {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                </IconButton>
+              }
+            />
+          </Box>
 
           {/* Password Strength Indicator */}
           {password.length > 0 && showPasswordStrength && (
@@ -511,32 +546,34 @@ export const Register: React.FC = () => {
           )}
 
           {/* Confirm Password Input */}
-          <RegisterInput
-            label={language === 'tl' ? "KUMPIRMAHIN ANG PASSWORD" : "CONFIRM PASSWORD"}
-            type={showConfirmPassword ? 'text' : 'password'}
-            value={confirmPassword}
-            onChange={(val) => setConfirmPassword(val)}
-            required
-            error={isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim())}
-            helperText={
-              isPasswordMismatched
-                ? (language === 'tl' ? 'Hindi magkapareho ang password.' : 'Passwords do not match.')
-                : (hasAttemptedSubmit && !confirmPassword.trim()
-                    ? (language === 'tl' ? 'Kailangan kumpirmahin ang password.' : 'Please confirm password.')
-                    : '')
-            }
-            shake={shakeTrigger > 0 && (isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim()))}
-            endAdornment={
-              <IconButton
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                edge="end"
-                size="small"
-                sx={{ color: '#64748B' }}
-              >
-                {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
-              </IconButton>
-            }
-          />
+          <Box id="field-confirm-password">
+            <RegisterInput
+              label={language === 'tl' ? "KUMPIRMAHIN ANG PASSWORD" : "CONFIRM PASSWORD"}
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(val) => setConfirmPassword(val)}
+              required
+              error={isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim())}
+              helperText={
+                isPasswordMismatched
+                  ? (language === 'tl' ? 'Hindi magkapareho ang password.' : 'Passwords do not match.')
+                  : (hasAttemptedSubmit && !confirmPassword.trim()
+                      ? (language === 'tl' ? 'Kailangan kumpirmahin ang password.' : 'Please confirm password.')
+                      : '')
+              }
+              shake={shakeTrigger > 0 && (isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim()))}
+              endAdornment={
+                <IconButton
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  edge="end"
+                  size="small"
+                  sx={{ color: '#64748B' }}
+                >
+                  {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                </IconButton>
+              }
+            />
+          </Box>
 
           {showMatchSuccess && (
             <Typography sx={{ color: '#16A34A', fontSize: '12px', fontWeight: 600, px: 0.5, mt: -1 }}>
