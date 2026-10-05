@@ -133,6 +133,28 @@ async function world(until) {
   const late = await rpc(ID.L_AUTH, 'verify_driver_affiliation', [A.late]);
   check('a second unmatched applicant is also held (every flag needs its own reason)', late.success === false && late.roster_override_required === true, late);
 
+  console.log('\nM6 an EMPTY roster must not block endorsement (a test database may have no roster entries at all)');
+  const E = mk('b0');
+  await t.internal(`
+    DELETE FROM public.toda_roster_entry;
+    INSERT INTO auth.users(id,email) VALUES ('${E.AUTH}','empty@x.com');
+    INSERT INTO public.driver(driver_id,auth_user_id,full_name,contact_number,account_status,availability_status,toda_id) VALUES ('${E.ID}','${E.AUTH}','Empty Roster Driver','+639190003999','Pending Verification','Offline','${ID.TODA1}');
+    INSERT INTO public.driver_verification(driver_id, submitted_license_number, submitted_franchise_number, submitted_plate_number) VALUES ('${E.ID}','L-E','F-E','P-E')`);
+  await rpc(E.AUTH, 'apply_driver_toda_affiliations', [apps(ID.TODA1)]);
+  const aE = (await one(`SELECT affiliation_id FROM driver_toda_affiliation WHERE driver_id='${E.ID}' AND toda_id='${ID.TODA1}'`)).affiliation_id;
+  const rosterRows = (await one(`SELECT count(*)::int n FROM toda_roster_entry`)).n;
+  const scr = await rows(ID.T_AUTH, `SELECT * FROM public.get_affiliation_roster_matches($1::uuid[])`, [[aE]]);
+  check('the roster really is empty, and the screen function answers "not matched" (no error, no row missing)', rosterRows === 0 && scr.length === 1 && scr[0].roster_matched === false, { rosterRows, scr });
+  // exactly what the TODA Portal sends
+  const eE = await rpc(ID.T_AUTH, 'endorse_driver_affiliation', [aE, 'Endorsed by TODA President']);
+  const stE = await one(`SELECT toda_endorsement_status s, lgu_verification_status l FROM driver_toda_affiliation WHERE affiliation_id='${aE}'`);
+  check('the TODA admin can endorse: success, roster_matched false', eE.success === true && eE.roster_matched === false, eE);
+  check('...the application is Endorsed and waits for the LGU (not blocked)', stE.s === 'Endorsed' && stE.l === 'Pending', stE);
+  const fE = await flag(aE);
+  check('...and an Open Roster Mismatch flag was raised instead of blocking', fE && fE.status === 'Open', fE);
+  const lE = await rpc(ID.L_AUTH, 'verify_driver_affiliation', [aE]);
+  check('...the LGU then needs a reason to approve it', lE.success === false && lE.roster_override_required === true, lE);
+
   await t.db.close();
   process.exit(summary() ? 0 : 1);
 })().catch((e) => { console.error('ERROR', e); process.exit(1); });

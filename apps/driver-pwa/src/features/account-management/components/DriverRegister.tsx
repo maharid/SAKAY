@@ -21,6 +21,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { scrollToFirstError } from '../../../utils/scrollUtils';
 import { applyDriverTodaAffiliations, ensureDriverAuthSession, fetchAccreditedTodas, formatPhoneToE164 } from '../../../services/driverApiService';
 import type { TodaDirectoryEntry } from '../../../services/driverApiService';
 import type { DriverTodaApplicationInput } from '@sakay/shared';
@@ -198,6 +199,7 @@ export const DriverRegister: React.FC = () => {
     setAccountError(null);
     if (!isFormValid) {
       setShakeTrigger((prev) => prev + 1);
+      scrollToFirstError();
       return;
     }
 
