@@ -6,6 +6,9 @@ services:
     buildCommand: cd server && npm install && npm run build
     startCommand: cd server && npm start
     envVars:
+      # Production behaviour (locked-down CORS, generic error messages) is switched on by this value.
+      - key: NODE_ENV
+        value: production
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -19,4 +22,18 @@ services:
       # Comma-separated browser origins allowed to call the API (e.g. https://sakay-passenger.example.ph,https://sakay-lgu.example.ph).
       # In production nothing is allowed when this is empty.
       - key: CORS_ORIGIN
+        sync: false
+      # Android SMS gateway (OTP codes and notification texts). Without these the server cannot send any SMS.
+      - key: SMS_GATEWAY_URL
+        sync: false
+      - key: SMS_GATEWAY_LOGIN
+        sync: false
+      - key: SMS_GATEWAY_PASSWORD
+        sync: false
+      - key: SMS_GATEWAY_DEVICE_ID
+        sync: false
+      - key: SMS_GATEWAY_SIM_NUMBER
+        sync: false
+      # Google AI Studio key for document OCR (licence / MTOP scans).
+      - key: GEMINI_API_KEY
         sync: false

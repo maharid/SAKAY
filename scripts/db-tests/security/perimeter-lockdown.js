@@ -74,7 +74,9 @@ const path = require('path');
   const lost = [...before].filter((f) => !afterSet.has(f)).sort();
   const gained = [...afterSet].filter((f) => !before.has(f)).sort();
   check('exactly the five server-only functions were taken from signed-in users', same(lost.map((f) => f.split('(')[0]), ['activate_passenger_otp', 'check_otp_lockout', 'check_toda_excess_incidents', 'increment_failed_otp', 'reset_failed_otp']), lost);
-  check('...and nothing was added for them (the S3 / S4 helpers aside)', gained.every((f) => /^storage_can_read_/.test(f)), gained);
+  // 20261009000002 (multi-TODA registration) adds two functions on purpose: the registration RPC and the read-only affiliation helper.
+  check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 multi-affiliation functions aside)',
+    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver)\(/.test(f)), gained);
   check(`signed-in users keep ${afterSet.size} functions (policy helpers, RPCs, workflow functions)`, afterSet.size > 60, afterSet.size);
   const serverOnly = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.activate_passenger_otp('+639170000001')`)));
   check('a signed-in passenger cannot activate an account (activate_passenger_otp)', permDenied(serverOnly), err(serverOnly));
@@ -112,7 +114,9 @@ const path = require('path');
   const seeD = async (a) => idsOf(await attempt(() => a((tx) => tx.query(`SELECT driver_id FROM public.driver`))), 'driver_id');
   check('a driver sees only their own record', same(await seeD((f) => as(ID.D_AUTH, f)), [ID.D1]));
   check('a passenger and a stranger see no driver', same(await seeD((f) => as(ID.P_AUTH, f)), []) && same(await seeD((f) => as(stranger, f)), []));
-  check('a TODA administrator sees the drivers of their own TODA only', same(await seeD((f) => as(ID.T_AUTH, f)), [ID.D1, ID.D2].sort()) && same(await seeD((f) => as(ID.T2_AUTH, f)), [ID.D3]));
+  // 20261009000002: a TODA administrator also sees a driver who has an AFFILIATION with their TODA (D2 applied to both TODAs), read only.
+  check('a TODA administrator sees the drivers of their own TODA and the drivers who applied to it (read only), nobody else',
+    same(await seeD((f) => as(ID.T_AUTH, f)), [ID.D1, ID.D2].sort()) && same(await seeD((f) => as(ID.T2_AUTH, f)), [ID.D2, ID.D3].sort()));
   check('the LGU administrator sees all drivers', same(await seeD((f) => as(ID.L_AUTH, f)), [ID.D1, ID.D2, ID.D3].sort()));
   const dUpOther = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`UPDATE public.driver SET assigned_terminal = 'x' WHERE driver_id = '${ID.D1}'`)));
   check('a driver cannot edit another driver', denied(dUpOther), err(dUpOther));

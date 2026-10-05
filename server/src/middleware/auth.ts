@@ -1,7 +1,9 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { devConfigHint } from '../config/env';
 import type { Actor, AuthContext, Role } from './types';
+import { isProduction } from './security';
 
 /**
  * Authentication and authorisation for the Express API.
@@ -100,11 +102,18 @@ export function createAuth(deps: AuthDeps) {
   const max = deps.maxEntries ?? 1000;
   const tokens = new TtlCache<Verdict>(max, now);
   const actors = new TtlCache<Actor>(max, now);
+  /** The log line (names only, never values) that says which server/.env variables to fill in. */
+  const notConfiguredMessage = () => `Supabase is not configured on the server.${devConfigHint()}`;
 
   const unauthorised = (res: Response) =>
     res.status(401).set('WWW-Authenticate', 'Bearer').json({ success: false, error: 'Authentication required.' });
-  const unavailable = (res: Response) =>
-    res.status(503).json({ success: false, error: 'Authentication is temporarily unavailable. Please try again.' });
+  // Production: a generic message (a library or database message must not reach a browser). Development: say what is wrong, so a missing
+  // server/.env value is found in one look instead of in the server log. The same text is always in the server log.
+  const unavailable = (res: Response, cause?: unknown) => {
+    const base = 'Authentication is temporarily unavailable. Please try again.';
+    const detail = !isProduction() && cause instanceof Error ? ` [development detail: ${cause.message}]` : '';
+    res.status(503).json({ success: false, error: base + detail });
+  };
   const forbidden = (res: Response) =>
     res.status(403).json({ success: false, error: 'You do not have access to this resource.' });
 
@@ -119,7 +128,7 @@ export function createAuth(deps: AuthDeps) {
       tokens.set(key, v, negTtl);
       return v;
     }
-    if (!deps.supabase) throw new AuthUnavailableError('Supabase is not configured on the server.');
+    if (!deps.supabase) throw new AuthUnavailableError(notConfiguredMessage());
 
     let result;
     try {
@@ -160,14 +169,14 @@ export function createAuth(deps: AuthDeps) {
       next();
     } catch (e) {
       console.error('[Auth] verification unavailable:', e instanceof Error ? e.message : e);
-      unavailable(res);
+      unavailable(res, e);
     }
   };
 
   async function loadActor(userId: string): Promise<Actor> {
     const cached = actors.get(userId);
     if (cached) return cached;
-    if (!deps.supabase) throw new AuthUnavailableError('Supabase is not configured on the server.');
+    if (!deps.supabase) throw new AuthUnavailableError(notConfiguredMessage());
     const db = deps.supabase;
     const [p, d, t, l] = await Promise.all([
       db.from('passenger').select('passenger_id, account_status, contact_number').eq('auth_user_id', userId).maybeSingle(),
@@ -197,7 +206,7 @@ export function createAuth(deps: AuthDeps) {
       next();
     } catch (e) {
       console.error('[Auth] role lookup unavailable:', e instanceof Error ? e.message : e);
-      unavailable(res);
+      unavailable(res, e);
     }
   };
 
@@ -220,7 +229,7 @@ export function createAuth(deps: AuthDeps) {
       next();
     } catch (e) {
       console.error('[Auth] role lookup unavailable:', e instanceof Error ? e.message : e);
-      unavailable(res);
+      unavailable(res, e);
     }
   };
 

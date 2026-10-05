@@ -21,6 +21,7 @@ import {
   TodaApplicationRecord,
   AccreditedTodaRecord,
   DriverRecord,
+  DriverAffiliationRecord,
   PassengerRecord,
   StrikeItem,
   IncidentReportRecord,
@@ -763,10 +764,45 @@ export async function fetchFareExample(
 
 export async function fetchDrivers(filters?: { status?: string; toda?: string }): Promise<DriverRecord[]> {
   try {
-    // Collect TODA-endorsed driver IDs from driver_verification.
-    // driver_verification.verification_status = 'Approved' = TODA Stage 1 endorsement.
-    // LGU Stage 2 final approval is ONLY tracked via driver.account_status = 'Verified'.
-    let todaEndorsedDriverIds: string[] = [];
+    // Per-TODA applications. A driver may apply to several TODAs; each affiliation (driver x TODA) has its OWN TODA stage and LGU stage,
+    // and the LGU decides each one separately, after its TODA has endorsed it.
+    const affByDriver = new Map<string, DriverAffiliationRecord[]>();
+    try {
+      const { data: affRows } = await supabase
+        .from('driver_toda_affiliation')
+        .select('*, toda:toda_id ( toda_id, toda_name, toda_acronym )')
+        .order('submitted_at', { ascending: true });
+      for (const a of (affRows || []) as any[]) {
+        const t = Array.isArray(a.toda) ? a.toda[0] : a.toda;
+        const list = affByDriver.get(a.driver_id) || [];
+        list.push({
+          affiliationId: a.affiliation_id,
+          todaId: a.toda_id,
+          todaName: t?.toda_name || 'TODA',
+          todaAcronym: t?.toda_acronym || t?.toda_name || 'TODA',
+          membershipNo: a.toda_membership_number || undefined,
+          assignedTerminal: a.assigned_terminal || undefined,
+          barangayServiceArea: a.barangay_service_area || undefined,
+          todaStage: a.toda_endorsement_status,
+          lguStage: a.lgu_verification_status,
+          isActive: Boolean(a.is_active_selection),
+        });
+        affByDriver.set(a.driver_id, list);
+      }
+    } catch (affErr) {
+      console.warn('[adminApiService] fetchDrivers affiliation query note:', affErr);
+    }
+
+    // Drivers whose TODA has endorsed an affiliation and the LGU has not decided it yet.
+    const awaitingLguDriverIds = new Set<string>();
+    for (const [driverId, list] of affByDriver) {
+      if (list.some((a) => a.todaStage === 'Endorsed' && a.lguStage === 'Pending')) awaitingLguDriverIds.add(driverId);
+    }
+
+    // Collect TODA-endorsed driver IDs. A driver with affiliations is endorsed when one of THEM is awaiting the LGU. Only a driver with NO
+    // affiliation record (registered before the affiliation table existed) falls back to the shared driver_verification record
+    // (verification_status = 'Approved' = TODA Stage 1 endorsement). LGU Stage 2 final approval is driver.account_status = 'Verified'.
+    let todaEndorsedDriverIds: string[] = Array.from(awaitingLguDriverIds);
     try {
       const { data: verifEndorsed } = await supabase
         .from('driver_verification')
@@ -774,9 +810,10 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
         .in('verification_status', ['Approved', 'TODA Approved', 'TODA Endorsed', 'Endorsed to LGU', 'Resubmission Required']);
 
       if (verifEndorsed && verifEndorsed.length > 0) {
-        todaEndorsedDriverIds = verifEndorsed
+        const legacy = verifEndorsed
           .map((v: any) => v.driver_id)
-          .filter(Boolean);
+          .filter((id: string | null) => Boolean(id) && !affByDriver.has(id as string));
+        todaEndorsedDriverIds = Array.from(new Set([...todaEndorsedDriverIds, ...legacy]));
       }
     } catch (syncErr) {
       console.warn('[adminApiService] fetchDrivers verification query note:', syncErr);
@@ -829,9 +866,10 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
             (verif?.submitted_at && verif?.rejected_at && new Date(verif.submitted_at) > new Date(verif.rejected_at));
           const isResubReq = !isResub && (d.account_status === 'Resubmission Required' || verif?.verification_status === 'Resubmission Required');
           return (
-            (endorsedSet.has(d.driver_id) || ['TODA Approved', 'TODA Endorsed', 'Endorsed to LGU'].includes(d.account_status)) &&
-            !['Verified', 'Active', 'LGU Approved'].includes(d.account_status) &&
-            !isResubReq
+            ((endorsedSet.has(d.driver_id) || ['TODA Approved', 'TODA Endorsed', 'Endorsed to LGU'].includes(d.account_status)) &&
+              !['Verified', 'Active', 'LGU Approved'].includes(d.account_status) &&
+              !isResubReq) ||
+            awaitingLguDriverIds.has(d.driver_id)
           );
         });
       } else if (filters.status === 'Verified' || filters.status === 'Active') {
@@ -874,7 +912,11 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
       // If applicant already resubmitted, they are no longer in "Resubmission Required" - they are awaiting review!
       const isResubmission = !isResubmitted && isStatusResubmissionRequired;
       // Stage 1 TODA endorsement: driver is in driver_verification with 'Approved' but NOT yet LGU-approved
-      const isTodaEndorsed = (todaEndorsedSet.has(d.driver_id) || ['TODA Approved', 'TODA Endorsed', 'Endorsed to LGU'].includes(d.account_status) || verif?.verification_status === 'Approved' || Boolean(verif?.endorsed_at)) && !isFullyApproved && !isResubmission && !isRejected;
+      const affs = affByDriver.get(d.driver_id) || [];
+      const awaitingLgu = affs.filter((a) => a.todaStage === 'Endorsed' && a.lguStage === 'Pending');
+      // With affiliations, "endorsed" means one of THEM awaits the LGU; the shared verification record is only used for older drivers.
+      const legacyEndorsed = todaEndorsedSet.has(d.driver_id) || ['TODA Approved', 'TODA Endorsed', 'Endorsed to LGU'].includes(d.account_status) || verif?.verification_status === 'Approved' || Boolean(verif?.endorsed_at);
+      const isTodaEndorsed = (affs.length > 0 ? awaitingLgu.length > 0 : legacyEndorsed) && !isFullyApproved && !isResubmission && !isRejected;
 
       // Parse faulty and verified lists if driver has rejection_comment with JSON
       let faultyList: string[] = [];
@@ -1009,8 +1051,10 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           mtopExpiry: d.license_expiry || verif?.franchise_expiry || '2026-12-31',
           mtopStatus: 'Valid',
           mtopOperatorName: verif?.submitted_operator_name || d.full_name,
-          todaName: todaInfo?.toda_name || 'Calapan Central TODA',
+          todaName: affs.length > 1 ? affs.map((a) => a.todaAcronym).join(', ') : (affs[0]?.todaName || todaInfo?.toda_name || 'Calapan Central TODA'),
           todaId: d.toda_id || '',
+          affiliations: affs,
+          actionAffiliationId: awaitingLgu[0]?.affiliationId,
           vehiclePlate: d.plate_number || verif?.submitted_plate_number || 'N/A',
           franchiseNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
           franchiseExpiry: verif?.franchise_expiry || '2026-12-31',
@@ -1041,24 +1085,41 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
   }
 }
 
-async function resolveLguAffiliationId(driverOrAffiliationId: string): Promise<string> {
-  const { data: affCheck } = await supabase
+/**
+ * The affiliation an LGU decision is about. The portal passes the affiliation it is showing. Without one, the driver's single
+ * affiliation that is waiting for the LGU (TODA endorsed, LGU not decided) is used; with none or several waiting, the caller must say
+ * which TODA, because approving "a driver" is not a decision the system can make for a driver who applied to more than one TODA.
+ */
+async function resolveLguAffiliationId(driverId: string, affiliationId?: string): Promise<string> {
+  if (affiliationId) {
+    const { data: row } = await supabase
+      .from('driver_toda_affiliation')
+      .select('affiliation_id, driver_id')
+      .eq('affiliation_id', affiliationId)
+      .maybeSingle();
+    if (!row || row.driver_id !== driverId) throw new Error('That TODA application does not belong to this driver.');
+    return row.affiliation_id;
+  }
+
+  const { data: waiting } = await supabase
     .from('driver_toda_affiliation')
     .select('affiliation_id')
-    .eq('affiliation_id', driverOrAffiliationId)
-    .maybeSingle();
+    .eq('driver_id', driverId)
+    .eq('toda_endorsement_status', 'Endorsed')
+    .eq('lgu_verification_status', 'Pending')
+    .order('submitted_at', { ascending: true });
+  if (!waiting || waiting.length === 0) {
+    throw new Error('This driver has no TODA application waiting for the LGU (it must be endorsed by its TODA first).');
+  }
+  if (waiting.length > 1) {
+    throw new Error('This driver has more than one TODA application waiting for the LGU. Choose which one to decide.');
+  }
+  return waiting[0].affiliation_id;
+}
 
-  if (affCheck?.affiliation_id) return affCheck.affiliation_id;
-
-  const { data: aff } = await supabase
-    .from('driver_toda_affiliation')
-    .select('affiliation_id')
-    .eq('driver_id', driverOrAffiliationId)
-    .order('submitted_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return aff?.affiliation_id || driverOrAffiliationId;
+/** The database accepts two rejection categories (Rule 3.8); document problems are "returned for correction", not rejected. */
+function lguRejectionCategoryOf(reason: string): 'ineligible' | 'fraudulent' {
+  return /fraud|pekeng|peke|falsif/i.test(reason) ? 'fraudulent' : 'ineligible';
 }
 
 /**
@@ -1069,7 +1130,7 @@ async function resolveLguAffiliationId(driverOrAffiliationId: string): Promise<s
 async function notifyDriverOutcome(
   driverId: string,
   kind: 'approved' | 'rejected' | 'returned',
-  details: { reason?: string; notes?: string; documents?: string[] } = {}
+  details: { reason?: string; notes?: string; documents?: string[]; affiliationId?: string } = {}
 ): Promise<void> {
   try {
     const { ok, data } = await apiPostJson(supabase, `${API_BASE_URL}/admin/notify/driver`, { driverId, kind, ...details });
@@ -1079,87 +1140,52 @@ async function notifyDriverOutcome(
   }
 }
 
-export async function verifyDriver(driverId: string, franchiseNumber?: string) {
-  console.log('[adminApiService] Verifying driver accreditation for:', driverId);
+/**
+ * LGU Stage 2 for ONE TODA application (affiliation): the TODA has endorsed it, the LGU now verifies it. Other applications of the same
+ * driver are not touched. The first approval also makes the driver's account Verified and that TODA the active one; a later approval
+ * only adds a verified TODA (the driver picks the active one while Offline).
+ */
+export async function verifyDriver(driverId: string, franchiseNumber?: string, affiliationId?: string) {
+  console.log('[adminApiService] Verifying driver accreditation for:', driverId, affiliationId ? `(affiliation ${affiliationId})` : '');
   try {
-    const now = new Date().toISOString();
+    const targetId = await resolveLguAffiliationId(driverId, affiliationId);
 
-    // 1. Update driver_verification
-    const { error: verifErr } = await supabase
-      .from('driver_verification')
-      .update({
-        verification_status: 'Approved',
-        lgu_approved_at: now,
-        remarks: 'Approved & Accredited by City LGU Franchising Office',
-      })
-      .or(`driver_id.eq.${driverId},verification_id.eq.${driverId}`);
+    const { data, error } = await supabase.rpc('verify_driver_affiliation', {
+      p_affiliation_id: targetId,
+      p_franchise_number: franchiseNumber || null,
+      p_license_expiry: null,
+      p_mtop_expiry: null,
+    });
+    if (error) throw new Error(error.message);
+    if (!data || data.success !== true) throw new Error(data?.error || 'The verification was not accepted by the database.');
 
-    if (verifErr) {
-      console.warn('[adminApiService] driver_verification update note:', verifErr);
-    }
+    // Tell the driver (the number is the one on the driver's record; the server writes the Tagalog message about THIS TODA)
+    await notifyDriverOutcome(driverId, 'approved', { affiliationId: targetId });
 
-    // 2. Update driver record
-    const updatePayload: Record<string, any> = {
-      account_status: 'Verified',
-      updated_at: now,
-    };
-    if (franchiseNumber) {
-      updatePayload.franchise_number = franchiseNumber;
-    }
-
-    const { data: driverData, error: driverErr } = await supabase
-      .from('driver')
-      .update(updatePayload)
-      .eq('driver_id', driverId)
-      .select('*, toda:toda_id ( toda_name, toda_acronym )')
-      .maybeSingle();
-
-    if (driverErr) {
-      console.warn('[adminApiService] driver account_status update warning:', driverErr);
-    }
-
-    // 3. Tell the driver (the number is the one on the driver's record; the server writes the Tagalog message)
-    if (driverData?.account_status === 'Verified') {
-      await notifyDriverOutcome(driverId, 'approved');
-    }
-
-    return { success: true, data: driverData };
+    return { success: true, data: data.data };
   } catch (err: any) {
     console.error('[adminApiService] verifyDriver exception:', err);
     throw err;
   }
 }
 
-export async function rejectDriver(driverId: string, reason: string, notes?: string) {
-  console.log('[adminApiService] Rejecting driver application:', driverId);
+/** Rejects ONE TODA application. The driver is rejected as a whole only when no other application of theirs is left alive. */
+export async function rejectDriver(driverId: string, reason: string, notes?: string, affiliationId?: string) {
+  console.log('[adminApiService] Rejecting driver application:', driverId, affiliationId ? `(affiliation ${affiliationId})` : '');
   try {
-    const now = new Date().toISOString();
+    const targetId = await resolveLguAffiliationId(driverId, affiliationId);
     const finalComment = notes ? `${reason}: ${notes}` : reason;
 
-    const { error: verifErr } = await supabase
-      .from('driver_verification')
-      .update({
-        verification_status: 'Rejected',
-        rejection_reason: reason,
-        rejection_comment: finalComment,
-        remarks: `Rejected by City LGU: ${finalComment}`,
-        rejected_at: now,
-      })
-      .or(`driver_id.eq.${driverId},verification_id.eq.${driverId}`);
-
-    if (verifErr) {
-      console.warn('[adminApiService] driver_verification rejection note:', verifErr);
-    }
-
-    try {
-      await supabase
-        .from('driver')
-        .update({ account_status: 'Rejected', updated_at: now })
-        .eq('driver_id', driverId);
-    } catch {}
+    const { data, error } = await supabase.rpc('reject_driver_affiliation', {
+      p_affiliation_id: targetId,
+      p_reason_category: lguRejectionCategoryOf(reason),
+      p_notes: finalComment,
+    });
+    if (error) throw new Error(error.message);
+    if (!data || data.success !== true) throw new Error(data?.error || 'The rejection was not accepted by the database.');
 
     // Tell the driver
-    await notifyDriverOutcome(driverId, 'rejected', { reason });
+    await notifyDriverOutcome(driverId, 'rejected', { reason, affiliationId: targetId });
 
     return { success: true };
   } catch (err: any) {
@@ -1293,16 +1319,29 @@ export async function updateDriverDocumentReview(
 
 
 
+/**
+ * The drivers of ONE TODA: one per AFFILIATION with it (a driver of two TODAs is listed under both; driver.toda_id is only the pointer to
+ * one of them), with that TODA's own LGU stage and membership data.
+ */
 export async function fetchTodaDrivers(todaId: string): Promise<DriverRecord[]> {
   try {
-    const { data, error } = await supabase
-      .from('driver')
-      .select('*, toda:toda_id(toda_id, toda_name, toda_acronym, barangay), driver_verification(*)')
+    const { data: affRows, error } = await supabase
+      .from('driver_toda_affiliation')
+      .select('*, toda:toda_id(toda_id, toda_name, toda_acronym, barangay), driver:driver_id(*, driver_verification(*))')
       .eq('toda_id', todaId)
-      .order('created_at', { ascending: false });
+      .order('submitted_at', { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !affRows) return [];
+    const data = (affRows as any[])
+      .map((aff) => {
+        const driverRow = Array.isArray(aff.driver) ? aff.driver[0] : aff.driver;
+        if (!driverRow) return null;
+        const t = Array.isArray(aff.toda) ? aff.toda[0] : aff.toda;
+        return { ...driverRow, toda: t, __aff: aff };
+      })
+      .filter((row) => row !== null);
     return await Promise.all(data.map(async (d: any) => {
+      const aff = d.__aff;
       const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
       const authId = d.auth_user_id;
       const licFrontPath = verif?.license_front_photo_path || (authId ? `${authId}/license_front.jpg` : null);
@@ -1330,19 +1369,34 @@ export async function fetchTodaDrivers(todaId: string): Promise<DriverRecord[]> 
         mtopStatus: 'Valid',
         mtopOperatorName: verif?.submitted_operator_name || d.full_name,
         todaName: d.toda?.toda_name || 'TODA Association',
-        todaId: d.toda_id || todaId,
+        todaId: todaId,
+        // In this per-TODA list the decision is always about THIS TODA's application
+        affiliations: [{
+          affiliationId: aff.affiliation_id,
+          todaId,
+          todaName: d.toda?.toda_name || 'TODA Association',
+          todaAcronym: d.toda?.toda_acronym || d.toda?.toda_name || 'TODA',
+          membershipNo: aff.toda_membership_number || undefined,
+          assignedTerminal: aff.assigned_terminal || undefined,
+          barangayServiceArea: aff.barangay_service_area || undefined,
+          todaStage: aff.toda_endorsement_status,
+          lguStage: aff.lgu_verification_status,
+          isActive: Boolean(aff.is_active_selection),
+        }],
+        actionAffiliationId: aff.toda_endorsement_status === 'Endorsed' && aff.lgu_verification_status === 'Pending' ? aff.affiliation_id : undefined,
         vehiclePlate: d.plate_number || verif?.submitted_plate_number || 'N/A',
         franchiseNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
         franchiseExpiry: verif?.franchise_expiry || '2026-12-31',
         todaVerificationStatus: 'Verified',
-        lguVerificationStatus: d.account_status === 'Verified' ? 'Verified' : 'Pending',
-        verificationStatus: d.account_status === 'Verified' ? 'Verified' : 'Pending',
+        // THIS TODA's affiliation decides, not the driver's overall status (the driver may be Verified through another TODA only)
+        lguVerificationStatus: aff.lgu_verification_status === 'Approved' ? 'Verified' : 'Pending',
+        verificationStatus: aff.lgu_verification_status === 'Approved' ? 'Verified' : 'Pending',
         accountStatus: d.account_status === 'Suspended' || d.account_status === 'Deactivated' ? 'Inactive' : 'Active',
         onlineStatus: d.availability_status === 'Available' || d.availability_status === 'Busy' ? 'Online' : 'Offline',
         rating: Number(d.weighted_average_rating) || 5.0,
         ratingCount: 0,
         phone: d.contact_number,
-        barangay: d.barangay_service_area || d.toda?.barangay || 'Calapan City',
+        barangay: aff.barangay_service_area || d.barangay_service_area || d.toda?.barangay || 'Calapan City',
         strikesCount: d.strikes_count ?? 0,
         strikeHistory: [],
         restrictionKind: deriveRestrictionKind(d),
