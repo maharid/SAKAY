@@ -432,8 +432,29 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '14px 24px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <DialogActions
+        sx={{
+          padding: { xs: '16px', sm: '18px 24px' },
+          borderTop: '1px solid var(--mac-border-color)',
+          backgroundColor: '#FAFAFC',
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          columnGap: 3,
+          rowGap: 1.75,
+          // MUI puts its own left margin on every action after the first, on top of the gap
+          '& > :not(style) ~ :not(style)': { marginLeft: 0 },
+          '& .MuiButton-root': { whiteSpace: 'nowrap', flexShrink: 0 },
+          // on a narrow window every button fills its row, so none is cramped or cut off
+          '@media (max-width: 599px)': {
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            '& .MuiButton-root': { width: '100%', flexShrink: 1 },
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.25, '@media (max-width: 599px)': { flexDirection: 'column', alignItems: 'stretch' } }}>
           {onRequestResubmit && (
             <Button
               variant="outlined"
@@ -441,8 +462,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               startIcon={<AssignmentReturnIcon fontSize="small" />}
               onClick={onRequestResubmit}
               sx={{
-                height: 36,
-                padding: '0 16px',
+                height: 38,
+                padding: '0 18px',
                 borderRadius: '8px',
                 textTransform: 'none',
                 fontSize: '11.5px',
@@ -464,8 +485,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               startIcon={<CheckCircleIcon fontSize="small" />}
               onClick={onApproveDocument}
               sx={{
-                height: 36,
-                padding: '0 16px',
+                height: 38,
+                padding: '0 18px',
                 borderRadius: '8px',
                 textTransform: 'none',
                 fontSize: '11.5px',
@@ -486,7 +507,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           )}
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1.25, marginLeft: 'auto', '@media (max-width: 599px)': { flexDirection: 'column', alignItems: 'stretch', marginLeft: 0 } }}>
           {activeUrl && (
             <Button
               variant="outlined"
@@ -494,8 +515,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               startIcon={<OpenInNewIcon fontSize="small" />}
               onClick={handleOpenOriginal}
               sx={{
-                height: 36,
-                padding: '0 14px',
+                height: 38,
+                padding: '0 16px',
                 borderRadius: '8px',
                 textTransform: 'none',
                 fontSize: '11.5px',
@@ -516,8 +537,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             disabled={!activeUrl}
             onClick={handleDownload}
             sx={{
-              height: 36,
-              padding: '0 16px',
+              height: 38,
+              padding: '0 18px',
               borderRadius: '8px',
               textTransform: 'none',
               fontSize: '11.5px',
@@ -534,8 +555,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           <Button
             onClick={onClose}
             sx={{
-              height: 36,
-              padding: '0 14px',
+              height: 38,
+              padding: '0 16px',
               borderRadius: '8px',
               textTransform: 'none',
               fontSize: '11.5px',

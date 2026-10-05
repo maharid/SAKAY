@@ -9,6 +9,7 @@ export * from './utils/locationUtils';
 export * from './utils/restrictionUtils';
 export * from './utils/apiClient';
 export * from './utils/storageUrls';
+export * from './utils/applicationReview';
 export * from './config/policyConfig';
 
 

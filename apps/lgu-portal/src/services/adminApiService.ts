@@ -15,7 +15,8 @@
 
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
-import { SIGNED_URL_TTL, apiFetch, apiPostJson, signedStorageUrlFromAny } from '@sakay/shared';
+import { SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, signedStorageUrlFromAny } from '@sakay/shared';
+import type { ApplicationReviewAffiliation, ApplicationReviewDocument, ApplicationStatus, ReviewDocumentType } from '@sakay/shared';
 import {
   FareMatrixRecord,
   TodaApplicationRecord,
@@ -767,11 +768,71 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
     // Per-TODA applications. A driver may apply to several TODAs; each affiliation (driver x TODA) has its OWN TODA stage and LGU stage,
     // and the LGU decides each one separately, after its TODA has endorsed it.
     const affByDriver = new Map<string, DriverAffiliationRecord[]>();
+    // What the review of each driver's applications says (returned / resubmitted / endorsed...), from the DATABASE: per application, the
+    // documents it returned and whether they were replaced. The shared verification record's remarks are never read for this.
+    const statusByDriver = new Map<string, ApplicationStatus>();
     try {
       const { data: affRows } = await supabase
         .from('driver_toda_affiliation')
         .select('*, toda:toda_id ( toda_id, toda_name, toda_acronym )')
         .order('submitted_at', { ascending: true });
+
+      const docsByAffiliation = new Map<string, ApplicationReviewDocument[]>();
+      const openRosterFlags = new Set<string>();
+      const affIds = ((affRows || []) as any[]).map((a) => a.affiliation_id);
+      if (affIds.length > 0) {
+        try {
+          const { data: docRows } = await supabase.rpc('get_affiliation_document_reviews', { p_affiliation_ids: affIds });
+          for (const r of (docRows || []) as any[]) {
+            const list = docsByAffiliation.get(r.affiliation_id) || [];
+            list.push({
+              document_type: r.document_type,
+              state: r.state,
+              reason_code: r.reason_code,
+              reason: r.reason,
+              returned_at: r.returned_at,
+              returned_by_stage: r.returned_by_stage,
+              resubmitted_at: r.resubmitted_at,
+            });
+            docsByAffiliation.set(r.affiliation_id, list);
+          }
+        } catch (docErr) {
+          console.warn('[adminApiService] fetchDrivers document reviews note:', docErr);
+        }
+        try {
+          const { data: flagRows } = await supabase
+            .from('admin_review_flag')
+            .select('subject_id')
+            .eq('flag_type', 'ROSTER_MISMATCH')
+            .eq('subject_type', 'driver_application')
+            .in('status', ['Open', 'Under Review']);
+          for (const f of (flagRows || []) as any[]) openRosterFlags.add(String(f.subject_id));
+        } catch (flagErr) {
+          console.warn('[adminApiService] fetchDrivers roster flag note:', flagErr);
+        }
+      }
+      const reviewByDriver = new Map<string, ApplicationReviewAffiliation[]>();
+      for (const a of (affRows || []) as any[]) {
+        const t0 = Array.isArray(a.toda) ? a.toda[0] : a.toda;
+        const list = reviewByDriver.get(a.driver_id) || [];
+        list.push({
+          affiliation_id: a.affiliation_id,
+          toda_id: a.toda_id,
+          toda_name: t0?.toda_name,
+          toda_acronym: t0?.toda_acronym,
+          toda_stage: a.toda_endorsement_status,
+          lgu_stage: a.lgu_verification_status,
+          is_active: Boolean(a.is_active_selection),
+          submitted_at: a.submitted_at,
+          resubmitted_at: a.resubmitted_at,
+          toda_return_reason: a.toda_rejection_reason,
+          lgu_return_reason: a.lgu_rejection_reason,
+          documents: docsByAffiliation.get(a.affiliation_id) || [],
+        });
+        reviewByDriver.set(a.driver_id, list);
+      }
+      for (const [driverId, list] of reviewByDriver) statusByDriver.set(driverId, classifyApplication(list));
+
       for (const a of (affRows || []) as any[]) {
         const t = Array.isArray(a.toda) ? a.toda[0] : a.toda;
         const list = affByDriver.get(a.driver_id) || [];
@@ -786,12 +847,29 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           todaStage: a.toda_endorsement_status,
           lguStage: a.lgu_verification_status,
           isActive: Boolean(a.is_active_selection),
+          rosterMismatchOpen: openRosterFlags.has(String(a.affiliation_id)),
         });
         affByDriver.set(a.driver_id, list);
       }
     } catch (affErr) {
       console.warn('[adminApiService] fetchDrivers affiliation query note:', affErr);
     }
+
+    // "Resubmitted (awaiting review)" and "Resubmission Required" are facts about the driver's APPLICATIONS (what was returned, whether the
+    // documents were replaced since): they come from the review above. A remark left on the shared verification record, or a date
+    // comparison on it, outlives the correction it described and then mislabels later applications, so neither is read any more. A driver
+    // with no TODA application on record (registered before applications existed) can only be "Resubmission Required" by the shared status.
+    const resubOf = (d: any): { isResub: boolean; isResubReq: boolean } => {
+      const st = statusByDriver.get(d.driver_id);
+      if (st) {
+        return {
+          isResub: st.kind === 'resubmitted_awaiting_toda' || st.kind === 'resubmitted_awaiting_lgu',
+          isResubReq: st.kind === 'resubmission_required',
+        };
+      }
+      const v = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
+      return { isResub: false, isResubReq: d.account_status === 'Resubmission Required' || v?.verification_status === 'Resubmission Required' };
+    };
 
     // Drivers whose TODA has endorsed an affiliation and the LGU has not decided it yet.
     const awaitingLguDriverIds = new Set<string>();
@@ -851,20 +929,10 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
     if (filters?.status && filters.status !== 'All') {
       const endorsedSet = new Set(todaEndorsedDriverIds);
       if (filters.status === 'Resubmitted' || filters.status === 'Resubmitted (Awaiting Review)') {
-        data = data.filter((d: any) => {
-          const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
-          return (
-            verif?.remarks?.toLowerCase().includes('resubmitted') ||
-            (verif?.submitted_at && verif?.rejected_at && new Date(verif.submitted_at) > new Date(verif.rejected_at))
-          );
-        });
+        data = data.filter((d: any) => resubOf(d).isResub);
       } else if (filters.status === 'Endorsed to LGU' || filters.status === 'Pending' || filters.status === 'Pending Verification') {
         data = data.filter((d: any) => {
-          const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
-          const isResub =
-            verif?.remarks?.toLowerCase().includes('resubmitted') ||
-            (verif?.submitted_at && verif?.rejected_at && new Date(verif.submitted_at) > new Date(verif.rejected_at));
-          const isResubReq = !isResub && (d.account_status === 'Resubmission Required' || verif?.verification_status === 'Resubmission Required');
+          const { isResubReq } = resubOf(d);
           return (
             ((endorsedSet.has(d.driver_id) || ['TODA Approved', 'TODA Endorsed', 'Endorsed to LGU'].includes(d.account_status)) &&
               !['Verified', 'Active', 'LGU Approved'].includes(d.account_status) &&
@@ -875,13 +943,7 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
       } else if (filters.status === 'Verified' || filters.status === 'Active') {
         data = data.filter((d: any) => ['Verified', 'Active', 'LGU Approved'].includes(d.account_status));
       } else if (filters.status === 'Resubmission Required') {
-        data = data.filter((d: any) => {
-          const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
-          const isResub =
-            verif?.remarks?.toLowerCase().includes('resubmitted') ||
-            (verif?.submitted_at && verif?.rejected_at && new Date(verif.submitted_at) > new Date(verif.rejected_at));
-          return !isResub && (d.account_status === 'Resubmission Required' || verif?.verification_status === 'Resubmission Required');
-        });
+        data = data.filter((d: any) => resubOf(d).isResubReq);
       } else {
         data = data.filter((d: any) => d.account_status === filters.status);
       }
@@ -896,21 +958,15 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
       const todaInfo = d.toda || todaMap.get(d.toda_id);
       const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
 
-      const isStatusResubmissionRequired =
-        d.account_status === 'Resubmission Required' ||
-        verif?.verification_status === 'Resubmission Required';
-
-      const isResubmitted = !isStatusResubmissionRequired && Boolean(
-        verif?.remarks?.toLowerCase().includes('resubmitted') ||
-        (verif?.submitted_at && verif?.rejected_at && new Date(verif.submitted_at) > new Date(verif.rejected_at))
-      );
+      const { isResub: isResubmitted, isResubReq: isStatusResubmissionRequired } = resubOf(d);
+      const reviewStatus = statusByDriver.get(d.driver_id);
 
       // Stage 2 LGU final approval: ONLY driver.account_status === 'Verified'
       const isFullyApproved = d.account_status === 'Verified';
       const isRejected = d.account_status === 'Rejected' || verif?.verification_status === 'Rejected';
       const isSuspended = d.account_status === 'Suspended' || d.account_status === 'Deactivated';
-      // If applicant already resubmitted, they are no longer in "Resubmission Required" - they are awaiting review!
-      const isResubmission = !isResubmitted && isStatusResubmissionRequired;
+      // (the two are mutually exclusive: a resubmitted application is awaiting review, no longer "Resubmission Required")
+      const isResubmission = isStatusResubmissionRequired;
       // Stage 1 TODA endorsement: driver is in driver_verification with 'Approved' but NOT yet LGU-approved
       const affs = affByDriver.get(d.driver_id) || [];
       const awaitingLgu = affs.filter((a) => a.todaStage === 'Endorsed' && a.lguStage === 'Pending');
@@ -939,8 +995,15 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
       const getDocStatus = (docType: string): 'Verified' | 'Pending Inspection' | 'Resubmission Required' | 'Resubmitted (Awaiting Review)' => {
         if (isFullyApproved) return 'Verified';
         if (verifiedList.includes(docType)) return 'Verified';
-        if (isResubmitted && faultyList.includes(docType)) return 'Resubmitted (Awaiting Review)';
-        if (faultyList.includes(docType) && !isResubmitted) return 'Resubmission Required';
+        if (reviewStatus) {
+          // from the database: was THIS document returned, and has the driver replaced it since?
+          const state = reviewStatus.documentStates[docType as ReviewDocumentType];
+          if (state === 'returned' || state === 'returned_elsewhere') return 'Resubmission Required';
+          if (state === 'resubmitted' || state === 'replaced_elsewhere') return 'Resubmitted (Awaiting Review)';
+          return 'Pending Inspection';
+        }
+        // a driver with no TODA application on record: only the list written on the shared record says which documents were faulty
+        if (faultyList.includes(docType)) return 'Resubmission Required';
         return 'Pending Inspection';
       };
 
@@ -1075,7 +1138,7 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           suspendedUntil: d.suspended_until || undefined,
           suspensionReason: d.suspension_reason || undefined,
           isResubmitted,
-          resubmittedAt: verif?.submitted_at || undefined,
+          resubmittedAt: reviewStatus?.resubmittedAt || undefined,
           documents,
         };
       }));
@@ -1145,7 +1208,7 @@ async function notifyDriverOutcome(
  * driver are not touched. The first approval also makes the driver's account Verified and that TODA the active one; a later approval
  * only adds a verified TODA (the driver picks the active one while Offline).
  */
-export async function verifyDriver(driverId: string, franchiseNumber?: string, affiliationId?: string) {
+export async function verifyDriver(driverId: string, franchiseNumber?: string, affiliationId?: string, rosterOverrideReason?: string) {
   console.log('[adminApiService] Verifying driver accreditation for:', driverId, affiliationId ? `(affiliation ${affiliationId})` : '');
   try {
     const targetId = await resolveLguAffiliationId(driverId, affiliationId);
@@ -1155,9 +1218,13 @@ export async function verifyDriver(driverId: string, franchiseNumber?: string, a
       p_franchise_number: franchiseNumber || null,
       p_license_expiry: null,
       p_mtop_expiry: null,
+      // Required (at least 10 characters) while a Roster Mismatch flag is open; written to the flag and to the audit log (Rule 2.4)
+      p_roster_override_reason: rosterOverrideReason?.trim() || null,
     });
     if (error) throw new Error(error.message);
-    if (!data || data.success !== true) throw new Error(data?.error || 'The verification was not accepted by the database.');
+    if (!data || data.success !== true) {
+      throw new Error(String(data?.error || 'The verification was not accepted by the database.').replace(/^ERR_ROSTER_OVERRIDE_REQUIRED:\s*/, ''));
+    }
 
     // Tell the driver (the number is the one on the driver's record; the server writes the Tagalog message about THIS TODA)
     await notifyDriverOutcome(driverId, 'approved', { affiliationId: targetId });
@@ -1200,63 +1267,54 @@ export interface ReturnIssuePayload {
   notes: string;
 }
 
+/** The preset reason of the database for a free-text ground the LGU screen offers (e.g. "Illegible / Blurry Scans (Malabo o hindi mabasa)"). */
+function lguReasonCodeOf(grounds: string): 'blurry' | 'expired' | 'mismatch' | 'wrong_document' | 'incomplete' | 'other' {
+  if (/illegible|blurry|malabo|hindi mabasa|not clear|unclear/i.test(grounds)) return 'blurry';
+  if (/expired|paso na/i.test(grounds)) return 'expired';
+  if (/mismatch|does not match|discrepan/i.test(grounds)) return 'mismatch';
+  if (/wrong|maling/i.test(grounds)) return 'wrong_document';
+  if (/incomplete|cut-?off|missing|kulang|obstruct/i.test(grounds)) return 'incomplete';
+  return 'other';
+}
+
+/**
+ * LGU stage: returns ONE TODA application (affiliation) to the driver for correction, naming each document and why (Rules 3.6, 3.8).
+ * Same database function as the TODA's return, so the Driver app asks for exactly these documents; the application goes back to the
+ * LGU (not to the TODA) when the driver resubmits, and the driver's other TODA applications are not touched.
+ */
 export async function returnDriverForCorrection(
   driverId: string,
   reason: string,
   notes?: string,
   issues?: ReturnIssuePayload[],
-  verifiedDocuments?: ('license' | 'mtop' | 'tricycle' | 'selfie')[]
+  verifiedDocuments?: ('license' | 'mtop' | 'tricycle' | 'selfie')[],
+  affiliationId?: string
 ) {
-  console.log('[adminApiService] Returning driver application for correction:', driverId, { reason, notes, issues, verifiedDocuments });
+  console.log('[adminApiService] Returning driver application for correction:', driverId, { reason, notes, issues, verifiedDocuments, affiliationId });
   try {
-    const now = new Date().toISOString();
+    const targetId = await resolveLguAffiliationId(driverId, affiliationId);
 
-    const ORDERED_TYPES: ('license' | 'mtop' | 'tricycle' | 'selfie')[] = ['license', 'mtop', 'tricycle', 'selfie'];
-    const faultyDocuments = issues && issues.length > 0
-      ? ORDERED_TYPES.filter((t) => issues.some((i) => i.documentType === t))
-      : ['license'];
-
-    const structuredPayload = {
-      faultyDocuments,
-      verifiedDocuments: verifiedDocuments || [],
-      issues: issues || [{ documentType: 'license', grounds: reason, notes: notes || reason }],
-      displayReason: reason,
-      displayNotes: notes || reason,
-      returnedAt: now,
-    };
-
-    const finalCommentJson = JSON.stringify(structuredPayload);
-
-    const { error: verifErr } = await supabase
-      .from('driver_verification')
-      .update({
-        verification_status: 'Resubmission Required',
-        rejection_reason: reason,
-        rejection_comment: finalCommentJson,
-        remarks: `Returned for correction by City LGU: ${notes || reason}`,
-        rejected_at: now,
-      })
-      .or(`driver_id.eq.${driverId},verification_id.eq.${driverId}`);
-
-    if (verifErr) {
-      console.warn('[adminApiService] driver_verification return note:', verifErr);
-    }
-
-    try {
-      await supabase
-        .from('driver')
-        .update({
-          account_status: 'Resubmission Required',
-          rejection_reason: reason,
-          rejection_comment: finalCommentJson,
-          updated_at: now,
-        })
-        .eq('driver_id', driverId);
-    } catch {}
-
+    const returned = issues && issues.length > 0 ? issues : [{ documentType: 'license' as const, grounds: reason, notes: notes || reason }];
+    const { data, error } = await supabase.rpc('return_driver_documents', {
+      p_affiliation_id: targetId,
+      p_documents: returned.map((i) => ({
+        document_type: i.documentType,
+        reason_code: lguReasonCodeOf(i.grounds),
+        reason: (i.notes || i.grounds || reason).trim(),
+      })),
+      p_summary: reason,
+      p_verified: verifiedDocuments || null,
+    });
+    if (error) throw new Error(error.message);
+    if (!data || data.success !== true) throw new Error(data?.error || 'The return was not accepted by the database.');
 
     // Tell the driver which documents to correct
-    await notifyDriverOutcome(driverId, 'returned', { reason, notes, documents: faultyDocuments });
+    await notifyDriverOutcome(driverId, 'returned', {
+      reason,
+      notes,
+      documents: (data.documents as string[]) || returned.map((i) => i.documentType),
+      affiliationId: targetId,
+    });
 
     return { success: true };
   } catch (err: any) {

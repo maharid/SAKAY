@@ -120,6 +120,8 @@ export interface DriverAffiliationRecord {
   lguStage: 'Pending' | 'Approved' | 'Resubmission Required' | 'Rejected';
   /** The affiliation the driver goes Online under (Policy 3.10). */
   isActive: boolean;
+  /** An open Roster Mismatch flag (Rule 2.4): the applicant is not on the TODA's master roster. Approving needs a written reason. */
+  rosterMismatchOpen?: boolean;
 }
 
 export interface DriverRecord {

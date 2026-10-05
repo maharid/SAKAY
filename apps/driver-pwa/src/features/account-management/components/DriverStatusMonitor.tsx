@@ -21,7 +21,9 @@ import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
-import { fetchOwnDriverRecord } from '../../../services/driverApiService';
+import { fetchMyApplicationReview, fetchOwnDriverRecord } from '../../../services/driverApiService';
+import { classifyApplication, rejectionReasonParts, REVIEW_DOCUMENT_LABEL, REVIEW_DOCUMENT_ORDER, RETURN_REASON_LABEL } from '@sakay/shared';
+import type { ApplicationStatus, ReturnReasonCode, ReviewDocumentType } from '@sakay/shared';
 import { fetchMyAffiliationOptions, type AffiliationOption } from '../../../services/driverPresenceService';
 import {
   parseRejectionComment,
@@ -29,6 +31,22 @@ import {
   saveResubmissionSession,
   type FaultyDocType,
 } from '../../../services/driverOnboardingCache';
+
+const RETURN_REASON_TL: Record<ReturnReasonCode, string> = {
+  blurry: 'Malabo / hindi mabasa',
+  expired: 'Paso na',
+  mismatch: 'Hindi tugma ang impormasyon',
+  wrong_document: 'Maling dokumento',
+  incomplete: 'Kulang',
+  other: 'Iba pa',
+};
+
+const DOCUMENT_LABEL_TL: Record<ReviewDocumentType, string> = {
+  license: "Driver's License (Lisensya)",
+  mtop: 'MTOP / Prangkisa',
+  tricycle: 'Larawan ng Tricycle',
+  selfie: 'Selfie / Larawan ng Mukha',
+};
 
 export const DriverStatusMonitor: React.FC = () => {
   const navigate = useNavigate();
@@ -57,6 +75,8 @@ export const DriverStatusMonitor: React.FC = () => {
   const [isDocIncomplete, setIsDocIncomplete] = useState(false);
   const [incompleteDriverInfo, setIncompleteDriverInfo] = useState<{ phone: string; driverName: string } | null>(null);
   const [isResubmittedApplication, setIsResubmittedApplication] = useState(false);
+  // The database's own reading of every TODA application: which documents wait for the driver, what was resubmitted and when.
+  const [appStatus, setAppStatus] = useState<ApplicationStatus | null>(null);
   // One row per TODA the driver applied to: each affiliation is reviewed on its own (TODA first, then the LGU).
   const [affiliations, setAffiliations] = useState<AffiliationOption[]>([]);
   React.useEffect(() => {
@@ -116,6 +136,12 @@ export const DriverStatusMonitor: React.FC = () => {
           return;
         }
 
+        // The review of every TODA application, from the database (one call). It decides "returned" / "resubmitted"; the shared
+        // verification record below is only the fallback for a driver who has no TODA application on record.
+        const review = await fetchMyApplicationReview();
+        const status: ApplicationStatus | null = review && review.affiliations.length > 0 ? classifyApplication(review.affiliations) : null;
+        setAppStatus(status);
+
         // Check verification details from driver_verification
         if (driverData.driver_id) {
           const { data: verif } = await supabase
@@ -134,13 +160,34 @@ export const DriverStatusMonitor: React.FC = () => {
             return;
           }
 
+          // 1. Documents are waiting for the DRIVER: say which, why, and who asked.
+          if (status && status.kind === 'resubmission_required') {
+            setIsResubmittedApplication(false);
+            setProfileStatus('Resubmission Required');
+            setLoading(false);
+            return;
+          }
+
+          // 2. The driver resubmitted: the reviewer has not decided. Never "approved" until the TODA endorses / the LGU approves.
+          if (status && status.kind === 'resubmitted_awaiting_toda') {
+            setIsResubmittedApplication(true);
+            setProfileStatus('Resubmitted - Awaiting TODA Review');
+            setLoading(false);
+            return;
+          }
+          if (status && status.kind === 'resubmitted_awaiting_lgu') {
+            setIsResubmittedApplication(true);
+            setProfileStatus('Endorsed to LGU');
+            setLoading(false);
+            return;
+          }
+
+          // Fallback for a driver with no TODA application on record: the shared record (it can be stale once applications exist)
           if (
-            driverData.account_status === 'Resubmission Required' ||
-            verif?.verification_status === 'Resubmission Required'
+            !status &&
+            (driverData.account_status === 'Resubmission Required' ||
+              verif?.verification_status === 'Resubmission Required')
           ) {
-            try {
-              localStorage.removeItem('sakay_driver_just_resubmitted');
-            } catch {}
             setIsResubmittedApplication(false);
             setProfileStatus('Resubmission Required');
             setRejectionReason(verif?.rejection_reason || verif?.remarks || driverData.rejection_reason || state?.rejectionReason || 'Documentary Issue');
@@ -149,11 +196,11 @@ export const DriverStatusMonitor: React.FC = () => {
             return;
           }
 
-          const isJustResubmitted =
-            localStorage.getItem('sakay_driver_just_resubmitted') === 'true' ||
-            Boolean(verif?.remarks?.toLowerCase().includes('resubmitted'));
-
-          setIsResubmittedApplication(isJustResubmitted);
+          // "Resubmitted" is a fact about ONE application (its resubmitted_at, and the documents it returned that were replaced): it comes
+          // from classifyApplication above and from nowhere else. It is NOT read from a shared remark on the verification record or from a
+          // flag left in this browser: both outlive the correction they described and then label a plain first submission (or another
+          // TODA's application) "Resubmission Review" once the TODA has endorsed it.
+          setIsResubmittedApplication(false);
 
           if (!verif || !verif.submitted_license_number) {
             setIsDocIncomplete(true);
@@ -163,14 +210,15 @@ export const DriverStatusMonitor: React.FC = () => {
             });
           } else {
             setIsDocIncomplete(false);
-            if (
-              verif.verification_status === 'Approved' ||
-              verif.verification_status === 'TODA Approved' ||
-              verif.verification_status === 'TODA Endorsed' ||
-              verif.verification_status === 'Endorsed to LGU' ||
-              driverData.account_status === 'TODA Approved' ||
-              driverData.account_status === 'Endorsed to LGU'
-            ) {
+            const endorsed = status
+              ? status.kind === 'endorsed_awaiting_lgu'
+              : verif.verification_status === 'Approved' ||
+                verif.verification_status === 'TODA Approved' ||
+                verif.verification_status === 'TODA Endorsed' ||
+                verif.verification_status === 'Endorsed to LGU' ||
+                driverData.account_status === 'TODA Approved' ||
+                driverData.account_status === 'Endorsed to LGU';
+            if (endorsed) {
               setProfileStatus('Endorsed to LGU');
               setLoading(false);
               return;
@@ -220,6 +268,28 @@ export const DriverStatusMonitor: React.FC = () => {
           checkStatus(true);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'driver_toda_affiliation',
+        },
+        () => {
+          checkStatus(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'driver_document',
+        },
+        () => {
+          checkStatus(true);
+        }
+      )
       .subscribe();
 
     return () => {
@@ -245,12 +315,29 @@ export const DriverStatusMonitor: React.FC = () => {
 
   const isRejected = profileStatus === 'Rejected';
   const isResubmissionRequired = profileStatus === 'Resubmission Required';
+  const isResubmittedAwaitingToda = profileStatus === 'Resubmitted - Awaiting TODA Review';
   // True when TODA has endorsed the driver but LGU has not yet given final approval
   const isEndorsedToLgu = profileStatus === 'Endorsed to LGU';
 
-  const [isResubmitting, setIsResubmitting] = useState(false);
+  // What the driver is asked to correct: the database's list when it has one (every document with its OWN reason, and which TODA / the LGU
+  // asked); the shared record's text only for a driver with no TODA application on record.
+  const returnedRows = appStatus && appStatus.kind === 'resubmission_required' ? appStatus.returnedDocuments : null;
+  const reasonLabel = (code: ReturnReasonCode | null): string =>
+    code ? (isTagalog ? RETURN_REASON_TL[code] : RETURN_REASON_LABEL[code]) : '';
+  const documentLabel = (doc: ReviewDocumentType): string => (isTagalog ? DOCUMENT_LABEL_TL[doc] : REVIEW_DOCUMENT_LABEL[doc]);
+  const formatWhen = (iso: string | null | undefined): string =>
+    iso
+      ? new Date(iso).toLocaleString(isTagalog ? 'fil-PH' : 'en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' })
+      : '';
 
-  const parsedReturn = parseRejectionComment(rejectionComment, rejectionReason);
+  const parsedReturn = returnedRows
+    ? {
+        faultyDocuments: appStatus!.documentsToResubmit,
+        issues: returnedRows.map((r) => ({ documentType: r.document_type, grounds: reasonLabel(r.reason_code), notes: r.reason })),
+        displayReason: returnedRows.map((r) => `${documentLabel(r.document_type)}: ${reasonLabel(r.reason_code)}`).join('; '),
+        displayNotes: returnedRows.map((r) => `${documentLabel(r.document_type)}: ${r.reason}`).join('; '),
+      }
+    : parseRejectionComment(rejectionComment, rejectionReason);
   const [hydrating, setHydrating] = useState(false);
 
   const handleStartCorrection = async () => {
@@ -300,51 +387,52 @@ export const DriverStatusMonitor: React.FC = () => {
     }
   };
 
-  const handleDirectResubmit = async () => {
-    setIsResubmitting(true);
-    try {
-      const driverId = localStorage.getItem('sakay_driver_id');
-      const now = new Date().toISOString();
 
-      await supabase
-        .from('driver_verification')
-        .update({
-          verification_status: 'Pending',
-          rejection_reason: null,
-          rejection_comment: null,
-          rejected_by: null,
-          rejected_at: null,
-          remarks: 'Resubmitted by driver applicant',
-          submitted_at: now,
-        })
-        .eq('driver_id', driverId);
-
-      await supabase
-        .from('driver')
-        .update({
-          account_status: 'Pending Verification',
-          rejection_reason: null,
-          rejection_comment: null,
-          updated_at: now,
-        })
-        .eq('driver_id', driverId);
-
-      setSnackbarMsg(
-        isTagalog
-          ? 'Naisumite nang muli ang iyong aplikasyon. Nag-restart ang 5-araw na review clock.'
-          : 'Application resubmitted successfully. 5-calendar-day review clock has restarted.'
-      );
-      setSnackbarOpen(true);
-      await checkStatus(false);
-    } catch (err: any) {
-      console.error('Failed to resubmit application:', err);
-      setSnackbarMsg(err.message || 'Error resubmitting application');
-      setSnackbarOpen(true);
-    } finally {
-      setIsResubmitting(false);
-    }
-  };
-
+  // Per document, for an application that was resubmitted: the replaced ones say so with the date; nothing is marked as approved.
+  const documentStatesCard =
+    appStatus && (appStatus.kind === 'resubmitted_awaiting_toda' || appStatus.kind === 'resubmitted_awaiting_lgu') ? (
+      <Paper
+        elevation={0}
+        sx={{ width: '100%', maxWidth: 340, p: 2.5, borderRadius: '16px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'left', mb: 2 }}
+      >
+        <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
+          {isTagalog ? 'Mga Dokumento' : 'Documents'}
+        </Typography>
+        {REVIEW_DOCUMENT_ORDER.filter((doc) => doc !== 'selfie' || appStatus.documentStates[doc] !== 'not_returned').map((doc) => {
+          const state = appStatus.documentStates[doc];
+          const when = appStatus.resubmittedDocuments.find((d) => d.document_type === doc)?.resubmitted_at;
+          const resubmitted = state === 'resubmitted';
+          return (
+            <Box key={doc} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, py: 0.6 }}>
+              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{documentLabel(doc)}</Typography>
+              <Chip
+                size="small"
+                label={
+                  resubmitted
+                    ? `${isTagalog ? 'Naisumite muli' : 'Resubmitted'}${when ? ` · ${formatWhen(when)}` : ''}`
+                    : isTagalog
+                    ? 'Hindi ibinalik'
+                    : 'Not returned'
+                }
+                sx={{
+                  backgroundColor: resubmitted ? '#EDE9FE' : '#E2E8F0',
+                  color: resubmitted ? '#4C1D95' : '#475569',
+                  fontWeight: 700,
+                  fontSize: '11px',
+                  height: 'auto',
+                  '& .MuiChip-label': { whiteSpace: 'normal', py: '3px' },
+                }}
+              />
+            </Box>
+          );
+        })}
+        <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
+          {isTagalog
+            ? 'Hindi pa ito aprubado: ang pagsusuri ng reviewer ang magpapasya.'
+            : 'These are NOT approved yet: the reviewer decides after looking at what you resubmitted.'}
+        </Typography>
+      </Paper>
+    ) : null;
 
   return (
     <Box
@@ -450,14 +538,21 @@ export const DriverStatusMonitor: React.FC = () => {
                 {isTagalog ? 'Dahilan ng Pagtanggi:' : 'Reason for Rejection:'}
               </Typography>
               <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#9F1239', mb: 1 }}>
-                {rejectionReason || (isTagalog ? 'Hindi natagpuan sa Master Roster ng TODA.' : 'Not found in TODA Master Roster.')}
+                {rejectionReasonParts(rejectionReason, isTagalog ? 'tl' : 'en').label || (isTagalog ? 'Hindi natagpuan sa Master Roster ng TODA.' : 'Not found in TODA Master Roster.')}
               </Typography>
-              {rejectionComment && (
+              {(rejectionComment || rejectionReasonParts(rejectionReason).note) && (
                 <Typography sx={{ fontSize: '13px', color: '#881337', lineHeight: 1.4 }}>
-                  {isTagalog ? 'Paliwanag:' : 'Comment:'} "{rejectionComment}"
+                  {isTagalog ? 'Paliwanag:' : 'Comment:'} "{rejectionComment || rejectionReasonParts(rejectionReason).note}"
                 </Typography>
               )}
             </Paper>
+
+            {/* A rejection is final: there is no way to re-apply from this app (only the City LGU can reopen a case) */}
+            <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, maxWidth: 330, mt: -2, mb: 3, fontWeight: 600 }}>
+              {isTagalog
+                ? 'Pinal na ang desisyong ito. Hindi ka na makakapag-apply muli sa TODA na ito. Para sa katanungan, makipag-ugnayan sa TODA o sa City LGU Transport Office.'
+                : 'This decision is final. You cannot re-apply to this TODA. For questions, please contact the TODA or the City LGU Transport Office.'}
+            </Typography>
           </>
         ) : isEndorsedToLgu ? (
           <>
@@ -510,6 +605,8 @@ export const DriverStatusMonitor: React.FC = () => {
                     ? 'Matagumpay na na-endorse ng iyong TODA ang iyong aplikasyon sa City LGU Transport Office. Pakihintay ang huling pagsusuri at pag-apruba ng LGU. Hindi mo pa maa-access ang iyong account hanggang sa mabigyan ka ng pinal na pahintulot.'
                     : 'Your application has been endorsed by your TODA to the City LGU Transport Office. Please wait for the final review and approval of the LGU. You will not be able to access your account until final approval is granted.')}
             </Typography>
+
+            {documentStatesCard}
 
             {/* Status ng Rehistrasyon Card */}
             <Paper
@@ -585,6 +682,54 @@ export const DriverStatusMonitor: React.FC = () => {
               />
             </Paper>
           </>
+        ) : isResubmittedAwaitingToda ? (
+          <>
+            {/* Resubmitted: waiting for the TODA again. Never says the documents passed. */}
+            <Box
+              sx={{
+                width: 76,
+                height: 76,
+                borderRadius: '50%',
+                backgroundColor: '#F5F3FF',
+                color: '#6D28D9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 3,
+                boxShadow: '0 8px 24px rgba(109, 40, 217, 0.15)',
+              }}
+            >
+              <PendingActionsIcon sx={{ fontSize: 40 }} />
+            </Box>
+
+            <Typography sx={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3, mb: 1.5 }}>
+              {isTagalog ? 'Naisumite Muli — Hinihintay ang Pagsusuri ng TODA' : 'Resubmitted, Awaiting TODA Review'}
+            </Typography>
+
+            <Typography sx={{ fontSize: '14px', color: '#64748B', lineHeight: 1.5, maxWidth: 340, mb: 3 }}>
+              {isTagalog
+                ? `Naisumite mo muli ang iyong mga dokumento noong ${formatWhen(appStatus?.resubmittedAt)}. Muling sinusuri ng TODA ang iyong aplikasyon at nag-restart ang 5-araw na review period mula sa petsang iyon. Hindi pa aprubado ang iyong mga dokumento.`
+                : `You resubmitted your documents on ${formatWhen(appStatus?.resubmittedAt)}. The TODA is reviewing your application again and the 5-calendar-day review period restarted on that date. Your documents have not been approved yet.`}
+            </Typography>
+
+            {documentStatesCard}
+
+            <Paper
+              elevation={0}
+              sx={{ width: '100%', maxWidth: 340, p: 2.5, borderRadius: '16px', backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE', textAlign: 'left', mb: 4 }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#5B21B6', textTransform: 'uppercase' }}>
+                  {isTagalog ? 'Status ng Rehistrasyon' : 'Registration Status'}
+                </Typography>
+                <Chip
+                  label={isTagalog ? 'Muling Sinusuri ng TODA' : 'TODA Re-review'}
+                  size="small"
+                  sx={{ backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 800, fontSize: '11px' }}
+                />
+              </Box>
+            </Paper>
+          </>
         ) : isResubmissionRequired ? (
           <>
             <Box
@@ -649,12 +794,7 @@ export const DriverStatusMonitor: React.FC = () => {
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
                 {parsedReturn.issues.map((issue, idx) => {
-                  const docLabels: Record<FaultyDocType, string> = {
-                    license: isTagalog ? "Driver's License (Lisensya)" : "Driver's License",
-                    mtop: isTagalog ? 'MTOP / Prangkisa' : 'MTOP / Franchise',
-                    tricycle: isTagalog ? 'Larawan ng Tricycle' : 'Tricycle Photo',
-                    selfie: isTagalog ? 'Selfie / Larawan ng Mukha' : 'Driver Selfie',
-                  };
+                  const row = returnedRows ? returnedRows[idx] : null;
                   return (
                     <Box
                       key={idx}
@@ -665,9 +805,9 @@ export const DriverStatusMonitor: React.FC = () => {
                         border: '1px solid #FEF3C7',
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
                         <Chip
-                          label={docLabels[issue.documentType] || issue.documentType}
+                          label={documentLabel(issue.documentType)}
                           size="small"
                           sx={{
                             fontSize: '11px',
@@ -677,6 +817,12 @@ export const DriverStatusMonitor: React.FC = () => {
                             height: 22,
                           }}
                         />
+                        {row && (
+                          <Typography sx={{ fontSize: '11px', color: '#92400E', fontWeight: 600 }}>
+                            {isTagalog ? 'Ibinalik ng' : 'Returned by'} {row.stage === 'LGU' ? 'LGU' : row.toda_acronym}
+                            {row.returned_at ? ` · ${formatWhen(row.returned_at)}` : ''}
+                          </Typography>
+                        )}
                       </Box>
                       <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#78350F', mb: 0.25 }}>
                         {issue.grounds}
@@ -947,29 +1093,29 @@ export const DriverStatusMonitor: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        <PrimaryButton
-          fullWidth
-          size="large"
-          onClick={isRejected ? () => navigate('/account-selection') : () => checkStatus(false)}
-          disabled={loading}
-          sx={{
-            backgroundColor: isRejected ? '#DC2626' : '#FF6B00',
-            '&:hover': { backgroundColor: isRejected ? '#B91C1C' : '#E66000' },
-          }}
-        >
-          {loading ? (
-            isTagalog ? 'Kinukumpirma...' : 'Checking...'
-          ) : isRejected ? (
-            isTagalog ? 'Mag-rehistro Muli' : 'Register Again'
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <RefreshIcon sx={{ fontSize: 18 }} />
-              {isTagalog ? 'I-refresh ang Status' : 'Refresh Status'}
-            </Box>
-          )}
-        </PrimaryButton>
+        {!isRejected && (
+          <PrimaryButton
+            fullWidth
+            size="large"
+            onClick={() => checkStatus(false)}
+            disabled={loading}
+            sx={{
+              backgroundColor: '#FF6B00',
+              '&:hover': { backgroundColor: '#E66000' },
+            }}
+          >
+            {loading ? (
+              isTagalog ? 'Kinukumpirma...' : 'Checking...'
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <RefreshIcon sx={{ fontSize: 18 }} />
+                {isTagalog ? 'I-refresh ang Status' : 'Refresh Status'}
+              </Box>
+            )}
+          </PrimaryButton>
+        )}
 
-        {/* Sign Out / Register New Account Option */}
+        {/* Sign Out (a rejected driver has no "apply again": the rejection is final) */}
         <Box
           component="button"
           type="button"
@@ -987,7 +1133,7 @@ export const DriverStatusMonitor: React.FC = () => {
             navigate('/account-selection', { replace: true });
           }}
           sx={{
-            mt: 1.5,
+            mt: isRejected ? 0 : 1.5,
             width: '100%',
             height: '48px',
             borderRadius: '14px',
@@ -1018,7 +1164,9 @@ export const DriverStatusMonitor: React.FC = () => {
         >
           <LogoutIcon sx={{ fontSize: 18, color: 'inherit' }} />
           <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'inherit' }}>
-            {isTagalog ? 'Mag-sign out / Gumawa ng Bagong Aplikasyon' : 'Sign Out / New Application'}
+            {isRejected
+              ? (isTagalog ? 'Mag-sign out' : 'Sign Out')
+              : (isTagalog ? 'Mag-sign out / Gumawa ng Bagong Aplikasyon' : 'Sign Out / New Application')}
           </Typography>
         </Box>
       </Box>

@@ -63,7 +63,6 @@ export const DriverRegister: React.FC = () => {
   const [phone, setPhone] = useState('');
   // One or more TODAs (Driver Module 2.1). The order of selection matters only for the legacy single pointer: the first one is the primary.
   const [selectedTodaIds, setSelectedTodaIds] = useState<string[]>([]);
-  const [membershipByToda, setMembershipByToda] = useState<Record<string, string>>({});
   const [todaList, setTodaList] = useState<TodaDirectoryEntry[]>([]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -216,12 +215,12 @@ export const DriverRegister: React.FC = () => {
       return;
     }
 
-    // One affiliation per selected TODA, each with its own membership number; the terminal and the barangay come from that TODA.
+    // One affiliation per selected TODA; the terminal and the barangay come from that TODA. (No membership number is asked for: the
+    // roster check at endorsement compares the franchise and plate numbers only.)
     const applications: DriverTodaApplicationInput[] = selectedTodaIds.map((id) => {
       const toda = todaList.find((item) => item.id === id);
       return {
         toda_id: id,
-        toda_membership_number: (membershipByToda[id] || '').trim() || undefined,
         assigned_terminal: toda?.terminalLocation || undefined,
         barangay_service_area: toda?.barangay || undefined,
       };
@@ -521,20 +520,6 @@ export const DriverRegister: React.FC = () => {
               </Typography>
             )}
           </Box>
-
-          {/* One membership number per selected TODA (each affiliation keeps its own) */}
-          {selectedTodaIds.map((id) => (
-            <RegisterInput
-              key={`membership-${id}`}
-              label={
-                language === 'tl'
-                  ? `NUMERO NG MIYEMBRO SA ${todaLabelOf(id)} (OPSYONAL)`
-                  : `MEMBERSHIP NO. IN ${todaLabelOf(id)} (OPTIONAL)`
-              }
-              value={membershipByToda[id] || ''}
-              onChange={(val) => setMembershipByToda((prev) => ({ ...prev, [id]: val }))}
-            />
-          ))}
 
           <SakayPhoneInput
             label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}

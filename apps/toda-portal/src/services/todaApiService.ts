@@ -11,6 +11,7 @@
 
 import { supabase } from './supabaseClient';
 import {
+  ApplicantDocumentReview,
   TodaProfile,
   DriverApplicant,
   TodaDriverMember,
@@ -18,7 +19,8 @@ import {
   TodaAuditLog,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { SIGNED_URL_TTL, apiFetch, apiPostJson, ownedObjectPath, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signedStorageUrlFromAny } from '@sakay/shared';
+import type { RejectionReasonCode } from '@sakay/shared';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -755,9 +757,53 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
 
     if (error || !data || data.length === 0) return [];
 
+    // Which documents each application returned / got back, and why (one call for the whole list). The database answers only for this
+    // TODA's own applications, and shows another review's flag on a shared document WITHOUT its reason.
+    const reviewsByAffiliation = new Map<string, ApplicantDocumentReview[]>();
+    try {
+      const { data: reviewRows } = await supabase.rpc('get_affiliation_document_reviews', {
+        p_affiliation_ids: data.map((aff: any) => aff.affiliation_id),
+      });
+      for (const r of (reviewRows || []) as any[]) {
+        const list = reviewsByAffiliation.get(r.affiliation_id) || [];
+        list.push({
+          documentType: r.document_type,
+          state: r.state,
+          reasonCode: r.reason_code,
+          reason: r.reason,
+          returnedAt: r.returned_at,
+          returnedByStage: r.returned_by_stage,
+          resubmittedAt: r.resubmitted_at,
+        });
+        reviewsByAffiliation.set(r.affiliation_id, list);
+      }
+    } catch (reviewErr) {
+      console.warn('[todaApiService] document reviews unavailable:', reviewErr);
+    }
+
+    // The roster match, asked of the database: the SAME function the endorsement uses (franchise or plate number against this TODA's roster
+    // entries made before the application; a name alone never matches), so this screen and the Roster Mismatch flag cannot disagree.
+    const rosterMatches = new Map<string, boolean>();
+    try {
+      const { data: matchRows, error: matchErr } = await supabase.rpc('get_affiliation_roster_matches', {
+        p_affiliation_ids: data.map((aff: any) => aff.affiliation_id),
+      });
+      if (matchErr) throw matchErr;
+      for (const r of (matchRows || []) as any[]) rosterMatches.set(r.affiliation_id, Boolean(r.roster_matched));
+    } catch (matchErr) {
+      console.warn('[todaApiService] roster match unavailable:', matchErr);
+    }
+
     return await Promise.all(data.map(async (aff: any) => {
       const d = Array.isArray(aff.driver) ? aff.driver[0] : aff.driver;
       if (!d) return null;
+      const documentReviews = reviewsByAffiliation.get(aff.affiliation_id) || [];
+      // "Resubmitted": back in TODA review after a TODA return that the driver has answered (resubmitted_at also exists after an LGU
+      // return, but then the TODA stage is Endorsed, not Submitted)
+      const isResubmitted =
+        aff.toda_endorsement_status === 'Submitted' &&
+        Boolean(aff.resubmitted_at) &&
+        documentReviews.some((r) => r.state === 'resubmitted' && r.returnedByStage !== 'LGU');
       const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
 
       // The stage is THIS affiliation's TODA stage, never the shared verification record or the driver's overall status.
@@ -797,19 +843,23 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         motorNo: d.motor_number || verif?.submitted_motor_number || 'N/A',
         franchiseNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
         membershipNo: aff.toda_membership_number || undefined,
+        isResubmitted,
+        resubmittedAt: aff.resubmitted_at || undefined,
+        documentReviews,
         assignedTerminal: aff.assigned_terminal || undefined,
         barangayServiceArea: aff.barangay_service_area || undefined,
         submittedDate: aff.submitted_at ? new Date(aff.submitted_at).toLocaleDateString('en-US') : 'Recent',
         daysPending,
         isOverdue: aff.toda_endorsement_status === 'Submitted' && daysPending > 3,
-        onSubmittedRoster: true,
+        onSubmittedRoster: rosterMatches.get(aff.affiliation_id) === true,
+        rosterMatchKnown: rosterMatches.has(aff.affiliation_id),
         tricyclePhotoUrl: tricyclePhotoUrl || d.profile_photo_url || '',
         licenseFrontUrl,
         licenseBackUrl,
         mtopUrl,
         selfieUrl,
         photoVerified: true,
-        rosterVerified: true,
+        rosterVerified: rosterMatches.get(aff.affiliation_id) === true,
         todaStageStatus: stageStatus,
         rejectionReason: aff.toda_rejection_reason || aff.toda_return_notes || undefined,
       };
@@ -846,7 +896,7 @@ async function resolveAffiliation(driverOrAffiliationId: string): Promise<{ affi
 
 /** Runs one of the affiliation decision functions; they answer { success, error } instead of raising. */
 async function decideAffiliation(
-  fn: 'endorse_driver_affiliation' | 'return_driver_affiliation' | 'reject_driver_affiliation',
+  fn: 'endorse_driver_affiliation' | 'return_driver_documents' | 'reject_driver_affiliation',
   args: Record<string, unknown>
 ): Promise<{ ok: true; data: any } | { ok: false; error: Error }> {
   const { data, error } = await supabase.rpc(fn, args);
@@ -900,55 +950,77 @@ export async function endorseDriverApplicant(applicantId: string, actorName: str
 
 export const forwardApplicantToLgu = endorseDriverApplicant;
 
-/** Returns ONE affiliation to the driver for correction (its TODA stage becomes Resubmission Required). */
-export async function returnDriverApplicant(applicantId: string, remarks: string) {
-  console.log('[todaApiService] Returning driver affiliation for resubmission:', applicantId);
+/** What the TODA says about one document it returns: the preset reason and the required free text. */
+export interface DocumentReturnInput {
+  documentType: 'license' | 'mtop' | 'tricycle' | 'selfie';
+  reasonCode: 'blurry' | 'expired' | 'mismatch' | 'wrong_document' | 'incomplete' | 'other';
+  reason: string;
+}
+
+const RETURN_DOCUMENT_LABEL: Record<DocumentReturnInput['documentType'], string> = {
+  license: "Driver's License",
+  mtop: 'MTOP',
+  tricycle: 'Tricycle photo',
+  selfie: 'Selfie / face photo',
+};
+
+/**
+ * Returns ONE affiliation to the driver for correction (Rules 3.6, 3.8): the TODA names WHICH documents (one or more) and WHY, each with
+ * a preset reason and a required free-text reason. Only those documents are asked for again. Only THIS affiliation moves to "Resubmission
+ * Required": the driver's other TODAs, their stages and their clocks are untouched. A separate action from rejecting (fraud / ineligible).
+ */
+export async function returnDriverDocuments(applicantId: string, documents: DocumentReturnInput[]) {
+  console.log('[todaApiService] Returning documents for correction:', applicantId, documents.map((d) => d.documentType));
   try {
     const target = await resolveAffiliation(applicantId);
     if (!target) return { success: false, error: new Error('This application was not found for your TODA.') };
 
-    const res = await decideAffiliation('return_driver_affiliation', {
+    const res = await decideAffiliation('return_driver_documents', {
       p_affiliation_id: target.affiliationId,
-      p_reason: remarks,
-      p_notes: null,
+      p_documents: documents.map((d) => ({ document_type: d.documentType, reason_code: d.reasonCode, reason: d.reason.trim() })),
     });
     if (!res.ok) {
-      console.warn('[todaApiService] affiliation return error:', res.error.message);
+      console.warn('[todaApiService] return for correction error:', res.error.message);
       return { success: false, error: res.error };
     }
 
-    await notifyApplicant(target.driverId, 'returned', remarks);
-    return { success: true, remarks };
+    // The SMS carries the same words the driver sees in the app
+    const text = documents.map((d) => `${RETURN_DOCUMENT_LABEL[d.documentType]}: ${d.reason.trim()}`).join('; ');
+    await notifyApplicant(target.driverId, 'returned', text);
+    return { success: true, documents: res.data?.documents as string[] | undefined };
   } catch (err: any) {
-    console.error('[todaApiService] returnDriverApplicant exception:', err);
+    console.error('[todaApiService] returnDriverDocuments exception:', err);
     return { success: false, error: err };
   }
 }
 
-/** The database accepts two rejection categories (Rule 3.8); document problems are "returned", not rejected. */
-function rejectionCategoryOf(reason: string): 'ineligible' | 'fraudulent' {
-  return /fraud|pekeng|peke/i.test(reason) ? 'fraudulent' : 'ineligible';
-}
-
-/** Rejects ONE affiliation at the TODA stage. The driver's other TODAs are not rejected by this. */
-export async function rejectDriverApplicant(applicantId: string, reason: string, customComment?: string, actorName: string = 'TODA President') {
-  console.log('[todaApiService] Rejecting driver affiliation:', applicantId);
+/**
+ * Rejects ONE affiliation at the TODA stage, FOR GOOD (Rule 3.8): the applicant cannot re-apply to this TODA. The reason is one of the
+ * permanent grounds (a code from the dropdown, never free text); the note is optional and is shown to the applicant with the reason. The
+ * driver's other TODAs are not rejected by this. A fixable problem is RETURNED for correction (returnDriverDocuments) instead.
+ */
+export async function rejectDriverApplicant(applicantId: string, reason: RejectionReasonCode, note?: string) {
+  console.log('[todaApiService] Rejecting driver affiliation:', applicantId, reason);
   try {
-    const finalComment = customComment ? `${reason}: ${customComment}` : reason;
+    if (!isRejectionReasonCode(reason)) {
+      return { success: false, error: new Error('Choose one of the listed reasons for the rejection.') };
+    }
     const target = await resolveAffiliation(applicantId);
     if (!target) return { success: false, error: new Error('This application was not found for your TODA.') };
 
+    const cleanNote = (note || '').trim();
     const res = await decideAffiliation('reject_driver_affiliation', {
       p_affiliation_id: target.affiliationId,
-      p_reason_category: rejectionCategoryOf(reason),
-      p_notes: `${actorName}: ${finalComment}`,
+      p_reason_category: reason,
+      p_notes: cleanNote || null,
     });
     if (!res.ok) {
       console.warn('[todaApiService] affiliation rejection error:', res.error.message);
       return { success: false, error: res.error };
     }
 
-    await notifyApplicant(target.driverId, 'rejected', finalComment);
+    // The SMS carries the same words the driver sees in the app
+    await notifyApplicant(target.driverId, 'rejected', cleanNote ? `${REJECTION_REASON_LABEL[reason]}: ${cleanNote}` : REJECTION_REASON_LABEL[reason]);
     return { success: true };
   } catch (err: any) {
     console.error('[todaApiService] rejectDriverApplicant exception:', err);
@@ -956,26 +1028,12 @@ export async function rejectDriverApplicant(applicantId: string, reason: string,
   }
 }
 
-export async function requestDriverResubmission(
-  applicantId: string,
-  reason: string,
-  notes?: string,
-  actorName: string = 'TODA President'
-) {
-  const finalReason = notes ? `${reason}: ${notes}` : reason;
-  const returnRes = await returnDriverApplicant(applicantId, finalReason);
+export async function requestDriverResubmission(applicantId: string, documents: DocumentReturnInput[]) {
+  // The database writes the audit_log entry and the document history of the return itself.
+  const returnRes = await returnDriverDocuments(applicantId, documents);
   if (!returnRes.success) {
-    throw returnRes.error || new Error('Failed to return driver application for resubmission');
+    throw returnRes.error || new Error('Failed to return the documents for resubmission');
   }
-
-  await recordTodaAuditAction({
-    actionType: 'DRIVER_RESUBMISSION_REQUESTED',
-    targetId: applicantId,
-    targetName: applicantId,
-    details: `[TODA Screening] ${actorName}: Requested document correction/resubmission. Reason: ${reason}. Notes: ${notes || 'None'}`,
-    category: 'Driver Verification',
-  });
-
   return { success: true };
 }
 

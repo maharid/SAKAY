@@ -33,7 +33,7 @@ function world(over: { paxStatus?: string; paxDob?: string | null; drvStatus?: s
       lgu_admin: [], toda_admin: [], booking: [],
     },
     rpc: {
-      check_otp_lockout: () => (over.failLockout ? { error: { message: 'boom' } } : { data: over.lockout ?? { is_locked: false, minutes_remaining: 0 } }),
+      check_otp_lockout: () => (over.failLockout ? { error: { message: 'boom' } } : { data: typeof over.lockout === 'function' ? over.lockout() : (over.lockout ?? { is_locked: false, minutes_remaining: 0 }) }),
       increment_failed_otp: () => ({ data: true }),
       reset_failed_otp: () => ({ data: true }),
     },
@@ -73,6 +73,42 @@ describe('POST /otp/send-otp', () => {
       const row = db.tables.passenger[0];
       assert.equal(row.otp_daily_count, 1);
       assert.ok(row.otp_last_sent_at);
+    } finally { await srv.close(); }
+  });
+
+  it('a new code starts with a clean failure count (the wrong entries against the old code do not carry over)', async () => {
+    const db = world();
+    const { srv } = await otpApp(db);
+    try {
+      const r = await call(`${srv.url}/otp/send-otp`, { token: tokens.pax, body: { phone: PAX.phone } });
+      assert.equal(r.status, 200);
+      assert.deepEqual(db.calls.rpc.filter((c) => c.name === 'reset_failed_otp').map((c) => c.args), [{ p_passenger_id: PAX.id }]);
+    } finally { await srv.close(); }
+  });
+
+  it('a lock that is still running is refused with the time left, and asking for a code does not clear it', async () => {
+    const db = world({ lockout: { is_locked: true, minutes_remaining: 11.5 } });
+    const { srv, sms } = await otpApp(db);
+    try {
+      const r = await call(`${srv.url}/otp/send-otp`, { token: tokens.pax, body: { phone: PAX.phone } });
+      assert.equal(r.status, 429);
+      assert.equal(r.json.is_locked, true);
+      assert.equal(r.json.minutes_remaining, 11.5);
+      assert.deepEqual(sms.sent, []);
+      assert.equal(db.calls.rpc.filter((c) => c.name === 'reset_failed_otp').length, 0, 'the lock stays');
+    } finally { await srv.close(); }
+  });
+
+  it('a failed SMS does not clear the count and is not counted as a send', async () => {
+    const db = world();
+    const sms = fakeSms();
+    sms.impl.sendOtpSms = async (phone: string) => ({ success: false as any, error: 'gateway down', formattedPhone: phone } as any);
+    const { srv } = await otpApp(db, sms);
+    try {
+      const r = await call(`${srv.url}/otp/send-otp`, { token: tokens.pax, body: { phone: PAX.phone } });
+      assert.equal(r.status, 502);
+      assert.equal(db.calls.rpc.filter((c) => c.name === 'reset_failed_otp').length, 0);
+      assert.equal(db.tables.passenger[0].otp_daily_count, 0);
     } finally { await srv.close(); }
   });
 
@@ -212,6 +248,34 @@ describe('POST /otp/verify-otp', () => {
     } finally { await srv.close(); }
   });
 
+  it('the wrong code that makes five answers "locked" with the time left, so the app can show the countdown', async () => {
+    let calls = 0;
+    // the check before the code is looked at: open; the check after this wrong guess was counted: locked for 15 minutes
+    const db = world({ lockout: () => (++calls === 1 ? { is_locked: false, minutes_remaining: 0 } : { is_locked: true, minutes_remaining: 15 }) });
+    const { srv } = await otpApp(db);
+    try {
+      const r = await call(`${srv.url}/otp/verify-otp`, { token: tokens.pax, body: { phone: PAX.phone, code: '123456' } });
+      assert.equal(r.status, 429);
+      assert.equal(r.json.is_locked, true);
+      assert.equal(r.json.minutes_remaining, 15);
+      assert.equal(db.tables.passenger[0].account_status, 'Pending OTP Verification');
+    } finally { await srv.close(); }
+  });
+
+  it('"no code was issued" and "the code expired" are not guesses: they are not counted towards the lock', async () => {
+    for (const reason of ['not_found', 'expired'] as const) {
+      const db = world();
+      const sms = fakeSms();
+      sms.impl.verifyOtpCode = () => ({ success: false as const, reason, error: 'OTP expired or not found. Please request a new code.' }) as any;
+      const { srv } = await otpApp(db, sms);
+      try {
+        const r = await call(`${srv.url}/otp/verify-otp`, { token: tokens.pax, body: { phone: PAX.phone, code: '123456' } });
+        assert.equal(r.status, 400, reason);
+        assert.equal(db.calls.rpc.filter((c) => c.name === 'increment_failed_otp').length, 0, reason);
+      } finally { await srv.close(); }
+    }
+  });
+
   it('123456 is not a master code: with nothing issued it is simply refused', async () => {
     _clearOtpStore();
     const db = world();
@@ -307,6 +371,52 @@ describe('POST /otp/verify-otp', () => {
       assert.equal(r.status, 500);
       assert.notEqual(r.json.success, true);
     } finally { await srv.close(); }
+  });
+});
+
+describe('the SMS gateway: accepted is not sent (smsService)', () => {
+  const realFetch = globalThis.fetch;
+  const savedEnv = { url: process.env.SMS_GATEWAY_URL };
+  let posted: { body: any }[] = [];
+  /** A fake gateway: POST /message queues (202) and GET /message/<id> answers with the scripted states. */
+  const gateway = (states: string[], recipientError?: string) => {
+    let i = 0;
+    posted = [];
+    globalThis.fetch = (async (input: any, init: any) => {
+      const url = String(input);
+      if (init?.method === 'POST') {
+        posted.push({ body: JSON.parse(init.body) });
+        return new Response(JSON.stringify({ id: 'msg-1', state: 'Pending', recipients: [{ state: 'Pending' }] }), { status: 202 });
+      }
+      assert.ok(url.endsWith('/message/msg-1'), url);
+      const state = states[Math.min(i++, states.length - 1)];
+      return new Response(JSON.stringify({ id: 'msg-1', state, recipients: [{ state, error: state === 'Failed' ? recipientError : undefined }] }), { status: 200 });
+    }) as typeof fetch;
+  };
+  beforeEach(() => { _clearOtpStore(); process.env.SMS_GATEWAY_URL = 'http://gateway.test'; });
+  after(() => { globalThis.fetch = realFetch; process.env.SMS_GATEWAY_URL = savedEnv.url ?? ''; });
+  const codeSent = () => /: (\d{6})\./.exec(String(posted[0].body.message))![1];
+
+  it('a message the phone reports as Sent succeeds, and the code that was sent is the code that works', async () => {
+    gateway(['Pending', 'Processed', 'Sent']);
+    const r = await quiet(() => sendOtpSms('+639171234570'));
+    assert.equal(r.success, true);
+    assert.equal(verifyOtpCode('+639171234570', codeSent()).success, true);
+  });
+
+  it('a message the phone reports as Failed is a FAILED request: the app is not told "sent", and no code is stored', async () => {
+    gateway(['Pending', 'Failed'], 'no signal');
+    const r = await quiet(() => sendOtpSms('+639171234571'));
+    assert.equal(r.success, false);
+    assert.ok(r.error, "the failure carries a message for the app");
+    assert.equal(verifyOtpCode('+639171234571', codeSent()).success, false, 'a code that never left the phone is not valid');
+  });
+
+  it('a message still Pending after the wait is reported as queued: the code is kept (the SMS may still arrive)', async () => {
+    gateway(['Pending']);
+    const r = await quiet(() => sendOtpSms('+639171234572'));
+    assert.equal(r.success, true);
+    assert.equal(verifyOtpCode('+639171234572', codeSent()).success, true);
   });
 });
 

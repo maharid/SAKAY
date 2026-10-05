@@ -96,6 +96,8 @@ UNION ALL SELECT 'notification',                 count(*) FROM public.notificati
                      OR recipient_id IN (SELECT id::TEXT FROM persons)
 UNION ALL SELECT 'strikes_ledger',               count(*) FROM public.strikes_ledger WHERE subject_id IN (SELECT id FROM persons)
 UNION ALL SELECT 'exemption_request',            count(*) FROM public.exemption_request WHERE subject_id IN (SELECT id FROM persons)
+UNION ALL SELECT 'driver_document',              count(*) FROM public.driver_document WHERE driver_id IN (SELECT driver_id FROM drv)
+UNION ALL SELECT 'document_review_history',      count(*) FROM public.document_review_history WHERE driver_id IN (SELECT driver_id FROM drv)
 UNION ALL SELECT 'driver_toda_affiliation',      count(*) FROM public.driver_toda_affiliation WHERE driver_id IN (SELECT driver_id FROM drv)
 UNION ALL SELECT 'driver_verification',          count(*) FROM public.driver_verification WHERE driver_id IN (SELECT driver_id FROM drv)
 UNION ALL SELECT 'driver_online_session',        count(*) FROM public.driver_online_session WHERE driver_id IN (SELECT driver_id FROM drv);
@@ -133,8 +135,8 @@ SELECT u.id, u.email, u.phone, u.created_at, u.deleted_at,
 --
 -- Order (children first; every table below exists in supabase/migrations/):
 --   fare_adjustment_history, gps_log, dispatch_attempt, cancellation_record, shared_trip_match, rating, incident_report,
---   exemption_request, strikes_ledger, admin_review_flag, notification, driver_online_session, driver_toda_affiliation,
---   driver_verification, booking, driver, passenger, auth.identities, auth.users
+--   exemption_request, strikes_ledger, admin_review_flag, notification, driver_online_session, document_review_history,
+--   driver_document, driver_toda_affiliation, driver_verification, booking, driver, passenger, auth.identities, auth.users
 -- Types: ids in rating / strikes_ledger / exemption_request are uuid; admin_review_flag.subject_id and notification.recipient_id /
 --   subject_id are TEXT (compared as text); audit_log is left alone.
 DO $$
@@ -277,6 +279,12 @@ BEGIN
 
     DELETE FROM public.driver_online_session WHERE driver_id = ANY (v_drv_ids);
     GET DIAGNOSTICS v_n = ROW_COUNT;  v_counts := v_counts || jsonb_build_object('driver_online_session', v_n);
+
+    DELETE FROM public.document_review_history WHERE driver_id = ANY (v_drv_ids);
+    GET DIAGNOSTICS v_n = ROW_COUNT;  v_counts := v_counts || jsonb_build_object('document_review_history', v_n);
+
+    DELETE FROM public.driver_document WHERE driver_id = ANY (v_drv_ids);
+    GET DIAGNOSTICS v_n = ROW_COUNT;  v_counts := v_counts || jsonb_build_object('driver_document', v_n);
 
     DELETE FROM public.driver_toda_affiliation WHERE driver_id = ANY (v_drv_ids);
     GET DIAGNOSTICS v_n = ROW_COUNT;  v_counts := v_counts || jsonb_build_object('driver_toda_affiliation', v_n);

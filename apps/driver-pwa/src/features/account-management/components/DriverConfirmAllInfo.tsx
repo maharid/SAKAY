@@ -199,7 +199,8 @@ export const DriverConfirmAllInfo: React.FC = () => {
     const targetPhone = state?.phone || localStorage.getItem('sakay_driver_phone') || '';
 
     try {
-      const res = await submitFinalDriverRegistration(targetPhone);
+      // A correction rewrites only the documents that were returned (an empty list: the database says which ones those are)
+      const res = await submitFinalDriverRegistration(targetPhone, isResubmission ? { returnedDocuments: faultyDocuments } : undefined);
       if (res.success) {
         clearResubmissionSession();
         console.log('[DriverConfirmAllInfo] Registration submitted successfully!');

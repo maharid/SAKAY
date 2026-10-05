@@ -19,6 +19,7 @@ import SakayToast from '../../../../common/components/SakayToast';
 import RegisterInput from '../../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../../utils/LanguageContext';
+import { isUnderMinimumAge } from '../../../../utils/passengerAge';
 import {
   ensurePassengerAuthSession,
   formatPhoneToE164,
@@ -77,6 +78,8 @@ export const Register: React.FC = () => {
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  // The date of birth was refused because the passenger is under the minimum age: the field itself goes red and shakes
+  const [dobUnderAge, setDobUnderAge] = useState(false);
   const [phoneRegisteredError, setPhoneRegisteredError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -194,6 +197,7 @@ export const Register: React.FC = () => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
     setAccountError(null);
+    setDobUnderAge(false);
 
     if (!isFormValid) {
       setShakeTrigger((prev) => prev + 1);
@@ -201,17 +205,10 @@ export const Register: React.FC = () => {
     }
 
     // --- CLIENT-SIDE AGE GATE (Under 12 years old block) ---
-    const dobDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - dobDate.getFullYear();
-    const m = today.getMonth() - dobDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
-      age--;
-    }
-
-    if (age < 12) {
+    if (isUnderMinimumAge(dob)) {
       setAccountError(t.under12Block);
       setToastMessage(t.under12Block);
+      setDobUnderAge(true);
       setShakeTrigger((prev) => prev + 1);
       return;
     }
@@ -419,11 +416,20 @@ export const Register: React.FC = () => {
             label={language === 'tl' ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"}
             type="date"
             value={dob}
-            onChange={setDob}
+            onChange={(value) => {
+              setDob(value);
+              setDobUnderAge(false);
+            }}
             required
-            error={hasAttemptedSubmit && !dob.trim()}
-            helperText={hasAttemptedSubmit && !dob.trim() ? (language === 'tl' ? 'Kailangan ang petsa ng kapanganakan.' : 'Date of birth is required.') : ''}
-            shake={shakeTrigger > 0 && hasAttemptedSubmit && !dob.trim()}
+            error={(hasAttemptedSubmit && !dob.trim()) || dobUnderAge}
+            helperText={
+              dobUnderAge
+                ? t.under12Block
+                : hasAttemptedSubmit && !dob.trim()
+                ? (language === 'tl' ? 'Kailangan ang petsa ng kapanganakan.' : 'Date of birth is required.')
+                : ''
+            }
+            shake={shakeTrigger > 0 && ((hasAttemptedSubmit && !dob.trim()) || dobUnderAge)}
             max={new Date().toISOString().split('T')[0]} // Max date is today
           />
 
