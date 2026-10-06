@@ -16,7 +16,6 @@ import MapIcon from '@mui/icons-material/Map';
 import SpeedIcon from '@mui/icons-material/Speed';
 import PeopleIcon from '@mui/icons-material/People';
 import L from 'leaflet';
-import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@sakay/shared';
 import 'leaflet/dist/leaflet.css';
 
 import { fetchOperationalReports, OperationalReportsData } from '../services/adminApiService';
@@ -118,7 +117,10 @@ export const AnalyticsPage: React.FC = () => {
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
     const map = L.map(mapRef.current, { center: CALAPAN_CENTER, zoom: 14, zoomControl: true });
-    L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
     hotspotLayer.current = L.layerGroup().addTo(map);
     leafletMap.current = map;
     return () => {

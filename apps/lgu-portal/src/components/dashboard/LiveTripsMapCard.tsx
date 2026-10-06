@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button } from '@mui/material';
 import L from 'leaflet';
 
-import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@sakay/shared';
 interface LiveTripsMapCardProps {
   ongoingTripsCount?: number;
 }
@@ -25,7 +24,9 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
     });
 
     // OpenStreetMap Tile Layer
-    L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
 
     // Zoom control in bottom right
     L.control.zoom({ position: 'bottomright' }).addTo(map);
