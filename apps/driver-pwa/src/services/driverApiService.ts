@@ -440,14 +440,19 @@ export async function fetchDriverNotifications(): Promise<any[]> {
       id: n.notification_id || n.id,
       title: n.title,
       message: n.message,
-      category: 'TODA Announcement',
+      category: n.notification_type === 'TODA_REMINDER' ? 'TODA Reminder' : 'TODA Announcement',
       type: 'alert',
       time: n.sent_at ? new Date(n.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent',
       timestamp: n.sent_at ? new Date(n.sent_at).toLocaleDateString('en-US') : 'Recent',
       read: false,
     }));
 
-    const announcements = (announcementsRes.data || []).map((a: any) => ({
+    // An announcement belongs to one TODA (or to everybody when it has none): a driver sees their own TODAs' and the general ones
+    const { data: affiliations } = await supabase.rpc('get_my_toda_affiliations');
+    const myTodaIds = new Set(((affiliations as any[]) || []).map((row: any) => String(row.toda_id)));
+    const announcements = (announcementsRes.data || [])
+      .filter((a: any) => !a.toda_id || myTodaIds.has(String(a.toda_id)))
+      .map((a: any) => ({
       id: a.announcement_id,
       title: a.title,
       message: a.message || a.content || '',

@@ -78,8 +78,9 @@ const path = require('path');
   check('exactly the five server-only functions were taken from signed-in users', same(lost.map((f) => f.split('(')[0]), ['activate_passenger_otp', 'check_otp_lockout', 'check_toda_excess_incidents', 'increment_failed_otp', 'reset_failed_otp']), lost);
   // 20261009000002 (multi-TODA registration) and 20261010000001 (return for correction per document) add functions on purpose.
   // 20261012000002 (Day 1) adds driver_pause_bookings / driver_resume_bookings: the signed-in driver calls them from the app.
-  check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 / 20261010 affiliation, document-return and roster-match functions, and the Day 1 pause functions, aside)',
-    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation|driver_pause_bookings|driver_resume_bookings)\(/.test(f)), gained);
+  // 20261013000001 (Day 2) adds send_toda_driver_reminder: the signed-in TODA administrator calls it from the portal.
+  check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 / 20261010 affiliation, document-return and roster-match functions, and the Day 1 / Day 2 functions, aside)',
+    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation|driver_pause_bookings|driver_resume_bookings|send_toda_driver_reminder)\(/.test(f)), gained);
   check(`signed-in users keep ${afterSet.size} functions (policy helpers, RPCs, workflow functions)`, afterSet.size > 60, afterSet.size);
   const serverOnly = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.activate_passenger_otp('+639170000001')`)));
   check('a signed-in passenger cannot activate an account (activate_passenger_otp)', permDenied(serverOnly), err(serverOnly));

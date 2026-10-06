@@ -25,6 +25,7 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { SendReminderDialog } from '../components/announcements/SendReminderDialog';
 import {
   fetchTodaAnnouncements,
   postTodaAnnouncement,
@@ -166,6 +167,10 @@ export const TodaAnnouncementsPage: React.FC = () => {
 
   const isFormValid = formTitle.trim() && formMessage.trim();
 
+  // Send a reminder to the TODA's drivers
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderNotice, setReminderNotice] = useState<string | null>(null);
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
       {/* 1. Summary KPI Cards */}
@@ -247,7 +252,39 @@ export const TodaAnnouncementsPage: React.FC = () => {
         >
           New Announcement
         </Button>
+        <Button
+          onClick={() => setReminderOpen(true)}
+          startIcon={<NotificationsActiveIcon />}
+          variant="outlined"
+          sx={{
+            height: 'auto',
+            alignSelf: 'stretch',
+            px: 3,
+            borderRadius: '12px',
+            fontSize: '14.5px',
+            fontWeight: 600,
+            textTransform: 'none',
+            borderColor: 'var(--sakay-orange)',
+            color: 'var(--sakay-orange)',
+            whiteSpace: 'nowrap',
+            '&:hover': { borderColor: 'var(--sakay-orange-hover)', backgroundColor: 'var(--sakay-orange-soft)' },
+          }}
+        >
+          Send Reminder
+        </Button>
       </Box>
+
+      {reminderNotice && (
+        <Box sx={{ mb: 2.5, p: '12px 18px', borderRadius: '10px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: '13.5px', fontWeight: 600 }}>
+          {reminderNotice}
+        </Box>
+      )}
+
+      <SendReminderDialog
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        onSent={(count) => setReminderNotice(`Reminder sent to ${count} driver${count === 1 ? '' : 's'}. They will see it under Abiso in the Driver App.`)}
+      />
 
       {/* 3. Announcements List Table with Clean Fixed Action Column */}
       <TableContainer

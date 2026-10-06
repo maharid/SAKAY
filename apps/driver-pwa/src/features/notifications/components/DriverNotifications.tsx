@@ -63,29 +63,6 @@ export function getRelativeTime(
   }
 }
 
-const DEFAULT_DRIVER_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'dn1',
-    titleTl: 'Maligayang Pagdating sa SAKAY Driver!',
-    titleEn: 'Welcome to SAKAY Driver!',
-    bodyTl: 'Magsimulang mag-Online upang makatanggap ng mga booking sa buong Calapan City!',
-    bodyEn: 'Go Online now to start receiving passenger dispatches across Calapan City!',
-    createdAt: new Date().toISOString(),
-    isRead: false,
-    category: 'promos',
-  },
-  {
-    id: 'dn2',
-    titleTl: 'Paalala mula sa TODA Administrator',
-    titleEn: 'Notice from TODA Administrator',
-    bodyTl: 'Manatiling maingat sa pagmamaneho at siguraduhing updated ang inyong lisensya at MTOP permit.',
-    bodyEn: 'Drive safely and keep your driver license and MTOP permit updated.',
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    isRead: false,
-    category: 'advisories',
-  },
-];
-
 export const DriverNotifications: React.FC = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
@@ -115,8 +92,8 @@ export const DriverNotifications: React.FC = () => {
   useEffect(() => {
     fetchDriverNotifications()
       .then((data) => {
-        if (data && data.length > 0) {
-          const mapped: NotificationItem[] = data.map((d: any) => ({
+        {
+          const mapped: NotificationItem[] = (data || []).map((d: any) => ({
             id: d.id,
             titleTl: d.title,
             titleEn: d.title,
@@ -126,15 +103,14 @@ export const DriverNotifications: React.FC = () => {
             timeTl: d.time,
             timeEn: d.time,
             isRead: !d.unread,
-            category: d.category === 'TODA Announcement' ? 'advisories' : 'promos',
+            category: d.category === 'TODA Announcement' || d.category === 'TODA Reminder' ? 'advisories' : 'promos',
           }));
           setFetchedNotifs(mapped);
-        } else {
-          setFetchedNotifs(DEFAULT_DRIVER_NOTIFICATIONS);
         }
       })
       .catch(() => {
-        setFetchedNotifs(DEFAULT_DRIVER_NOTIFICATIONS);
+        // Nothing to show is shown as nothing (no made-up notifications)
+        setFetchedNotifs([]);
       })
       .finally(() => setLoading(false));
   }, []);

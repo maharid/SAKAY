@@ -1300,6 +1300,19 @@ export async function recordTodaAuditAction(action: {
   }
 }
 
+export type ReminderAudience = 'ALL_DRIVERS' | 'EXPIRING_DOCUMENTS';
+
+/**
+ * Sends a reminder to the verified drivers of this TODA (or only those whose license or MTOP is expired or ends within 30 days).
+ * The database decides who is reached (send_toda_driver_reminder, migration 20261013000001) and records it in the audit log.
+ */
+export async function sendDriverReminder(audience: ReminderAudience, title: string, message: string): Promise<{ sent: number }> {
+  const { data, error } = await supabase.rpc('send_toda_driver_reminder', { p_audience: audience, p_title: title, p_message: message });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The reminder was not sent.'));
+  return { sent: Number(data.sent) || 0 };
+}
+
 export async function fetchTodaAnnouncements(todaId?: string): Promise<TodaAnnouncement[]> {
   try {
     const effectiveTodaId = await getEffectiveTodaId(todaId);
