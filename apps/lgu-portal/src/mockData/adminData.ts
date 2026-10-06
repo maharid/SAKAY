@@ -76,6 +76,8 @@ export interface AccreditedTodaRecord {
     name: string;
     type: string;
     date: string;
+    /** signed link to the stored file, when there is one */
+    url?: string | null;
   }[];
   driverRoster: {
     id: string;

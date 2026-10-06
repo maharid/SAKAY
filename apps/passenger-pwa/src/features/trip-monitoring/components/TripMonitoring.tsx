@@ -38,7 +38,7 @@ import PassengerCancelModal from '../../../common/components/PassengerCancelModa
 import SakayToast from '../../../common/components/SakayToast';
 import { getBooking, cancelBooking, updateBookingState } from '../../../services/bookingService';
 import type { BookingRecord } from '@sakay/shared';
-import { formatShortBookingId, calculateDistanceKm, formatDistance } from '@sakay/shared';
+import { formatShortBookingId, calculateDistanceKm, formatDistance, signedStorageUrl, SIGNED_URL_TTL } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -458,6 +458,25 @@ export const TripMonitoring: React.FC = () => {
   });
   const hasLiveDriverGpsRef = useRef(false);
 
+  // The assigned driver's photo and rating, as the database gives them (a photo only while the trip is live; none is invented)
+  const [driverPhotoUrl, setDriverPhotoUrl] = useState<string>('');
+  const [driverRating, setDriverRating] = useState<number | null>(null);
+  const assignedDriverId = booking?.driver_id;
+  useEffect(() => {
+    if (!activeBookingId || !assignedDriverId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: path } = await supabase.rpc('get_assigned_driver_photo', { p_booking_id: activeBookingId });
+        const url = typeof path === 'string' && path ? await signedStorageUrl(supabase, 'profiles', path, SIGNED_URL_TTL.avatar) : '';
+        if (!cancelled) setDriverPhotoUrl(url || '');
+      } catch {
+        if (!cancelled) setDriverPhotoUrl('');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeBookingId, assignedDriverId]);
+
   // Fetch initial booking details from Supabase if activeBookingId exists
   useEffect(() => {
     if (!activeBookingId) return;
@@ -498,6 +517,8 @@ export const TripMonitoring: React.FC = () => {
             driverInfo = Array.isArray(details) ? details[0] : details;
           }
           const todaInfo = driverInfo?.toda_name ? { toda_name: driverInfo.toda_name as string } : null;
+          const rating = Number(driverInfo?.weighted_average_rating);
+          setDriverRating(Number.isFinite(rating) && rating > 0 ? rating : null);
 
           const mappedStatus = mapBookingStatus(d.booking_status);
 
@@ -1087,7 +1108,7 @@ export const TripMonitoring: React.FC = () => {
           /* Driver Identity Card */
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar sx={{ width: 48, height: 48, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '20px' }}>
+              <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '20px' }}>
                 {driverName.charAt(0)}
               </Avatar>
               <Box>
@@ -1095,12 +1116,16 @@ export const TripMonitoring: React.FC = () => {
                   {status === 'Searching Driver' ? (language === 'tl' ? 'Naghahanap ng Drayber...' : 'Looking for Driver...') : driverName}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <StarIcon sx={{ fontSize: 14, color: '#FBBC04' }} />
-                  <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
-                    4.9
-                  </Typography>
+                  {driverRating !== null && (
+                    <>
+                      <StarIcon sx={{ fontSize: 14, color: '#FBBC04' }} />
+                      <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
+                        {driverRating.toFixed(1)}
+                      </Typography>
+                    </>
+                  )}
                   <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
-                    • {todaName.split(' ')[0]}
+                    {driverRating !== null ? '• ' : ''}{todaName.split(' ')[0]}
                   </Typography>
                 </Box>
               </Box>
