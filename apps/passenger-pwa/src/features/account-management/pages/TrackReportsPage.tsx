@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -12,10 +12,9 @@ import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 
 import PageHeader from "../../../common/components/PageHeader";
+import Alert from "@mui/material/Alert";
 import { useLanguage } from "../../../utils/LanguageContext";
-import type { IncidentReportItem } from "./TrackReportDetailPage";
-
-const STORAGE_KEY = "sakay_passenger_incident_reports";
+import { fetchMyIncidentReports, type IncidentReportItem } from "../../../services/incidentService";
 
 const TrackReportsPage: React.FC = () => {
   const { language } = useLanguage();
@@ -23,42 +22,26 @@ const TrackReportsPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "resolved" | "cancelled">("all");
 
-  const getReports = (): IncidentReportItem[] => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored
-        ? JSON.parse(stored)
-        : [
-            {
-              id: "INC-2026-9041",
-              incidentType: "Overcharging Attempt",
-              franchiseNo: "CAL-2025-0104",
-              description: "Nanghingi ng sobrang ₱20 lampas sa taripa mula Calapan Port hanggang City Hall.",
-              status: "Under Investigation (LGU & TODA)",
-              submittedAt: "Aug 13, 2026",
-              officialResponse: "Naipasa na ang reklamong ito sa TODA Grievance Committee. Ang drayber ay ipinatawag sa City Transport Office.",
-            },
-            {
-              id: "INC-2026-8812",
-              incidentType: "Rude Behavior",
-              franchiseNo: "TODA-452",
-              description: "Bastos at hindi nagbigay ng sukli nang maayos.",
-              status: "Resolved",
-              submittedAt: "Jul 28, 2026",
-              officialResponse: "Ang drayber ay nagbigay ng opisyal na paumanhin at binigyan ng warning ticket ng LGU.",
-            },
-          ];
-    } catch {
-      return [];
-    }
-  };
+  const [reports, setReports] = useState<IncidentReportItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const reports = getReports();
+  // The reports come from the database (the passenger only ever receives their own), newest first.
+  useEffect(() => {
+    let alive = true;
+    fetchMyIncidentReports()
+      .then((list) => alive && setReports(list))
+      .catch((err) => alive && setLoadError(err instanceof Error ? err.message : String(err)))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const filteredReports = reports.filter((r) => {
     if (activeTab === "all") return true;
     if (activeTab === "pending") return r.status === "Submitted" || r.status === "Under Investigation (LGU & TODA)";
-    if (activeTab === "resolved") return r.status === "Resolved" || r.status === "Action Taken";
+    if (activeTab === "resolved") return r.status === "Resolved";
     if (activeTab === "cancelled") return r.status === "Cancelled";
     return true;
   });
@@ -66,7 +49,6 @@ const TrackReportsPage: React.FC = () => {
   const getStatusChipProps = (status: string) => {
     switch (status) {
       case "Resolved":
-      case "Action Taken":
         return { backgroundColor: "#ECFDF5", color: "#10B981" };
       case "Under Investigation (LGU & TODA)":
       case "Submitted":
@@ -169,7 +151,19 @@ const TrackReportsPage: React.FC = () => {
           flexDirection: "column",
         }}
       >
-        {filteredReports.length === 0 ? (
+        {loading ? (
+          <Box sx={{ p: 4, textAlign: "center" }}>
+            <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+              {language === "tl" ? "Kinukuha ang iyong mga ulat..." : "Loading your reports..."}
+            </Typography>
+          </Box>
+        ) : loadError ? (
+          <Box sx={{ p: 2.5 }}>
+            <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
+              {loadError}
+            </Alert>
+          </Box>
+        ) : filteredReports.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center" }}>
             <TrackChangesOutlinedIcon sx={{ fontSize: 48, color: "#CBD5E1", mb: 1 }} />
             <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
@@ -280,7 +274,7 @@ const TrackReportsPage: React.FC = () => {
                           mb: 0.5,
                         }}
                       >
-                        Unit: <strong>{report.franchiseNo}</strong> • {report.description}
+                        Trip: <strong>{report.tripSummary}</strong> • {report.description}
                       </Typography>
 
                       <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>

@@ -40,6 +40,7 @@ import { getBooking, cancelBooking, updateBookingState } from '../../../services
 import type { BookingRecord } from '@sakay/shared';
 import { formatShortBookingId, calculateDistanceKm, formatDistance } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
+import { submitIncidentReport } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { startDispatch } from '../../../services/dispatchService';
 
@@ -365,6 +366,8 @@ export const TripMonitoring: React.FC = () => {
   const [disputeCategory, setDisputeCategory] = useState('Overcharging Attempt');
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+  const [disputeError, setDisputeError] = useState<string | null>(null);
+  const [disputeSending, setDisputeSending] = useState(false);
 
   const handlePassengerFinishTrip = async () => {
     try {
@@ -1572,6 +1575,10 @@ export const TripMonitoring: React.FC = () => {
                   : 'This report is sent directly to the City LGU Administrator under Complaint & Incident Management.'}
               </Typography>
 
+              {disputeError && (
+                <Alert severity="error" sx={{ borderRadius: '12px' }}>{disputeError}</Alert>
+              )}
+
               <TextField
                 select
                 fullWidth
@@ -1635,33 +1642,23 @@ export const TripMonitoring: React.FC = () => {
               variant="contained"
               fullWidth
               color="error"
+              disabled={disputeSending || !activeBookingId}
               onClick={async () => {
-                const payload = {
-                  incident_id: `INC-${Date.now().toString().slice(-6)}`,
-                  booking_id: activeBookingId,
-                  driver_name: driverName,
-                  reporter_name: booking?.passenger_name || 'Passenger User',
-                  reporter_role: 'Passenger',
-                  category: disputeCategory || 'Overcharging Attempt',
-                  description: `Disputed Fare. Expected: ₱${passengerPayableFare.toFixed(2)}, Actual: ₱${disputedAmount || passengerPayableFare}. Details: ${disputeReason}`,
-                  status: 'Pending Review',
-                  reported_at: new Date().toISOString(),
-                };
-
+                setDisputeError(null);
+                setDisputeSending(true);
                 try {
-                  await supabase.from('incident_report').insert([payload]);
+                  // The database takes the driver, the TODA and the reporter from the booking; only the facts of the complaint are sent.
+                  await submitIncidentReport({
+                    bookingId: activeBookingId as string,
+                    category: disputeCategory || 'Overcharging Attempt',
+                    description: `Disputed Fare. Expected: ₱${passengerPayableFare.toFixed(2)}, Actual: ₱${disputedAmount || passengerPayableFare}. Details: ${disputeReason}`,
+                  });
                 } catch (err) {
-                  console.warn('[TripMonitoring] Supabase incident insert note:', err);
+                  setDisputeError(err instanceof Error ? err.message : String(err));
+                  setDisputeSending(false);
+                  return;
                 }
-
-                try {
-                  const stored = localStorage.getItem('sakay_shared_incidents') || '[]';
-                  const list = JSON.parse(stored);
-                  list.unshift(payload);
-                  localStorage.setItem('sakay_shared_incidents', JSON.stringify(list));
-                } catch (err) {
-                  console.warn('[TripMonitoring] Local incident storage note:', err);
-                }
+                setDisputeSending(false);
 
                 setDisputeSubmitted(true);
                 setTimeout(() => {

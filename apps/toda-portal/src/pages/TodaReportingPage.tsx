@@ -119,12 +119,13 @@ export const TodaReportingPage: React.FC = () => {
         status: (inc.status === 'Resolved'
           ? 'Resolved (TODA Level)'
           : inc.status === 'Under Investigation'
-          ? 'Under Investigation'
-          : inc.status === 'Dismissed'
+          ? (String(inc.resolution_notes || inc.resolution || '').startsWith('[Escalated to LGU') ? 'Escalated to LGU' : 'Under Investigation')
+          : inc.status === 'Dismissed' || inc.status === 'Cancelled'
           ? 'Dismissed'
           : 'Pending Review') as any,
+        findings: inc.status === 'Cancelled' ? `Withdrawn by the reporter: ${inc.cancellation_reason || 'no reason given'}` : (inc.resolution_notes || inc.resolution || undefined),
         tripId: inc.booking_id || inc.trip_id || 'TRIP-001',
-        evidenceFiles: [],
+        evidenceFiles: inc.evidence_files ?? [],
       }));
 
       setBookings(mappedBookings);
@@ -276,7 +277,7 @@ export const TodaReportingPage: React.FC = () => {
   const handleResolveIncident = async () => {
     if (!selectedIncident) return;
 
-    await submitIncidentRemarks(selectedIncident.id, 'Resolved at TODA administration level.');
+    await submitIncidentRemarks(selectedIncident.id, 'Resolved at TODA administration level.', 'Resolved');
 
     setIncidents((prev) =>
       prev.map((i) =>
@@ -652,6 +653,30 @@ export const TodaReportingPage: React.FC = () => {
                 {selectedIncident.description || 'No detailed description provided.'}
               </Typography>
             </Box>
+
+            {(selectedIncident.evidenceFiles?.length ?? 0) > 0 && (
+              <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
+                  Attached Photo Evidence ({selectedIncident.evidenceFiles?.length})
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  {selectedIncident.evidenceFiles?.map((file) => (
+                    <Box key={file.url} component="a" href={file.url} target="_blank" rel="noreferrer" sx={{ display: 'block', lineHeight: 0 }}>
+                      <Box component="img" src={file.url} alt={file.name} sx={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }} />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            {selectedIncident.findings && (
+              <Box sx={{ backgroundColor: '#EFF6FF', p: 2.5, borderRadius: '12px', border: '1px solid #BFDBFE' }}>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1D4ED8', textTransform: 'uppercase', mb: 1 }}>
+                  Review Notes
+                </Typography>
+                <Typography sx={{ fontSize: '14px', color: '#1E3A8A', lineHeight: 1.6 }}>{selectedIncident.findings}</Typography>
+              </Box>
+            )}
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, pt: 2, borderTop: '1px solid var(--mac-border-color)' }}>
               <Button

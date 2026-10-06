@@ -19,7 +19,7 @@ import {
   TodaAuditLog,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import type { RejectionReasonCode } from '@sakay/shared';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
@@ -1168,17 +1168,25 @@ export async function fetchTodaIncidents(todaId?: string) {
       inc.booking?.toda_id === effectiveTodaId
     );
     const contacts = await passengerContacts(mine.map((inc: any) => inc.booking_id).filter(Boolean));
-    return mine.map((inc: any) => ({ ...inc, passenger: (inc.booking_id && contacts.get(inc.booking_id)) || null }));
+    return await Promise.all(
+      mine.map(async (inc: any) => ({
+        ...inc,
+        passenger: (inc.booking_id && contacts.get(inc.booking_id)) || null,
+        // short-lived links to the photos the reporter attached (the TODA administrator of the reported driver may read them)
+        evidence_files: await signIncidentEvidence(supabase, inc.evidence_paths),
+      }))
+    );
   } catch {
     return [];
   }
 }
 
-export async function submitIncidentRemarks(incidentId: string, remarks: string) {
+export async function submitIncidentRemarks(incidentId: string, remarks: string, status?: 'Resolved') {
+  // The database stamps the signed-in TODA administrator as the reviewer (reviewed_by_toda is a UUID the guard fills in).
   const updatePayload: Record<string, any> = {
     resolution: remarks,
     resolution_notes: remarks,
-    reviewed_by_toda: true,
+    ...(status ? { status } : {}),
   };
   const { data, error } = await supabase
     .from('incident_report')
@@ -1205,7 +1213,6 @@ export async function escalateIncidentToLgu(incidentId: string, remarks?: string
     status: 'Under Investigation',
     resolution: escalationNote,
     resolution_notes: escalationNote,
-    reviewed_by_toda: true,
   };
   const { data, error } = await supabase
     .from('incident_report')
