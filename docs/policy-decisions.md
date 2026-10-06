@@ -617,3 +617,21 @@ Built to raise the checklist score (`docs/checklist-accomplishment.md`); none of
 **For Batch 6 (dispatch rewrite):** the new dispatcher must keep excluding a driver whose `bookings_paused_until` is in the future (D-D1-5).
 **For Batch 11:** a report can currently be filed for any booking that had a driver (the fare-dispute dialog files one before the trip is marked Completed); the screen's trip picker lists completed trips only. Emergency reports during a trip are Batch 11's.
 **Not changed:** `fetchTodaIncidents` and `fetchIncidents` still read every row the account may see and filter in the app; the row policies already scope them.
+
+
+---
+
+## 11. Day 2 (2026-10-06): TODA reports, reminders, documents, driver photo
+
+Built to raise the checklist score (`docs/checklist-accomplishment.md`: TODA 58, 61, 63, 64, 65, 66, 68; LGU 11; Passenger 85). None of these are rules of the policy document, so they are recorded here.
+
+| Ref | Decision | Where it lives |
+|---|---|---|
+| **D-D2-1** | **TODA reports are computed from the TODA's own bookings**, in the same shared functions as the LGU analytics. Booking volume is grouped by day, week (Monday start) or month in Asia/Manila; "estimated gross fare" is the sum of the fare of completed trips (the final fare once it exists, otherwise the estimate). Driver activity counts completed and cancelled trips, distance and the latest completed trip per member, and marks a driver **Active** when they completed a trip in the last days shown on the screen. Every report can be exported to CSV and the export is written to the audit log. | `transportAnalytics.ts` (`volumeByPeriod`, `driverActivity`), `BookingVolumeReport.tsx`, `DriverActivityReport.tsx`, `csvDownload.ts` |
+| **D-D2-2** | **"Active drivers" means Online right now.** The Operations page shows Online, On a trip, Paused and Offline from the presence state; account status alone no longer counts as active. | `TodaOperationsPage.tsx` |
+| **D-D2-3** | **A reminder is sent by one database function, never by a direct write.** A TODA administrator cannot write a driver's notification (and must never reach another TODA's drivers), so `send_toda_driver_reminder(audience, title, message)` is the only way. Recipients are drivers whose membership of the sender's own TODA is endorsed and approved and whose account is Verified. Audiences: all of them, or only those whose Driver's License or MTOP is expired or ends within 30 days (the 30 days follow the renewal rule, 24.1 and 24.4). Title 1 to 80 and message 1 to 500 characters; a second send within 30 seconds is refused (a double tap); every send is audited with the audience and the count. | migration `20261013000001`, `SendReminderDialog.tsx` |
+| **D-D2-4** | **The Driver app shows only real notices.** The built-in sample notifications ("Welcome to SAKAY Driver", a made-up TODA notice) are removed, and announcements are limited to the driver's own TODAs (or ones that name no TODA). A reminder appears under the same Abiso list. | `DriverNotifications.tsx`, `driverApiService.ts` |
+| **D-D2-5** | **The LGU's TODA detail screen lists the files the TODA really uploaded** (Barangay Clearance, driver list, bylaws) using the same helper as the application review; a TODA with none says so. | `todaDocumentsOf` in `adminApiService.ts` |
+| **D-D2-6** | **The assigned driver's photo reaches only the passenger of a live trip.** `get_assigned_driver_photo(booking)` returns the photo's storage path to the booking's own passenger while the trip is live (the same moment the storage rule lets them open it) and nothing otherwise; the app signs a short link. The trip screen also shows the driver's real rating (hidden when there is none) instead of a fixed 4.9. | migration `20261013000002`, `TripMonitoring.tsx` |
+
+**Not changed:** the TODA registration number field (checklist 43), editing a roster member (56), and a TODA suspending a driver directly (55: it recommends to the LGU) are left for after the defense.

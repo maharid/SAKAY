@@ -2,7 +2,7 @@
 
 Checklist audited: `SAKAY - Checklist.pdf` (128 line items, four roles; the Points and Score columns in the PDF are blank).
 
-**Status after Day 1 (2026-10-06):** the first audit scored 80.9% (strict 74.2%). The Day 1 work lifts 13 items; the totals below are the updated ones. The Day 1 items need migrations `20261012000001` and `20261012000002` applied to the hosted database before they work live.
+**Status after Day 2 (2026-10-06):** the first audit scored 80.9% (strict 74.2%). Day 1 lifted 13 items (88.3%) and Day 2 lifts another 9 (TODA reports, reminders, utilization, real TODA documents, driver photo); the totals below are the updated ones. All migrations through `20261013000002` are applied to the hosted project (checked with `supabase migration list`).
 Code audited: git `HEAD d367ec2` (2026-10-06): the four apps, the Express server, the Supabase migrations and the shared package.
 Method: each item was traced from the screen down to the data it uses (service function, database table or function, server route). I did not run the apps; "works" means the code path is complete and uses real data.
 
@@ -20,15 +20,15 @@ Percent = points / items. The checklist gives no weights, so every item counts t
 
 | Role | Items | I | P | M | Points | Percent |
 |---|---|---|---|---|---|---|
-| LGU Administrator | 42 | 40 | 2 | 0 | 41.0 | **97.6%** |
-| TODA Administrator | 29 | 18 | 6 | 5 | 21.0 | **72.4%** |
-| Passenger | 25 | 22 | 1 | 2 | 22.5 | **90.0%** |
+| LGU Administrator | 42 | 41 | 1 | 0 | 41.5 | **98.8%** |
+| TODA Administrator | 29 | 25 | 3 | 1 | 26.5 | **91.4%** |
+| Passenger | 25 | 23 | 0 | 2 | 23.0 | **92.0%** |
 | Driver | 32 | 28 | 1 | 3 | 28.5 | **89.1%** |
-| **Total** | **128** | **108** | **10** | **10** | **113.0** | **88.3%** |
+| **Total** | **128** | **117** | **5** | **6** | **119.5** | **93.4%** |
 
-(Before Day 1: 95 / 17 / 16 and 103.5 points = 80.9%.)
+(Before Day 1: 95 / 17 / 16 and 103.5 points = 80.9%. After Day 1: 108 / 10 / 10 and 113.0 points = 88.3%.)
 
-Strictest reading (only fully working items count, partials count zero): 108 / 128 = **84.4%** (before Day 1: 74.2%).
+Strictest reading (only fully working items count, partials count zero): 117 / 128 = **91.4%** (after Day 1: 84.4%; before Day 1: 74.2%).
 
 ---
 
@@ -46,7 +46,7 @@ Strictest reading (only fully working items count, partials count zero): 108 / 1
 | 8 | View accredited TODAs | I | `fetchAccreditedTodas`. |
 | 9 | View TODA information | I | TODA detail modal. |
 | 10 | View service coverage | I | "Service Coverage Area" and terminal map pin in the detail modal. |
-| 11 | View registration and accreditation information | P | Accreditation number and dates are real, but the document list in the same modal is hard-coded placeholders ("SEC / CDA Registration Certificate", "Mayor's Permit", date "2024") (`TodaDetailModal.tsx` ~L133). |
+| 11 | View registration and accreditation information | I | Accreditation number and dates are real, and the document list shows the files the TODA actually uploaded (Barangay Clearance, driver list, bylaws) with signed links (`todaDocumentsOf` in `adminApiService.ts`); a TODA with no files shows "No registration documents are on file".
 | 12 | View driver records | I | `fetchDrivers`. |
 | 13 | Review driver verification information | I | Driver detail modal with documents, renewals, roster flag. |
 | 14 | View driver TODA affiliation | I | Per-affiliation status (multi-affiliation added in migration `20261009000002`). |
@@ -98,17 +98,17 @@ Strictest reading (only fully working items count, partials count zero): 108 / 1
 | 55 | Suspend or reactivate drivers | P | The TODA admin can only send a recommendation to the LGU (`suspendTodaDriver` creates a review flag). |
 | 56 | Update member information | P | Roster entries can be added; members cannot be edited. |
 | 57 | View active bookings | I | Operations page. |
-| 58 | View active drivers | P | Counts drivers whose account is Active, not drivers who are Online right now. |
+| 58 | View active drivers | I | Operations shows drivers who are Online right now (and On a trip / Paused / Offline) from the presence state, not just active accounts.
 | 59 | View ongoing trips | I | "Active Trips" panel. |
 | 60 | View booking statistics | I | Active, completed today, cancelled today. |
-| 61 | View driver utilization statistics | M | Driver table shows name, franchise, status only. |
+| 61 | View driver utilization statistics | I | Driver Utilization card (online, on a trip, paused, offline) and a Trips column per driver; Driver Activity report (completed, cancelled, distance, estimated fare, latest trip, active in the last days).
 | 62 | Publish announcements to TODA members | I | `postTodaAnnouncement`; drivers see them under Abiso. |
-| 63 | Send reminders | M | No reminder feature (announcements only). |
-| 64 | Daily, weekly, monthly booking reports | P | One trip ledger with date filter and CSV; no daily/weekly/monthly roll-ups. |
-| 65 | Driver trip volume and activity reports | M | Not built. |
-| 66 | Platform booking volume reports | M | Not built (a count of ledger rows only). |
+| 63 | Send reminders | I | Announcements page has Send Reminder: all verified drivers, or only those whose license or MTOP is expired or ends within 30 days (`send_toda_driver_reminder`, migration `20261013000001`); recipients are limited to the sender's own TODA, double sends are refused, every send is audited, drivers see it under Abiso.
+| 64 | Daily, weekly, monthly booking reports | I | Booking Volume & Fares tab: daily, weekly and monthly roll-ups (requests, completed, cancelled, no driver, shared, estimated gross fare, completion rate) with CSV export.
+| 65 | Driver trip volume and activity reports | I | Driver Activity tab: completed and cancelled trips, distance, estimated gross fare, latest completed trip and active status per driver, with CSV export.
+| 66 | Platform booking volume reports | I | Booking Volume & Fares tab: total bookings and the outcome split for the TODA over the chosen period, with CSV export.
 | 67 | Incident summary reports | I | Incidents and Complaints tab, status filters, CSV. |
-| 68 | Estimated gross fare value reports | P | Fare per trip in the ledger; no gross total report. |
+| 68 | Estimated gross fare value reports | I | Booking Volume & Fares tab: estimated gross fare per period and in total (completed trips), with CSV export.
 | 69 | View bookings and incidents | I | Reporting page. |
 | 70 | Review incident details | I | Incident modal. |
 | 71 | Escalate incidents to LGU | I | `escalateIncidentToLgu`. |
@@ -130,7 +130,7 @@ Strictest reading (only fully working items count, partials count zero): 108 / 1
 | 82 | View the shared fare estimate before confirming | I | Matched estimate and Maximum Unmatched Fare both shown. |
 | 83 | View the finalized proportionate fare allocation after completion | M | `allocate_shared_fares` exists in the database but nothing calls it; no matched trips exist. |
 | 84 | View the driver's live location | I | Position through `get_assigned_driver_details` and a broadcast channel. |
-| 85 | View driver name, photo, franchise number | P | Name and franchise number shown; no driver photo is returned or displayed. |
+| 85 | View driver name, photo, franchise number | I | Name, franchise number, plate, TODA and the driver's real rating are shown, and the driver's photo while the trip is live (`get_assigned_driver_photo`, migration `20261013000002`; the photo shows the initial when the driver has none).
 | 86 | Monitor trip progress pickup to destination | I | Progress bar and status steps. |
 | 87 | View estimated time of arrival | I | Shown, but computed as a fixed 3 minutes per km, not from the routing engine. |
 | 88 | Submit rating and written feedback | I | Writes to the `rating` table. |
@@ -192,22 +192,22 @@ These are not checklist lines, so they are not in the percentage, but they decid
 |---|---|
 | Policy batches | Batches 0 to 5 done; Batches 6 to 13 (dispatch, stall and connectivity, no-show and cancellation, trip completion and disputes, ride-sharing, incidents and emergencies, ratings and fraud, final audit) are not built. |
 | Dispatch | Runs inside the passenger's browser (`dispatchService.ts`); if the passenger closes or backgrounds the app, dispatch stops. Batch 6. |
-| Database on the hosted project | I cannot see it. Five migrations dated 2026-10-09 to 10-10 (multi-affiliation, document returns, OTP window, rejection reasons, roster override) and Batch 4's `20261006000003` may not be applied there. Check with `node scripts/applyPerimeterLockdown.js preflight` and the migration history. |
+| Database on the hosted project | Checked on 2026-10-06 with `supabase migration list`: every local migration through `20261013000002` is applied on the hosted project (the GitHub integration applies a migration shortly after a push to `main`). |
 | Maps and routing | Uses the public OpenStreetMap and OSRM demonstration servers; not allowed for production load. |
 | SMS | Goes through an Android phone gateway on a SIM (`SMS_GATEWAY_*`); one phone is a single point of failure. |
 | OTP store | Held in server memory: a server restart loses issued codes. The free Render plan also sleeps. |
 | Realtime channels | Trip and position broadcast channels are public (decision D-SEC-13). |
 | Scheduled jobs | Presence sweep runs in the database (pg_cron). The SLA and expiry jobs still depend on the Express server timer. |
 | Security | Perimeter lockdown (S0 to S4) written and tested locally; whether it is applied on the hosted project is not visible to me. Sign-ups are open by design. |
-| Tests | 27 database suites (all pass locally), 119 server tests; no automated tests for any screen; no CI workflow in the repository. |
-| Data quality | Analytics values that are fixed in code: five map hotspots, "84%" utilization, "100%" compliance, passenger "rating 5.0 / 0 bookings", placeholder TODA documents. |
+| Tests | 38 database suites (all pass locally), 152 server tests; no automated tests for any screen; no CI workflow in the repository. |
+| Data quality | Fixed in Day 1 and Day 2: the LGU analytics and TODA reports now compute from real bookings, the placeholder TODA documents are gone, the driver notification list no longer shows made-up samples and the passenger trip screen no longer shows a fixed "4.9". Still fixed in code: passenger "rating 5.0 / 0 bookings" on the LGU passenger screen (item 17). |
 | Not in the checklist but in the policy | Audit log export to PDF or Excel (Rule 28.4), the exemption and appeal screens, the emergency strike-pause screen. |
 
 ## What is still open, in order of payoff
 
 Done on Day 1: passenger incident reports (items 23, 90 to 93), the LGU analytics and reports (34, 35, 36, 38, 39, 40) and driver pause and resume (106, 107).
+Done on Day 2: TODA reports and tools (58, 61, 63, 64, 65, 66, 68), the real TODA documents on the LGU detail screen (11) and the driver photo and rating on the passenger trip screen (85).
 
 1. Ride-sharing end to end (matching, the driver's additional-passenger request, recalculated and final fare): Driver 116, 117, 119 and Passenger 83.
-2. TODA reports and tools (daily/weekly/monthly roll-ups, driver volume, platform volume, gross fare, reminders, member edit, registration number): TODA 43, 55, 56, 58, 61, 63, 64 to 66, 68.
-3. TODA OTP on registration (46) and passenger password recovery with OTP (75).
-4. Smaller: the driver photo on the passenger's trip screen (85), choosing a verified tricycle unit (104), the placeholder documents on the accredited-TODA detail screen (11), and a complaints view (29).
+2. TODA OTP on registration (46) and passenger password recovery with OTP (75).
+3. Smaller: TODA registration number field (43), TODA member editing (56), TODA suspend or reactivate drivers directly (55), choosing a verified tricycle unit (104), and a complaints view (29).
