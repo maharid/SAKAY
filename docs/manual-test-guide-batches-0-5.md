@@ -426,7 +426,7 @@ These need two migrations applied to the hosted database first: `20261013000001`
   1. Log in as a TODA admin and open **TODA Reports & Incidents**.
   2. Open the **Booking Volume & Fares** tab. Switch between **Daily**, **Weekly** and **Monthly**.
   3. Open the **Driver Activity** tab.
-  4. On each tab click **Export CSV**.
+  4. On each tab click the export button (for example **Export Daily Report (CSV)**).
 - **Expected Result:** Each period row shows requests, completed, cancelled, no driver, shared, estimated gross fare and completion rate; the totals match the bookings of this TODA only. Driver Activity lists each member with completed and cancelled trips, distance, estimated fare and latest trip. A CSV file downloads and opens with the same numbers.
 
 #### Step 2: TODA operations show who is online and utilization
