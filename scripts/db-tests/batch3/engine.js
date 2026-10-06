@@ -3,7 +3,8 @@ const { ID, seed } = require('../fixtures');
 const DAY = 86400000;
 
 (async () => {
-  const db = await freshDb('20261004000002_batch3_strike_engine.sql');
+  // Whole chain: the suspension lengths (7 and 30 days) are set by 20261011000001, after Batch 3's own migrations.
+  const db = await freshDb();
   await seed(db);
   const svc = (fn) => asUser(db, { role: 'service_role' }, fn, { commit: true });
   const lgu = (fn) => asUser(db, { uid: ID.L_AUTH }, fn, { commit: true });
@@ -39,17 +40,17 @@ const DAY = 86400000;
       check(`strike ${n}: consequence ${want}`, (r.value.consequence ?? null) === want && r.value.active_after === n, r.value);
       if (n === 5) {
         const s = await row(type, id);
-        check('5 strikes -> Suspended for 3 days (LADDER, threshold 5)',
-          s.account_status === 'Suspended' && s.suspension_kind === 'LADDER' && s.suspension_threshold === 5 && Math.abs(days(s.suspended_until) - 3) < 0.05, s);
+        check('5 strikes -> Suspended for 7 days (LADDER, threshold 5)',
+          s.account_status === 'Suspended' && s.suspension_kind === 'LADDER' && s.suspension_threshold === 5 && Math.abs(days(s.suspended_until) - 7) < 0.05, s);
         if (type === 'driver') check('available driver forced offline on suspension', s.availability_status === 'Offline', s);
       }
       if (n === 7) {
         const s = await row(type, id);
-        check('strikes 6-7 inside suspension do not change the end date', Math.abs(days(s.suspended_until) - 3) < 0.05, s);
+        check('strikes 6-7 inside suspension do not change the end date', Math.abs(days(s.suspended_until) - 7) < 0.05, s);
       }
       if (n === 8) {
         const s = await row(type, id);
-        check('8 strikes -> suspension extended to 7 days', Math.abs(days(s.suspended_until) - 7) < 0.05 && s.suspension_threshold === 8, s);
+        check('8 strikes -> suspension extended to 30 days', Math.abs(days(s.suspended_until) - 30) < 0.05 && s.suspension_threshold === 8, s);
       }
     }
     const s = await row(type, id);
@@ -97,7 +98,7 @@ const DAY = 86400000;
   check('reinstated account keeps its strike count (22.4)', afterRe.strikes_count >= 7, afterRe);
   const again = await strike('passenger', ID.P1, 'PAX_LATE_CANCEL', 'p1-after-reinstate');
   const afterAgain = await row('passenger', ID.P1);
-  check('reinstated account keeps counting: 7 -> 8 strikes crosses the 8-strike 7-day suspension',
+  check('reinstated account keeps counting: 7 -> 8 strikes crosses the 8-strike 30-day suspension',
     again.ok && again.value.active_after === 8 && again.value.consequence === 'SUSPENSION' && afterAgain.account_status === 'Suspended' && afterAgain.strikes_count === 8, { again, afterAgain });
   // Driver D1 sits at 10 strikes and is deactivated: reinstate, then one more strike must deactivate again.
   await lgu((tx) => tx.query(`SELECT public.admin_reinstate_account('driver','${ID.D1}','TODA appeal reviewed',true)`));

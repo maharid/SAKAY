@@ -2,7 +2,8 @@ const { freshDb, asUser, attempt, check, summary } = require('../tlib');
 const { ID, seed } = require('../fixtures');
 
 (async () => {
-  const db = await freshDb('20261004000004_batch3_enforcement_guards.sql');
+  // Whole chain, like the other Batch 3 suites (the ladder lengths come from 20261011000001).
+  const db = await freshDb();
   await seed(db);
   const svc = (fn) => asUser(db, { role: 'service_role' }, fn, { commit: true });
   const as = (uid, fn) => asUser(db, { uid }, fn, { commit: true });
@@ -19,7 +20,7 @@ const { ID, seed } = require('../fixtures');
   check('control: an unrestricted passenger can book', ctrl.ok, ctrl);
   await db.exec(`DELETE FROM booking`);
 
-  await strikeN('passenger', ID.P1, 'PAX_LATE_CANCEL', 5, 'p1');           // 5 strikes -> 3-day suspension
+  await strikeN('passenger', ID.P1, 'PAX_LATE_CANCEL', 5, 'p1');           // 5 strikes -> 7-day suspension
   const sus = await book(ID.P_AUTH, ID.P1);
   check('suspended passenger cannot create a booking (DB-enforced)', !sus.ok && /ERR_ACCOUNT_SUSPENDED/.test(sus.error), sus);
   check('the error names the end of the suspension in Manila time', /until [A-Z][a-z]{2} \d{2}, \d{4}.*PHT/.test(sus.error) && /until=\d{4}-\d{2}-\d{2}T/.test(sus.error), sus.error);

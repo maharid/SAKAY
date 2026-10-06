@@ -2,7 +2,8 @@ const { freshDb, asUser, attempt, check, summary } = require('../tlib');
 const { ID, seed } = require('../fixtures');
 
 (async () => {
-  const db = await freshDb('20261004000003_batch3_exemptions_and_sweep.sql');
+  // Whole chain: the 48-hour window and the 7/30-day suspensions are set by 20261011000001, after Batch 3's own migrations.
+  const db = await freshDb();
   await seed(db);
   const svc = (fn) => asUser(db, { role: 'service_role' }, fn, { commit: true });
   const as = (uid, fn) => asUser(db, { uid }, fn, { commit: true });
@@ -60,16 +61,16 @@ const { ID, seed } = require('../fixtures');
 
   // window
   await strike('driver', ID.D1, 'DRV_STALL', 'd1-late');
-  await db.exec(`UPDATE strikes_ledger SET issued_at = now() - interval '73 hours' WHERE idempotency_key='d1-late'`);
+  await db.exec(`UPDATE strikes_ledger SET issued_at = now() - interval '49 hours' WHERE idempotency_key='d1-late'`);
   const late = await request(ID.D_AUTH, await sid('d1-late'));
-  check('request after 72 hours is rejected (D1 window)', !late.ok && /72 hour window/.test(late.error), late);
-  await strike('driver', ID.D1, 'DRV_STALL', 'd1-ok71');
-  await db.exec(`UPDATE strikes_ledger SET issued_at = now() - interval '71 hours' WHERE idempotency_key='d1-ok71'`);
-  check('request at 71 hours is accepted', (await request(ID.D_AUTH, await sid('d1-ok71'))).ok);
+  check('request after 48 hours is rejected (Rule 25.1 window)', !late.ok && /48 hour window/.test(late.error), late);
+  await strike('driver', ID.D1, 'DRV_STALL', 'd1-ok47');
+  await db.exec(`UPDATE strikes_ledger SET issued_at = now() - interval '47 hours' WHERE idempotency_key='d1-ok47'`);
+  check('request at 47 hours is accepted', (await request(ID.D_AUTH, await sid('d1-ok47'))).ok);
   await strike('driver', ID.D1, 'DRV_DELIBERATE_OFFLINE', 'd1-delib');
   const nel = await request(ID.D_AUTH, await sid('d1-delib'));
   check('deliberate mid-trip offline (9.6) is not eligible for exemption', !nel.ok && /not eligible/.test(nel.error), nel);
-  const stranger = await request(ID.D3_AUTH, await sid('d1-ok71'));
+  const stranger = await request(ID.D3_AUTH, await sid('d1-ok47'));
   check('only the account holder can request an exemption for their strike', !stranger.ok && /your own strike/.test(stranger.error), stranger);
 
   // ===== 25.7 / PI-B2 repeated cause ========================================
@@ -102,7 +103,7 @@ const { ID, seed } = require('../fixtures');
   await strike('driver', ID.D2, 'DRV_STALL', 'd2-s2');
   await strike('driver', ID.D2, 'DRV_STALL', 'd2-s3');
   await strike('driver', ID.D2, 'DRV_STALL', 'd2-s4');
-  const trig = await strike('driver', ID.D2, 'DRV_STALL', 'd2-s5');   // 5 strikes -> 3-day suspension
+  const trig = await strike('driver', ID.D2, 'DRV_STALL', 'd2-s5');   // 5 strikes -> 7-day suspension
   const suspLevel = await request(ID.D2_AUTH, await sid('d2-s5'), 'NETWORK_OUTAGE');
   check('suspension-level driver request escalates to the LGU (25.4)', trig.consequence === 'SUSPENSION' && suspLevel.ok && suspLevel.value.assigned_role === 'lgu_admin', { trig, suspLevel });
 
@@ -129,7 +130,7 @@ const { ID, seed } = require('../fixtures');
   console.log('\nW8 provisional strikes and the sweep');
   const prov = await strike('driver', ID.D3, 'DRV_CONNECTIVITY_FAILURE', 'd3-prov');
   const pl = (await db.query(`SELECT status, provisional_until FROM strikes_ledger WHERE idempotency_key='d3-prov'`)).rows[0];
-  check('connectivity failure is issued at once as PROVISIONAL with a 72h window', prov.success && pl.status === 'PROVISIONAL' && Math.abs((new Date(pl.provisional_until) - Date.now()) / 3600000 - 72) < 0.1, pl);
+  check('connectivity failure is issued at once as PROVISIONAL with a 48h window', prov.success && pl.status === 'PROVISIONAL' && Math.abs((new Date(pl.provisional_until) - Date.now()) / 3600000 - 48) < 0.1, pl);
   const noSvc = await as(ID.L_AUTH, (tx) => attempt(() => tx.query('SELECT public.sweep_strike_state()')));
   check('the sweep is callable only by the service role', !noSvc.ok, noSvc);
   await db.exec(`UPDATE strikes_ledger SET provisional_until = now() - interval '1 minute' WHERE idempotency_key='d3-prov'`);

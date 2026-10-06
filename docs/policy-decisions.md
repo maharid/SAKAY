@@ -281,12 +281,12 @@ Approved by the project owner when Phase B was started.
 
 | Ref | Decision |
 |---|---|
-| **D1 / F3.4 / F3.7** | Exemption request window and provisional-strike waiver window are **72 hours** (policy text: 48). One constant for both (`strike_policy_constant('exemption_window_hours')`). |
+| **D1 / F3.4 / F3.7** | ~~Exemption request window and provisional-strike waiver window are **72 hours** (policy text: 48).~~ **Superseded 2026-10-06: now 48 hours, as in the policy (see section 9).** One constant for both (`strike_policy_constant('exemption_window_hours')`). |
 | **D2 / F3.8** | Previously undefined counts: booking abuse (12.9) **2**, vehicle damage (29.15) **3**, contamination (29.16) **1**, availability violation (5.7) **1**, intentional pickup deviation (8.7) **1** (issued on the 2nd occurrence within 30 days, PI-B3). |
 | **D3** | Existing strike counts reset to 0; old test data is not migrated. Suspensions created by the old 3-strike logic ("Automated platform suspension: …") are lifted with the counts; manual suspensions are kept as open-ended and must be reinstated by an administrator. |
 | **D5** | The unauthenticated Express strike / suspend / reactivate routes (`server/src/routes/passengerRoutes.ts`, `driverRoutes.ts`) return **403**. |
 | **D6** | Ladder thresholds, window and deadlines are code constants in the database (`strike_policy_constant`) mirrored in `packages/shared/src/config/policyConfig.ts` for display. The pause switch is database state in `system_policy_config.strike_accrual_paused`. |
-| **F3.3 override** | Suspension lengths: **3 days at 5 strikes, 7 days at 8 strikes** (policy text: 7 and 30). Ladder otherwise as written: 1 warning, 3 administrative review, 10 deactivation. |
+| **F3.3 override** | ~~Suspension lengths: **3 days at 5 strikes, 7 days at 8 strikes** (policy text: 7 and 30).~~ **Superseded 2026-10-06: now 7 days at 5 strikes and 30 days at 8 strikes, as in the policy (see section 9).** Ladder otherwise as written: 1 warning, 3 administrative review, 10 deactivation. |
 | **PI-09** | Option A: errata (a)–(f) applied by intent; counts for (g)–(h) per D2. The Batch 2 `issue_booking_abuse_strike` function, its trigger and the `strike_count` / `last_strike_at` / `is_suspended` passenger columns are removed. |
 | **PI-B1** | A consequence fires on each *upward* crossing of a threshold; one strike that crosses several applies the highest and still raises the 3-strike review. A reinstated account still at/over 10 is deactivated again on its next strike. |
 | **PI-B2** | Repeated exemption cause (25.7): the 3rd request on the same cause within 30 days is **reviewed**; the 4th and later are denied automatically. |
@@ -578,3 +578,23 @@ If you ever meet a file `supabase/scripts/applyPerimeterLockdown.js.js` (double 
 - **Operator scripts, rehearsed on a local database:** `selftest` applies S0 - S4, runs each stage's verification, then runs the generated emergency rollback and compares the perimeter with the snapshot (97 policies, 358 table privileges and every function grant come back exactly; S0 stays in place); `preflight` and `dryrun all` were rehearsed the same way; `verifyPerimeter.js` was run against a stand-in server that answers like the open and like the locked-down project; `relinkDriverLogin.js` and `todaAdminLogin.js` were rehearsed on a local database before and after the lockdown (made-up drivers and TODAs).
 - **Browser smoke checks** with the dev servers (no account used, nothing written): the Driver help screen and login, the LGU login and TODA registration form, and the TODA registration page attaching a file without any request reaching Supabase.
 - **Not done, on purpose:** nothing in this batch was applied to, or written on, the hosted project by the build session. The apps' real flows against the hosted project (SMS, sign-in, uploads) can only be exercised after S1, and then S2 - S4, are applied; no real SMS was sent; the apps have no automated UI tests.
+
+
+---
+
+## 9. Policy alignment: strike lengths and exemption window (2026-10-06)
+
+**Decision (project owner: "apply the most appropriate"; applied by following the SAKAY Policy document, which is the root reference of the system).**
+
+| Figure | Before (testing override) | Now (policy document) | Rule |
+|---|---|---|---|
+| Suspension at 5 strikes | 3 days (F3.3) | **7 days** | Sections 20 and 21 |
+| Suspension at 8 strikes | 7 days (F3.3) | **30 days** | Sections 20 and 21 |
+| Exemption request window | 72 hours (D1 / F3.4) | **48 hours** | Rule 25.1 |
+| Provisional-strike waiver window (connectivity) | 72 hours (F3.7) | **48 hours** | Rule 9.4 (same constant) |
+
+- **Why:** the document is what the panel reads and what the Driver Terms of Service already promise (7-Day and 30-Day rows). The overrides were testing-friendly values, not a policy position. I did not look up the exact numbers of Grab, Angkas or similar apps (no source was consulted); the pattern itself, a short first suspension, a longer second one, then permanent deactivation, with a short fixed appeal window, is the usual shape of graduated penalty schemes. The deciding factor is consistency with the policy document.
+- **Where:** migration `supabase/migrations/20261011000001_align_strike_values_to_policy.sql` (replaces `strike_policy_constant()`), mirrored in `packages/shared/src/config/policyConfig.ts` (`STRIKE_LADDER`, `EXEMPTION_REQUEST_WINDOW_HOURS`). Screens that show these numbers (Driver Support FAQ, restriction labels, the strike notice text) read them from there, so they changed with it.
+- **Effect on existing data:** none. Strikes already issued keep the suspension end date and the exemption deadline they were given. Only strikes issued after the migration is applied use the new values.
+- **Tests:** the Batch 3 suites `foundation`, `engine`, `exemptions` and `guards` now run on the whole migration chain and assert 7 / 30 days and 47 h accepted / 49 h refused. `foundation.js` also checks that `policyConfig.ts` equals the database for the ladder and the window, so the two cannot drift apart again.
+- **To apply on the hosted project:** run the migration the same way the others were applied (for example `npx supabase db push`). Until then the hosted database still enforces 3 / 7 days and 72 hours while the screens show 7 / 30 days and 48 hours.
