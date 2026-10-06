@@ -26,7 +26,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import L from 'leaflet';
-import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@sakay/shared';
 import 'leaflet/dist/leaflet.css';
 
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -138,7 +137,10 @@ export const LiveTripsPage: React.FC = () => {
         zoomControl: true,
       });
 
-      L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
 
       mapInstanceRef.current = map;
     }

@@ -16,7 +16,6 @@ import MyLocationIcon from '@mui/icons-material/MyLocation';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PlaceIcon from '@mui/icons-material/Place';
 import L from 'leaflet';
-import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@sakay/shared';
 import 'leaflet/dist/leaflet.css';
 
 interface TerminalMapPickerModalProps {
@@ -106,7 +105,10 @@ export const TerminalMapPickerModal: React.FC<TerminalMapPickerModalProps> = ({
     mapInstanceRef.current = map;
 
     // Real OpenStreetMap Tiles (Official standard tiles)
-    L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
+    }).addTo(map);
 
     // Custom Styled Orange Marker Pin
     const pinIcon = L.divIcon({

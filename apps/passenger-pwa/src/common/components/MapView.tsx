@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import L from "leaflet";
-import { MAP_TILE_URL, MAP_TILE_OPTIONS } from "@sakay/shared";
 import "leaflet/dist/leaflet.css";
 import appIcon from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 import { DEFAULT_CALAPAN_CENTER, getOSRMRoute } from "../../services/locationService";
@@ -90,7 +89,10 @@ export const MapView: React.FC<MapViewProps> = ({
     });
 
     // OpenStreetMap Tile Layer (Clean & fast)
-    L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      subdomains: ["a", "b", "c"],
+    }).addTo(map);
 
     // Create a LayerGroup for markers
     const markersLayer = L.layerGroup().addTo(map);
