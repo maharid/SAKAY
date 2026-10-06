@@ -28,6 +28,8 @@ import {
   fetchTodaOperationsTrips,
 } from '../services/todaApiService';
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
+import { driverActivity, volumeByPeriod } from '@sakay/shared';
+import type { BookingLike } from '@sakay/shared';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -38,6 +40,8 @@ export const TodaOperationsPage: React.FC = () => {
   const [profile, setProfile] = useState<TodaProfile | null>(null);
   const [drivers, setDrivers] = useState<TodaDriverMember[]>([]);
   const [bookings, setBookings] = useState<TodaBooking[]>([]);
+  // the raw booking rows: today's counts and each driver's trips are computed from them
+  const [rawTrips, setRawTrips] = useState<BookingLike[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastRefreshed, setLastRefreshed] = useState<string>(
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -56,6 +60,7 @@ export const TodaOperationsPage: React.FC = () => {
 
       if (prof) setProfile(prof);
       setDrivers(drvs || []);
+      setRawTrips((trips || []) as BookingLike[]);
 
       const mappedBookings: TodaBooking[] = (trips || []).map((b: any) => {
         const rawStatus = b.booking_status || b.status || '';
@@ -99,7 +104,21 @@ export const TodaOperationsPage: React.FC = () => {
   }, [targetTodaId]);
 
   const totalDrivers = drivers.length;
-  const activeDrivers = drivers.filter((d) => d.accountStatus === 'Active').length;
+  // Online right now = the database says Available (idle) or Busy (on a trip); a paused driver is online but not taking new bookings
+  const isOnlineNow = (d: TodaDriverMember): boolean => d.availabilityStatus === 'Available' || d.availabilityStatus === 'Busy';
+  const isPausedNow = (d: TodaDriverMember): boolean => !!d.bookingsPausedUntil && Date.parse(d.bookingsPausedUntil) > Date.now();
+  const onlineDrivers = drivers.filter(isOnlineNow).length;
+  // Today in Asia/Manila (the cards used to count every booking ever recorded under "today")
+  const today = volumeByPeriod(rawTrips, 'day', 1)[0];
+  // Per driver: trips and whether the driver carried passengers in the last 30 days
+  const activityById = new Map(
+    driverActivity(
+      rawTrips,
+      drivers.filter((d) => !String(d.id).startsWith('roster-')).map((d) => ({ driver_id: d.id, full_name: d.name, plate_number: d.vehiclePlate }))
+    ).map((r) => [r.driverId, r])
+  );
+  const registeredDrivers = activityById.size;
+  const activeDrivers30 = [...activityById.values()].filter((r) => r.activeInWindow).length;
   const activeTrips = bookings.filter((b) => b.status === 'In Progress');
 
   return (
@@ -194,7 +213,7 @@ export const TodaOperationsPage: React.FC = () => {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' },
           gap: 2.5,
           mb: 3.5,
         }}
@@ -202,7 +221,13 @@ export const TodaOperationsPage: React.FC = () => {
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
           <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Accredited Drivers</Typography>
           <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalDrivers}</Typography>
-          <Typography sx={{ fontSize: '12px', color: '#059669', mt: 0.5, fontWeight: 500 }}>{activeDrivers} Drivers Active</Typography>
+          <Typography sx={{ fontSize: '12px', color: '#059669', mt: 0.5, fontWeight: 500 }}>{onlineDrivers} Online now</Typography>
+        </Box>
+
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Driver Utilization</Typography>
+          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#1565C0' }}>{registeredDrivers > 0 ? `${Math.round((activeDrivers30 / registeredDrivers) * 100)}%` : '-'}</Typography>
+          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>{activeDrivers30} of {registeredDrivers} completed a trip in 30 days</Typography>
         </Box>
 
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
@@ -213,14 +238,14 @@ export const TodaOperationsPage: React.FC = () => {
 
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
           <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Completed Today</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#059669' }}>{bookings.filter((b) => b.status === 'Completed').length}</Typography>
-          <Typography sx={{ fontSize: '12px', color: '#059669', mt: 0.5, fontWeight: 500 }}>Logged Trips</Typography>
+          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#059669' }}>{today?.completed ?? 0}</Typography>
+          <Typography sx={{ fontSize: '12px', color: '#059669', mt: 0.5, fontWeight: 500 }}>{today?.total ?? 0} booking requests today</Typography>
         </Box>
 
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
           <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Cancelled Today</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#DC2626' }}>{bookings.filter((b) => b.status === 'Cancelled').length}</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Total Cancellations</Typography>
+          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#DC2626' }}>{today?.cancelled ?? 0}</Typography>
+          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>{today?.noDriverFound ?? 0} with no driver found</Typography>
         </Box>
       </Box>
 
@@ -298,19 +323,21 @@ export const TodaOperationsPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Driver Name</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Franchise Number</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Online</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Trips</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                       <CircularProgress size={24} sx={{ color: 'var(--sakay-orange)', mb: 1 }} />
                       <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>Loading drivers...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : drivers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                       <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>
                         No registered drivers currently affiliated with this TODA.
                       </Typography>
@@ -338,6 +365,22 @@ export const TodaOperationsPage: React.FC = () => {
                       </TableCell>
                       <TableCell sx={{ py: 1.5, px: 2 }}>
                         <StatusBadge status={d.accountStatus} />
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5, px: 2 }}>
+                        <Chip
+                          label={!isOnlineNow(d) ? 'Offline' : isPausedNow(d) ? 'Paused' : d.availabilityStatus === 'Busy' ? 'On a trip' : 'Online'}
+                          size="small"
+                          sx={{
+                            height: '22px',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            backgroundColor: !isOnlineNow(d) ? '#F1F3F4' : isPausedNow(d) ? '#FFF7ED' : '#E6F4EA',
+                            color: !isOnlineNow(d) ? '#5F6368' : isPausedNow(d) ? '#C2410C' : '#1E8E3E',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="right" sx={{ py: 1.5, px: 2, fontSize: '13px', fontWeight: 600 }}>
+                        {activityById.get(d.id)?.completed ?? 0}
                       </TableCell>
                     </TableRow>
                   ))

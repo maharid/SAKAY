@@ -688,6 +688,8 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
                 rating: Number(matchedDriver?.weighted_average_rating) || 5.0,
                 totalTrips: 0,
                 joinedDate: todaRecord?.created_at ? new Date(todaRecord.created_at).toLocaleDateString('en-US') : 'Recent',
+                availabilityStatus: matchedDriver?.availability_status || undefined,
+                bookingsPausedUntil: matchedDriver?.bookings_paused_until || null,
               };
             });
           }
@@ -717,6 +719,8 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
         rating: Number(d.weighted_average_rating) || 5.0,
         totalTrips: 0,
         joinedDate: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US') : 'Recent',
+        availabilityStatus: d.availability_status || undefined,
+        bookingsPausedUntil: d.bookings_paused_until || null,
       }));
     }
 
