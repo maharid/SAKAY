@@ -359,3 +359,55 @@ Shared-trip fare split for 5 route scenarios, rate changes not affecting old boo
 ## When you finish
 
 Send me: the step number and PASS or FAIL for each, and for every FAIL, what the screen said. The three steps I most want to see are **Batch 1 Step 3**, **Batch 2 Step 7** and **Batch 4 Step 6**.
+
+---
+
+# DAY 1 ADDITIONS (incident reports, LGU analytics, pause bookings)
+
+These need two migrations applied to the hosted database first: `20261012000001` and `20261012000002`.
+
+#### Step 1: Passenger reports an incident
+
+- **Where:** Passenger PWA (http://localhost:5173)
+- **Action:**
+  1. Log in as a test passenger who has at least one **completed** trip.
+  2. Open **History**, open a completed trip, tap the report button. (Or open **Support** and choose the incident report.)
+  3. Choose the trip (it is already chosen if you came from the trip), pick a category, write what happened, attach a photo, and tap **Submit Report**.
+  4. Open **Track Reports**.
+- **Expected Result:** A green message says the report was submitted. The report appears in the list as **Submitted** and opens with your text and the photo. (No made-up sample reports.)
+
+#### Step 2: TODA administrator reviews it
+
+- **Where:** TODA Portal (http://localhost:5175)
+- **Action:**
+  1. Log in as the TODA admin of the reported driver's TODA.
+  2. Open **TODA Reports & Incidents**, open the **Incident Reports & Complaints** tab, and open the new report.
+  3. Click **Escalate to City LGU**, confirm. Then open another report and click **Mark Resolved (TODA Level)**.
+- **Expected Result:** You can see the description and the photo. Both buttons work (they used to fail). A different TODA's admin does not see the report.
+
+#### Step 3: LGU administrator sees it
+
+- **Where:** LGU Portal (http://localhost:5174)
+- **Action:**
+  1. Log in as the LGU admin and open **Incident Reports**.
+  2. Open the escalated report and change its status (for example **Under Investigation**, then **Resolved** with a note).
+  3. Go back to the passenger's **Track Reports**.
+- **Expected Result:** The LGU sees the report with the passenger, driver, TODA and photo. The passenger sees the new status and your note. A **Pending** report can be withdrawn by the passenger; one that is already being reviewed cannot.
+
+#### Step 4: LGU analytics show real numbers
+
+- **Where:** LGU Portal
+- **Action:**
+  1. Open **Analytics**.
+  2. Open **Reports** and look at each tab, including the new **6. Service Utilization**.
+- **Expected Result:** Four cards (completion rate, busiest hour, driver utilization, average fare) with real numbers. A 14-day booking chart. The hotspot map shows circles where your test bookings were picked up (it is empty if no booking has a pickup location). Service utilization lists completed, cancelled, no driver found, in progress, solo and shared. The TODA tab shows a completion rate, not "100% Compliant".
+
+#### Step 5: Driver pauses and resumes bookings
+
+- **Where:** Driver PWA (http://localhost:5176), and Passenger PWA
+- **Action:**
+  1. Log in as the verified test driver and switch **Online**.
+  2. Tap **Pause bookings** under the status pill and choose **15 minutes**.
+  3. In the Passenger PWA, book a ride from near the driver.
+  4. Back in the Driver PWA, tap the orange **Paused until ...** button to resume, then book again from the passenger.
+- **Expected Result:** While paused, the driver gets **no offer** (the passenger's search skips this driver), and the driver stays ONLINE. After resuming, the offer arrives. The pause also ends by itself when the time passes, and switching Offline clears it.

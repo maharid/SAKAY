@@ -598,3 +598,22 @@ If you ever meet a file `supabase/scripts/applyPerimeterLockdown.js.js` (double 
 - **Effect on existing data:** none. Strikes already issued keep the suspension end date and the exemption deadline they were given. Only strikes issued after the migration is applied use the new values.
 - **Tests:** the Batch 3 suites `foundation`, `engine`, `exemptions` and `guards` now run on the whole migration chain and assert 7 / 30 days and 47 h accepted / 49 h refused. `foundation.js` also checks that `policyConfig.ts` equals the database for the ladder and the window, so the two cannot drift apart again.
 - **To apply on the hosted project:** run the migration the same way the others were applied (for example `npx supabase db push`). Until then the hosted database still enforces 3 / 7 days and 72 hours while the screens show 7 / 30 days and 48 hours.
+
+
+---
+
+## 10. Day 1 (2026-10-06): checklist items built before the defense
+
+Built to raise the checklist score (`docs/checklist-accomplishment.md`); none of these are rules of the policy document, so they are recorded here.
+
+| Ref | Decision | Where it lives |
+|---|---|---|
+| **D-D1-1** | **An incident report is always about a trip.** The table already required a booking; the Passenger screen now asks which completed trip. The driver, the driver's TODA, the reporter's role, the starting status (`Pending`) and the time come from the booking and the signed-in user inside the database, never from the request, so a report cannot be pointed at another driver or created already Resolved. The facts of a report (who, which trip, category, text, photos) cannot be edited afterwards by anyone; an administrator changes only the review fields and is stamped as the reviewer. | `incident_report_guard()`, migration `20261012000001` |
+| **D-D1-2** | A passenger can **withdraw** a report only while it is `Pending`, with a reason (`Cancelled`). The LGU and TODA portals show a withdrawn report as Dismissed with the reason. | same |
+| **D-D1-3** | **Evidence photos:** at most 3 files per report (database), images only, 5 MB each (screen), in the private bucket `incident-evidence` under the reporter's own folder. The reporter, the LGU and the TODA administrator of the reported driver can open them (signed links, 10 minutes). | `evidence_paths`, `storage_can_read_incident_evidence()`, `packages/shared/src/utils/incidentEvidence.ts` |
+| **D-D1-4** | **Descriptive analytics are computed, never typed in.** Hotspots = pickup coordinates grouped into areas of about 550 m (top 8). Barangay demand = the Calapan barangay named in the pickup address (a booking stores no barangay; an address naming none is "Not identified"). Driver utilization = verified drivers with a completed trip in the last 30 days. TODA "compliance" is replaced by the **completion rate of its finished trips**. Dates and hours are read in Asia/Manila. | `packages/shared/src/utils/transportAnalytics.ts` (15 tests in `server/test/analytics.test.ts`) |
+| **D-D1-5** | **Pause bookings:** an Online driver can pause new offers for 5 to 60 minutes (the app offers 15, 30, 60; default 15). It ends by itself, is cleared by going Offline or Online, and does not touch an accepted booking or the inactivity counters. Dispatch skips a paused driver in `find_candidate_drivers()`, and the database refuses to insert an offer for one. | migration `20261012000002`, `driver_presence_constant()`, `PauseBookingsControl.tsx` |
+
+**For Batch 6 (dispatch rewrite):** the new dispatcher must keep excluding a driver whose `bookings_paused_until` is in the future (D-D1-5).
+**For Batch 11:** a report can currently be filed for any booking that had a driver (the fare-dispute dialog files one before the trip is marked Completed); the screen's trip picker lists completed trips only. Emergency reports during a trip are Batch 11's.
+**Not changed:** `fetchTodaIncidents` and `fetchIncidents` still read every row the account may see and filter in the app; the row policies already scope them.

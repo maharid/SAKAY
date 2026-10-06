@@ -1,6 +1,8 @@
 # SAKAY Capstone Checklist: Accomplishment Audit
 
 Checklist audited: `SAKAY - Checklist.pdf` (128 line items, four roles; the Points and Score columns in the PDF are blank).
+
+**Status after Day 1 (2026-10-06):** the first audit scored 80.9% (strict 74.2%). The Day 1 work lifts 13 items; the totals below are the updated ones. The Day 1 items need migrations `20261012000001` and `20261012000002` applied to the hosted database before they work live.
 Code audited: git `HEAD d367ec2` (2026-10-06): the four apps, the Express server, the Supabase migrations and the shared package.
 Method: each item was traced from the screen down to the data it uses (service function, database table or function, server route). I did not run the apps; "works" means the code path is complete and uses real data.
 
@@ -18,13 +20,15 @@ Percent = points / items. The checklist gives no weights, so every item counts t
 
 | Role | Items | I | P | M | Points | Percent |
 |---|---|---|---|---|---|---|
-| LGU Administrator | 42 | 33 | 7 | 2 | 36.5 | **86.9%** |
+| LGU Administrator | 42 | 40 | 2 | 0 | 41.0 | **97.6%** |
 | TODA Administrator | 29 | 18 | 6 | 5 | 21.0 | **72.4%** |
-| Passenger | 25 | 18 | 3 | 4 | 19.5 | **78.0%** |
-| Driver | 32 | 26 | 1 | 5 | 26.5 | **82.8%** |
-| **Total** | **128** | **95** | **17** | **16** | **103.5** | **80.9%** |
+| Passenger | 25 | 22 | 1 | 2 | 22.5 | **90.0%** |
+| Driver | 32 | 28 | 1 | 3 | 28.5 | **89.1%** |
+| **Total** | **128** | **108** | **10** | **10** | **113.0** | **88.3%** |
 
-Strictest reading (only fully working items count, partials count zero): 95 / 128 = **74.2%**.
+(Before Day 1: 95 / 17 / 16 and 103.5 points = 80.9%.)
+
+Strictest reading (only fully working items count, partials count zero): 108 / 128 = **84.4%** (before Day 1: 74.2%).
 
 ---
 
@@ -54,7 +58,7 @@ Strictest reading (only fully working items count, partials count zero): 95 / 12
 | 20 | View completed trips | I | Completed tab. |
 | 21 | View cancelled bookings | I | Cancelled tab (includes No Driver Found). |
 | 22 | Monitor ongoing trips | I | Map plus 10-second refresh (polling, not push). |
-| 23 | View submitted incident reports | P | The screen and query are real, but the Passenger app cannot save a report to the database (see Passenger items 90 to 93), so nothing real arrives. |
+| 23 | View submitted incident reports | I | Reports now save for real (Day 1, migration 20261012000001) and appear here with the passenger photo. |
 | 24 | Review incident details | I | Incident detail modal with status history. |
 | 25 | View related trip information | I | Trip and booking reference in the modal. |
 | 26 | Update incident status | I | `updateIncidentStatus` (Under Investigation, Resolved, Dismissed). |
@@ -65,13 +69,13 @@ Strictest reading (only fully working items count, partials count zero): 95 / 12
 | 31 | Driver utilization reports | I | Reports, Drivers tab (completed trips per driver). |
 | 32 | TODA performance reports | I | Reports, TODA tab. Caveat: "compliance rate" is hard-coded 100%. |
 | 33 | Peak-hour reports | I | Hourly distribution from real booking times. |
-| 34 | Barangay demand reports | P | "Barangay" is guessed by cutting the pickup address at the first comma; there is no barangay field on a booking. |
-| 35 | Service utilization reports | M | No such report tab. |
-| 36 | View booking trends | M | No chart of bookings over time anywhere. |
+| 34 | Barangay demand reports | I | Day 1: the barangay is read from the pickup address text against the list of Calapan barangays; an address that names none is listed as "Not identified". |
+| 35 | Service utilization reports | I | Day 1: Reports, tab 6 "Service Utilization" (completed, cancelled, no driver found, in progress, solo vs shared), with CSV export. |
+| 36 | View booking trends | I | Day 1: 14-day booking trend chart on the Analytics page, computed from the bookings. |
 | 37 | View peak travel periods | I | The Peak Hours report (in Reports, not on the Analytics page). |
-| 38 | View demand hotspot maps | P | The map is real (OpenStreetMap) but the five hotspots are a fixed list in code (`AnalyticsPage.tsx` ~L80), not computed from bookings. |
-| 39 | View service utilization | P | Completion-rate card is real; the rest is thin. |
-| 40 | View driver utilization | P | The Analytics card shows a hard-coded "84%" whenever any driver is verified; the real per-driver table is only in Reports. |
+| 38 | View demand hotspot maps | I | Day 1: hotspots are clusters of real pickup coordinates (about 550 m areas, top 8); the five fixed places are gone. |
+| 39 | View service utilization | I | Day 1: outcome bars (completed, cancelled, no driver found, in progress) and solo/shared mix, from the bookings. |
+| 40 | View driver utilization | I | Day 1: verified drivers who completed a trip in the last 30 days (the fixed 84% is gone); the per-driver table is in Reports. |
 | 41 | View Audit Logs | I | Reads the real `audit_log` table. Not every action in the apps writes to it yet. No export. |
 | 42 | Manage Account Information | I | Name, email, password through Supabase Auth. |
 
@@ -131,10 +135,10 @@ Strictest reading (only fully working items count, partials count zero): 95 / 12
 | 87 | View estimated time of arrival | I | Shown, but computed as a fixed 3 minutes per km, not from the routing engine. |
 | 88 | Submit rating and written feedback | I | Writes to the `rating` table. |
 | 89 | Review previously submitted feedback | I | Trip detail reads the `rating` table. |
-| 90 | Select an incident type | P | Screen exists, but the save fails (below). |
-| 91 | Provide a written description | P | Same. |
-| 92 | Attach optional photo evidence | M | A file can be picked and previewed but is never uploaded. |
-| 93 | Monitor the status of a submitted report | M | The list comes from `localStorage` only and never changes. |
+| 90 | Select an incident type | I | Day 1: pick the completed trip, choose the category; the report is saved in the database. |
+| 91 | Provide a written description | I | Day 1: saved with the report; real errors are shown instead of a fake success. |
+| 92 | Attach optional photo evidence | I | Day 1: the photo is uploaded to the private evidence bucket (own folder), shown to the TODA administrator and the LGU. |
+| 93 | Monitor the status of a submitted report | I | Day 1: the list and detail read the database; the status follows the TODA and LGU review; a Pending report can be withdrawn. |
 | 94 | View a list of completed trips | I | `fetchTripHistory`. |
 | 95 | Review fare history for past trips | I | Trip detail shows the fare. |
 | 96 | Rebook a previous destination | I | Rebook button on history and detail. |
@@ -154,8 +158,8 @@ Strictest reading (only fully working items count, partials count zero): 95 / 12
 | 103 | Select active TODA affiliation | I | Picker on Home, locked while Online. |
 | 104 | Select the verified tricycle unit | P | One unit per driver, shown read-only and locked once verified; there is no unit table and nothing to select. |
 | 105 | Set status online or offline | I | Server-side `driver_go_online` / `driver_go_offline`, survives navigation and refresh. |
-| 106 | Pause bookings temporarily | M | Not built (`isPaused` is a fixed `false`). |
-| 107 | Resume bookings | M | Not built. |
+| 106 | Pause bookings temporarily | I | Day 1: "Pause bookings" on the Home screen (15, 30 or 60 minutes) while Online; no offers reach a paused driver (database-enforced). |
+| 107 | Resume bookings | I | Day 1: "Resume" ends the pause at once; it also ends by itself, and going Offline clears it. |
 | 108 | Receive booking requests | I | Incoming request modal. |
 | 109 | Accept a booking request | I | |
 | 110 | Decline a booking request | I | Works. No decline-reason choice (the policy, Rule 7.9, asks for one). |
@@ -199,10 +203,11 @@ These are not checklist lines, so they are not in the percentage, but they decid
 | Data quality | Analytics values that are fixed in code: five map hotspots, "84%" utilization, "100%" compliance, passenger "rating 5.0 / 0 bookings", placeholder TODA documents. |
 | Not in the checklist but in the policy | Audit log export to PDF or Excel (Rule 28.4), the exemption and appeal screens, the emergency strike-pause screen. |
 
-## The five fixes that raise the percentage most
+## What is still open, in order of payoff
 
-1. Make passenger incident reports save correctly (also fixes LGU 23 and TODA incident views, and lets Passenger 90 to 93 work): about 5 items.
-2. Ride-sharing end to end (matching, the driver's additional-passenger request, recalculated and final fare): Driver 116, 117, 119 and Passenger 83.
-3. Driver pause and resume: Driver 106, 107.
-4. LGU analytics from real data (hotspots from bookings, a booking trend chart, a service utilization report, real driver utilization): LGU 35, 36, 38, 39, 40, 34.
-5. TODA reports and tools (daily/weekly/monthly roll-ups, driver volume, reminders, member edit, OTP on registration): TODA 43, 46, 56, 61, 63, 64 to 66, 68.
+Done on Day 1: passenger incident reports (items 23, 90 to 93), the LGU analytics and reports (34, 35, 36, 38, 39, 40) and driver pause and resume (106, 107).
+
+1. Ride-sharing end to end (matching, the driver's additional-passenger request, recalculated and final fare): Driver 116, 117, 119 and Passenger 83.
+2. TODA reports and tools (daily/weekly/monthly roll-ups, driver volume, platform volume, gross fare, reminders, member edit, registration number): TODA 43, 55, 56, 58, 61, 63, 64 to 66, 68.
+3. TODA OTP on registration (46) and passenger password recovery with OTP (75).
+4. Smaller: the driver photo on the passenger's trip screen (85), choosing a verified tricycle unit (104), the placeholder documents on the accredited-TODA detail screen (11), and a complaints view (29).
