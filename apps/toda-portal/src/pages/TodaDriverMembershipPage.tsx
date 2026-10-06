@@ -29,6 +29,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ShieldIcon from '@mui/icons-material/Shield';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 
 import { TodaDriverMember, DriverExemptionRequest, EvidenceFileItem } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -46,6 +47,7 @@ import {
   recordTodaAuditAction,
   fetchTodaRosterEntries,
   addTodaRosterEntry,
+  updateTodaRosterEntry,
   fetchTodaProfile,
   TodaRosterEntry,
 } from '../services/todaApiService';
@@ -87,6 +89,50 @@ export const TodaDriverMembershipPage: React.FC = () => {
   const [newPlateNumber, setNewPlateNumber] = useState('');
   const [rosterSubmitting, setRosterSubmitting] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
+
+  // Editing one roster entry (checklist: update member information)
+  const [editingEntry, setEditingEntry] = useState<TodaRosterEntry | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editFranchise, setEditFranchise] = useState('');
+  const [editPlate, setEditPlate] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditEntry = (entry: TodaRosterEntry) => {
+    setEditingEntry(entry);
+    setEditName(entry.member_name || '');
+    setEditFranchise(entry.franchise_number || '');
+    setEditPlate(entry.plate_number || '');
+    setEditError(null);
+  };
+
+  const handleEditRosterSubmit = async () => {
+    if (!editingEntry?.entry_id) return;
+    if (editName.trim().length < 2 || !editFranchise.trim()) {
+      setEditError('Member name and franchise number are required.');
+      return;
+    }
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      const { changed } = await updateTodaRosterEntry(editingEntry.entry_id, {
+        memberName: editName.trim(),
+        franchiseNumber: editFranchise.trim(),
+        plateNumber: editPlate.trim(),
+      });
+      if (changed) {
+        const now = new Date().toISOString();
+        setRosterEntries((prev) => prev.map((x) => (x.entry_id === editingEntry.entry_id
+          ? { ...x, member_name: editName.trim(), franchise_number: editFranchise.trim(), plate_number: editPlate.trim(), updated_at: now }
+          : x)));
+      }
+      setEditingEntry(null);
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update the roster entry');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   const loadDrivers = () => {
     setIsLoading(true);
@@ -628,12 +674,13 @@ export const TodaDriverMembershipPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Vehicle Plate Number</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Date Added</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Screening Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }} align="right">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {rosterEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'var(--mac-text-muted)' }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'var(--mac-text-muted)' }}>
                       No master roster entries recorded yet. Click "Add Roster Member" to register franchise members.
                     </TableCell>
                   </TableRow>
@@ -651,9 +698,25 @@ export const TodaDriverMembershipPage: React.FC = () => {
                       </TableCell>
                       <TableCell sx={{ py: 2, px: 3, color: 'var(--mac-text-muted)', fontSize: '13px' }}>
                         {entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Registered'}
+                        {entry.updated_at && (
+                          <Typography component="div" sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+                            Edited {new Date(entry.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell sx={{ py: 2, px: 3 }}>
                         <Chip label="Rule 2.4 Active Roster" size="small" sx={{ backgroundColor: '#E6F4EA', color: '#137333', fontWeight: 600, fontSize: '11px' }} />
+                      </TableCell>
+                      <TableCell sx={{ py: 2, px: 3 }} align="right">
+                        <Button
+                          size="small"
+                          startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+                          disabled={!entry.entry_id}
+                          onClick={() => openEditEntry(entry)}
+                          sx={{ textTransform: 'none', fontWeight: 600, color: 'var(--sakay-orange)' }}
+                        >
+                          Edit
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -886,6 +949,40 @@ export const TodaDriverMembershipPage: React.FC = () => {
             }}
           >
             {rosterSubmitting ? 'Adding...' : 'Add to Master Roster'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Master Roster Member Dialog */}
+      <Dialog open={Boolean(editingEntry)} onClose={() => !editSubmitting && setEditingEntry(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Update Master Roster Entry</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', mb: 2 }}>
+            Correct this member's details. A new franchise or plate number counts for applications submitted from now on; applications already
+            submitted keep the roster result they had. Every change is recorded in the audit log.
+          </Typography>
+          {editError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {editError}
+            </Alert>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField label="Member Full Name" required fullWidth value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <TextField label="Franchise Number" required fullWidth value={editFranchise} onChange={(e) => setEditFranchise(e.target.value)} />
+            <TextField label="Vehicle Plate Number" fullWidth value={editPlate} onChange={(e) => setEditPlate(e.target.value)} />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setEditingEntry(null)} disabled={editSubmitting} sx={{ textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleEditRosterSubmit}
+            variant="contained"
+            disabled={editSubmitting}
+            sx={{ backgroundColor: 'var(--sakay-orange)', '&:hover': { backgroundColor: '#D97706' }, textTransform: 'none', fontWeight: 600 }}
+          >
+            {editSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>

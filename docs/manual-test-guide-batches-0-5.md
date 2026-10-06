@@ -462,3 +462,27 @@ These need two migrations applied to the hosted database first: `20261013000001`
   1. Book a ride with a driver who has a profile photo (set one in the Driver PWA profile editor).
   2. After the driver accepts, look at the driver card on the trip screen.
 - **Expected Result:** The card shows the driver's photo (the first letter of the name if there is no photo), the real rating if the driver has one (nothing if not), and the TODA. After the trip ends the photo is no longer shown.
+
+
+#### Step 6: TODA registration asks for the registration number
+
+- **Where:** TODA Portal (http://localhost:5175), registration page
+- **Action:**
+  1. Open the TODA registration form and fill in the Organization Information.
+  2. Look for **TODA Registration Number** under the name and acronym. Leave it empty and submit; then type `!!` and submit; then type `TODA-2026-001`.
+- **Expected Result:** The field is required. Empty shows "TODA Registration Number is required", `!!` shows the format message, and `TODA-2026-001` is accepted. After the TODA is registered, its profile shows `TODA-2026-001` (not the acronym). Registering a second TODA with the same number is refused with a clear message.
+
+#### Step 7: TODA edits a master-roster member
+
+- **Where:** TODA Portal, then Driver PWA
+- **Action:**
+  1. Open **Driver Membership**, open the **Master Roster** tab, and click **Edit** on an entry.
+  2. Fix the spelling of the name and save. Then change the franchise number to one that another entry already has and save.
+  3. Change the franchise number to a new one and save.
+- **Expected Result:** The name correction saves and shows "Edited <date>". The duplicate franchise number is refused ("Another roster entry of this TODA already has that franchise number"). The franchise change saves. Changing a number does not turn an application that was submitted earlier into a "roster match": only applications submitted after the change count it.
+
+#### Step 8: LGU sees real passenger figures
+
+- **Where:** LGU Portal (http://localhost:5174)
+- **Action:** Open **Passenger Management**, look at the list, and open a passenger who has taken trips.
+- **Expected Result:** The list shows the passenger's real number of bookings. The detail shows the average stars drivers gave the passenger and their recent feedback, or "Not Yet Rated" when no driver has rated them (never an automatic 5.0).

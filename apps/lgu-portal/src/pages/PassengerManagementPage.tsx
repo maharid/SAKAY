@@ -268,7 +268,7 @@ export const PassengerManagementPage: React.FC = () => {
                     <StatusBadge status={passenger.verificationStatus} />
                   </TableCell>
                   <TableCell sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', py: 2.2, px: 3 }}>
-                    {passenger.totalBookings} Rides
+                    {passenger.totalBookings} {passenger.totalBookings === 1 ? 'Booking' : 'Bookings'}
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -337,13 +337,21 @@ export const PassengerManagementPage: React.FC = () => {
           {/* Account Rating Bar */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAFAFC', padding: '16px 20px', borderRadius: '12px', mb: 4, border: '1px solid var(--mac-border-color)' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Rating value={selectedPassenger.rating} readOnly precision={0.1} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                {selectedPassenger.rating} / 5
-              </Typography>
-              <Typography sx={{ fontSize: '11.2px', color: 'var(--mac-text-muted)' }}>
-                ({selectedPassenger.ratingCount} passenger ratings)
-              </Typography>
+              {selectedPassenger.ratingCount > 0 ? (
+                <>
+                  <Rating value={selectedPassenger.rating} readOnly precision={0.1} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
+                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+                    {selectedPassenger.rating} / 5
+                  </Typography>
+                  <Typography sx={{ fontSize: '11.2px', color: 'var(--mac-text-muted)' }}>
+                    ({selectedPassenger.ratingCount} {selectedPassenger.ratingCount === 1 ? 'rating' : 'ratings'} from drivers)
+                  </Typography>
+                </>
+              ) : (
+                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-muted)' }}>
+                  Not Yet Rated
+                </Typography>
+              )}
             </Box>
 
             <Typography sx={{ fontSize: '11.2px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>
