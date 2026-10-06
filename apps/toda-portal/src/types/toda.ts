@@ -151,6 +151,10 @@ export interface TodaDriverMember {
   rating: number;
   totalTrips: number;
   joinedDate: string;
+  /** What the database says right now: Offline, Available (online and idle) or Busy (on a trip) */
+  availabilityStatus?: 'Offline' | 'Available' | 'Busy';
+  /** Set while the driver has paused new bookings */
+  bookingsPausedUntil?: string | null;
 }
 
 export interface EvidenceFileItem {

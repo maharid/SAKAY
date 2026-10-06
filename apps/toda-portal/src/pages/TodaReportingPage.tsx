@@ -20,8 +20,9 @@ import {
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import TableViewIcon from '@mui/icons-material/TableView';
+import PeopleIcon from '@mui/icons-material/People';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import DownloadIcon from '@mui/icons-material/Download';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -32,7 +33,13 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { BookingVolumeReport } from '../components/reports/BookingVolumeReport';
+import { DriverActivityReport } from '../components/reports/DriverActivityReport';
+import type { ActivityDriver } from '../components/reports/DriverActivityReport';
+import { downloadCsv, reportFileName } from '../utils/csvDownload';
+import type { BookingLike } from '@sakay/shared';
 import {
+  fetchTodaDrivers,
   fetchTodaOperationsTrips,
   fetchTodaIncidents,
   fetchTodaProfile,
@@ -61,21 +68,28 @@ export const TodaReportingPage: React.FC = () => {
   const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
 
-  // Report Export Toast Notification with Progress Bar Timer
-  const [exportNotice, setExportNotice] = useState<string | null>(null);
-  const [toastProgress, setToastProgress] = useState(100);
-  const [isToastHovered, setIsToastHovered] = useState(false);
+  // The raw booking rows and the TODA's registered drivers feed the volume and driver-activity reports
+  const [rawTrips, setRawTrips] = useState<BookingLike[]>([]);
+  const [activityDrivers, setActivityDrivers] = useState<ActivityDriver[]>([]);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [tripsData, incData, profileData] = await Promise.all([
+      const [tripsData, incData, profileData, memberData] = await Promise.all([
         fetchTodaOperationsTrips(),
         fetchTodaIncidents(),
         fetchTodaProfile(),
+        fetchTodaDrivers(),
       ]);
 
       if (profileData) setTodaName(profileData.name);
+      setRawTrips((tripsData || []) as BookingLike[]);
+      // Only members with a SAKAY account (a roster line that never registered has no driver id and no trips)
+      setActivityDrivers(
+        (memberData || [])
+          .filter((m) => !String(m.id).startsWith('roster-'))
+          .map((m) => ({ driver_id: m.id, full_name: m.name, plate_number: m.vehiclePlate }))
+      );
 
       const mappedBookings: TodaBooking[] = (tripsData || []).map((b: any) => {
         const rawStatus = b.booking_status || b.status || '';
@@ -134,6 +148,8 @@ export const TodaReportingPage: React.FC = () => {
       console.error('[TodaReporting] Error loading data from database:', err);
       setBookings([]);
       setIncidents([]);
+      setRawTrips([]);
+      setActivityDrivers([]);
     } finally {
       setIsLoading(false);
     }
@@ -142,33 +158,6 @@ export const TodaReportingPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  // Toast Auto-Dismissal Timer & Progress Decrement
-  useEffect(() => {
-    if (!exportNotice) {
-      setToastProgress(100);
-      return;
-    }
-
-    const durationMs = 4000;
-    const intervalMs = 40;
-    const step = (intervalMs / durationMs) * 100;
-
-    const timer = setInterval(() => {
-      if (!isToastHovered) {
-        setToastProgress((prev) => {
-          if (prev <= 0) {
-            clearInterval(timer);
-            setExportNotice(null);
-            return 100;
-          }
-          return prev - step;
-        });
-      }
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [exportNotice, isToastHovered]);
 
   // Filtered Bookings
   const filteredBookings = bookings.filter((bkg) => {
@@ -210,67 +199,35 @@ export const TodaReportingPage: React.FC = () => {
     { label: 'Dismissed', value: 'Dismissed' },
   ];
 
-  // Action: Export Report
-  const handleExportReport = (reportName: string, format: 'PDF' | 'Excel') => {
-    setExportNotice(`${reportName} exported as ${format}.`);
-    setToastProgress(100);
-
-    try {
-      let csvContent = '';
-      const safeDate = new Date().toISOString().slice(0, 10);
-      const filename = `${reportName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${safeDate}.csv`;
-
-      if (reportName.toLowerCase().includes('incident') || reportName.toLowerCase().includes('complaint')) {
-        const headers = ['Incident Code', 'Driver Name', 'Vehicle Plate', 'Reporter', 'Category', 'Date', 'Status', 'Description'];
-        const rows = incidents.map((i) => [
-          `"${i.incidentCode || i.id.slice(0, 8)}"`,
-          `"${i.driverName}"`,
-          `"${i.vehiclePlate}"`,
-          `"${i.reporterName} (${i.reporterRole})"`,
-          `"${i.category}"`,
-          `"${i.submittedAt}"`,
-          `"${i.status}"`,
-          `"${(i.description || '').replace(/"/g, '""')}"`,
-        ]);
-        csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      } else {
-        const headers = ['Booking Code', 'Passenger', 'Driver', 'Vehicle Plate', 'Pickup', 'Dropoff', 'Distance (km)', 'Fare (PHP)', 'Mode', 'Status', 'Time'];
-        const rows = bookings.map((b) => [
-          `"${b.bookingCode}"`,
-          `"${b.passengerName}"`,
-          `"${b.driverName}"`,
-          `"${b.vehiclePlate}"`,
-          `"${(b.pickupLocation || '').replace(/"/g, '""')}"`,
-          `"${(b.dropoffLocation || '').replace(/"/g, '""')}"`,
-          b.distanceKm,
-          b.fareAmount,
-          `"${b.tripMode}"`,
-          `"${b.status}"`,
-          `"${b.timestamp}"`,
-        ]);
-        csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      }
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('[TodaReporting] Error generating report CSV export:', err);
-    }
-
+  // Export a report as a CSV file (opens in Excel) and record it in the audit log
+  const recordExport = (reportName: string) => {
     recordTodaAuditAction({
       actionType: 'REPORT_EXPORTED',
-      targetId: 'REPORT-001',
+      targetId: 'REPORT',
       targetName: reportName,
-      details: `Generated and exported ${reportName} in ${format} format for ${todaName}.`,
+      details: `Exported ${reportName} (CSV) for ${todaName}.`,
       category: 'Operations',
     });
+  };
+
+  const exportLedger = () => {
+    const name = 'Operations Trip Ledger';
+    downloadCsv(
+      reportFileName(name),
+      ['Booking Code', 'Passenger', 'Driver', 'Vehicle Plate', 'Pickup', 'Dropoff', 'Distance (km)', 'Fare (PHP)', 'Mode', 'Status', 'Time'],
+      filteredBookings.map((b) => [b.bookingCode, b.passengerName, b.driverName, b.vehiclePlate, b.pickupLocation, b.dropoffLocation, b.distanceKm, b.fareAmount, b.tripMode, b.status, b.timestamp])
+    );
+    recordExport(name);
+  };
+
+  const exportIncidents = () => {
+    const name = 'Incident Summary';
+    downloadCsv(
+      reportFileName(name),
+      ['Incident Code', 'Driver', 'Vehicle Plate', 'Reported By', 'Category', 'Date', 'Status', 'Description'],
+      filteredIncidents.map((i) => [i.incidentCode || i.id.slice(0, 8), i.driverName, i.vehiclePlate, `${i.reporterName} (${i.reporterRole})`, i.category, i.submittedAt, i.status, i.description])
+    );
+    recordExport(name);
   };
 
   // Incident Handlers
@@ -316,15 +273,28 @@ export const TodaReportingPage: React.FC = () => {
             Official operational trip audits and passenger complaints for {todaName}
           </Typography>
         </Box>
-        <Button
-          onClick={loadData}
-          startIcon={<RefreshIcon />}
-          variant="outlined"
-          size="small"
-          sx={{ textTransform: 'none', borderColor: 'var(--mac-border-color)', color: 'var(--mac-text-primary)' }}
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          {(activeTab === 0 || activeTab === 3) && (
+            <Button
+              onClick={activeTab === 0 ? exportLedger : exportIncidents}
+              startIcon={<DownloadIcon />}
+              variant="contained"
+              size="small"
+              sx={{ textTransform: 'none', backgroundColor: 'var(--sakay-orange)', fontWeight: 600 }}
+            >
+              Export {activeTab === 0 ? 'Trip Ledger' : 'Incident Summary'} (CSV)
+            </Button>
+          )}
+          <Button
+            onClick={loadData}
+            startIcon={<RefreshIcon />}
+            variant="outlined"
+            size="small"
+            sx={{ textTransform: 'none', borderColor: 'var(--mac-border-color)', color: 'var(--mac-text-primary)' }}
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {/* 2. Top Navigation Tabs */}
@@ -346,6 +316,8 @@ export const TodaReportingPage: React.FC = () => {
           }}
         >
           <Tab icon={<AssessmentIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`Operations Trip Ledger (${bookings.length})`} />
+          <Tab icon={<EventNoteIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Booking Volume & Fares" />
+          <Tab icon={<PeopleIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Driver Activity" />
           <Tab icon={<ReportProblemIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`Incident Reports & Complaints (${incidents.length})`} />
         </Tabs>
       </Box>
@@ -507,6 +479,10 @@ export const TodaReportingPage: React.FC = () => {
             </Table>
           </TableContainer>
         </>
+      ) : activeTab === 1 ? (
+        <BookingVolumeReport trips={rawTrips} todaName={todaName} onExported={recordExport} />
+      ) : activeTab === 2 ? (
+        <DriverActivityReport trips={rawTrips} drivers={activityDrivers} onExported={recordExport} />
       ) : (
         /* 6. Incident Management Tab */
         <>

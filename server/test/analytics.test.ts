@@ -7,12 +7,14 @@ import {
   barangayDemand,
   barangayOfAddress,
   completionRateOfFinished,
+  driverActivity,
   driverUtilizationSummary,
   manilaDateKey,
   manilaHour,
   peakHourDistribution,
   pickupHotspots,
   serviceUtilization,
+  volumeByPeriod,
   BARANGAY_NOT_IDENTIFIED,
   type BookingLike,
 } from '../../packages/shared/src/utils/transportAnalytics';
@@ -161,5 +163,93 @@ describe('driver utilization', () => {
     assert.equal(completionRateOfFinished(0, 0), null);
     assert.equal(completionRateOfFinished(3, 1), 75);
     assert.equal(completionRateOfFinished(0, 2), 0);
+  });
+});
+
+describe('volume by day, week and month', () => {
+  it('weeks run Monday to Sunday in Manila and the newest week comes last', () => {
+    const w = volumeByPeriod(
+      [
+        at('2026-10-06T01:00:00Z', { actual_fare: 60 }), // Tue Oct 6, 9 AM in Manila
+        at('2026-10-04T20:00:00Z', { actual_fare: 80 }), // Mon Oct 5, 4 AM in Manila (still Sunday in UTC)
+        at('2026-10-04T12:00:00Z', { booking_status: 'Cancelled' }), // Sun Oct 4, 8 PM in Manila: the week before
+        at('2026-08-01T01:00:00Z'), // older than 8 weeks
+      ],
+      'week',
+      8,
+      NOW
+    );
+    assert.equal(w.length, 8);
+    const last = w[7];
+    assert.equal(last.key, '2026-10-05');
+    assert.equal(last.label, 'Oct 5 - Oct 11');
+    assert.deepEqual([last.total, last.completed, last.grossFare, last.averageFare], [2, 2, 140, 70]);
+    assert.deepEqual([w[6].key, w[6].total, w[6].cancelled], ['2026-09-28', 1, 1]);
+    assert.equal(w.reduce((n, r) => n + r.total, 0), 3);
+  });
+  it('months follow the Manila calendar and are labelled', () => {
+    const m = volumeByPeriod([at('2026-09-30T16:30:00Z', { actual_fare: 50 }), at('2026-09-15T01:00:00Z')], 'month', 6, NOW);
+    assert.deepEqual(m.map((r) => r.key), ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+    assert.equal(m[5].label, 'Oct 2026');
+    assert.deepEqual([m[5].total, m[5].grossFare], [1, 50]); // 00:30 on Oct 1 in Manila is October
+    assert.equal(m[4].total, 1);
+  });
+  it('months roll back across a year boundary', () => {
+    const m = volumeByPeriod([], 'month', 3, new Date('2026-01-15T04:00:00Z'));
+    assert.deepEqual(m.map((r) => r.key), ['2025-11', '2025-12', '2026-01']);
+  });
+  it('each period reports outcomes, shared trips, fares and its own completion rate', () => {
+    const [day] = volumeByPeriod(
+      [
+        at('2026-10-06T01:00:00Z', { actual_fare: 60 }),
+        at('2026-10-06T01:10:00Z', { actual_fare: 80, is_shared_trip: true }),
+        at('2026-10-06T01:20:00Z', { booking_status: 'Cancelled' }),
+        at('2026-10-06T01:30:00Z', { booking_status: 'No Driver Found' }),
+      ],
+      'day',
+      1,
+      NOW
+    );
+    assert.deepEqual([day.total, day.completed, day.cancelled, day.noDriverFound, day.sharedTrips], [4, 2, 1, 1, 1]);
+    assert.deepEqual([day.grossFare, day.averageFare, day.completionRate], [140, 70, 50]);
+  });
+  it('an empty period is all zeros, not missing', () => {
+    const d = volumeByPeriod([], 'day', 3, NOW);
+    assert.equal(d.length, 3);
+    assert.ok(d.every((r) => r.total === 0 && r.grossFare === 0 && r.averageFare === 0 && r.completionRate === 0));
+  });
+});
+
+describe('driver activity', () => {
+  const drivers = [
+    { driver_id: 'd1', full_name: 'Ana', plate_number: 'P1' },
+    { driver_id: 'd2', full_name: 'Ben', plate_number: 'P2' },
+    { driver_id: 'd3', full_name: 'Cara' },
+  ];
+  it('totals the completed trips, kilometres and fares of each driver, the newest trip and recent activity', () => {
+    const rows = driverActivity(
+      [
+        { ...at('2026-10-02T01:00:00Z', { actual_fare: 60, actual_distance_km: '3.0' }), driver_id: 'd1' },
+        { ...at('2026-08-01T01:00:00Z', { estimated_fare: 62, estimated_distance_km: 2.4 }), driver_id: 'd1' },
+        { ...at('2026-10-03T01:00:00Z', { booking_status: 'Cancelled' }), driver_id: 'd1' },
+        { ...at('2026-10-03T01:00:00Z', { booking_status: 'Cancelled' }), driver_id: 'd2' },
+        { ...at('2026-10-03T01:00:00Z', { actual_fare: 99 }), driver_id: 'stranger' },
+      ],
+      drivers,
+      30,
+      NOW
+    );
+    assert.deepEqual(rows.map((r) => r.driverId), ['d1', 'd2', 'd3']);
+    const [ana, ben, cara] = rows;
+    assert.deepEqual([ana.completed, ana.cancelled, ana.km, ana.grossFare], [2, 1, 5.4, 122]);
+    assert.equal(ana.lastTripAt, '2026-10-02T01:00:00Z');
+    assert.equal(ana.activeInWindow, true);
+    assert.deepEqual([ben.completed, ben.cancelled, ben.activeInWindow], [0, 1, false]);
+    assert.deepEqual([cara.completed, cara.plate, cara.lastTripAt], [0, '', null]);
+  });
+  it('a driver whose only trip is outside the window is not active', () => {
+    const [row] = driverActivity([{ ...at('2026-08-01T01:00:00Z'), driver_id: 'd1' }], [drivers[0]], 30, NOW);
+    assert.equal(row.completed, 1);
+    assert.equal(row.activeInWindow, false);
   });
 });

@@ -19,6 +19,9 @@ export interface BookingLike {
   pickup_address?: string | null;
   pickup_latitude?: number | string | null;
   pickup_longitude?: number | string | null;
+  driver_id?: string | null;
+  actual_distance_km?: number | string | null;
+  estimated_distance_km?: number | string | null;
 }
 
 const MANILA = 'Asia/Manila';
@@ -55,7 +58,104 @@ const round1 = (n: number): number => Math.round(n * 10) / 10;
 const pct = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Booking trend: bookings per day for the last N days
+// Booking volume by day, week or month (TODA reports: daily, weekly and monthly booking reports, platform volume, gross fare)
+// ---------------------------------------------------------------------------------------------------------------------------------
+export type VolumePeriod = 'day' | 'week' | 'month';
+
+/** How many periods each report lists, newest last: 14 days, 8 weeks (Monday to Sunday), 6 months */
+export const VOLUME_PERIOD_COUNTS: Record<VolumePeriod, number> = { day: 14, week: 8, month: 6 };
+
+export interface VolumeRow {
+  /** "2026-10-06" for a day, the Monday "2026-10-05" for a week, "2026-10" for a month */
+  key: string;
+  label: string;
+  total: number;
+  completed: number;
+  cancelled: number;
+  noDriverFound: number;
+  sharedTrips: number;
+  /** final fares of the completed trips, in pesos (cash) */
+  grossFare: number;
+  averageFare: number;
+  /** percent of the period's requests that were completed */
+  completionRate: number;
+}
+
+const shortDate = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+const monthLabelFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' });
+
+const keyToUtc = (key: string): Date => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d ?? 1));
+};
+const utcToKey = (d: Date): string => d.toISOString().slice(0, 10);
+const addDaysToKey = (key: string, days: number): string => utcToKey(new Date(keyToUtc(key).getTime() + days * 86_400_000));
+/** The Monday of the week that contains a calendar date ("YYYY-MM-DD") */
+const weekStartKey = (key: string): string => addDaysToKey(key, -((keyToUtc(key).getUTCDay() + 6) % 7));
+
+function periodKeyOf(dateKey: string, period: VolumePeriod): string {
+  if (period === 'day') return dateKey;
+  if (period === 'week') return weekStartKey(dateKey);
+  return dateKey.slice(0, 7);
+}
+
+function periodKeysEndingAt(nowKey: string, period: VolumePeriod, count: number): string[] {
+  const keys: string[] = [];
+  if (period === 'day') {
+    for (let i = count - 1; i >= 0; i--) keys.push(addDaysToKey(nowKey, -i));
+  } else if (period === 'week') {
+    const start = weekStartKey(nowKey);
+    for (let i = count - 1; i >= 0; i--) keys.push(addDaysToKey(start, -7 * i));
+  } else {
+    const [y, m] = nowKey.split('-').map(Number);
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+    }
+  }
+  return keys;
+}
+
+function periodLabel(key: string, period: VolumePeriod): string {
+  if (period === 'day') return shortDate.format(keyToUtc(key));
+  if (period === 'week') return `${shortDate.format(keyToUtc(key))} - ${shortDate.format(keyToUtc(addDaysToKey(key, 6)))}`;
+  return monthLabelFmt.format(keyToUtc(`${key}-01`));
+}
+
+export function volumeByPeriod(
+  bookings: BookingLike[],
+  period: VolumePeriod,
+  count: number = VOLUME_PERIOD_COUNTS[period],
+  now: Date = new Date()
+): VolumeRow[] {
+  const rows = new Map<string, VolumeRow>();
+  const order = periodKeysEndingAt(manilaDateKey(now), period, count);
+  for (const key of order) {
+    rows.set(key, { key, label: periodLabel(key, period), total: 0, completed: 0, cancelled: 0, noDriverFound: 0, sharedTrips: 0, grossFare: 0, averageFare: 0, completionRate: 0 });
+  }
+  for (const b of bookings) {
+    if (!b.created_at) continue;
+    const row = rows.get(periodKeyOf(manilaDateKey(new Date(b.created_at)), period));
+    if (!row) continue;
+    row.total += 1;
+    if (isSharedBooking(b)) row.sharedTrips += 1;
+    if (isCompletedBooking(b)) {
+      row.completed += 1;
+      row.grossFare += fare(b);
+    } else if (isCancelledBooking(b)) row.cancelled += 1;
+    else if (isNoDriverBooking(b)) row.noDriverFound += 1;
+  }
+  return order.map((key) => {
+    const row = rows.get(key) as VolumeRow;
+    row.grossFare = Math.round(row.grossFare * 100) / 100;
+    row.averageFare = row.completed > 0 ? Math.round((row.grossFare / row.completed) * 100) / 100 : 0;
+    row.completionRate = pct(row.completed, row.total);
+    return row;
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Booking trend: bookings per day for the last N days (the daily volume, in the shape the trend chart uses)
 // ---------------------------------------------------------------------------------------------------------------------------------
 export interface TrendPoint {
   date: string;
@@ -66,23 +166,7 @@ export interface TrendPoint {
 }
 
 export function bookingTrend(bookings: BookingLike[], days: number = BOOKING_TREND_DAYS, now: Date = new Date()): TrendPoint[] {
-  const points: TrendPoint[] = [];
-  const index = new Map<string, TrendPoint>();
-  for (let i = days - 1; i >= 0; i--) {
-    const day = new Date(now.getTime() - i * 86_400_000);
-    const p: TrendPoint = { date: manilaDateKey(day), label: labelFmt.format(day), total: 0, completed: 0, cancelled: 0 };
-    points.push(p);
-    index.set(p.date, p);
-  }
-  for (const b of bookings) {
-    if (!b.created_at) continue;
-    const p = index.get(manilaDateKey(new Date(b.created_at)));
-    if (!p) continue;
-    p.total += 1;
-    if (isCompletedBooking(b)) p.completed += 1;
-    else if (isCancelledBooking(b)) p.cancelled += 1;
-  }
-  return points;
+  return volumeByPeriod(bookings, 'day', days, now).map((r) => ({ date: r.key, label: r.label, total: r.total, completed: r.completed, cancelled: r.cancelled }));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -249,6 +333,53 @@ export function driverUtilizationSummary(
   }
   const activeDrivers = verifiedDriverIds.filter((id) => active.has(id)).length;
   return { verifiedDrivers: verifiedDriverIds.length, activeDrivers, rate: round1(verifiedDriverIds.length ? (activeDrivers / verifiedDriverIds.length) * 100 : 0), windowDays };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Driver activity: trips, distance and fares per driver (TODA report: driver trip volume and activity)
+// ---------------------------------------------------------------------------------------------------------------------------------
+export interface DriverActivityRow {
+  driverId: string;
+  name: string;
+  plate: string;
+  completed: number;
+  cancelled: number;
+  /** road distance of the completed trips, in km */
+  km: number;
+  grossFare: number;
+  /** the creation time of the driver's latest completed booking */
+  lastTripAt: string | null;
+  /** completed a trip within the activity window */
+  activeInWindow: boolean;
+}
+
+export function driverActivity(
+  bookings: BookingLike[],
+  drivers: Array<{ driver_id: string; full_name: string; plate_number?: string | null }>,
+  windowDays: number = DRIVER_ACTIVITY_WINDOW_DAYS,
+  now: Date = new Date()
+): DriverActivityRow[] {
+  const since = now.getTime() - windowDays * 86_400_000;
+  const rows = new Map<string, DriverActivityRow>();
+  for (const d of drivers) {
+    rows.set(d.driver_id, { driverId: d.driver_id, name: d.full_name, plate: d.plate_number ?? '', completed: 0, cancelled: 0, km: 0, grossFare: 0, lastTripAt: null, activeInWindow: false });
+  }
+  for (const b of bookings) {
+    const row = b.driver_id ? rows.get(b.driver_id) : undefined;
+    if (!row) continue;
+    if (isCompletedBooking(b)) {
+      row.completed += 1;
+      row.km += Number(b.actual_distance_km ?? b.estimated_distance_km) || 0;
+      row.grossFare += fare(b);
+      if (b.created_at && (!row.lastTripAt || b.created_at > row.lastTripAt)) row.lastTripAt = b.created_at;
+      if (b.created_at && new Date(b.created_at).getTime() >= since) row.activeInWindow = true;
+    } else if (isCancelledBooking(b)) {
+      row.cancelled += 1;
+    }
+  }
+  return [...rows.values()]
+    .map((r) => ({ ...r, km: round1(r.km), grossFare: Math.round(r.grossFare * 100) / 100 }))
+    .sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name));
 }
 
 /** completed / (completed + cancelled), in percent, or null when nothing has finished yet */
