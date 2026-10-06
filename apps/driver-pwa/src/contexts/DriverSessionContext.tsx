@@ -33,6 +33,9 @@ interface DriverSessionContextType {
   presence: PresenceView;
   goOnline: () => Promise<PresenceOutcome>;
   goOffline: () => Promise<PresenceOutcome>;
+  /** Stop receiving new booking offers for a while (Online only); the pause ends by itself. */
+  pauseBookings: (minutes?: number) => Promise<PresenceOutcome>;
+  resumeBookings: () => Promise<PresenceOutcome>;
   refreshPresence: () => Promise<void>;
   /** Tell the engine the driver granted location in the app's own prompt. */
   enableLocation: () => void;
@@ -136,7 +139,9 @@ export const DriverSessionProvider: React.FC<{
   }, [profile, driverId]);
 
   // "Online" shown anywhere in the app is the server's answer, whatever a screen writes with setProfile.
-  const exposedProfile = useMemo<DriverProfile>(() => ({ ...profile, isOnline, isPaused: false }), [profile, isOnline]);
+  // Paused is the server's answer too (the pause ends by itself, so a time already past counts as not paused).
+  const isPaused = isOnline && !!presence.pausedUntil && Date.parse(presence.pausedUntil) > Date.now();
+  const exposedProfile = useMemo<DriverProfile>(() => ({ ...profile, isOnline, isPaused }), [profile, isOnline, isPaused]);
 
   // The engine's single watcher feeds the map position (local state only; the heartbeat is the only publisher).
   useEffect(() => {
@@ -365,6 +370,8 @@ export const DriverSessionProvider: React.FC<{
         presence,
         goOnline: engine.goOnline,
         goOffline: engine.goOffline,
+        pauseBookings: engine.pauseBookings,
+        resumeBookings: engine.resumeBookings,
         refreshPresence: engine.refresh,
         enableLocation: engine.enableLocation,
         locationReauthRequired: engine.locationReauthRequired,

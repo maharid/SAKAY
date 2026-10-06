@@ -5,7 +5,8 @@ const path = require('path');
 const { setup, check, summary } = require('../b4fixtures');
 
 (async () => {
-  const t = await setup();
+  // Whole chain: the pause constants (Day 1) are added after Batch 4's own last migration.
+  const t = await setup(null);
   const src = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'packages', 'shared', 'src', 'config', 'policyConfig.ts'), 'utf8');
   const ts = (name) => {
     const m = src.match(new RegExp(`export const ${name} = (\\d+);`));
@@ -21,6 +22,10 @@ const { setup, check, summary } = require('../b4fixtures');
     heartbeat_stale_seconds: 'DRIVER_HEARTBEAT_STALE_SECONDS',
     location_max_accuracy_m: 'LOCATION_MAX_ACCURACY_METERS',
     location_max_age_seconds: 'LOCATION_MAX_AGE_SECONDS',
+    // Day 1 (migration 20261012000002): pause bookings
+    pause_min_minutes: 'DRIVER_PAUSE_MIN_MINUTES',
+    pause_default_minutes: 'DRIVER_PAUSE_DEFAULT_MINUTES',
+    pause_max_minutes: 'DRIVER_PAUSE_MAX_MINUTES',
   };
   for (const [key, tsName] of Object.entries(pairs)) {
     const db = (await t.one(`SELECT public.driver_presence_constant('${key}') v`)).v;
