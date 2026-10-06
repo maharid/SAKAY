@@ -47,7 +47,6 @@ const fare = (b: BookingLike): number => Number(b.actual_fare ?? b.estimated_far
 
 const dateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: MANILA, year: 'numeric', month: '2-digit', day: '2-digit' });
 const hourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: MANILA, hour: '2-digit', hour12: false });
-const labelFmt = new Intl.DateTimeFormat('en-US', { timeZone: MANILA, month: 'short', day: 'numeric' });
 
 /** "2026-10-06" for an instant, as the calendar date in Manila */
 export const manilaDateKey = (d: Date): string => dateFmt.format(d);

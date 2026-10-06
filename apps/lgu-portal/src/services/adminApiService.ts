@@ -273,6 +273,48 @@ function extractActualFilename(rawUrlOrPath?: string | null, fallback = 'Documen
   }
 }
 
+/** A TODA's registration documents as the LGU screens list them: the real files it uploaded, each with a short-lived signed link. */
+async function todaDocumentsOf(row: any): Promise<Array<{ name: string; type: string; date: string; url: string | null; status: string }>> {
+  // Signed links for the documents (a stored value is a storage path; an older full storage URL is converted to one)
+  const bcUrl = await resolveStorageDocUrl('barangay-clearances', row.barangay_clearance_url);
+  const adUrl = await resolveStorageDocUrl('toda-accredited-driver-lists', row.accredited_drivers_url);
+  const blUrl = await resolveStorageDocUrl('toda-bylaws', row.bylaws_url);
+  const submitted = row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Submitted';
+
+  const docs: Array<{ name: string; type: string; date: string; url: string | null; status: string }> = [];
+  if (row.barangay_clearance_url || bcUrl) {
+    const fileLink = bcUrl || row.barangay_clearance_url;
+    docs.push({
+      name: extractActualFilename(row.barangay_clearance_url || bcUrl, 'Barangay_Clearance.pdf'),
+      type: (fileLink || '').toLowerCase().includes('.pdf') ? 'PDF Document' : 'Image Verification',
+      date: submitted,
+      url: fileLink,
+      status: 'Submitted',
+    });
+  }
+  if (row.accredited_drivers_url || adUrl) {
+    const fileLink = adUrl || row.accredited_drivers_url;
+    docs.push({
+      name: extractActualFilename(row.accredited_drivers_url || adUrl, 'Driver_Roster.xlsx'),
+      type: (fileLink || '').toLowerCase().includes('.csv') ? 'CSV Spreadsheet' : 'Excel Spreadsheet',
+      date: submitted,
+      url: fileLink,
+      status: 'Submitted',
+    });
+  }
+  if (row.bylaws_url || blUrl) {
+    const fileLink = blUrl || row.bylaws_url;
+    docs.push({
+      name: extractActualFilename(row.bylaws_url || blUrl, 'Internal_Bylaws.pdf'),
+      type: (fileLink || '').toLowerCase().includes('.pdf') ? 'PDF Document' : 'Document Attachment',
+      date: submitted,
+      url: fileLink,
+      status: 'Submitted',
+    });
+  }
+  return docs;
+}
+
 // Note: In accordance with SAKAY Policy Batch 1, TODA status overrides in localStorage 
 // have been permanently purged. All status verification is strictly database-backed.
 
@@ -293,47 +335,7 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
         ? Date.now() - new Date(row.created_at).getTime() > 5 * 24 * 60 * 60 * 1000
         : false;
 
-      // Signed links for the documents (a stored value is a storage path; an older full storage URL is converted to one)
-      const bcUrl = await resolveStorageDocUrl('barangay-clearances', row.barangay_clearance_url);
-      const adUrl = await resolveStorageDocUrl('toda-accredited-driver-lists', row.accredited_drivers_url);
-      const blUrl = await resolveStorageDocUrl('toda-bylaws', row.bylaws_url);
-
-      const docs = [];
-      if (row.barangay_clearance_url || bcUrl) {
-        const fileLink = bcUrl || row.barangay_clearance_url;
-        const actualName = extractActualFilename(row.barangay_clearance_url || bcUrl, 'Barangay_Clearance.pdf');
-        docs.push({
-          name: actualName,
-          type: (fileLink || '').toLowerCase().includes('.pdf') ? 'PDF Document' : 'Image Verification',
-          date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Submitted',
-          url: fileLink,
-          status: 'Submitted',
-        });
-      }
-
-      if (row.accredited_drivers_url || adUrl) {
-        const fileLink = adUrl || row.accredited_drivers_url;
-        const actualName = extractActualFilename(row.accredited_drivers_url || adUrl, 'Driver_Roster.xlsx');
-        docs.push({
-          name: actualName,
-          type: (fileLink || '').toLowerCase().includes('.csv') ? 'CSV Spreadsheet' : 'Excel Spreadsheet',
-          date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Submitted',
-          url: fileLink,
-          status: 'Submitted',
-        });
-      }
-
-      if (row.bylaws_url || blUrl) {
-        const fileLink = blUrl || row.bylaws_url;
-        const actualName = extractActualFilename(row.bylaws_url || blUrl, 'Internal_Bylaws.pdf');
-        docs.push({
-          name: actualName,
-          type: (fileLink || '').toLowerCase().includes('.pdf') ? 'PDF Document' : 'Document Attachment',
-          date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Submitted',
-          url: fileLink,
-          status: 'Submitted',
-        });
-      }
+      const docs = await todaDocumentsOf(row);
 
       const rawStatus = row.toda_status || row.account_status || row.status || 'Pending';
       const currentStatus = (rawStatus === 'Active' || rawStatus === 'Approved') ? 'Approved' : rawStatus;
@@ -637,7 +639,7 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
       return st === 'Active' || st === 'Approved';
     });
 
-    return activeTodas.map((row: any) => ({
+    return Promise.all(activeTodas.map(async (row: any) => ({
       id: row.toda_id,
       name: row.toda_name,
       acronym: row.toda_acronym || '',
@@ -662,9 +664,9 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
       pendingTerminalLng: row.pending_terminal_longitude,
       pendingTerminalLocation: row.pending_terminal_location,
       terminalRelocationRequestedAt: row.terminal_relocation_requested_at,
-      documents: [],
+      documents: await todaDocumentsOf(row),
       driverRoster: [],
-    }));
+    })));
   } catch (err) {
     console.error('[adminApiService] fetchAccreditedTodas error:', err);
     return [];

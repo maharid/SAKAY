@@ -47,7 +47,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
   const [selectedDriver, setSelectedDriver] = useState<DriverRecord | null>(null);
 
   // Selected document for official records preview
-  const [selectedDoc, setSelectedDoc] = useState<{ name: string; type: string } | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<{ name: string; type: string; url?: string | null } | null>(null);
 
   // Map Ref for Leaflet
   const mapRef = useRef<HTMLDivElement>(null);
@@ -130,12 +130,8 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
   const endIndex = Math.min(startIndex + rowsPerPage, totalDrivers);
   const currentPageDrivers = drivers.slice(startIndex, endIndex);
 
-  const officialDocs = [
-    { name: `Official Barangay Clearance (${toda.barangay})`, type: 'LGU Barangay Certification', date: toda.accreditedDate || '2024' },
-    { name: 'SEC / CDA Registration Certificate', type: 'Certified True Copy', date: toda.accreditedDate || '2024' },
-    { name: `Driver Roster (${toda.registeredDrivers} Units)`, type: 'Accredited Roster PDF', date: toda.accreditedDate || '2024' },
-    { name: "Mayor's Permit & Franchise Clearance", type: 'City Franchise Permit', date: toda.accreditedDate || '2024' },
-  ];
+  // The files this TODA actually uploaded at registration (nothing is listed that is not on file)
+  const officialDocs = toda.documents ?? [];
 
   return (
     <>
@@ -276,6 +272,12 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
             3. Registration & Accreditation Documents ({officialDocs.length})
           </Typography>
 
+          {officialDocs.length === 0 && (
+            <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', py: 1 }}>
+              No registration documents are on file for this TODA.
+            </Typography>
+          )}
+
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {officialDocs.map((doc, idx) => (
               <Box
@@ -298,14 +300,14 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                       {doc.name}
                     </Typography>
                     <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      {doc.type} • Validated
+                      {doc.type} • Submitted {doc.date}
                     </Typography>
                   </Box>
                 </Box>
                 <ActionButton
                   label="View Document"
                   showArrow={false}
-                  onClick={() => setSelectedDoc({ name: doc.name, type: doc.type })}
+                  onClick={() => setSelectedDoc({ name: doc.name, type: doc.type, url: doc.url })}
                   sx={{ height: 34, fontSize: '12.4px' }}
                 />
               </Box>
@@ -454,6 +456,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
           onClose={() => setSelectedDoc(null)}
           documentName={selectedDoc.name}
           documentType={selectedDoc.type}
+          url={selectedDoc.url}
         />
       )}
     </>
