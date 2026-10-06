@@ -19,6 +19,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import DescriptionIcon from '@mui/icons-material/Description';
 import L from 'leaflet';
 
+import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@sakay/shared';
 import { AccreditedTodaRecord, DriverRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
@@ -89,7 +90,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
       attributionControl: false,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
 
     // Draw service zone circle
     L.circle([lat, lng], {
