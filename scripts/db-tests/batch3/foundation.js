@@ -1,6 +1,9 @@
+const fs = require('fs');
+const path = require('path');
 const { freshDb, asUser, attempt, check, summary } = require('../tlib');
 (async () => {
-  const db = await freshDb('20261004000001_batch3_strike_foundation.sql');
+  // Whole chain: three of the constants below are set by 20261011000001, after Batch 3's own migrations.
+  const db = await freshDb();
   // fixtures (superuser)
   const P_AUTH = '11111111-1111-1111-1111-111111111111', P_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
   const L_AUTH = '22222222-2222-2222-2222-222222222222';
@@ -16,7 +19,20 @@ const { freshDb, asUser, attempt, check, summary } = require('../tlib');
   const cfg = await db.query(`SELECT config_value FROM system_policy_config WHERE config_key='strike_accrual_paused'`);
   check('pause switch seeded as not paused', cfg.rows[0]?.config_value?.paused === false, cfg.rows);
   const c = await db.query(`SELECT strike_policy_constant('suspension_1_days') a, strike_policy_constant('suspension_2_days') b, strike_policy_constant('exemption_window_hours') c, strike_policy_constant('window_days') d`);
-  check('constants: 3-day @5, 7-day @8, 72h window, 90d window', c.rows[0].a===3 && c.rows[0].b===7 && c.rows[0].c===72 && c.rows[0].d===90, c.rows[0]);
+  check('constants: 7-day @5, 30-day @8, 48h window, 90d window', c.rows[0].a===7 && c.rows[0].b===30 && c.rows[0].c===48 && c.rows[0].d===90, c.rows[0]);
+
+  // The numbers the apps display (packages/shared/src/config/policyConfig.ts) must equal what the database enforces.
+  const cfgSrc = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'packages', 'shared', 'src', 'config', 'policyConfig.ts'), 'utf8');
+  const ts = (re) => { const m = cfgSrc.match(re); return m ? Number(m[1]) : undefined; };
+  const tsLadder = {
+    suspension_1_days: ts(/SUSPENSION_1_DAYS: (\d+),/), suspension_2_days: ts(/SUSPENSION_2_DAYS: (\d+),/),
+    suspension_1_threshold: ts(/SUSPENSION_1_AT: (\d+),/), suspension_2_threshold: ts(/SUSPENSION_2_AT: (\d+),/),
+    deactivation_threshold: ts(/DEACTIVATION_AT: (\d+),/), exemption_window_hours: ts(/export const EXEMPTION_REQUEST_WINDOW_HOURS = (\d+);/),
+  };
+  for (const [key, tsVal] of Object.entries(tsLadder)) {
+    const dbVal = (await db.query(`SELECT strike_policy_constant('${key}') v`)).rows[0].v;
+    check(`policyConfig.ts ${key} (${tsVal}) equals strike_policy_constant('${key}') (${dbVal})`, tsVal === dbVal, { tsVal, dbVal });
+  }
 
   // Engine sets a non-default state first, so the passenger's attempts below are real changes.
   await db.exec(`SELECT set_config('sakay.internal_context','true',false);

@@ -70,7 +70,8 @@ You need these test accounts: one LGU admin, one TODA admin, one test driver tha
   4. Go to the Driver PWA, log out, log in again.
   5. Try to switch **Online**.
 - **Expected Result:** The driver is now Verified and can go Online.
-- **If the driver still cannot go Online:** write down the exact message. This is a bug I suspect (the portal buttons may not update the right record). Tell me and we fix it before Batch 6.
+- **If the TODA roster did not list this driver:** the LGU portal asks for a written override reason (at least 10 characters) before it will approve. Type one and continue.
+- **If the driver still cannot go Online:** write down the exact message and tell me. (Recent commits made both portals use the database approval functions, so this should now work.)
 
 #### Step 4: A different TODA admin cannot see the driver
 
@@ -184,9 +185,9 @@ Expired license, expired MTOP and expired TODA certificate blocking drivers; the
 
 # BATCH 3: Strikes and Suspensions
 
-Strike levels: 1 = warning. 3 = review flag. 5 = suspended 3 days. 8 = suspended 7 days. 10 = deactivated.
+Strike levels (as in your policy PDF): 1 = warning. 3 = review flag. 5 = suspended 7 days. 8 = suspended 30 days. 10 = deactivated.
 
-Note: your policy PDF (Sections 20 and 21) says **7 days** at 5 strikes and **30 days** at 8 strikes. The system currently uses 3 and 7 days (an earlier decision). The steps below follow what the system does today.
+Note: these lengths (and the 48-hour exemption window) only apply to your hosted database after migration `20261011000001_align_strike_values_to_policy.sql` is applied. Until then it still suspends for 3 and 7 days.
 
 #### Step 1: Give strikes to the test passenger
 
@@ -198,8 +199,8 @@ Note: your policy PDF (Sections 20 and 21) says **7 days** at 5 strikes and **30
 - **Expected Result:**
   - 1 strike: warning only, account still works.
   - 3 strikes: a review flag appears on the LGU Dashboard.
-  - 5 strikes: account is suspended for 3 days.
-  - 8 strikes: suspended for 7 days.
+  - 5 strikes: account is suspended for 7 days.
+  - 8 strikes: suspended for 30 days.
   - 10 strikes: deactivated.
   - Each result happens once only, not again on the next strike.
 

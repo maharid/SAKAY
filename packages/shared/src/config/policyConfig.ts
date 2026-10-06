@@ -97,25 +97,25 @@ export const DOCUMENT_EXPIRY_REMINDER_DAYS = [30, 14, 3] as const;
 // 6. STRIKES, SUSPENSION & EXEMPTION (Batch 3 - Sections 20, 21, 22, 25)
 // ============================================================================
 // The database is authoritative: these values are code constants inside
-// public.strike_policy_constant() (supabase/migrations/20261004000001_*). They are
+// public.strike_policy_constant() (20261004000001_*; the three policy-aligned values are set by 20261011000001_*). They are
 // mirrored here ONLY for display (notices, FAQs, admin screens). Change both together.
 
 /** Rolling window for counting active strikes, in days (Sections 20/21) */
 export const STRIKE_WINDOW_DAYS = 90;
 
-/** Active-strike ladder (Sections 20/21). Suspension lengths follow decision F3.3. */
+/** Active-strike ladder (Sections 20/21): 7-day suspension at 5 strikes, 30-day at 8 (aligned to the policy by migration 20261011000001). */
 export const STRIKE_LADDER = {
   WARNING_AT: 1,
   ADMIN_REVIEW_AT: 3,
   SUSPENSION_1_AT: 5,
-  SUSPENSION_1_DAYS: 3,
+  SUSPENSION_1_DAYS: 7,
   SUSPENSION_2_AT: 8,
-  SUSPENSION_2_DAYS: 7,
+  SUSPENSION_2_DAYS: 30,
   DEACTIVATION_AT: 10,
 } as const;
 
-/** Time an account holder has to request an exemption for a strike (decision D1; policy text: 48 h) */
-export const EXEMPTION_REQUEST_WINDOW_HOURS = 72;
+/** Time an account holder has to request an exemption for a strike (Rules 25.1 / 9.4: 48 h; aligned by migration 20261011000001) */
+export const EXEMPTION_REQUEST_WINDOW_HOURS = 48;
 
 /** Business days (Mon-Fri, Asia/Manila) to decide an exemption request (Rule 25.6) */
 export const EXEMPTION_DECISION_BUSINESS_DAYS = 3;
