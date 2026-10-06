@@ -15,7 +15,12 @@
 
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
-import { SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import {
+  SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, signIncidentEvidence, signedStorageUrlFromAny,
+  barangayDemand, bookingTrend, completionRateOfFinished, driverUtilizationSummary, isCancelledBooking, isCompletedBooking,
+  peakHourDistribution, pickupHotspots, serviceUtilization,
+} from '@sakay/shared';
+import type { BarangayDemandRow, DriverUtilizationSummary, Hotspot, PeakHourPoint, ServiceUtilization, TrendPoint } from '@sakay/shared';
 import type { ApplicationReviewAffiliation, ApplicationReviewDocument, ApplicationStatus, ReviewDocumentType } from '@sakay/shared';
 import {
   FareMatrixRecord,
@@ -2105,11 +2110,19 @@ export interface OperationalReportsData {
     activeDrivers: number;
     accreditedTodas: number;
   };
-  peakHourDistribution: Array<{ hour: string; count: number }>;
-  barangayDemand: Array<{ barangay: string; count: number; percentage: number }>;
-  todaPerformance: Array<{ todaName: string; totalTrips: number; activeUnits: number; complianceRate: number }>;
-  driverUtilization: Array<{ driverName: string; toda: string; completedTrips: number; rating: number; status: string }>;
+  peakHourDistribution: PeakHourPoint[];
+  barangayDemand: BarangayDemandRow[];
+  /** completionRate: percent of the TODA's finished trips that were completed (null while nothing has finished) */
+  todaPerformance: Array<{ todaName: string; totalTrips: number; activeUnits: number; completionRate: number | null }>;
+  driverUtilization: Array<{ driverName: string; toda: string; completedTrips: number; rating: number | null; status: string }>;
+  /** Descriptive analytics, all computed from the bookings (packages/shared/src/utils/transportAnalytics.ts) */
+  bookingTrend: TrendPoint[];
+  hotspots: Hotspot[];
+  serviceUtilization: ServiceUtilization;
+  driverUtilizationSummary: DriverUtilizationSummary;
 }
+
+const EMPTY_SERVICE: ServiceUtilization = serviceUtilization([]);
 
 export async function fetchOperationalReports(): Promise<OperationalReportsData> {
   try {
@@ -2123,94 +2136,63 @@ export async function fetchOperationalReports(): Promise<OperationalReportsData>
     const drivers = driversRes.data || [];
     const todas = (todasRes.data || []).filter((t: any) => (t.toda_status || t.account_status) === 'Active');
 
-    const completed = bookings.filter((b) => b.booking_status === 'Completed');
-    const cancelled = bookings.filter((b) => (b.booking_status || '').includes('Cancelled'));
-    const totalRev = completed.reduce((sum, b) => sum + (Number(b.actual_fare ?? b.estimated_fare) || 0), 0);
+    const service = serviceUtilization(bookings);
+    const completed = bookings.filter(isCompletedBooking);
+    const verifiedDriverIds = drivers.filter((d: any) => d.account_status === 'Verified').map((d: any) => d.driver_id as string);
 
-    // Peak hours aggregation
-    const hoursMap: Record<number, number> = {};
-    for (let i = 6; i <= 21; i++) hoursMap[i] = 0;
-    bookings.forEach((b) => {
-      if (b.created_at) {
-        const h = new Date(b.created_at).getHours();
-        if (hoursMap[h] !== undefined) hoursMap[h] += 1;
-      }
-    });
-
-    const peakHourDistribution = Object.entries(hoursMap).map(([h, count]) => ({
-      hour: `${Number(h) > 12 ? Number(h) - 12 : h}:00 ${Number(h) >= 12 ? 'PM' : 'AM'}`,
-      count,
-    }));
-
-    // Barangay aggregation
-    const brgyMap: Record<string, number> = {};
-    bookings.forEach((b) => {
-      const addr = b.pickup_address || b.pickup_location_address;
-      const brgy = addr ? addr.split(',')[0].trim() : 'Calapan Center';
-      brgyMap[brgy] = (brgyMap[brgy] || 0) + 1;
-    });
-
-    const totalBrgyEntries = Math.max(1, bookings.length);
-    const barangayDemand = Object.entries(brgyMap).map(([barangay, count]) => ({
-      barangay,
-      count,
-      percentage: Math.round((count / totalBrgyEntries) * 100),
-    }));
-
-    // TODA Performance
-    const todaPerformance = todas.map((t) => {
-      const todaTrips = completed.filter((b) => b.driver?.toda?.toda_name === t.toda_name).length;
+    // Per TODA: completed trips of its drivers, and the share of its finished trips that were completed
+    const todaPerformance = todas.map((t: any) => {
+      const mine = bookings.filter((b: any) => b.driver?.toda?.toda_name === t.toda_name);
+      const done = mine.filter(isCompletedBooking).length;
+      const cancelled = mine.filter(isCancelledBooking).length;
       return {
-        todaName: t.toda_name,
-        totalTrips: todaTrips,
-        activeUnits: t.active_driver_count || t.registered_tricycle_count || 0,
-        complianceRate: 100,
+        todaName: t.toda_name as string,
+        totalTrips: done,
+        activeUnits: (t.active_driver_count || t.registered_tricycle_count || 0) as number,
+        completionRate: completionRateOfFinished(done, cancelled),
       };
     });
 
-    // Driver Utilization
-    const driverUtilization = drivers.map((d) => {
-      const dTrips = completed.filter((b) => b.driver_id === d.driver_id).length;
-      return {
-        driverName: d.full_name,
-        toda: d.toda?.toda_name || 'Calapan TODA',
-        completedTrips: dTrips,
-        rating: Number(d.weighted_average_rating) || 5.0,
-        status: d.account_status,
-      };
-    });
+    const driverUtilization = drivers.map((d: any) => ({
+      driverName: d.full_name as string,
+      toda: (d.toda?.toda_name || 'No TODA') as string,
+      completedTrips: completed.filter((b: any) => b.driver_id === d.driver_id).length,
+      // A driver with no rating yet is "Not Yet Rated" (policy 23.1), not 5.0
+      rating: d.weighted_average_rating == null ? null : Number(d.weighted_average_rating),
+      status: d.account_status as string,
+    }));
 
     return {
       summary: {
-        totalBookings: bookings.length,
-        completedTrips: completed.length,
-        cancelledTrips: cancelled.length,
-        totalRevenue: totalRev,
-        averageFare: completed.length > 0 ? Math.round(totalRev / completed.length) : 0,
-        activeDrivers: drivers.filter((d) => d.account_status === 'Verified').length,
+        totalBookings: service.requests,
+        completedTrips: service.completed,
+        cancelledTrips: service.cancelled,
+        totalRevenue: service.grossFare,
+        averageFare: service.averageFare,
+        activeDrivers: verifiedDriverIds.length,
         accreditedTodas: todas.length,
       },
-      peakHourDistribution: bookings.length > 0 ? peakHourDistribution : [],
-      barangayDemand: bookings.length > 0 ? barangayDemand : [],
+      peakHourDistribution: peakHourDistribution(bookings),
+      barangayDemand: barangayDemand(bookings),
       todaPerformance,
       driverUtilization,
+      bookingTrend: bookingTrend(bookings),
+      hotspots: pickupHotspots(bookings),
+      serviceUtilization: service,
+      driverUtilizationSummary: driverUtilizationSummary(verifiedDriverIds, bookings),
     };
   } catch (err) {
     console.error('[adminApiService] fetchOperationalReports error:', err);
     return {
-      summary: {
-        totalBookings: 0,
-        completedTrips: 0,
-        cancelledTrips: 0,
-        totalRevenue: 0,
-        averageFare: 0,
-        activeDrivers: 0,
-        accreditedTodas: 0,
-      },
+      summary: { totalBookings: 0, completedTrips: 0, cancelledTrips: 0, totalRevenue: 0, averageFare: 0, activeDrivers: 0, accreditedTodas: 0 },
       peakHourDistribution: [],
       barangayDemand: [],
       todaPerformance: [],
       driverUtilization: [],
+      bookingTrend: [],
+      hotspots: [],
+      serviceUtilization: EMPTY_SERVICE,
+      driverUtilizationSummary: { verifiedDrivers: 0, activeDrivers: 0, rate: 0, windowDays: 30 },
     };
   }
 }
