@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { getOSRMRoute } from "@sakay/shared";
+import { getOSRMRoute, MAP_TILE_URL, MAP_TILE_OPTIONS } from "@sakay/shared";
 
 export const DEFAULT_CALAPAN_CENTER = {
   latitude: 13.4117,
@@ -83,10 +83,7 @@ export const MapView: React.FC<MapViewProps> = ({
       boxZoom: interactive,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      subdomains: ["a", "b", "c"],
-    }).addTo(map);
+    L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
 
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;

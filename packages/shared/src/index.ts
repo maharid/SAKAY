@@ -14,6 +14,7 @@ export * from './utils/transportAnalytics';
 export * from './config/calapanBarangays';
 export * from './utils/applicationReview';
 export * from './config/policyConfig';
+export * from './config/mapTiles';
 
 
 
