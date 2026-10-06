@@ -167,6 +167,13 @@ export const LOCATION_MAX_ACCURACY_METERS = 100;
 export const LOCATION_MAX_AGE_SECONDS = 45;
 export const LOCATION_MAX_AGE_MS = LOCATION_MAX_AGE_SECONDS * 1000;
 
+/** Pause bookings (checklist: Driver > Manage Availability): shortest, default and longest pause, in minutes [DB] */
+export const DRIVER_PAUSE_MIN_MINUTES = 5;
+export const DRIVER_PAUSE_DEFAULT_MINUTES = 15;
+export const DRIVER_PAUSE_MAX_MINUTES = 60;
+/** The lengths the Driver app offers (client only; each lies between the minimum and the maximum) */
+export const DRIVER_PAUSE_CHOICES_MINUTES = [15, 30, 60] as const;
+
 // ============================================================================
 // 8. FARE ENGINE (Batch 5 - Section 6, Rules 6.2 / 6.3 / 6.5 / 6.6, 14.7)
 // ============================================================================
@@ -279,6 +286,9 @@ export const POLICY_CONSTANTS = {
     DRIVER_HEARTBEAT_STALE_SECONDS,
     DRIVER_BACKGROUND_WARNING_AFTER_SECONDS,
     DRIVER_IDLE_LOCATION_INTERVAL_SECONDS,
+    DRIVER_PAUSE_MIN_MINUTES,
+    DRIVER_PAUSE_DEFAULT_MINUTES,
+    DRIVER_PAUSE_MAX_MINUTES,
     LOCATION_MAX_ACCURACY_METERS,
     LOCATION_MAX_AGE_SECONDS,
   },

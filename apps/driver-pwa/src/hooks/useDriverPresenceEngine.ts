@@ -15,6 +15,8 @@ import {
   fetchMyPresence,
   reportLocationUnavailable,
   requestGoOffline,
+  requestPauseBookings,
+  requestResumeBookings,
   requestGoOnline,
   sendHeartbeat,
 } from '../services/driverPresenceService';
@@ -43,6 +45,8 @@ export interface PresenceView {
   lastEnd: { reason: PresenceEndReason; endedAt: string } | null;
   activeTodaId: string | null;
   activeAffiliationId: string | null;
+  /** When the driver's pause on new bookings ends (null = receiving bookings) */
+  pausedUntil: string | null;
 }
 
 /** Flat on purpose: the driver app compiles with strict off, where a true/false union does not narrow. */
@@ -65,6 +69,7 @@ const INITIAL_VIEW: PresenceView = {
   lastEnd: null,
   activeTodaId: null,
   activeAffiliationId: null,
+  pausedUntil: null,
 };
 
 const PERMISSION_DENIED_CODE = 1;
@@ -82,6 +87,7 @@ function toView(res: PresenceResult): PresenceView {
     lastEnd: res.last_session_end ? { reason: res.last_session_end.reason, endedAt: res.last_session_end.ended_at } : null,
     activeTodaId: res.active_toda_id ?? null,
     activeAffiliationId: res.active_affiliation_id ?? null,
+    pausedUntil: res.bookings_paused_until ?? null,
   };
 }
 
@@ -387,6 +393,21 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
     return OK;
   }, [applyResult]);
 
+  // Pause / resume new bookings (checklist: Manage Availability). The database decides; the view takes its answer.
+  const pauseBookings = useCallback(async (minutes?: number): Promise<PresenceOutcome> => {
+    const res = await requestPauseBookings(minutes);
+    if (!res.success) return { ok: false, code: res.error_code || 'ERR_UNKNOWN', message: res.error || 'Could not pause bookings.' };
+    applyResult(res);
+    return OK;
+  }, [applyResult]);
+
+  const resumeBookings = useCallback(async (): Promise<PresenceOutcome> => {
+    const res = await requestResumeBookings();
+    if (!res.success) return { ok: false, code: res.error_code || 'ERR_UNKNOWN', message: res.error || 'Could not resume bookings.' };
+    applyResult(res);
+    return OK;
+  }, [applyResult]);
+
   /** Called after the driver grants location in the app's own prompt. */
   const enableLocation = useCallback(() => {
     setLocationEnabled(true);
@@ -412,6 +433,8 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
     refresh,
     goOnline,
     goOffline,
+    pauseBookings,
+    resumeBookings,
     enableLocation,
     locationReauthRequired,
     sessionMissing,

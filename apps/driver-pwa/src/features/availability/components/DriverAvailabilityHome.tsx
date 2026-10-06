@@ -28,6 +28,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
 import { DriverForegroundReminder } from '../../../common/components/DriverPresenceNotices';
+import PauseBookingsControl from './PauseBookingsControl';
 import { supabase } from '../../../services/supabaseClient';
 import { checkDriverDocumentaryRestriction, fetchAccreditedTodas, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
 import { fetchMyAffiliationOptions } from '../../../services/driverPresenceService';
@@ -47,7 +48,7 @@ export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile, presence, goOnline, goOffline, refreshPresence, enableLocation, locationReauthRequired, sessionMissing } = useDriverSession();
+  const { profile, setProfile, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, sessionMissing } = useDriverSession();
 
   // Going Online / Offline is a request to the database; this screen only shows its answer.
   const [togglingOnline, setTogglingOnline] = useState(false);
@@ -714,6 +715,26 @@ export const DriverAvailabilityHome: React.FC = () => {
         />
       )}
 
+
+      {/* Pause / resume new bookings (Online only; a booking already accepted is not affected) */}
+      {profile.isOnline && !presence.openBooking && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 'calc(var(--safe-area-top) + 140px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+          }}
+        >
+          <PauseBookingsControl
+            language={language === 'tl' ? 'tl' : 'en'}
+            pausedUntil={presence.pausedUntil}
+            onPause={pauseBookings}
+            onResume={resumeBookings}
+          />
+        </Box>
+      )}
 
       <IconButton
         onClick={handleRecenter}

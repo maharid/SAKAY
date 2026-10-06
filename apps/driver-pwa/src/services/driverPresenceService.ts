@@ -37,6 +37,8 @@ export interface PresenceResult {
   active_toda_id?: string | null;
   active_affiliation_id?: string | null;
   open_booking?: boolean;
+  /** Set while the driver has paused new bookings; the pause ends by itself at this time. */
+  bookings_paused_until?: string | null;
   session?: PresenceSession | null;
   last_session_end?: { reason: PresenceEndReason; ended_at: string } | null;
   already_online?: boolean;
@@ -103,6 +105,16 @@ export function requestGoOnline(fix: PositionFix): Promise<PresenceResult> {
 /** Refused only while an accepted booking is open (Rule 5.5). */
 export function requestGoOffline(): Promise<PresenceResult> {
   return call('driver_go_offline');
+}
+
+/** Stop receiving NEW booking offers for a few minutes while staying Online (5 to 60; the database checks). */
+export function requestPauseBookings(minutes?: number): Promise<PresenceResult> {
+  return call('driver_pause_bookings', { p_minutes: minutes ?? null });
+}
+
+/** End the pause now. */
+export function requestResumeBookings(): Promise<PresenceResult> {
+  return call('driver_resume_bookings');
 }
 
 /** The one location publisher. A missing fix still proves the app is alive. */
