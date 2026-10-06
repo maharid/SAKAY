@@ -411,3 +411,54 @@ These need two migrations applied to the hosted database first: `20261012000001`
   3. In the Passenger PWA, book a ride from near the driver.
   4. Back in the Driver PWA, tap the orange **Paused until ...** button to resume, then book again from the passenger.
 - **Expected Result:** While paused, the driver gets **no offer** (the passenger's search skips this driver), and the driver stays ONLINE. After resuming, the offer arrives. The pause also ends by itself when the time passes, and switching Offline clears it.
+
+
+---
+
+# DAY 2 ADDITIONS (TODA reports, reminders, TODA documents, driver photo)
+
+These need two migrations applied to the hosted database first: `20261013000001` and `20261013000002` (both are already applied on the hosted project).
+
+#### Step 1: TODA reports (daily, weekly, monthly, drivers)
+
+- **Where:** TODA Portal (http://localhost:5175)
+- **Action:**
+  1. Log in as a TODA admin and open **TODA Reports & Incidents**.
+  2. Open the **Booking Volume & Fares** tab. Switch between **Daily**, **Weekly** and **Monthly**.
+  3. Open the **Driver Activity** tab.
+  4. On each tab click **Export CSV**.
+- **Expected Result:** Each period row shows requests, completed, cancelled, no driver, shared, estimated gross fare and completion rate; the totals match the bookings of this TODA only. Driver Activity lists each member with completed and cancelled trips, distance, estimated fare and latest trip. A CSV file downloads and opens with the same numbers.
+
+#### Step 2: TODA operations show who is online and utilization
+
+- **Where:** TODA Portal, and Driver PWA (http://localhost:5176)
+- **Action:**
+  1. In the Driver PWA switch a member driver **Online**.
+  2. In the TODA Portal open **Operations**.
+  3. Have the driver pause bookings, then go Offline, and refresh Operations each time.
+- **Expected Result:** The driver shows as **Online**, then **Paused**, then **Offline**. The Driver Utilization card and the **Trips** column change with it. "Completed today" and "Cancelled today" count only today's trips.
+
+#### Step 3: TODA sends a reminder to drivers
+
+- **Where:** TODA Portal, then Driver PWA
+- **Action:**
+  1. Open **Announcements** and click **Send Reminder**.
+  2. Choose **All verified drivers of my TODA**, write a title and a message, and click **Send Reminder**.
+  3. Click **Send Reminder** again right away.
+  4. In the Driver PWA log in as a member driver and open **Abiso** (notifications).
+  5. Try the second choice, **Drivers whose license or MTOP is expired or expires within 30 days**.
+- **Expected Result:** A green message says "Reminder sent to N drivers". The second send right away is refused ("wait a few seconds"). The member driver sees the reminder in Abiso; a driver of another TODA does not. The second choice reaches only drivers with an expiring or expired license or MTOP (or says no driver matched). The Abiso list shows no made-up sample notifications: an empty list says there is nothing yet.
+
+#### Step 4: LGU sees the TODA's real documents
+
+- **Where:** LGU Portal (http://localhost:5174)
+- **Action:** Open **Accredited TODAs** and open a TODA.
+- **Expected Result:** Section 3 lists the files that TODA uploaded at registration (Barangay Clearance, driver list, bylaws); **View Document** opens the real file. A TODA with no files says none are on file.
+
+#### Step 5: Passenger sees the driver's photo and rating
+
+- **Where:** Passenger PWA (http://localhost:5173)
+- **Action:**
+  1. Book a ride with a driver who has a profile photo (set one in the Driver PWA profile editor).
+  2. After the driver accepts, look at the driver card on the trip screen.
+- **Expected Result:** The card shows the driver's photo (the first letter of the name if there is no photo), the real rating if the driver has one (nothing if not), and the TODA. After the trip ends the photo is no longer shown.
