@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -18,39 +18,127 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
-import { supabase } from '../../../services/supabaseClient';
+import { fetchReportableTrips, submitIncidentReport, type ReportableTrip } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
 import PageHeader from '../../../common/components/PageHeader';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 
-export interface IncidentReportItem {
-  id: string;
-  incidentType: string;
-  franchiseNo: string;
-  description: string;
-  status: 'Submitted' | 'Under Investigation (LGU & TODA)' | 'Resolved' | 'Action Taken' | 'Cancelled';
-  submittedAt: string;
-  officialResponse?: string;
-  cancellationReason?: string;
+/** The floating-label select used by this form (same look as RegisterInput). */
+interface FloatingSelectProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  disabled?: boolean;
 }
 
-const STORAGE_KEY = 'sakay_passenger_incident_reports';
+const FloatingSelect: React.FC<FloatingSelectProps> = ({ label, value, onChange, options, disabled }) => {
+  const [focused, setFocused] = useState(false);
+  const floating = focused || Boolean(value);
+  return (
+    <Box sx={{ width: '100%' }}>
+      <Box
+        sx={{
+          width: '100%',
+          minHeight: '62px',
+          height: '62px',
+          borderRadius: '16px',
+          backgroundColor: focused ? '#FFFFFF' : '#F1F3F5',
+          border: `1.5px solid ${focused ? '#FF6B00' : '#E2E8F0'}`,
+          boxShadow: focused ? '0 0 0 3px rgba(255, 107, 0, 0.12)' : 'none',
+          px: 2,
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxSizing: 'border-box',
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        <Typography
+          sx={{
+            position: 'absolute',
+            left: '16px',
+            top: floating ? '8px' : '50%',
+            transform: floating ? 'translateY(0)' : 'translateY(-50%)',
+            fontSize: floating ? '9.5px' : '14px',
+            fontWeight: floating ? 700 : 500,
+            color: focused ? '#FF6B00' : floating ? '#64748B' : '#94A3B8',
+            letterSpacing: floating ? '0.5px' : '0px',
+            textTransform: floating ? 'uppercase' : 'none',
+            pointerEvents: 'none',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            zIndex: 1,
+          }}
+        >
+          {label}
+        </Typography>
+
+        <FormControl fullWidth sx={{ pt: floating ? '16px' : 0 }}>
+          <Select
+            value={value}
+            disabled={disabled}
+            onChange={(e) => onChange(String(e.target.value))}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            variant="standard"
+            disableUnderline
+            IconComponent={(props) => <KeyboardArrowDownIcon {...props} sx={{ color: '#64748B', fontSize: 20 }} />}
+            sx={{
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#0F172A',
+              fontFamily: 'Poppins, sans-serif',
+              '& .MuiSelect-select': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+            }}
+          >
+            {options.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+    </Box>
+  );
+};
 
 export const IncidentReporting: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const navState = location.state as { from?: string; franchiseNo?: string; bookingId?: string } | null;
+  const navState = location.state as { from?: string; bookingId?: string } | null;
   const returnPath = navState?.from || '/dashboard';
 
   const [incidentType, setIncidentType] = useState('Overcharging Attempt');
-  const [franchiseNo, setFranchiseNo] = useState(navState?.franchiseNo || '');
-  const [description, setDescription] = useState(navState?.bookingId ? `Booking ref: ${navState.bookingId}. ` : '');
+  const [trips, setTrips] = useState<ReportableTrip[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(true);
+  const [selectedBookingId, setSelectedBookingId] = useState('');
+  const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [selectFocused, setSelectFocused] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // A report is about a completed trip (policy 16.5), so the passenger says which one.
+  useEffect(() => {
+    let alive = true;
+    fetchReportableTrips()
+      .then((list) => {
+        if (!alive) return;
+        setTrips(list);
+        const fromScreen = navState?.bookingId;
+        setSelectedBookingId(fromScreen && list.some((t) => t.bookingId === fromScreen) ? fromScreen : list.length === 1 ? list[0].bookingId : '');
+      })
+      .catch((err) => alive && setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => alive && setTripsLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [navState?.bookingId]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -82,47 +170,23 @@ export const IncidentReporting: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
-
-    const newReport: IncidentReportItem = {
-      id: `INC-2026-${Date.now().toString().slice(-4)}`,
-      incidentType,
-      franchiseNo: franchiseNo.trim() || 'Unspecified Unit',
-      description: description.trim(),
-      status: 'Under Investigation (LGU & TODA)',
-      submittedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    };
-
+    if (!description.trim() || !selectedBookingId || submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
-      await supabase.from('incident_report').insert([
-        {
-          category: incidentType,
-          description: `[Franchise: ${franchiseNo.trim() || 'N/A'}] ${description.trim()}`,
-          severity: incidentType.includes('Unsafe') || incidentType.includes('Reckless') ? 'High' : 'Medium',
-          status: 'Pending Review',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      await submitIncidentReport({ bookingId: selectedBookingId, category: incidentType, description, file: selectedFile });
     } catch (err) {
-      console.warn('[IncidentReporting] DB sync note:', err);
+      setError(err instanceof Error ? err.message : String(err));
+      setSubmitting(false);
+      return;
     }
-
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const history = raw ? JSON.parse(raw) : [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([newReport, ...history]));
-    } catch {
-      // ignore
-    }
-
+    setSubmitting(false);
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
       navigate('/track-reports');
     }, 1500);
   };
-
-  const isSelectFloating = selectFocused || Boolean(incidentType);
 
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#FAFAFA', display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -151,76 +215,26 @@ export const IncidentReporting: React.FC = () => {
             : 'This report is forwarded directly to the LGU Transport Board and TODA Grievance Committee for official investigation.'}
         </Typography>
 
-        {/* Floating Label Select Category matching RegisterInput behavior */}
-        <Box sx={{ width: '100%' }}>
-          <Box
-            sx={{
-              width: '100%',
-              minHeight: '62px',
-              height: '62px',
-              borderRadius: '16px',
-              backgroundColor: selectFocused ? '#FFFFFF' : '#F1F3F5',
-              border: `1.5px solid ${selectFocused ? '#FF6B00' : '#E2E8F0'}`,
-              boxShadow: selectFocused ? '0 0 0 3px rgba(255, 107, 0, 0.12)' : 'none',
-              px: 2,
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxSizing: 'border-box',
-            }}
-          >
-            <Typography
-              sx={{
-                position: 'absolute',
-                left: '16px',
-                top: isSelectFloating ? '8px' : '50%',
-                transform: isSelectFloating ? 'translateY(0)' : 'translateY(-50%)',
-                fontSize: isSelectFloating ? '9.5px' : '14px',
-                fontWeight: isSelectFloating ? 700 : 500,
-                color: selectFocused ? '#FF6B00' : isSelectFloating ? '#64748B' : '#94A3B8',
-                letterSpacing: isSelectFloating ? '0.5px' : '0px',
-                textTransform: isSelectFloating ? 'uppercase' : 'none',
-                pointerEvents: 'none',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                zIndex: 1,
-              }}
-            >
-              {language === 'tl' ? 'Uri ng Insidente' : 'Incident Category'}
-            </Typography>
+        <FloatingSelect
+          label={language === 'tl' ? 'Biyaheng Inirereklamo' : 'Trip You Are Reporting'}
+          value={selectedBookingId}
+          onChange={setSelectedBookingId}
+          disabled={tripsLoading || trips.length === 0}
+          options={trips.map((t) => ({ value: t.bookingId, label: `${t.dateLabel} • ${t.label}` }))}
+        />
+        {!tripsLoading && trips.length === 0 && (
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl'
+              ? 'Makakapag-ulat ka lamang tungkol sa biyaheng natapos na. Wala ka pang natapos na biyahe.'
+              : 'You can report only a completed trip. You have no completed trip yet.'}
+          </Alert>
+        )}
 
-            <FormControl fullWidth sx={{ pt: isSelectFloating ? '16px' : 0 }}>
-              <Select
-                value={incidentType}
-                onChange={(e) => setIncidentType(e.target.value)}
-                onFocus={() => setSelectFocused(true)}
-                onBlur={() => setSelectFocused(false)}
-                variant="standard"
-                disableUnderline
-                IconComponent={(props) => <KeyboardArrowDownIcon {...props} sx={{ color: '#64748B', fontSize: 20 }} />}
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: '#0F172A',
-                  fontFamily: 'Poppins, sans-serif',
-                }}
-              >
-                {incidentCategories.map((cat) => (
-                  <MenuItem key={cat.value} value={cat.value} sx={{ fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}>
-                    {language === 'tl' ? cat.labelTl : cat.labelEn}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-
-        {/* Franchise / Body Number Input */}
-        <RegisterInput
-          label={language === 'tl' ? 'Franchise Number / Plate No. / TODA' : 'Franchise Number / Plate No. / TODA'}
-          value={franchiseNo}
-          onChange={(val) => setFranchiseNo(val)}
-          placeholder={language === 'tl' ? 'hal. CAL-2025-0773 o TODA-104' : 'e.g. CAL-2025-0773 or TODA-104'}
+        <FloatingSelect
+          label={language === 'tl' ? 'Uri ng Insidente' : 'Incident Category'}
+          value={incidentType}
+          onChange={setIncidentType}
+          options={incidentCategories.map((cat) => ({ value: cat.value, label: language === 'tl' ? cat.labelTl : cat.labelEn }))}
         />
 
         {/* Detailed Narrative Input */}
@@ -304,6 +318,11 @@ export const IncidentReporting: React.FC = () => {
             </Box>
           )}
         </Paper>
+        {error && (
+          <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+            {error}
+          </Alert>
+        )}
       </Box>
 
       {/* Bottom Fixed Action Button Bar */}
@@ -325,15 +344,15 @@ export const IncidentReporting: React.FC = () => {
         {submitted ? (
           <Alert severity="success" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl'
-              ? 'Matagumpay na naitala ang iyong ulat. May magsasagawang imbestigasyon ang LGU.'
-              : 'Your report has been successfully recorded. The LGU will conduct an investigation.'}
+              ? 'Matagumpay na naisumite ang iyong ulat. Susuriin ito ng TODA at LGU.'
+              : 'Your report has been submitted. The TODA and the LGU will review it.'}
           </Alert>
         ) : (
           <Button
             type="submit"
             variant="contained"
             fullWidth
-            disabled={!description.trim()}
+            disabled={!description.trim() || !selectedBookingId || submitting}
             startIcon={<ReportProblemIcon />}
             sx={{
               height: 46,
@@ -348,7 +367,7 @@ export const IncidentReporting: React.FC = () => {
               '&.Mui-disabled': { backgroundColor: '#F1F5F9', color: '#94A3B8' },
             }}
           >
-            {language === 'tl' ? 'Isumite ang Reklamo' : 'Submit Report'}
+            {submitting ? (language === 'tl' ? 'Isinusumite...' : 'Submitting...') : language === 'tl' ? 'Isumite ang Reklamo' : 'Submit Report'}
           </Button>
         )}
       </Paper>

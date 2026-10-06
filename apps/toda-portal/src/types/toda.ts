@@ -216,6 +216,8 @@ export interface TodaIncident {
   submittedAt: string;
   status: 'Pending Review' | 'Under Investigation' | 'Resolved (TODA Level)' | 'Escalated to LGU' | 'Dismissed';
   findings?: string;
+  /** photos the reporter attached (short-lived signed links) */
+  evidenceFiles?: { name: string; url: string }[];
   escalationReason?: string;
   escalatedAt?: string;
 }

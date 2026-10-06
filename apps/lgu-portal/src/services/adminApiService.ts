@@ -15,7 +15,7 @@
 
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
-import { SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, signedStorageUrlFromAny } from '@sakay/shared';
+import { SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import type { ApplicationReviewAffiliation, ApplicationReviewDocument, ApplicationStatus, ReviewDocumentType } from '@sakay/shared';
 import {
   FareMatrixRecord,
@@ -1671,72 +1671,35 @@ export async function fetchIncidents(): Promise<IncidentReportRecord[]> {
         .order('created_at', { ascending: false });
       data = fallback.data;
     }
+    if (!data) return [];
 
-    let liveRecords: IncidentReportRecord[] = [];
-    if (data && data.length > 0) {
-      liveRecords = data.map((i: any) => ({
-        id: i.incident_id,
-        bookingId: i.booking_id || 'TRIP-N/A',
-        tripId: i.booking_id || 'TRIP-N/A',
-        reportedBy: (i.reported_by as any) || (i.reporter_role as any) || 'Passenger',
-        reporterName: i.passenger?.full_name || i.reporter_name || 'Passenger Complainant',
-        driverName: i.driver?.full_name || i.driver_name || 'Assigned Driver',
-        todaName: i.driver?.toda?.toda_name || 'Calapan Central TODA',
-        vehiclePlate: i.driver?.plate_number || i.vehicle_plate || 'MV-101',
-        passengerName: i.passenger?.full_name || i.reporter_name || 'Passenger',
-        submittedDate: i.created_at ? new Date(i.created_at).toLocaleDateString('en-US') : 'Recent',
-        submittedTime: i.created_at ? new Date(i.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '12:00 PM',
-        category: (i.category as any) || 'Overcharging Attempt',
-        status: (i.status === 'Resolved' ? 'Resolved' : i.status === 'Dismissed' ? 'Dismissed' : i.status === 'Under Investigation' ? 'Under Investigation' : 'Pending Review') as any,
-        description: i.description || 'Disputed trip fare.',
-        findings: i.resolution_notes || i.resolution || '',
-        evidenceFiles: [],
-        relatedIncidentsCount: 0,
-        statusHistory: [],
-      }));
-    }
-
-    // Also merge from local shared incidents
-    let localRecords: IncidentReportRecord[] = [];
-    try {
-      const raw = localStorage.getItem('sakay_shared_incidents');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        localRecords = parsed.map((i: any) => ({
+    // Every row is a real report in the database (filed by a passenger or driver through the apps). Nothing is merged in from a browser.
+    return await Promise.all(
+      data.map(async (i: any): Promise<IncidentReportRecord> => {
+        const withdrawn = i.status === 'Cancelled';
+        return {
           id: i.incident_id,
-          bookingId: i.booking_id || 'TRIP-N/A',
-          tripId: i.booking_id || 'TRIP-N/A',
-          reportedBy: (i.reporter_role as any) || 'Passenger',
-          reporterName: i.reporter_name || 'Passenger Complainant',
-          driverName: i.driver_name || 'Tricycle Unit',
-          todaName: 'Calapan Central TODA',
-          vehiclePlate: '773-MV',
-          passengerName: i.reporter_name || 'Passenger',
-          submittedDate: i.reported_at ? new Date(i.reported_at).toLocaleDateString('en-US') : 'Recent',
-          submittedTime: i.reported_at ? new Date(i.reported_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '12:00 PM',
-          category: (i.category as any) || 'Overcharging Attempt',
-          status: 'Pending Review',
-          description: i.description || 'Disputed trip fare.',
-          evidenceFiles: [],
+          bookingId: i.booking_id || 'N/A',
+          tripId: i.booking_id || 'N/A',
+          reportedBy: (i.reported_by as any) || 'Passenger',
+          reporterName: i.passenger?.full_name || 'Passenger',
+          driverName: i.driver?.full_name || 'Driver',
+          todaName: i.driver?.toda?.toda_name || 'N/A',
+          vehiclePlate: i.driver?.plate_number || 'N/A',
+          passengerName: i.passenger?.full_name || 'Passenger',
+          submittedDate: i.created_at ? new Date(i.created_at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila' }) : 'Recent',
+          submittedTime: i.created_at ? new Date(i.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' }) : '',
+          category: (i.category as any) || 'Others',
+          // A report the passenger withdrew shows as Dismissed with the reason in the findings.
+          status: (i.status === 'Resolved' ? 'Resolved' : i.status === 'Dismissed' || withdrawn ? 'Dismissed' : i.status === 'Under Investigation' ? 'Under Investigation' : 'Pending Review') as any,
+          description: i.description || '',
+          findings: withdrawn ? `Withdrawn by the reporter: ${i.cancellation_reason || 'no reason given'}` : (i.resolution_notes || i.resolution || ''),
+          evidenceFiles: await signIncidentEvidence(supabase, i.evidence_paths),
           relatedIncidentsCount: 0,
           statusHistory: [],
-        }));
-      }
-    } catch {
-      // ignore
-    }
-
-    // Merge unique
-    const combined = [...localRecords, ...liveRecords];
-    const seen = new Set<string>();
-    const unique = combined.filter((inc) => {
-      if (seen.has(inc.id)) return false;
-      seen.add(inc.id);
-      return true;
-    });
-
-    if (unique.length > 0) return unique;
-    return [];
+        };
+      })
+    );
   } catch (err) {
     console.error('[adminApiService] fetchIncidents error:', err);
     return [];

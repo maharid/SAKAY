@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -15,19 +15,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { RegisterInput } from "../../../common/components/RegisterInput";
-
-export interface IncidentReportItem {
-  id: string;
-  incidentType: string;
-  franchiseNo: string;
-  description: string;
-  status: "Submitted" | "Under Investigation (LGU & TODA)" | "Resolved" | "Action Taken" | "Cancelled";
-  submittedAt: string;
-  officialResponse?: string;
-  cancellationReason?: string;
-}
-
-const STORAGE_KEY = "sakay_passenger_incident_reports";
+import { fetchMyIncidentReport, withdrawIncidentReport, incidentEvidenceFiles, type IncidentReportItem } from "../../../services/incidentService";
 
 export const TrackReportDetailPage: React.FC = () => {
   const { language } = useLanguage();
@@ -38,75 +26,65 @@ export const TrackReportDetailPage: React.FC = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelSuccess, setCancelSuccess] = useState(false);
 
-  const getReportById = (): IncidentReportItem | null => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const reports: IncidentReportItem[] = stored
-        ? JSON.parse(stored)
-        : [
-            {
-              id: "INC-2026-9041",
-              incidentType: "Overcharging Attempt",
-              franchiseNo: "CAL-2025-0104",
-              description: "Nanghingi ng sobrang ₱20 lampas sa taripa mula Calapan Port hanggang City Hall.",
-              status: "Under Investigation (LGU & TODA)",
-              submittedAt: "Aug 13, 2026",
-              officialResponse: "Naipasa na ang reklamong ito sa TODA Grievance Committee. Ang drayber ay ipinatawag sa City Transport Office.",
-            },
-            {
-              id: "INC-2026-8812",
-              incidentType: "Rude Behavior",
-              franchiseNo: "TODA-452",
-              description: "Bastos at hindi nagbigay ng sukli nang maayos.",
-              status: "Resolved",
-              submittedAt: "Jul 28, 2026",
-              officialResponse: "Ang drayber ay nagbigay ng opisyal na paumanhin at binigyan ng warning ticket ng LGU.",
-            },
-          ];
-      return reports.find((r) => r.id === reportId) || reports[0] || null;
-    } catch {
-      return null;
+  const [report, setReport] = useState<IncidentReportItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [evidenceUrls, setEvidenceUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!reportId) {
+      setLoading(false);
+      return;
     }
-  };
-
-  const [report, setReport] = useState<IncidentReportItem | null>(getReportById);
-
-  const handleConfirmCancel = () => {
-    if (!report || !cancelReason.trim()) return;
-
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const reports: IncidentReportItem[] = stored ? JSON.parse(stored) : [];
-      const updated = reports.map((r) =>
-        r.id === report.id
-          ? {
-              ...r,
-              status: "Cancelled" as const,
-              cancellationReason: cancelReason.trim(),
-            }
-          : r
-      );
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.warn("Failed to persist report cancellation:", e);
-    }
-
-    const updatedReport: IncidentReportItem = {
-      ...report,
-      status: "Cancelled",
-      cancellationReason: cancelReason.trim(),
+    fetchMyIncidentReport(reportId)
+      .then((item) => alive && setReport(item))
+      .catch((err) => alive && setLoadError(err instanceof Error ? err.message : String(err)))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
     };
-    setReport(updatedReport);
+  }, [reportId]);
+
+  // Sign the attached photos when the report is opened (links last 10 minutes).
+  useEffect(() => {
+    let alive = true;
+    const paths = report?.evidencePaths ?? [];
+    if (paths.length === 0) {
+      setEvidenceUrls([]);
+      return;
+    }
+    incidentEvidenceFiles(paths).then((files) => alive && setEvidenceUrls(files.map((f) => f.url)));
+    return () => {
+      alive = false;
+    };
+  }, [report?.evidencePaths]);
+
+  const handleConfirmCancel = async () => {
+    if (!report || !cancelReason.trim() || cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await withdrawIncidentReport(report.id, cancelReason);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : String(err));
+      setCancelling(false);
+      return;
+    }
+    setCancelling(false);
+    setReport({ ...report, status: "Cancelled", cancellationReason: cancelReason.trim() });
     setCancelModalOpen(false);
     setCancelSuccess(true);
   };
 
-  const canCancel = report?.status !== "Resolved" && report?.status !== "Action Taken" && report?.status !== "Cancelled";
+  // Only a report nobody has started reviewing can be withdrawn (the database enforces it too).
+  const canCancel = report?.status === "Submitted";
 
   const getStatusChipProps = (status: string) => {
     switch (status) {
       case "Resolved":
-      case "Action Taken":
         return { backgroundColor: "#ECFDF5", color: "#10B981" };
       case "Under Investigation (LGU & TODA)":
       case "Submitted":
@@ -118,13 +96,26 @@ export const TrackReportDetailPage: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <Box sx={{ width: "100%", height: "100%", backgroundColor: "#FAFAFA", display: "flex", flexDirection: "column" }}>
+        <PageHeader title={language === "tl" ? "Detalye ng Ulat" : "Report Details"} onBack={() => navigate("/track-reports")} />
+        <Box sx={{ p: 4, textAlign: "center" }}>
+          <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+            {language === "tl" ? "Kinukuha ang ulat..." : "Loading the report..."}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
   if (!report) {
     return (
       <Box sx={{ width: "100%", height: "100%", backgroundColor: "#FAFAFA", display: "flex", flexDirection: "column" }}>
         <PageHeader title={language === "tl" ? "Detalye ng Ulat" : "Report Details"} onBack={() => navigate("/track-reports")} />
         <Box sx={{ p: 4, textAlign: "center" }}>
           <Typography sx={{ fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Hindi nahanap ang ulat." : "Report not found."}
+            {loadError || (language === "tl" ? "Hindi nahanap ang ulat." : "Report not found.")}
           </Typography>
         </Box>
       </Box>
@@ -214,10 +205,10 @@ export const TrackReportDetailPage: React.FC = () => {
 
           <Box>
             <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
-              {language === "tl" ? "Inirereklamong Unit & Petsa" : "Reported Unit & Date"}
+              {language === "tl" ? "Inirereklamong Biyahe & Petsa" : "Reported Trip & Date"}
             </Typography>
             <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
-              {report.franchiseNo} • {report.submittedAt}
+              {report.tripSummary} • {report.submittedAt}
             </Typography>
           </Box>
 
@@ -230,6 +221,29 @@ export const TrackReportDetailPage: React.FC = () => {
             </Typography>
           </Box>
         </Paper>
+
+        {/* Attached photo evidence */}
+        {evidenceUrls.length > 0 && (
+          <Paper elevation={0} sx={{ p: 2, borderRadius: "16px", backgroundColor: "#FFFFFF", border: "1px solid #F1F5F9", display: "flex", flexDirection: "column", gap: 1 }}>
+            <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+              {language === "tl" ? "Naka-attach na Larawan" : "Attached Photo"}
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {evidenceUrls.map((url) => (
+                <Box
+                  key={url}
+                  component="a"
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  sx={{ display: "block", lineHeight: 0 }}
+                >
+                  <Box component="img" src={url} alt="Evidence" sx={{ width: 96, height: 96, objectFit: "cover", borderRadius: "12px", border: "1px solid #E2E8F0" }} />
+                </Box>
+              ))}
+            </Box>
+          </Paper>
+        )}
 
         {/* Official LGU / TODA Response */}
         {report.officialResponse && (
@@ -320,6 +334,12 @@ export const TrackReportDetailPage: React.FC = () => {
               : "Are you sure you want to cancel this report? Please state your reason."}
           </Typography>
 
+          {cancelError && (
+            <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
+              {cancelError}
+            </Alert>
+          )}
+
           <RegisterInput
             label={language === "tl" ? "Dahilan ng Pagkakansela" : "Reason for Cancellation"}
             value={cancelReason}
@@ -341,7 +361,7 @@ export const TrackReportDetailPage: React.FC = () => {
           <Button
             onClick={handleConfirmCancel}
             variant="contained"
-            disabled={!cancelReason.trim()}
+            disabled={!cancelReason.trim() || cancelling}
             sx={{
               backgroundColor: "#EF4444",
               color: "#FFFFFF",
