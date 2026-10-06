@@ -35,7 +35,7 @@ export const TripDetailPage: React.FC = () => {
   const timeString = stateTrip?.time || "07:49 PM";
   const pickupAddress = stateTrip?.pickup || "Rizal Ave, Batangas City, Batangas, Philippines";
   const dropoffAddress = stateTrip?.dropoff || "Batangas State University-Alangilan Campus";
-  const driverName = stateTrip?.driverName || "Aurelio Bautista";
+  const driverName = stateTrip?.driverName || (language === "tl" ? "Walang drayber" : "No driver assigned");
   // The driver's number is shown only when the server gave it (while the trip is live); never an invented one.
   const driverPhone: string = stateTrip?.driverPhone || "";
   const price = stateTrip?.price || "₱110.00";

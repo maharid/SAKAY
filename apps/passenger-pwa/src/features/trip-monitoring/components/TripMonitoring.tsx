@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -268,8 +268,16 @@ export const TripMonitoring: React.FC = () => {
   const handleRetrySearch = async () => {
     try {
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
-        await supabase.from('booking').update({ booking_status: 'Pending' }).eq('booking_id', activeBookingId);
-        await supabase.from('dispatch_attempt').delete().eq('booking_id', activeBookingId);
+        // A new search round: the database reopens the booking and closes the unanswered offers of the earlier round
+        const { data: retry, error: retryError } = await supabase.rpc('retry_driver_search', { p_booking_id: activeBookingId });
+        if (retryError || !retry?.success) {
+          setToastMessage(
+            language === 'tl'
+              ? 'Hindi masimulan muli ang paghahanap. Pakisubukang muli.'
+              : 'We could not restart the search. Please try again.'
+          );
+          return;
+        }
       }
       setBooking((prev) => prev ? { ...prev, booking_status: 'Searching Driver' as any } : prev);
       startDispatch(activeBookingId).catch(console.error);
@@ -477,11 +485,12 @@ export const TripMonitoring: React.FC = () => {
     return () => { cancelled = true; };
   }, [activeBookingId, assignedDriverId]);
 
-  // Fetch initial booking details from Supabase if activeBookingId exists
-  useEffect(() => {
+  // Loads the booking and, once a driver is assigned, the driver's details (name, phone, plate, TODA, rating). It runs when the screen
+  // opens AND whenever the assigned driver changes: a driver who accepts AFTER this screen opened used to leave the card on "Driver"
+  // with no plate, phone, photo or rating (and the rating step had no driver to rate).
+  const loadedDriverIdRef = useRef<string | null>(null);
+  const fetchBookingFromDb = useCallback(async () => {
     if (!activeBookingId) return;
-
-    const fetchBookingFromDb = async () => {
       try {
         const { data, error } = await supabase
           .from('booking')
@@ -517,6 +526,7 @@ export const TripMonitoring: React.FC = () => {
             driverInfo = Array.isArray(details) ? details[0] : details;
           }
           const todaInfo = driverInfo?.toda_name ? { toda_name: driverInfo.toda_name as string } : null;
+          loadedDriverIdRef.current = d.driver_id ?? null;
           const rating = Number(driverInfo?.weighted_average_rating);
           setDriverRating(Number.isFinite(rating) && rating > 0 ? rating : null);
 
@@ -575,10 +585,11 @@ export const TripMonitoring: React.FC = () => {
       } catch (err) {
         console.warn('[TripMonitoring] fetchBookingFromDb note:', err);
       }
-    };
-
-    fetchBookingFromDb();
   }, [activeBookingId]);
+
+  useEffect(() => {
+    fetchBookingFromDb();
+  }, [fetchBookingFromDb]);
 
   // Listen to Supabase Realtime for updates and broadcast for driver GPS
   useEffect(() => {
@@ -606,6 +617,11 @@ export const TripMonitoring: React.FC = () => {
           if (d.booking_status === 'Cancelled' && (d.cancelled_by === 'driver' || !d.cancelled_by)) {
             setDriverCancelReason(d.cancellation_reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
             setDriverCancelledAlertOpen(true);
+          }
+          // A driver accepted (or the driver changed): load who it is
+          if (d.driver_id && d.driver_id !== loadedDriverIdRef.current) {
+            loadedDriverIdRef.current = d.driver_id;
+            fetchBookingFromDb();
           }
 
           // The driver's position comes from get_assigned_driver_details, which shares it only while the trip is live.
@@ -644,7 +660,7 @@ export const TripMonitoring: React.FC = () => {
       } catch (err) {
         // ignore polling errors
       }
-    }, 5000);
+    }, 2500);
 
     const syncChannel = supabase.channel(`booking_sync_${activeBookingId}`);
     syncChannel
@@ -669,6 +685,10 @@ export const TripMonitoring: React.FC = () => {
         (payload: any) => {
           const row = payload.new;
           if (row && row.booking_id === activeBookingId) {
+            if (row.driver_id && row.driver_id !== loadedDriverIdRef.current) {
+              loadedDriverIdRef.current = row.driver_id;
+              fetchBookingFromDb();
+            }
             if (row.booking_status === 'Cancelled' && (row.cancelled_by === 'driver' || !row.cancelled_by)) {
               setDriverCancelReason(row.cancellation_reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
               setDriverCancelledAlertOpen(true);
@@ -724,7 +744,7 @@ export const TripMonitoring: React.FC = () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(syncChannel);
     };
-  }, [activeBookingId, language]);
+  }, [activeBookingId, language, fetchBookingFromDb]);
 
   const status = booking?.booking_status || 'Searching Driver';
   const isTripActive = status !== 'Completed' && status !== 'Cancelled';
@@ -754,8 +774,17 @@ export const TripMonitoring: React.FC = () => {
       console.warn('[TripMonitoring] Broadcast cancel note:', err);
     }
 
-    await cancelBooking(activeBookingId, finalReason);
+    const cancelled = await cancelBooking(activeBookingId, finalReason);
     setCancelModalOpen(false);
+    if (!cancelled) {
+      // Still open in the database: do not pretend it is cancelled (the passenger could not book again)
+      setToastMessage(
+        language === 'tl'
+          ? 'Hindi makansela ang booking. Pakisubukang muli.'
+          : 'The booking could not be cancelled. Please try again.'
+      );
+      return;
+    }
     sessionStorage.removeItem('current_active_booking_id');
     navigate('/dashboard');
   };
