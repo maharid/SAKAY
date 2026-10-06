@@ -164,8 +164,43 @@ export const DriverActiveTrip: React.FC = () => {
       }
     };
 
+    // The database is the source of truth. The passenger's phone is a DIFFERENT device, so neither this browser's storage nor a
+    // broadcast that may be missed can tell the driver that the passenger paid or cancelled; the booking row can.
+    const checkBookingInDb = async () => {
+      try {
+        const { data } = await supabase
+          .from('booking')
+          .select('booking_status, actual_fare, cancelled_by, cancellation_reason')
+          .eq('booking_id', bookingId)
+          .maybeSingle();
+        if (!data) return;
+        if (data.booking_status === 'Completed') {
+          if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
+          setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
+          if (!paymentConfirmed) {
+            setPaymentConfirmed(true);
+            setWaitingForPayment(false);
+            setFeedbackModalOpen(true);
+          }
+        } else if (data.booking_status === 'Arrived at Destination') {
+          if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
+          setBooking((prev: any) => (prev && prev.booking_status !== 'Arrived at Destination' ? { ...prev, booking_status: 'Arrived at Destination' } : prev));
+          if (!paymentConfirmed) setWaitingForPayment(true);
+        } else if (data.booking_status === 'Cancelled' && data.cancelled_by === 'passenger') {
+          setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ng pasahero ang booking' : 'Passenger cancelled the booking'));
+          setPassengerCancelledAlertOpen(true);
+        }
+      } catch {
+        // the next poll tries again
+      }
+    };
+
     checkPaymentConfirmed();
-    const interval = setInterval(checkPaymentConfirmed, 1500);
+    checkBookingInDb();
+    const interval = setInterval(() => {
+      checkPaymentConfirmed();
+      checkBookingInDb();
+    }, 2000);
 
     const syncChannel = supabase.channel(`booking_sync_${bookingId}`);
     syncChannel
@@ -823,6 +858,7 @@ export const DriverActiveTrip: React.FC = () => {
           booking_id: bookingId,
           passenger_name: passengerName,
           passenger_id: booking?.passenger_id,
+          driver_id: profile.id,
         }}
       />
 

@@ -187,7 +187,7 @@ export const PassengerFeedback: React.FC = () => {
               created_at: new Date().toISOString(),
             },
           ],
-          { onConflict: 'booking_id,rater_role' }
+          { onConflict: 'booking_id,rater_role', ignoreDuplicates: true }
         );
 
         if (error) {

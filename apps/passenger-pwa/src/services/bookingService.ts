@@ -253,6 +253,27 @@ export const getBooking = (bookingId: string): BookingRecord | null => {
  * Cancels a booking
  */
 export const cancelBooking = async (bookingId: string, reason?: string): Promise<boolean> => {
+  // The database is the truth, and it is written FIRST and whether or not this tab has the booking in its own store (a reload, or
+  // another tab, does not). Only when the booking really is cancelled does this return true.
+  try {
+    const { data, error } = await supabase
+      .from('booking')
+      .update({
+        booking_status: 'Cancelled',
+        cancellation_reason: reason || 'Cancelled by user',
+        cancelled_by: 'passenger',
+      })
+      .eq('booking_id', bookingId)
+      .select('booking_id');
+    if (error || !data || data.length === 0) {
+      console.warn('[bookingService] cancelBooking was not saved:', error?.message);
+      return false;
+    }
+  } catch (err) {
+    console.warn('[bookingService] cancelBooking DB error:', err);
+    return false;
+  }
+
   const store = loadBookings();
   if (store[bookingId]) {
     store[bookingId] = {
@@ -263,24 +284,8 @@ export const cancelBooking = async (bookingId: string, reason?: string): Promise
     saveBookings(store);
     notifyBookingListeners(store[bookingId]);
     persistToHistoryIfTerminal(store[bookingId]);
-
-    // Update in Supabase
-    try {
-      await supabase
-        .from('booking')
-        .update({
-          booking_status: 'Cancelled',
-          cancellation_reason: reason || 'Cancelled by user',
-          cancelled_by: 'passenger',
-        })
-        .eq('booking_id', bookingId);
-    } catch (err) {
-      console.warn('[bookingService] cancelBooking DB sync note:', err);
-    }
-
-    return true;
   }
-  return false;
+  return true;
 };
 
 /**

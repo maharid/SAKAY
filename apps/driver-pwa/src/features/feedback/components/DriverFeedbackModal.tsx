@@ -138,7 +138,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
     setSubmitting(true);
 
     // Real ids only: with either one missing the rating is kept on the device but nothing is sent to the database.
-    const activeDriverId = localStorage.getItem('sakay_driver_id') || booking?.driver_id || '';
+    const activeDriverId = booking?.driver_id || localStorage.getItem('sakay_driver_id') || '';
     const activePassengerId = booking?.passenger_id || '';
 
     const record = {
@@ -152,18 +152,23 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
 
     try {
       if (bookingId && activeDriverId && activePassengerId) {
-        await supabase.from('rating').insert([
-          {
-            booking_id: bookingId,
-            rater_id: activeDriverId,
-            ratee_id: activePassengerId,
-            rater_role: 'Driver',
-            stars: stars || 5,
-            tags: selectedTags,
-            comment: comment.trim(),
-            created_at: new Date().toISOString(),
-          },
-        ]);
+        // One rating per trip per rater: saving again is ignored (the database has the rule), never a second row
+        const { error: ratingError } = await supabase.from('rating').upsert(
+          [
+            {
+              booking_id: bookingId,
+              rater_id: activeDriverId,
+              ratee_id: activePassengerId,
+              rater_role: 'Driver',
+              stars: stars || 5,
+              tags: selectedTags,
+              comment: comment.trim(),
+              created_at: new Date().toISOString(),
+            },
+          ],
+          { onConflict: 'booking_id,rater_role', ignoreDuplicates: true }
+        );
+        if (ratingError) console.warn('[DriverFeedbackModal] rating was not saved:', ratingError.message);
       }
     } catch (err) {
       console.warn('[DriverFeedbackModal] DB insert note:', err);

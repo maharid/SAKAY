@@ -144,7 +144,10 @@ const { setup, check, summary } = require('../b5fixtures');
   const seen = async (uid) => (await as(uid, (tx) => tx.query(`SELECT count(*)::int n FROM public.gps_log WHERE booking_id = $1`, [Bk.booking_id]))).rows[0].n;
   check('the passenger and the driver see the trip\'s points; another passenger sees none',
     (await seen(ID.P_AUTH)) === 2 && (await seen(ID.D_AUTH)) === 2 && (await seen(ID.P2_AUTH)) === 0);
-  check('an unrelated driver and a TODA administrator see none; the LGU administrator sees them', (await seen(ID.D2_AUTH)) === 0 && (await seen(ID.T_AUTH)) === 0 && (await seen(ID.L_AUTH)) === 2);
+  // The booking carries the TODA of the driver who took it (stamped when the driver accepts, migration 20261014000002), so the
+  // administrator of THAT TODA may read the track of its own driver's trip; an unrelated driver or another TODA's administrator may not.
+  check('an unrelated driver and another TODA\'s administrator see none; the driver\'s own TODA administrator and the LGU see them',
+    (await seen(ID.D2_AUTH)) === 0 && (await seen(ID.T2_AUTH)) === 0 && (await seen(ID.T_AUTH)) === 2 && (await seen(ID.L_AUTH)) === 2);
   const an = await attempt(() => anon((tx) => tx.query(`SELECT count(*) FROM public.gps_log`)));
   check('an anonymous caller cannot read the tracks at all (they used to be public)', !an.ok && /permission denied/.test(an.error), err(an));
 

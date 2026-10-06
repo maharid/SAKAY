@@ -1,5 +1,10 @@
 import { supabase } from './supabaseClient';
-import { getDistanceKm } from '@sakay/shared';
+import { DRIVER_OFFER_TIMEOUT_SECONDS, getDistanceKm } from '@sakay/shared';
+
+// How long the dispatcher waits for ONE driver. The driver's own countdown (DRIVER_OFFER_TIMEOUT_SECONDS) only starts when the driver's
+// phone shows the offer, up to a few seconds after the offer was created, so the dispatcher waits longer: otherwise it closes the
+// offer while the driver is still looking at it and the driver's tap on Accept is refused.
+const OFFER_WAIT_SECONDS = DRIVER_OFFER_TIMEOUT_SECONDS + 5;
 
 // Wait utility
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -34,6 +39,17 @@ export const startDispatch = async (bookingId: string) => {
       console.log(`[dispatchService] Booking ${bookingId} is already in status '${dbBooking.booking_status}'. No dispatch needed.`);
       return;
     }
+
+    // Offers made in an EARLIER search round (before "Retry search") do not count: only this round's offers exclude a driver.
+    const roundStart = new Date(dbBooking.search_restarted_at || dbBooking.created_at || 0).getTime();
+    const getPastDriverIds = async (): Promise<Set<string>> => {
+      const { data } = await supabase.from('dispatch_attempt').select('driver_id, notification_sent_at').eq('booking_id', bookingId);
+      return new Set(
+        (data ?? [])
+          .filter((a: any) => new Date(a.notification_sent_at).getTime() >= roundStart)
+          .map((a: any) => a.driver_id as string)
+      );
+    };
 
     const pickupLat = Number(dbBooking.pickup_latitude) || 13.4117;
     const pickupLng = Number(dbBooking.pickup_longitude) || 121.1803;
@@ -115,12 +131,12 @@ export const startDispatch = async (bookingId: string) => {
           continue;
         }
 
-        // Wait up to 15 seconds for driver response
+        // Wait for the driver's response
         let waited = 0;
         let accepted = false;
         let attemptStatus = 'Pending';
 
-        while (waited < 15) {
+        while (waited < OFFER_WAIT_SECONDS) {
           await delay(1000);
           waited += 1;
 
@@ -208,8 +224,7 @@ export const startDispatch = async (bookingId: string) => {
     // --- TIER 2: Any TODA within 2.5 km ---
     console.log('[dispatchService] Executing Tier 2');
     if (onlineDrivers && onlineDrivers.length > 0) {
-      const { data: pastAttempts } = await supabase.from('dispatch_attempt').select('driver_id').eq('booking_id', bookingId);
-      const pastDriverIds = new Set(pastAttempts?.map(a => a.driver_id) || []);
+      const pastDriverIds = await getPastDriverIds();
 
       const eligibleTier2 = onlineDrivers.filter(d => {
         if (pastDriverIds.has(d.driver_id)) return false;
@@ -234,8 +249,7 @@ export const startDispatch = async (bookingId: string) => {
     for (const radius of radii) {
       if (!isDispatchActive) break;
 
-      const { data: pastAttempts } = await supabase.from('dispatch_attempt').select('driver_id').eq('booking_id', bookingId);
-      const pastDriverIds = new Set(pastAttempts?.map(a => a.driver_id) || []);
+      const pastDriverIds = await getPastDriverIds();
 
       const currentDrivers = await fetchCandidates();
 
@@ -261,8 +275,7 @@ export const startDispatch = async (bookingId: string) => {
       const allAvailable = await fetchCandidates();
 
       if (allAvailable && allAvailable.length > 0) {
-        const { data: pastAttempts } = await supabase.from('dispatch_attempt').select('driver_id').eq('booking_id', bookingId);
-        const pastDriverIds = new Set(pastAttempts?.map(a => a.driver_id) || []);
+        const pastDriverIds = await getPastDriverIds();
         const remaining = allAvailable.filter(d => !pastDriverIds.has(d.driver_id));
         remaining.sort((a, b) => getDriverDistance(a) - getDriverDistance(b));
 

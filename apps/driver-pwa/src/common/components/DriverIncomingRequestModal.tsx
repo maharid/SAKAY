@@ -49,15 +49,31 @@ export const DriverIncomingRequestModal: React.FC = () => {
         driver_id: activeDriverId,
       };
 
-      const { error } = await supabase
+      const { data: taken, error } = await supabase
         .from('booking')
         .update(updatePayload)
         .eq('booking_id', incomingRequest.booking_id)
-        .in('booking_status', ['Pending', 'Searching Driver']); // Concurrency check
+        .in('booking_status', ['Pending', 'Searching Driver']) // Concurrency check
+        .select('booking_id');
 
       if (error) {
         console.warn('[DriverIncomingRequestModal] acceptBooking DB sync warning:', error.message);
-        alert('Database Update Error: ' + error.message);
+        // The database says why in plain words (for example: already on a trip)
+        alert(/ERR_DRIVER_HAS_OPEN_BOOKING|ERR_DRIVER_BUSY/.test(error.message)
+          ? (language === 'tl'
+              ? 'May kasalukuyan kang biyahe. Tapusin muna ito bago tumanggap ng bago.'
+              : 'You already have a trip in progress. Finish it before taking another.')
+          : 'Database Update Error: ' + error.message);
+        return;
+      }
+
+      // No row changed: the passenger cancelled, the offer ran out, or another driver has it. Never open a trip you do not own.
+      if (!taken || taken.length === 0) {
+        alert(language === 'tl'
+          ? 'Hindi na available ang booking na ito.'
+          : 'This booking is no longer available.');
+        setIncomingRequest(null);
+        refreshPresence();
         return;
       }
 

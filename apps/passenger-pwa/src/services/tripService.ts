@@ -28,67 +28,6 @@ export interface HistoryTrip {
   status?: "Completed" | "Cancelled";
 }
 
-// UI Demo reference data matching PASSENGER HISTORY.png
-export const DEMO_HISTORY_TRIPS: HistoryTrip[] = [
-  {
-    id: "TRIP-2026-0813-01",
-    pickup: "Calapan Port",
-    pickupLat: 13.4248,
-    pickupLng: 121.1812,
-    dropoff: "Xentro Mall Calapan",
-    dropoffLat: 13.4130,
-    dropoffLng: 121.1790,
-    price: "₱66.40",
-    type: "Solo",
-    distanceKm: 3.6,
-    time: "2:30 PM",
-    dateGroup: "NGAYONG ARAW",
-    driverName: "Aurelio Bautista",
-    bodyNumber: "CAL-2025-0773",
-    dateString: "August 13, 2026",
-    isLiveRecord: false,
-    status: "Completed",
-  },
-  {
-    id: "TRIP-2026-0813-02",
-    pickup: "Calapan City Hall",
-    pickupLat: 13.3980,
-    pickupLng: 121.1824,
-    dropoff: "Filipiniana Hotel Calapan",
-    dropoffLat: 13.4100,
-    dropoffLng: 121.1780,
-    price: "₱64.40",
-    type: "Solo",
-    distanceKm: 3.1,
-    time: "9:15 AM",
-    dateGroup: "NGAYONG ARAW",
-    driverName: "Pedro Penduko",
-    bodyNumber: "TODA-088",
-    dateString: "August 13, 2026",
-    isLiveRecord: false,
-    status: "Completed",
-  },
-  {
-    id: "TRIP-2026-0812-01",
-    pickup: "Puregold -Calapan",
-    pickupLat: 13.4120,
-    pickupLng: 121.1800,
-    dropoff: "Santo Niño Cathedral (Dioc...",
-    dropoffLat: 13.4128,
-    dropoffLng: 121.1830,
-    price: "₱20.00",
-    type: "Share",
-    distanceKm: 1.2,
-    time: "5:45 PM",
-    dateGroup: "NAKARAANG ARAW",
-    driverName: "Mario Reyes",
-    bodyNumber: "TODA-215",
-    dateString: "August 12, 2026",
-    isLiveRecord: false,
-    status: "Completed",
-  },
-];
-
 const LOCAL_HISTORY_KEY = "sakay_passenger_trip_history";
 
 export const getLocalTripHistory = (): HistoryTrip[] => {
@@ -114,31 +53,27 @@ export const saveTripToHistory = (trip: HistoryTrip) => {
 };
 
 /**
- * Fetches passenger trip history from Supabase database and local storage,
- * falling back to structured demo data if no records exist.
+ * The signed-in passenger's finished trips (Completed and Cancelled), straight from the database: the fare is the final fare once the
+ * trip arrived, and the driver's name and franchise number come from the function that discloses only the driver of THIS passenger's own
+ * booking. Nothing is read from the device (another account's trips on the same phone) and nothing is made up (no sample trips).
  */
 export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
-  const dbTrips: HistoryTrip[] = [];
-
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) return [];
 
-    let passengerId: string | null = null;
-    if (user?.id) {
-      const { data: profile } = await supabase
-        .from("passenger")
-        .select("passenger_id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (profile?.passenger_id) {
-        passengerId = profile.passenger_id;
-      }
-    }
+    const { data: profile } = await supabase
+      .from("passenger")
+      .select("passenger_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (!profile?.passenger_id) return [];
 
-    let query = supabase
+    const { data: bookings, error } = await supabase
       .from("booking")
       .select(`
         booking_id,
+        driver_id,
         pickup_address,
         pickup_latitude,
         pickup_longitude,
@@ -154,67 +89,53 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         booking_status,
         created_at
       `)
+      .eq("passenger_id", profile.passenger_id)
       .in("booking_status", ["Completed", "Cancelled"])
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error || !bookings) return [];
 
-    if (passengerId) {
-      query = query.eq("passenger_id", passengerId);
-    } else {
-      query = query.limit(20);
-    }
+    // Who drove each trip (a cancelled booking may have no driver)
+    const drivers = new Map<string, { full_name?: string; franchise_number?: string }>();
+    await Promise.all(
+      bookings
+        .filter((b: any) => b.driver_id)
+        .map(async (b: any) => {
+          const { data } = await supabase.rpc("get_assigned_driver_details", { p_booking_id: b.booking_id });
+          const row = Array.isArray(data) ? data[0] : data;
+          if (row) drivers.set(b.booking_id, row);
+        })
+    );
 
-    const { data: bookings } = await query;
-
-    if (bookings && bookings.length > 0) {
-      bookings.forEach((b: any) => {
-        const createdDate = new Date(b.created_at);
-        const isToday = new Date().toDateString() === createdDate.toDateString();
-        // The final fare once the trip arrived (written by the database), otherwise the estimate
-        const fare = b.actual_fare ?? b.estimated_fare ?? 0;
-
-        dbTrips.push({
-          id: b.booking_id,
-          pickup: b.pickup_address || "Calapan City",
-          pickupLat: Number(b.pickup_latitude) || 13.4124,
-          pickupLng: Number(b.pickup_longitude) || 121.1834,
-          dropoff: b.dropoff_address || "Calapan City Public Market",
-          dropoffLat: Number(b.dropoff_latitude) || 13.4150,
-          dropoffLng: Number(b.dropoff_longitude) || 121.1810,
-          price: `₱${parseFloat(fare).toFixed(2)}`,
-          type: b.is_shared_trip ? "Share" : "Solo",
-          distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
-          fareBreakdown: b.fare_breakdown ?? null,
-          time: createdDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          dateGroup: isToday ? "NGAYONG ARAW" : "NAKARAANG ARAW",
-          dateString: createdDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-          isLiveRecord: true,
-          status: b.booking_status,
-        });
-      });
-    }
+    return bookings.map((b: any) => {
+      const createdDate = new Date(b.created_at);
+      const isToday = new Date().toDateString() === createdDate.toDateString();
+      // The final fare once the trip arrived (written by the database), otherwise the estimate
+      const fare = b.actual_fare ?? b.estimated_fare ?? 0;
+      const driver = drivers.get(b.booking_id);
+      return {
+        id: b.booking_id,
+        pickup: b.pickup_address || "Calapan City",
+        pickupLat: Number(b.pickup_latitude) || 13.4124,
+        pickupLng: Number(b.pickup_longitude) || 121.1834,
+        dropoff: b.dropoff_address || "Calapan City",
+        dropoffLat: Number(b.dropoff_latitude) || 13.4150,
+        dropoffLng: Number(b.dropoff_longitude) || 121.1810,
+        price: `₱${parseFloat(fare).toFixed(2)}`,
+        type: b.is_shared_trip ? "Share" : "Solo",
+        distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
+        fareBreakdown: b.fare_breakdown ?? null,
+        time: createdDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        dateGroup: isToday ? "NGAYONG ARAW" : "NAKARAANG ARAW",
+        dateString: createdDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+        driverName: driver?.full_name || "",
+        bodyNumber: driver?.franchise_number || "",
+        isLiveRecord: true,
+        status: b.booking_status,
+      } as HistoryTrip;
+    });
   } catch (err) {
     console.warn("Trip history database fetch note:", err);
+    return [];
   }
-
-  // Retrieve locally saved trips (e.g. from session or guest mode)
-  const localTrips = getLocalTripHistory();
-
-  // Combine DB trips, Local trips, and Demo trips
-  const combinedMap = new Map<string, HistoryTrip>();
-
-  // 1. Add Local trips (highest priority for current session)
-  localTrips.forEach((t) => combinedMap.set(t.id, t));
-
-  // 2. Add DB trips
-  dbTrips.forEach((t) => {
-    if (!combinedMap.has(t.id)) combinedMap.set(t.id, t);
-  });
-
-  // 3. Fallback: if no user-generated trips exist, include demo trips
-  if (combinedMap.size === 0) {
-    DEMO_HISTORY_TRIPS.forEach((t) => combinedMap.set(t.id, t));
-  }
-
-  const result = Array.from(combinedMap.values());
-  return result;
 };

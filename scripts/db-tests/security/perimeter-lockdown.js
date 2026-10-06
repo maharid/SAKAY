@@ -81,8 +81,9 @@ const path = require('path');
   // 20261013000001 (Day 2) adds send_toda_driver_reminder: the signed-in TODA administrator calls it from the portal.
   // 20261013000002 (Day 2) adds get_assigned_driver_photo: the passenger of a live trip calls it from the trip screen.
   // 20261014000001 (Day 2) adds update_toda_roster_entry: the signed-in TODA administrator edits a roster entry from the portal.
+  // 20261014000002 adds retry_driver_search: the passenger restarts the search for their own booking from the trip screen.
   check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 / 20261010 affiliation, document-return and roster-match functions, and the Day 1 / Day 2 functions, aside)',
-    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation|driver_pause_bookings|driver_resume_bookings|send_toda_driver_reminder|get_assigned_driver_photo|update_toda_roster_entry)\(/.test(f)), gained);
+    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation|driver_pause_bookings|driver_resume_bookings|send_toda_driver_reminder|get_assigned_driver_photo|update_toda_roster_entry|retry_driver_search)\(/.test(f)), gained);
   check(`signed-in users keep ${afterSet.size} functions (policy helpers, RPCs, workflow functions)`, afterSet.size > 60, afterSet.size);
   const serverOnly = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.activate_passenger_otp('+639170000001')`)));
   check('a signed-in passenger cannot activate an account (activate_passenger_otp)', permDenied(serverOnly), err(serverOnly));
