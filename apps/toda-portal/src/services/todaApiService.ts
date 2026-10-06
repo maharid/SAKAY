@@ -89,7 +89,7 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
       id: data.toda_id,
       name: data.toda_name,
       acronym: data.toda_acronym || 'TODA',
-      registrationNumber: data.toda_acronym || 'TODA',
+      registrationNumber: data.registration_number || data.toda_acronym || 'TODA',
       dateEstablished: data.date_established || '2024-01-01',
       terminalLocation: data.terminal_location || data.service_coverage_area || 'Calapan City Terminal',
       terminalLatitude: data.terminal_latitude || null,
@@ -362,6 +362,8 @@ export async function updateTodaComplianceDocument(
 export async function registerToda(payload: {
   todaName: string;
   todaAcronym: string;
+  /** the number on the TODA's registration papers; the acronym is used when it is left out */
+  registrationNumber?: string;
   barangay: string;
   dateEstablished: string;
   serviceCoverageArea: string;
@@ -434,7 +436,7 @@ export async function registerToda(payload: {
     const { data: registeredTodaId, error: rpcError } = await supabase.rpc('register_toda_with_admin', {
       p_toda_name: payload.todaName.trim(),
       p_toda_acronym: cleanAcronym,
-      p_registration_number: cleanAcronym,
+      p_registration_number: payload.registrationNumber?.trim() || cleanAcronym,
       p_date_established: payload.dateEstablished || new Date().toISOString().split('T')[0],
       p_active_drivers: 0,
       p_registered_tricycles: payload.registeredTricycleCount ?? 0,
@@ -453,6 +455,9 @@ export async function registerToda(payload: {
 
     if (rpcError || !registeredTodaId) {
       const detail = rpcError?.message || '';
+      if (/registration_number/i.test(detail) && /duplicate|unique|already/i.test(detail)) {
+        throw new Error(`The registration number '${payload.registrationNumber?.trim() || cleanAcronym}' is already registered to another TODA. Check the number on your papers.`);
+      }
       if (detail.includes('ERR_ALREADY_TODA_ADMIN')) {
         throw new Error('This login already administers a TODA. Choose a different acronym to register another TODA.');
       }
@@ -1383,6 +1388,9 @@ export async function deleteTodaAnnouncement(id: string) {
 }
 
 export interface TodaRosterEntry {
+  /** the database id of the entry (an entry that only exists in this browser has none and cannot be edited) */
+  entry_id?: string;
+  updated_at?: string | null;
   roster_id: string;
   toda_id: string;
   franchise_number: string;
@@ -1438,6 +1446,26 @@ export async function fetchTodaRosterEntries(todaId?: string): Promise<TodaRoste
     console.error('[todaApiService] fetchTodaRosterEntries error:', err);
     return [];
   }
+}
+
+/**
+ * Corrects one entry of the TODA's master roster. The database function (update_toda_roster_entry, migration 20261014000001) checks the
+ * entry belongs to this TODA, refuses a franchise number another entry already has, writes the audit log, and remembers when the franchise
+ * or plate number changed so an edit never makes an application that was submitted earlier look "found on the roster".
+ */
+export async function updateTodaRosterEntry(
+  entryId: string,
+  input: { memberName: string; franchiseNumber: string; plateNumber: string }
+): Promise<{ changed: boolean }> {
+  const { data, error } = await supabase.rpc('update_toda_roster_entry', {
+    p_entry_id: entryId,
+    p_member_name: input.memberName,
+    p_franchise_number: input.franchiseNumber,
+    p_plate_number: input.plateNumber.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The roster entry was not updated.'));
+  return { changed: data.changed === true };
 }
 
 export async function addTodaRosterEntry(entry: {

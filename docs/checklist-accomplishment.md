@@ -2,7 +2,7 @@
 
 Checklist audited: `SAKAY - Checklist.pdf` (128 line items, four roles; the Points and Score columns in the PDF are blank).
 
-**Status after Day 2 (2026-10-06):** the first audit scored 80.9% (strict 74.2%). Day 1 lifted 13 items (88.3%) and Day 2 lifts another 9 (TODA reports, reminders, utilization, real TODA documents, driver photo); the totals below are the updated ones. All migrations through `20261013000002` are applied to the hosted project (checked with `supabase migration list`).
+**Status after Day 2 (2026-10-06):** the first audit scored 80.9% (strict 74.2%). Day 1 lifted 13 items (88.3%) and Day 2 lifts another 9 (TODA reports, reminders, utilization, real TODA documents, driver photo) and the "cheap three" add 2 more and fix a caveat (TODA registration number, member editing, real passenger booking and rating figures); the totals below are the updated ones. Migrations through `20261013000002` were checked as applied on the hosted project; `20261014000001` (roster edit) applies when it is pushed to `main`.
 Code audited: git `HEAD d367ec2` (2026-10-06): the four apps, the Express server, the Supabase migrations and the shared package.
 Method: each item was traced from the screen down to the data it uses (service function, database table or function, server route). I did not run the apps; "works" means the code path is complete and uses real data.
 
@@ -21,14 +21,14 @@ Percent = points / items. The checklist gives no weights, so every item counts t
 | Role | Items | I | P | M | Points | Percent |
 |---|---|---|---|---|---|---|
 | LGU Administrator | 42 | 41 | 1 | 0 | 41.5 | **98.8%** |
-| TODA Administrator | 29 | 25 | 3 | 1 | 26.5 | **91.4%** |
+| TODA Administrator | 29 | 27 | 1 | 1 | 27.5 | **94.8%** |
 | Passenger | 25 | 23 | 0 | 2 | 23.0 | **92.0%** |
 | Driver | 32 | 28 | 1 | 3 | 28.5 | **89.1%** |
-| **Total** | **128** | **117** | **5** | **6** | **119.5** | **93.4%** |
+| **Total** | **128** | **119** | **3** | **6** | **120.5** | **94.1%** |
 
-(Before Day 1: 95 / 17 / 16 and 103.5 points = 80.9%. After Day 1: 108 / 10 / 10 and 113.0 points = 88.3%.)
+(Before Day 1: 95 / 17 / 16 and 103.5 points = 80.9%. After Day 1: 108 / 10 / 10 and 113.0 points = 88.3%. After Day 2: 117 / 5 / 6 and 119.5 points = 93.4%.)
 
-Strictest reading (only fully working items count, partials count zero): 117 / 128 = **91.4%** (after Day 1: 84.4%; before Day 1: 74.2%).
+Strictest reading (only fully working items count, partials count zero): 119 / 128 = **93.0%** (after Day 2 main work: 91.4%; after Day 1: 84.4%; before Day 1: 74.2%).
 
 ---
 
@@ -52,7 +52,7 @@ Strictest reading (only fully working items count, partials count zero): 117 / 1
 | 14 | View driver TODA affiliation | I | Per-affiliation status (multi-affiliation added in migration `20261009000002`). |
 | 15 | Manage driver account status | I | Suspend, reactivate, record strike through `admin_suspend_account`, `admin_reinstate_account`, `issue_strike`. |
 | 16 | View passenger records | I | `fetchPassengers`. |
-| 17 | View passenger account information | I | Real name, phone, status, strikes. Caveat: "total bookings" is always 0 and "rating" is always 5.0 (hard-coded). |
+| 17 | View passenger account information | I | Real name, phone, status and strikes; "bookings" is the passenger's real booking count and the rating is the average of the stars drivers gave them ("Not Yet Rated" when none), with their recent feedback (`fetchPassengers`).
 | 18 | Manage passenger account status | I | Suspend, reactivate, strike. |
 | 19 | View active trips | I | Live Trips, Active tab. |
 | 20 | View completed trips | I | Completed tab. |
@@ -83,7 +83,7 @@ Strictest reading (only fully working items count, partials count zero): 117 / 1
 
 | # | Item | Mark | Evidence and notes |
 |---|---|---|---|
-| 43 | Register TODA (name, acronym, registration number, date established) | P | Name, acronym, date established exist. There is no registration number field in the form. |
+| 43 | Register TODA (name, acronym, registration number, date established) | I | The registration form has a required TODA Registration Number field (format-checked, kept in the draft, stored in `toda.registration_number`; a duplicate number is refused with a clear message). The profile shows it instead of the acronym.
 | 44 | Register office information (terminal, barangay, coverage, contact, email) | I | Terminal map picker, barangay list, coverage area, contact details. |
 | 45 | Register authorized officers (President, VP, Secretary, Treasurer) | I | All four with contact numbers. |
 | 46 | Verify mobile number via OTP | M | TODA registration does not verify the number (documented in `policy-decisions.md` 8.5). |
@@ -96,7 +96,7 @@ Strictest reading (only fully working items count, partials count zero): 117 / 1
 | 53 | Forward application to LGU | I | Now calls `endorse_driver_affiliation` (fixed in commits of 2026-10-05/06). |
 | 54 | View driver records | I | Driver Membership. |
 | 55 | Suspend or reactivate drivers | P | The TODA admin can only send a recommendation to the LGU (`suspendTodaDriver` creates a review flag). |
-| 56 | Update member information | P | Roster entries can be added; members cannot be edited. |
+| 56 | Update member information | I | Master Roster tab has an Edit button per entry (`update_toda_roster_entry`, migration `20261014000001`): name, franchise and plate number, audited with before and after. An edit never makes an earlier application look "found on the roster".
 | 57 | View active bookings | I | Operations page. |
 | 58 | View active drivers | I | Operations shows drivers who are Online right now (and On a trip / Paused / Offline) from the presence state, not just active accounts.
 | 59 | View ongoing trips | I | "Active Trips" panel. |
@@ -200,14 +200,15 @@ These are not checklist lines, so they are not in the percentage, but they decid
 | Scheduled jobs | Presence sweep runs in the database (pg_cron). The SLA and expiry jobs still depend on the Express server timer. |
 | Security | Perimeter lockdown (S0 to S4) written and tested locally; whether it is applied on the hosted project is not visible to me. Sign-ups are open by design. |
 | Tests | 38 database suites (all pass locally), 152 server tests; no automated tests for any screen; no CI workflow in the repository. |
-| Data quality | Fixed in Day 1 and Day 2: the LGU analytics and TODA reports now compute from real bookings, the placeholder TODA documents are gone, the driver notification list no longer shows made-up samples and the passenger trip screen no longer shows a fixed "4.9". Still fixed in code: passenger "rating 5.0 / 0 bookings" on the LGU passenger screen (item 17). |
+| Data quality | Fixed in Day 1 and Day 2: the LGU analytics and TODA reports now compute from real bookings, the placeholder TODA documents are gone, the driver notification list no longer shows made-up samples, the passenger trip screen no longer shows a fixed "4.9", and the LGU passenger screen shows real booking counts and ratings. |
 | Not in the checklist but in the policy | Audit log export to PDF or Excel (Rule 28.4), the exemption and appeal screens, the emergency strike-pause screen. |
 
 ## What is still open, in order of payoff
 
 Done on Day 1: passenger incident reports (items 23, 90 to 93), the LGU analytics and reports (34, 35, 36, 38, 39, 40) and driver pause and resume (106, 107).
 Done on Day 2: TODA reports and tools (58, 61, 63, 64, 65, 66, 68), the real TODA documents on the LGU detail screen (11) and the driver photo and rating on the passenger trip screen (85).
+Done after that (the cheap three): TODA registration number (43), editing roster members (56) and real passenger booking and rating figures (17).
 
 1. Ride-sharing end to end (matching, the driver's additional-passenger request, recalculated and final fare): Driver 116, 117, 119 and Passenger 83.
 2. TODA OTP on registration (46) and passenger password recovery with OTP (75).
-3. Smaller: TODA registration number field (43), TODA member editing (56), TODA suspend or reactivate drivers directly (55), choosing a verified tricycle unit (104), and a complaints view (29).
+3. Smaller: TODA suspend or reactivate drivers directly (55), choosing a verified tricycle unit (104), and a complaints view (29).

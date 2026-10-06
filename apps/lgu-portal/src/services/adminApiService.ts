@@ -16,7 +16,7 @@
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import {
-  SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, signIncidentEvidence, signedStorageUrlFromAny,
+  SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, formatShortBookingId, signIncidentEvidence, signedStorageUrlFromAny,
   barangayDemand, bookingTrend, completionRateOfFinished, driverUtilizationSummary, isCancelledBooking, isCompletedBooking,
   peakHourDistribution, pickupHotspots, serviceUtilization,
 } from '@sakay/shared';
@@ -1600,6 +1600,21 @@ export async function issueDriverStrike(driverId: string, violationCode: string,
 }
 
 
+/** Every row of a table the LGU may read, a page at a time (the API returns at most 1000 rows per request). */
+async function fetchAllRows(table: string, columns: string, apply?: (q: any) => any): Promise<any[]> {
+  const PAGE = 1000;
+  const all: any[] = [];
+  for (let from = 0; from < 20 * PAGE; from += PAGE) {
+    let q: any = supabase.from(table).select(columns);
+    if (apply) q = apply(q);
+    const { data, error } = await q.range(from, from + PAGE - 1);
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return all;
+}
+
 export async function fetchPassengers(filters?: { status?: string }): Promise<PassengerRecord[]> {
   try {
     let query = supabase.from('passenger').select('*');
@@ -1609,7 +1624,24 @@ export async function fetchPassengers(filters?: { status?: string }): Promise<Pa
     const { data, error } = await query;
     if (error || !data) return [];
 
-    return data.map((p: any) => ({
+    // What each passenger has really done and been rated: their bookings, and the stars drivers gave them after a trip.
+    const [bookingRows, ratingRows] = await Promise.all([
+      fetchAllRows('booking', 'passenger_id'),
+      fetchAllRows('rating', 'booking_id, ratee_id, stars, tags, comment, created_at', (q) => q.eq('rater_role', 'Driver').order('created_at', { ascending: false })),
+    ]);
+    const bookingCount = new Map<string, number>();
+    for (const b of bookingRows) {
+      if (b.passenger_id) bookingCount.set(b.passenger_id, (bookingCount.get(b.passenger_id) ?? 0) + 1);
+    }
+    const ratingsOf = new Map<string, any[]>();
+    for (const r of ratingRows) {
+      if (r.ratee_id) ratingsOf.set(r.ratee_id, [...(ratingsOf.get(r.ratee_id) ?? []), r]);
+    }
+
+    return data.map((p: any) => {
+      const given = ratingsOf.get(p.passenger_id) ?? [];
+      const average = given.length > 0 ? Math.round((given.reduce((sum, r) => sum + (Number(r.stars) || 0), 0) / given.length) * 10) / 10 : 0;
+      return {
       id: p.passenger_id,
       name: p.full_name,
       phone: p.contact_number,
@@ -1622,13 +1654,22 @@ export async function fetchPassengers(filters?: { status?: string }): Promise<Pa
       suspendedUntil: p.suspended_until || undefined,
       suspensionReason: p.suspension_reason || undefined,
       activeSession: false,
-      totalBookings: 0,
+      totalBookings: bookingCount.get(p.passenger_id) ?? 0,
       registeredDate: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US') : '2026',
-      rating: 5.0,
-      ratingCount: 0,
+      // A passenger no driver has rated yet is "Not Yet Rated" (rating 0, count 0), not a made-up 5.0
+      rating: average,
+      ratingCount: given.length,
       strikesCount: p.strikes_count || 0,
       strikeHistory: [],
-    }));
+      recentFeedback: given.slice(0, 5).map((r: any) => ({
+        rating: Number(r.stars) || 0,
+        category: Array.isArray(r.tags) && r.tags.length > 0 ? String(r.tags[0]) : 'General',
+        comment: r.comment || 'No written feedback.',
+        date: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+        tripId: formatShortBookingId(r.booking_id),
+      })),
+    };
+    });
   } catch (err) {
     console.error('[adminApiService] fetchPassengers error:', err);
     return [];

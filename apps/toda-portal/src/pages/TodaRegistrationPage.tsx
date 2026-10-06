@@ -57,6 +57,7 @@ const REGISTRATION_DRAFT_KEY = 'sakay_toda_registration_draft';
 interface RegistrationDraft {
   todaName?: string;
   todaAcronym?: string;
+  registrationNumber?: string;
   barangay?: string;
   dateEstablished?: string;
   serviceCoverageArea?: string;
@@ -128,6 +129,7 @@ export const TodaRegistrationPage: React.FC = () => {
   // Section 1: Organization Information
   const [todaName, setTodaName] = useState('');
   const [todaAcronym, setTodaAcronym] = useState('');
+  const [registrationNumber, setRegistrationNumber] = useState('');
   const [barangay, setBarangay] = useState('');
   const [dateEstablished, setDateEstablished] = useState('');
   const [serviceCoverageArea, setServiceCoverageArea] = useState('');
@@ -232,6 +234,7 @@ export const TodaRegistrationPage: React.FC = () => {
         const draft: RegistrationDraft = JSON.parse(savedRaw);
         if (draft.todaName) setTodaName(draft.todaName);
         if (draft.todaAcronym) setTodaAcronym(draft.todaAcronym);
+        if (draft.registrationNumber) setRegistrationNumber(draft.registrationNumber);
         if (draft.barangay) setBarangay(draft.barangay);
         if (draft.dateEstablished) {
           setDateEstablished(draft.dateEstablished);
@@ -272,7 +275,7 @@ export const TodaRegistrationPage: React.FC = () => {
   // 2. Auto-save Draft to LocalStorage whenever fields change
   useEffect(() => {
     const hasAnyContent = Boolean(
-      todaName || todaAcronym || barangay || dateEstablished || serviceCoverageArea ||
+      todaName || todaAcronym || registrationNumber || barangay || dateEstablished || serviceCoverageArea ||
       terminalLatitude || terminalLongitude || coordinatesText ||
       presidentName || presidentContact || vicePresidentName || vicePresidentContact ||
       secretaryName || secretaryContact || treasurerName || treasurerContact ||
@@ -286,6 +289,7 @@ export const TodaRegistrationPage: React.FC = () => {
     const draft: RegistrationDraft = {
       todaName,
       todaAcronym,
+      registrationNumber,
       barangay,
       dateEstablished,
       serviceCoverageArea,
@@ -310,7 +314,7 @@ export const TodaRegistrationPage: React.FC = () => {
       console.warn('[TodaRegistrationPage] Error saving draft:', err);
     }
   }, [
-    todaName, todaAcronym, barangay, dateEstablished, serviceCoverageArea,
+    todaName, todaAcronym, registrationNumber, barangay, dateEstablished, serviceCoverageArea,
     terminalLatitude, terminalLongitude, coordinatesText,
     presidentName, presidentContact, vicePresidentName, vicePresidentContact,
     secretaryName, secretaryContact, treasurerName, treasurerContact,
@@ -409,6 +413,9 @@ export const TodaRegistrationPage: React.FC = () => {
 
   // Acronym Confirmation Validation
   const cleanOrgAcronym = todaAcronym.replace(/\s+/g, '').toUpperCase();
+  // The number on the TODA's franchise / registration papers (for example TODA-2024-001): letters, digits, hyphen or slash, 3 to 50 characters
+  const cleanRegistrationNumber = registrationNumber.replace(/\s+/g, ' ').trim().toUpperCase();
+  const isRegistrationNumberValid = /^[A-Z0-9][A-Z0-9\-\/ ]{2,49}$/.test(cleanRegistrationNumber);
   const cleanConfirmAcronym = confirmAcronym.replace(/\s+/g, '').toUpperCase();
   const isAcronymMatched = cleanOrgAcronym.length > 0 && cleanOrgAcronym === cleanConfirmAcronym;
   const isAcronymMismatched = cleanConfirmAcronym.length > 0 && cleanOrgAcronym !== cleanConfirmAcronym;
@@ -530,6 +537,9 @@ export const TodaRegistrationPage: React.FC = () => {
     if (!cleanOrgAcronym) {
       emptyRequiredErrors.push({ id: 'field-todaAcronym', message: 'TODA Acronym is required.' });
     }
+    if (!cleanRegistrationNumber) {
+      emptyRequiredErrors.push({ id: 'field-registrationNumber', message: 'TODA Registration Number is required.' });
+    }
     if (!barangay) {
       emptyRequiredErrors.push({ id: 'field-barangay', message: 'Operating Barangay is required.' });
     }
@@ -565,6 +575,9 @@ export const TodaRegistrationPage: React.FC = () => {
     }
 
     // 2. Check for value mismatches or password criteria (fields are filled, but invalid)
+    if (cleanRegistrationNumber && !isRegistrationNumberValid) {
+      valueMismatchErrors.push({ id: 'field-registrationNumber', message: 'Registration Number must be 3 to 50 characters: letters, numbers, hyphens or slashes.' });
+    }
     if (confirmAcronym.trim() && cleanOrgAcronym !== cleanConfirmAcronym) {
       valueMismatchErrors.push({ id: 'field-confirmAcronym', message: 'TODA Acronym does not match.' });
     }
@@ -620,6 +633,7 @@ export const TodaRegistrationPage: React.FC = () => {
       await registerToda({
         todaName: todaName.trim(),
         todaAcronym: cleanOrgAcronym,
+        registrationNumber: cleanRegistrationNumber,
         barangay,
         dateEstablished,
         serviceCoverageArea: serviceCoverageArea.trim(),
@@ -824,6 +838,26 @@ export const TodaRegistrationPage: React.FC = () => {
                   This TODA Acronym will serve as your login credential.
                 </Typography>
               </Popover>
+
+              <Box sx={{ mb: 2.5 }}>
+                <SakayTextField
+                  id="field-registrationNumber"
+                  className={shakingFieldId === 'field-registrationNumber' ? 'anim-shake' : ''}
+                  label="TODA Registration Number"
+                  placeholder="e.g. TODA-2024-001"
+                  value={registrationNumber}
+                  onChange={(e) => setRegistrationNumber(e.target.value.toUpperCase())}
+                  error={hasAttemptedSubmit && (!cleanRegistrationNumber || !isRegistrationNumberValid)}
+                  helperText={
+                    hasAttemptedSubmit && !cleanRegistrationNumber
+                      ? 'TODA Registration Number is required.'
+                      : hasAttemptedSubmit && !isRegistrationNumberValid
+                        ? 'Use 3 to 50 characters: letters, numbers, hyphens or slashes.'
+                        : 'The number on your TODA registration or franchise papers.'
+                  }
+                  required
+                />
+              </Box>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
                 <Autocomplete
