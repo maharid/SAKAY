@@ -42,6 +42,8 @@ import TulongDialog from "../Dashboard/TulongDialog";
 import NotificationsDialog from "../Dashboard/NotificationsDialog";
 import DriverSearchPanel, { type DriverSearchOutcome } from "../DriverSearch/DriverSearchPanel";
 import { useDispatchStatus } from "../../hooks/useDispatchStatus";
+import { useServiceArea } from "../../hooks/useServiceArea";
+import { isOutsideServiceArea, outsideServiceAreaMessage } from "../../../../services/serviceAreaService";
 import { supabase } from "../../../../services/supabaseClient";
 import { retryDriverSearch } from "../../../../services/dispatchService";
 import { useLanguage } from "../../../../utils/LanguageContext";
@@ -158,6 +160,14 @@ const NewTrip: React.FC = () => {
       lng: 0,
     };
   });
+
+  // SAKAY serves Calapan City only: a trip has to start AND end inside the service area. An end outside it gets no route and no fare, and
+  // Book Ride stays off (the database refuses such a booking as well; this tells the passenger first). Every way of choosing a place
+  // (search, map pin, current location, saved places, a previous trip) ends up here, so this is the check that cannot be bypassed on screen.
+  const serviceArea = useServiceArea();
+  const pickupOutside = isOutsideServiceArea(serviceArea, pickup.lat, pickup.lng);
+  const dropoffOutside = isOutsideServiceArea(serviceArea, dropoff.lat, dropoff.lng);
+  const outsideEnd = pickupOutside ? "pickup" : dropoffOutside ? "destination" : null;
 
   // Route and fare. Rule 6.2: the estimate is priced from the confirmed OSRM road route, and the fare itself is
   // computed by the database (public.quote_fare); this screen holds no tariff and no formula.
@@ -278,7 +288,7 @@ const NewTrip: React.FC = () => {
   // The road route (Rule 6.2). A straight-line guess is not a route: if OSRM cannot be reached, nothing is priced
   // and the booking is blocked (decision D5) instead of confirming a fare the passenger cannot rely on.
   useEffect(() => {
-    if (!pickup.lat || !dropoff.lat || pickup.lat === 0 || dropoff.lat === 0) {
+    if (!pickup.lat || !dropoff.lat || pickup.lat === 0 || dropoff.lat === 0 || pickupOutside || dropoffOutside) {
       setRouteCoordinates([]);
       setTripDistanceKm(null);
       setQuote(null);
@@ -313,7 +323,7 @@ const NewTrip: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, routeRetry]);
+  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, routeRetry, pickupOutside, dropoffOutside]);
 
   // The fare for that route and headcount, from the database (both trip types come back in one quote).
   useEffect(() => {
@@ -429,6 +439,10 @@ const NewTrip: React.FC = () => {
   };
 
   const handleBookTrip = async () => {
+    if (outsideEnd) {
+      setValidationError(outsideServiceAreaMessage(language, outsideEnd));
+      return;
+    }
     if (!dropoff.address || dropoff.lat === 0) {
       setValidationError(
         language === "tl"
@@ -567,7 +581,7 @@ const NewTrip: React.FC = () => {
       <MapView
         userLocation={pickup.lat ? { lat: pickup.lat, lng: pickup.lng } : undefined}
         pickupLocation={pickup.lat ? pickup : undefined}
-        dropoffLocation={dropoff.lat ? dropoff : undefined}
+        dropoffLocation={dropoff.lat && !dropoffOutside ? dropoff : undefined}
         routeCoordinates={routeCoordinates}
         recenterTrigger={recenterTrigger}
       />
@@ -687,6 +701,13 @@ const NewTrip: React.FC = () => {
                 margin: "0 auto 2px auto",
               }}
             />
+
+            {/* Outside the service area: no route, no fare, no booking */}
+            {outsideEnd && (
+              <Alert severity="error" sx={{ borderRadius: "12px", py: 0.5, fontWeight: 600 }}>
+                {outsideServiceAreaMessage(language, outsideEnd)}
+              </Alert>
+            )}
 
             {/* Validation Error Alert */}
             {validationError && (
@@ -1254,6 +1275,7 @@ const NewTrip: React.FC = () => {
                 onClick={handleBookTrip}
                 disabled={
                   bookingSubmitting ||
+                  outsideEnd !== null ||
                   !dropoff.address ||
                   dropoff.lat === 0 ||
                   !pickup.lat ||

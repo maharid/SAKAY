@@ -6,6 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import InputBase from "@mui/material/InputBase";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
+import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
@@ -33,6 +34,8 @@ import {
 } from "../../../../services/locationService";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import MapLocationPicker from "../Dashboard/MapLocationPicker";
+import { useServiceArea } from "../../hooks/useServiceArea";
+import { isOutsideServiceArea, outsideServiceAreaMessage, type TripEnd } from "../../../../services/serviceAreaService";
 
 const SetPlace: React.FC = () => {
   const navigate = useNavigate();
@@ -40,6 +43,18 @@ const SetPlace: React.FC = () => {
   const { language } = useLanguage();
 
   const [mapPickerOpen, setMapPickerOpen] = useState<boolean>(false);
+
+  // SAKAY serves Calapan City only: a place outside it cannot be chosen, as a pickup or as a destination.
+  const serviceArea = useServiceArea();
+  const [areaError, setAreaError] = useState<string>("");
+  const refuseIfOutside = (end: TripEnd, lat: number, lng: number): boolean => {
+    if (isOutsideServiceArea(serviceArea, lat, lng)) {
+      setAreaError(outsideServiceAreaMessage(language, end));
+      return true;
+    }
+    setAreaError("");
+    return false;
+  };
 
   const navState = location.state as {
     target?: "pickup" | "dropoff";
@@ -114,6 +129,7 @@ const SetPlace: React.FC = () => {
   };
 
   const handleSelectPlace = (place: { name: string; address?: string; lat: number; lng: number }) => {
+    if (refuseIfOutside(activeTarget === "pickup" ? "pickup" : "destination", place.lat, place.lng)) return;
     saveRecentDestination({
       name: place.name,
       address: place.address || place.name,
@@ -146,6 +162,7 @@ const SetPlace: React.FC = () => {
     setLocatingCurrent(true);
     try {
       const coords = await getCurrentDevicePosition();
+      if (refuseIfOutside(target === "pickup" ? "pickup" : "destination", coords.latitude, coords.longitude)) return;
       let realAddr = "";
       try {
         realAddr = await reverseGeocodeCoordinates(coords.latitude, coords.longitude);
@@ -449,6 +466,12 @@ const SetPlace: React.FC = () => {
           </IconButton>
         </Box>
       </Box>
+
+      {areaError && (
+        <Alert severity="error" sx={{ borderRadius: 0, fontWeight: 600, fontFamily: "Poppins, sans-serif" }}>
+          {areaError}
+        </Alert>
+      )}
 
       {/* Quick Action Options Container */}
       <Box
@@ -960,7 +983,9 @@ const SetPlace: React.FC = () => {
         open={mapPickerOpen}
         onClose={() => setMapPickerOpen(false)}
         initialCoords={{ lat: userLat, lng: userLng }}
+        end={activeTarget === "pickup" ? "pickup" : "destination"}
         onConfirmLocation={(loc) => {
+          if (refuseIfOutside(activeTarget === "pickup" ? "pickup" : "destination", loc.lat, loc.lng)) return;
           saveRecentDestination({
             name: loc.address,
             address: loc.address,

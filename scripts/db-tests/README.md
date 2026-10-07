@@ -53,6 +53,9 @@ connection has never set them (they read as NULL), and a check like `IF NOT help
 the dump into a new instance (`new PGlite({ loadDataDir: dump, extensions })`). Use one new instance per probe and refuse to
 run a probe on an instance where `current_setting('sakay.internal_context', true)` is not NULL.
 
+## Service-area gate (`batch1/service-area-gate.js`)
+`20261016000001` on the whole chain: a trip must start AND end inside the active service area (a destination in Puerto Galera or Manila is refused with `ERR_DESTINATION_OUT_OF_SERVICE_AREA`, a pickup outside keeps `ERR_OUT_OF_SERVICE_AREA`), the 16 km edge (15.8 km in, 16.2 km out), the gate follows a narrowed pilot area for both ends, and a passenger cannot widen the area (14 checks; 5 fail on the chain without the migration).
+
 ## Batch 6 suites (`batch6/*.js`, `e2e/solo-trip.js`): dispatch, the booking lifecycle and the booking timers
 These prove the five `20261015*` migrations on the whole chain. The search for a driver and every deadline of an accepted booking are stored in
 the database, so the suites **move the stored timestamps back** (`rewind`, `age`, `silence` in `b6fixtures.js` and the suites) instead of waiting
