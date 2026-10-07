@@ -23,7 +23,7 @@ const { ID, seed } = require('../fixtures');
                           dropoff_address,dropoff_latitude,dropoff_longitude,estimated_distance_km,estimated_fare)
       VALUES ('${LIVE}','${ID.P1}','${ID.D1}','${ID.TODA1}','Driver En Route',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60),
              ('${DONE}','${ID.P1}','${ID.D1}','${ID.TODA1}','Completed',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60),
-             ('${NO_DRIVER}','${ID.P1}',NULL,NULL,'Pending',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60)`);
+             ('${NO_DRIVER}','${ID.P2}',NULL,NULL,'Pending',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60)`);
   });
 
   console.log('T1 the passenger of a live trip gets the photo');
@@ -37,7 +37,7 @@ const { ID, seed } = require('../fixtures');
 
   console.log('\nT3 only while the trip is live');
   check('after the trip is completed the photo is no longer given', (await photoOf(ID.P_AUTH, DONE)) === null);
-  check('a booking with no driver yet gives nothing', (await photoOf(ID.P_AUTH, NO_DRIVER)) === null);
+  check('a booking with no driver yet gives nothing (to its own passenger, who is the other one: Rule 4.4 allows one open booking each)', (await photoOf(ID.P2_AUTH, NO_DRIVER)) === null);
   check('an unknown booking gives nothing', (await photoOf(ID.P_AUTH, 'b2000000-0000-0000-0000-0000000000ff')) === null);
 
   console.log('\nT4 a driver without a photo');

@@ -32,6 +32,7 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
+import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
 import { TableEmptyState } from '../components/common/TableEmptyState';
 import { fetchAllBookings, BookingRecordItem } from '../services/adminApiService';
 
@@ -78,8 +79,11 @@ export const LiveTripsPage: React.FC = () => {
   }, []);
 
   // Categorize bookings
+  // Active = a booking that is not finished: still searching for a driver (Pending), or a driver is committed to it
   const activeTrips = bookings.filter((b) =>
     [
+      'Pending',
+      'Searching Driver',
       'Accepted',
       'Driver Assigned',
       'Driver En Route',
@@ -194,6 +198,8 @@ export const LiveTripsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+      <DispatchSettingsCard />
+
       {/* 1. Operational KPI Metric Cards */}
       <Box
         sx={{

@@ -41,9 +41,9 @@ import PassengerNavigationDrawer from "../Dashboard/PassengerNavigationDrawer";
 import TulongDialog from "../Dashboard/TulongDialog";
 import NotificationsDialog from "../Dashboard/NotificationsDialog";
 import DriverSearchPanel, { type DriverSearchOutcome } from "../DriverSearch/DriverSearchPanel";
-import { useDispatchProgress } from "../../hooks/useDispatchProgress";
+import { useDispatchStatus } from "../../hooks/useDispatchStatus";
 import { supabase } from "../../../../services/supabaseClient";
-import { startDispatch, retryDriverSearch } from "../../../../services/dispatchService";
+import { retryDriverSearch } from "../../../../services/dispatchService";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import {
   DEFAULT_CALAPAN_CENTER,
@@ -54,6 +54,7 @@ import {
 import {
   createBooking,
   cancelBooking,
+  fetchOpenBooking,
   type BookingRecord,
 } from "../../../../services/bookingService";
 
@@ -179,10 +180,12 @@ const NewTrip: React.FC = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [activeBooking, setActiveBooking] = useState<BookingRecord | null>(null);
   const [bookingSubmitting, setBookingSubmitting] = useState<boolean>(false);
-  // While searching: still looking, or the search ended with nobody (No Driver Found: Retry or Cancel, Rule 7.4)
-  const [searchOutcome, setSearchOutcome] = useState<DriverSearchOutcome>("searching");
   const [searchError, setSearchError] = useState<string>("");
-  const searchProgress = useDispatchProgress(activeBooking?.booking_id);
+  // The search for a driver is the DATABASE's: it starts when the booking is made, offers it driver by driver, widens, and ends it. This screen
+  // only follows it. While searching it is still looking, or the search ended with nobody (No Driver Found: Retry or Cancel, Rule 7.4).
+  const { status: searchStatus, refresh: refreshSearch } = useDispatchStatus(activeBooking?.booking_id);
+  const searchOutcome: DriverSearchOutcome = searchStatus?.bookingStatus === "No Driver Found" ? "noDriver" : "searching";
+  const searching = isSearching && searchStatus?.bookingStatus !== "Cancelled";
 
   // Always query real device location on mount so passenger actual location is pinned
   useEffect(() => {
@@ -333,58 +336,25 @@ const NewTrip: React.FC = () => {
     };
   }, [routeStatus, tripDistanceKm, passengers, quoteRetry, language]);
 
-  // Follow the booking while searching, by realtime and by polling: a driver accepts (go to the trip), nobody is found (offer Retry
-  // or Cancel), the search is restarted, or the booking is cancelled elsewhere.
+  // Already searching or on a trip (the app was closed or refreshed, or it is another device)? The database knows: go to that booking
+  // instead of letting the passenger fill in a second one that Rule 4.4 would refuse.
   useEffect(() => {
-    if (!activeBooking?.booking_id) return;
-    const bookingId = activeBooking.booking_id;
-
-    const applyStatus = (status: string | null | undefined) => {
-      if (status === "Accepted" || status === "Driver Assigned") {
-        navigate("/trip-monitoring", { state: { bookingId } });
-      } else if (status === "No Driver Found") {
-        setSearchOutcome("noDriver");
-      } else if (status === "Pending" || status === "Searching Driver") {
-        setSearchOutcome("searching");
-      } else if (status === "Cancelled") {
-        setIsSearching(false);
-        setActiveBooking(null);
-      }
-    };
-
-    // Polling fallback
-    const pollInterval = setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('booking')
-          .select('booking_status, actual_fare, updated_at, driver_id')
-          .eq('booking_id', bookingId)
-          .maybeSingle();
-
-        if (!error && data) applyStatus(data.booking_status);
-      } catch (err) {}
-    }, 4000);
-
-    // Realtime channel
-    const channel = supabase
-      .channel(`new_trip_wait_${bookingId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'booking',
-          filter: `booking_id=eq.${bookingId}`,
-        },
-        (payload: any) => applyStatus(payload.new?.booking_status)
-      )
-      .subscribe();
-
+    let cancelled = false;
+    fetchOpenBooking().then((open) => {
+      if (!cancelled && open) navigate("/trip-monitoring", { replace: true, state: { bookingId: open.booking_id } });
+    });
     return () => {
-      clearInterval(pollInterval);
-      supabase.removeChannel(channel);
+      cancelled = true;
     };
-  }, [activeBooking?.booking_id, navigate]);
+  }, [navigate]);
+
+  // A driver accepted (the database assigned him): go to the trip. The search, its end and a Retry are the database's (useDispatchStatus).
+  const driverAssigned = searchStatus?.driverAssigned === true;
+  useEffect(() => {
+    if (driverAssigned && activeBooking?.booking_id) {
+      navigate("/trip-monitoring", { state: { bookingId: activeBooking.booking_id } });
+    }
+  }, [driverAssigned, activeBooking?.booking_id, navigate]);
 
   const handleOpenSetPlace = (target: "pickup" | "dropoff") => {
     navigate("/set-place", {
@@ -509,13 +479,11 @@ const NewTrip: React.FC = () => {
         estimated_fare: estimatedFare,
       });
 
+      // The database started the search the moment the booking was inserted; there is nothing to start from here.
       setActiveBooking(newBookingRecord);
-      setSearchOutcome("searching");
       setSearchError("");
       setIsSearching(true);
       setBookingSubmitting(false);
-      // The booking exists: now the search for a driver begins (nothing offers it to a driver until this runs)
-      startDispatch(newBookingRecord.booking_id).catch((err) => console.error("Dispatch failed:", err));
     } catch (err: unknown) {
       setBookingSubmitting(false);
       const msg = err instanceof Error ? err.message : "Booking submission error";
@@ -556,7 +524,7 @@ const NewTrip: React.FC = () => {
     setSearchError("");
     const restarted = await retryDriverSearch(activeBooking.booking_id);
     if (restarted) {
-      setSearchOutcome("searching");
+      await refreshSearch();
     } else {
       setSearchError(
         language === "tl"
@@ -616,9 +584,9 @@ const NewTrip: React.FC = () => {
         onClick={() => {
           sessionStorage.removeItem("trip_dropoff");
           sessionStorage.removeItem("trip_notes");
-          if (isSearching && searchOutcome === "noDriver") {
+          if (searching && searchOutcome === "noDriver") {
             handleLeaveNoDriverFound();
-          } else if (isSearching) {
+          } else if (searching) {
             handleCancelBooking();
           } else {
             navigate("/dashboard");
@@ -691,15 +659,15 @@ const NewTrip: React.FC = () => {
           gap: "16px",
         }}
       >
-        {isSearching ? (
+        {searching ? (
           /* ====================================================================
              TIER 1 - SOLO.png SEARCHING STATE (and its No Driver Found outcome)
              ==================================================================== */
           <DriverSearchPanel
             language={language}
             outcome={searchOutcome}
-            widening={searchProgress?.phase === "widening"}
-            startedAt={searchProgress?.startedAt}
+            widening={searchStatus?.phase === "widening"}
+            startedAt={searchStatus?.startedAt}
             errorMessage={searchError}
             onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
             onRetry={handleRetrySearch}

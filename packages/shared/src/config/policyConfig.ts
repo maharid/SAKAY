@@ -53,24 +53,27 @@ export const DRIVER_OFFER_TIMEOUT_SECONDS = 15;
 export const DRIVER_OFFER_TIMEOUT_MS = DRIVER_OFFER_TIMEOUT_SECONDS * 1000;
 
 /**
- * The driver's own countdown only starts when the offer reaches the driver's phone, up to a few seconds after the offer was
- * created. The dispatcher waits this much longer than the countdown so it never closes an offer the driver is still looking at.
+ * The phone needs a moment to receive an offer. The offer stays open this much longer than the window so the driver still gets the whole
+ * window (the screen shows at most DRIVER_OFFER_TIMEOUT_SECONDS). [DB] dispatch_constant('offer_grace_seconds')
  */
 export const DISPATCH_OFFER_GRACE_SECONDS = 5;
 
-// The search schedule (Intelligent Driver Dispatch specification, sections 4-8 and 21; decision PI-12 = A).
-// Tier 1: only the Priority TODA (the accredited TODA whose terminal is nearest the pickup), drivers inside this radius.
-// Tier 2: any accredited TODA, drivers inside this radius.
-// Tier 3: a live search whose radius grows over time and whose pool is refreshed, until the maximum duration.
-// Each tier offers one driver at a time, nearest first; a driver offered the booking in this search round is not offered it again.
+// The search for a driver runs in the DATABASE (Batch 6): offers, deadlines, tiers, ranking and the end of the search are decided there, and
+// the apps only show them. The numbers below are MIRRORS of dispatch_constant() (supabase/migrations/20261015000001_*), kept for display and
+// for the drift test (scripts/db-tests/batch6/config-drift.js), which fails if either side changes alone. Change both together.
+// (Intelligent Driver Dispatch specification, sections 4 - 8 and 21; decision PI-12 = A.)
+//   Tier 1  the Priority TODA (the accredited TODA whose terminal is nearest the pickup), drivers inside this radius
+//   Tier 2  any accredited TODA, drivers inside this radius
+//   Tier 3  live search: the radius grows, the pool is looked at again at every refresh, until the maximum duration
+// Offers go to one driver at a time, nearest ETA first; a driver offered the booking in this search cycle is not offered it again.
 
-/** Tier 1: Priority TODA geofence around the pickup, in km (600 m) */
+/** Tier 1: Priority TODA geofence around the pickup, in km (600 m) [DB tier1_radius_m] */
 export const DISPATCH_TIER1_RADIUS_KM = 0.6;
 
-/** Tier 2: any accredited TODA within this radius of the pickup, in km */
+/** Tier 2: any accredited TODA within this radius of the pickup, in km [DB tier2_radius_m] */
 export const DISPATCH_TIER2_RADIUS_KM = 2;
 
-/** Tier 3: radius (km) that applies from this many seconds after Tier 3 began (spec: 0:00 2.0 km, 1:30 2.5 km, 3:00 3.0 km, 4:30 3.5 km) */
+/** Tier 3: radius (km) that applies from this many seconds after Tier 3 began (spec: 0:00 2.0 km, 1:30 2.5 km, 3:00 3.0 km, 4:30 3.5 km) [DB dispatch_tier3_radius_m()] */
 export const DISPATCH_TIER3_RADIUS_STEPS = [
   { fromSecond: 0, radiusKm: 2.0 },
   { fromSecond: 90, radiusKm: 2.5 },
@@ -78,16 +81,81 @@ export const DISPATCH_TIER3_RADIUS_STEPS = [
   { fromSecond: 270, radiusKm: 3.5 },
 ] as const;
 
-/** Tier 3: how often the pool of eligible drivers is refreshed, so a driver who comes online later can still be offered the booking */
+/** Tier 3: how often the pool of eligible drivers is looked at again, so a driver who comes online later can still be offered the booking [DB tier3_refresh_seconds] */
 export const DISPATCH_TIER3_REFRESH_SECONDS = 30;
 
 /**
- * Tier 3 maximum duration: with nobody accepting by then, the booking becomes No Driver Found and the passenger may Retry or Cancel.
- * Figure F6.5. The specification says 10 minutes (decision log PI-12: provisional); 300 s (5 minutes) is applied for the pilot because
- * a tricycle ride is short, the driver pool is small and a passenger can Retry at once (the last radius step then runs for 30 s).
- * Change this one value to change the wait; nothing else depends on it.
+ * Tier 3 maximum duration: with nobody accepting by then, the booking becomes No Driver Found and the passenger may Retry or Cancel. [DB tier3_max_seconds]
+ * Figure F6.5. The specification says 10 minutes (decision log PI-12: provisional); 300 s (5 minutes) is the default for the pilot because a
+ * tricycle ride is short, the driver pool is small and a passenger can Retry at once. An LGU administrator can change it at run time
+ * (dispatch_setting, 60 to 1800 s); this constant is only the DEFAULT the database falls back to and the drift test checks.
  */
 export const DISPATCH_TIER3_MAX_SECONDS = 300;
+
+/** Rule 12.8: this many accepted drivers in a row failing the same booking ends the dispatch cycle [DB accepted_cancel_limit] */
+export const DISPATCH_ACCEPTED_CANCEL_LIMIT = 3;
+
+/** The estimated arrival of an offer: straight-line distance x this winding percent, at this speed. An ESTIMATE, labelled as such (see policy-decisions section 13). [DB eta_winding_percent, eta_speed_kmh] */
+export const DISPATCH_ETA_WINDING_PERCENT = 130;
+export const DISPATCH_ETA_SPEED_KMH = 20;
+
+/** Rule 12.1: a passenger who cancels within this many seconds after the driver accepted (and before the driver arrived) is not struck [DB passenger_cancel_grace_seconds] */
+export const PASSENGER_CANCEL_GRACE_SECONDS = 60;
+
+/** Rules 12.3 / 12.4: progress toward the pickup (metres) that makes a driver's cancellation "en route" [DB driver_travel_threshold_m] */
+export const DRIVER_CANCEL_TRAVEL_THRESHOLD_METERS = 50;
+
+/** Rule 16.6: how long the passenger has to confirm the fare at the destination before the driver may end the trip [DB completion_confirm_timeout_seconds] */
+export const COMPLETION_CONFIRM_TIMEOUT_SECONDS = 120;
+
+/** Rules 12.7 / 12.9: cancellations in the window that raise a review flag (no strike) [DB repeat_cancel_flag_count, repeat_cancel_window_hours] */
+export const REPEAT_CANCEL_FLAG_COUNT = 3;
+export const REPEAT_CANCEL_WINDOW_HOURS = 24;
+
+/** Rule 7.9: explicit declines in the window that raise a review flag for the TODA administrator (no strike) [DB decline_flag_count, decline_flag_window_hours] */
+export const DISPATCH_DECLINE_FLAG_COUNT = 5;
+export const DISPATCH_DECLINE_FLAG_WINDOW_HOURS = 24;
+
+/** Rules 8.2 / 8.3: no movement toward the pickup this long after accepting: a warning, then cancelled on the driver's behalf [DB stall_warn_seconds, stall_cancel_seconds] */
+export const DRIVER_STALL_WARN_SECONDS = 120;
+export const DRIVER_STALL_CANCEL_SECONDS = 180;
+/** Rules 8.2 / 8.3: less movement than this (metres, after the GPS error) counts as not moving [DB stall_min_movement_m] */
+export const DRIVER_STALL_MIN_MOVEMENT_METERS = 20;
+/** Rule 8.4: standing still this long on the way (approach phase), without a reported delay, is a stall [DB stall_en_route_seconds] */
+export const DRIVER_STALL_EN_ROUTE_SECONDS = 300;
+
+/** Rules 9.2 / 9.3: no location from an accepted driver this long: Driver Unreachable; then (before arriving) cancelled with a provisional strike [DB unreachable_warn_seconds, unreachable_cancel_seconds] */
+export const DRIVER_UNREACHABLE_WARN_SECONDS = 180;
+export const DRIVER_UNREACHABLE_CANCEL_SECONDS = 300;
+/** Rule 9.5: a trip silent this long goes to the TODA administrator for manual reconciliation (it is never auto-cancelled) [DB ongoing_reconcile_seconds] */
+export const TRIP_RECONCILE_SECONDS = 1800;
+
+/** Rules 10.1 / 10.3: the passenger has this long after the driver arrived, and may add the extension once [DB no_show_wait_seconds, no_show_extension_seconds] */
+export const NO_SHOW_WAIT_SECONDS = 300;
+export const NO_SHOW_EXTENSION_SECONDS = 120;
+/** PI-06: the driver is "at the pickup" when his fix's accuracy circle reaches within this many metres of it; fixes less accurate than the cap are ignored [DB no_show_radius_m, zone_max_accuracy_m] */
+export const PICKUP_ZONE_RADIUS_METERS = 15;
+export const PICKUP_ZONE_MAX_ACCURACY_METERS = 50;
+
+/** Rule 8.4: what a driver may report to explain standing still on the way (the database accepts exactly these) */
+export const DRIVER_DELAY_REASONS = ['traffic', 'road_closure'] as const;
+export type DriverDelayReason = (typeof DRIVER_DELAY_REASONS)[number];
+
+/** Rule 7.9: why a driver may decline an offer (the database accepts exactly these) */
+export const DISPATCH_DECLINE_REASONS = ['vehicle_issue', 'personal_emergency', 'safety_concern', 'end_of_shift', 'other'] as const;
+export type DispatchDeclineReason = (typeof DISPATCH_DECLINE_REASONS)[number];
+
+/** Rules 12.3 / 12.4 / 15.1: why a driver may cancel an accepted booking (the database accepts exactly these) */
+export const DRIVER_CANCEL_REASONS = [
+  'vehicle_breakdown',
+  'personal_emergency',
+  'passenger_unreachable',
+  'wrong_pickup_location',
+  'safety_concern',
+  'road_closure_or_traffic',
+  'other',
+] as const;
+export type DriverCancelReason = (typeof DRIVER_CANCEL_REASONS)[number];
 
 // ============================================================================
 // 3. TELEMETRY & GPS MONITORING INTERVALS (Rule 17.1)
@@ -295,6 +363,27 @@ export const POLICY_CONSTANTS = {
     DISPATCH_TIER3_RADIUS_STEPS,
     DISPATCH_TIER3_REFRESH_SECONDS,
     DISPATCH_TIER3_MAX_SECONDS,
+    DISPATCH_ACCEPTED_CANCEL_LIMIT,
+    DISPATCH_ETA_WINDING_PERCENT,
+    DISPATCH_ETA_SPEED_KMH,
+    PASSENGER_CANCEL_GRACE_SECONDS,
+    DRIVER_CANCEL_TRAVEL_THRESHOLD_METERS,
+    COMPLETION_CONFIRM_TIMEOUT_SECONDS,
+    REPEAT_CANCEL_FLAG_COUNT,
+    REPEAT_CANCEL_WINDOW_HOURS,
+    DISPATCH_DECLINE_FLAG_COUNT,
+    DISPATCH_DECLINE_FLAG_WINDOW_HOURS,
+    DRIVER_STALL_WARN_SECONDS,
+    DRIVER_STALL_CANCEL_SECONDS,
+    DRIVER_STALL_MIN_MOVEMENT_METERS,
+    DRIVER_STALL_EN_ROUTE_SECONDS,
+    DRIVER_UNREACHABLE_WARN_SECONDS,
+    DRIVER_UNREACHABLE_CANCEL_SECONDS,
+    TRIP_RECONCILE_SECONDS,
+    NO_SHOW_WAIT_SECONDS,
+    NO_SHOW_EXTENSION_SECONDS,
+    PICKUP_ZONE_RADIUS_METERS,
+    PICKUP_ZONE_MAX_ACCURACY_METERS,
   },
   TELEMETRY: {
     ACTIVE_TRIP_GPS_INTERVAL_SECONDS,

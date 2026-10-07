@@ -91,11 +91,12 @@ async function onFresh(dump, run) {
       run: async (tx) => { await tx.query(`UPDATE public.driver SET availability_status = 'Offline' WHERE driver_id = $1`, [ID.D1]);
         await tx.query('RESET ROLE'); return (await tx.query(`SELECT availability_status v FROM public.driver WHERE driver_id = $1`, [ID.D1])).rows[0].v; },
       open: (v) => v === 'Offline' },
-    { name: 'a driver rewrites the unanswered / resolved columns of an offer', who: { uid: ID.D2_AUTH }, refused: null,
+    // On the patch-era chain the write goes through (vulnerable); since Batch 6 a driver cannot write an offer AT ALL (permission denied), which
+    // is stronger than the old "the columns are silently kept".
+    { name: 'a driver rewrites the unanswered / resolved columns of an offer', who: { uid: ID.D2_AUTH }, refused: /permission denied/,
       run: async (tx, attemptId) => { await tx.query(`UPDATE public.dispatch_attempt SET unanswered = TRUE, resolved_at = now() WHERE attempt_id = $1`, [attemptId]);
         await tx.query('RESET ROLE'); return (await tx.query(`SELECT unanswered, resolved_at FROM public.dispatch_attempt WHERE attempt_id = $1`, [attemptId])).rows[0]; },
-      open: (v) => v.unanswered === true || v.resolved_at !== null,
-      safeValue: (v) => v.unanswered !== true && v.resolved_at === null },
+      open: (v) => v.unanswered === true || v.resolved_at !== null },
     { name: 'the LGU administrator flips the strike pause switch directly (outside its audited function)', who: { uid: ID.L_AUTH }, refused: /only be changed through set_strike_accrual_pause/,
       run: async (tx) => (await tx.query(`UPDATE public.system_policy_config SET config_value = config_value WHERE config_key = 'strike_accrual_paused'`)).affectedRows,
       open: (v) => v === 1 },

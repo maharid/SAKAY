@@ -53,13 +53,28 @@ connection has never set them (they read as NULL), and a check like `IF NOT help
 the dump into a new instance (`new PGlite({ loadDataDir: dump, extensions })`). Use one new instance per probe and refuse to
 run a probe on an instance where `current_setting('sakay.internal_context', true)` is not NULL.
 
+## Batch 6 suites (`batch6/*.js`, `e2e/solo-trip.js`): dispatch, the booking lifecycle and the booking timers
+These prove the five `20261015*` migrations on the whole chain. The search for a driver and every deadline of an accepted booking are stored in
+the database, so the suites **move the stored timestamps back** (`rewind`, `age`, `silence` in `b6fixtures.js` and the suites) instead of waiting
+minutes; the apps are never involved except as callers of the same RPCs they use. `b6fixtures.js` builds the Batch 5 fixtures plus TODA terminals,
+drivers placed N metres from the pickup, and the apps' calls (`accept`, `decline`, `driverCancel`, `statusOf`, `retry`, `sweep`).
+
+| Suite | Proves |
+|---|---|
+| `batch6/dispatch-engine.js` | The three tiers, the Priority TODA, the exact ranking, sequential offers and their expiry, the widening live search and its end, one eligibility function, Retry (new cycle), a search that was already running at deploy time, offers that count toward the inactivity rules (82 checks). |
+| `batch6/offers-and-assignment.js` | Atomic accept (two drivers, an expired offer, a double tap), decline reasons and the Rule 7.9 flag, the doors closed (the apps cannot write or read offers; who may call which function), the LGU Administrator's two settings with their range checks and audit (74 checks). |
+| `batch6/booking-lifecycle.js` | Rule 4.4 over every status the apps write, the status guard (who may move a booking where, the server's clock for every moment), Rules 12.1 / 12.2 / 12.9 (passenger), 12.3 / 12.4 / 12.7 / 12.8 (driver, redispatch, the end of the cycle), Rule 16.6 (75 checks). |
+| `batch6/booking-timers.js` | Rules 8.2 - 8.5 (warning, cancellation, en-route stall, the reported delay), 9.2 / 9.3 / 9.5 (unreachable, provisional strike, a trip is never cancelled), 10.1 - 10.5 (the arrival wait, "I'm Almost There" exactly once, the guarded No-Show, no reinstatement), the single-use redispatch credit (a tie-breaker only), 12.6, idempotence, who may read or write these clocks, a trip in flight at deploy time, and that both sweeps read the booking table through their partial indexes (97 checks). |
+| `batch6/config-drift.js` | Every number and list the apps mirror from the database (`policyConfig.ts`, `bookingUtils.ts`) equals what the database enforces, and a constant on one side only fails (63 checks). |
+| `e2e/solo-trip.js` | One whole solo trip, start to finish, as the apps do it: book, offer, accept, arrive, ride, fare lock, confirm (50 checks). |
+
 ## Perimeter lockdown suites (`security/perimeter-*.js`) and the server tests
 These prove the five `20261008*` migrations (stages S0 - S4), the operator scripts and the Express layer. None of them touches Supabase.
 
 | Suite | Proves |
 |---|---|
 | `security/perimeter-s0-signup.js` | S0 on the pre-lockdown database: the sign-up escalation works before, and a sign-up can create only Pending passenger / driver rows after (22 checks). |
-| `security/perimeter-s1-expand.js` | S1: the policy helpers, `list_accredited_todas()`, `find_candidate_drivers()`, `get_booking_counterparties()`, `get_assigned_driver_details()`, `get_my_toda_affiliations()`, `register_toda_with_admin()` and every insert / update guard. Runs on the whole chain, so it also keeps proving S1 after S2 - S4. |
+| `security/perimeter-s1-expand.js` | S1: the policy helpers, `list_accredited_todas()`, `find_candidate_drivers()` (removed by Batch 6, which this suite now proves), `get_booking_counterparties()`, `get_assigned_driver_details()`, `get_my_toda_affiliations()`, `register_toda_with_admin()` and every insert / update guard. Runs on the whole chain, so it also keeps proving S1 after S2 - S4. |
 | `security/perimeter-lockdown.js` | S2 - S4: function privileges, the row-security matrix (anon, a signed-in stranger, passenger, driver, TODA administrator, LGU administrator), storage, and the sign-up / registration paths on the locked-down chain. Also has a sensitivity run: with S2 - S4 removed from the chain the same suite fails (48 checks), so the checks can fail. |
 | `security/perimeter-apply-script.js` | `scripts/applyPerimeterLockdown.js` on a local rehearsal database (`--emulator`): its argument and safety rules, the read-only preflight, a dry run of every stage, and `selftest` (apply S0 - S4, then the generated emergency rollback, and the perimeter must be back exactly as the snapshot recorded it). `DATABASE_URL` is blanked, so it can never reach a hosted database. |
 | `security/perimeter-verify-script.js` | `scripts/verifyPerimeter.js` (the anonymous black-box check) against a local stand-in server that answers like the locked-down project (must report nothing exposed) and like the open project of before (must report the exposures). |

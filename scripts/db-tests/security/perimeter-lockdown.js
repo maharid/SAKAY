@@ -73,7 +73,9 @@ const path = require('path');
   const afterSet = new Set(await authFns(db));
   // 20261010000005 replaced verify_driver_affiliation(uuid, text, date, date) by a version with one more (defaulted) argument on purpose:
   // the old signature disappears and the new one appears, so a changed signature is not a function "taken" from signed-in users.
-  const lost = [...before].filter((f) => !afterSet.has(f) && !/^verify_driver_affiliation\(/.test(f)).sort();
+  // Batch 6 (20261015000003) DROPPED three functions of the old offer model on purpose (they are gone for everybody, not taken by a grant): the
+  // passenger-callable list of nearby drivers and the two row-policy helpers of the old "passenger writes offers / driver claims" design.
+  const lost = [...before].filter((f) => !afterSet.has(f) && !/^(verify_driver_affiliation|find_candidate_drivers|rls_booking_open_and_mine|rls_driver_can_claim_booking)\(/.test(f)).sort();
   const gained = [...afterSet].filter((f) => !before.has(f)).sort();
   check('exactly the five server-only functions were taken from signed-in users', same(lost.map((f) => f.split('(')[0]), ['activate_passenger_otp', 'check_otp_lockout', 'check_toda_excess_incidents', 'increment_failed_otp', 'reset_failed_otp']), lost);
   // 20261009000002 (multi-TODA registration) and 20261010000001 (return for correction per document) add functions on purpose.
@@ -82,8 +84,10 @@ const path = require('path');
   // 20261013000002 (Day 2) adds get_assigned_driver_photo: the passenger of a live trip calls it from the trip screen.
   // 20261014000001 (Day 2) adds update_toda_roster_entry: the signed-in TODA administrator edits a roster entry from the portal.
   // 20261014000002 adds retry_driver_search: the passenger restarts the search for their own booking from the trip screen.
+  // 20261015000002 / 20261015000003 (Batch 6) add the calls of the server-side dispatch: the driver accepts / declines / cancels and reads his
+  // offer, the passenger reads the state of the search, anybody's poll may run the sweep, and the LGU administrator reads / sets two settings.
   check('...and nothing was added for them (the S3 / S4 helpers and the 20261009 / 20261010 affiliation, document-return and roster-match functions, and the Day 1 / Day 2 functions, aside)',
-    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation|driver_pause_bookings|driver_resume_bookings|send_toda_driver_reminder|get_assigned_driver_photo|update_toda_roster_entry|retry_driver_search)\(/.test(f)), gained);
+    gained.every((f) => /^storage_can_read_/.test(f) || /^(apply_driver_toda_affiliations|toda_admin_has_affiliation_with_driver|return_driver_documents|resubmit_driver_documents|get_affiliation_document_reviews|get_my_application_review|rls_affiliation_in_my_toda|get_affiliation_roster_matches|verify_driver_affiliation|driver_pause_bookings|driver_resume_bookings|send_toda_driver_reminder|get_assigned_driver_photo|update_toda_roster_entry|retry_driver_search|accept_booking_offer|decline_booking_offer|get_my_pending_offer|get_dispatch_status|dispatch_sweep|driver_cancel_booking|get_dispatch_settings|set_dispatch_setting|driver_report_delay|get_arrival_wait_status|passenger_extend_wait|driver_report_no_show)\(/.test(f)), gained);
   check(`signed-in users keep ${afterSet.size} functions (policy helpers, RPCs, workflow functions)`, afterSet.size > 60, afterSet.size);
   const serverOnly = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.activate_passenger_otp('+639170000001')`)));
   check('a signed-in passenger cannot activate an account (activate_passenger_otp)', permDenied(serverOnly), err(serverOnly));
@@ -150,30 +154,35 @@ const path = require('path');
   check('somebody who is not the passenger cannot book in their name', !bInsOther.ok, err(bInsOther));
   const upOtherB = await attempt(() => as(ID.P2_AUTH, (tx) => tx.query(`UPDATE public.booking SET booking_status = 'Cancelled', cancelled_by = 'passenger' WHERE booking_id = '${B1.booking_id}'`)));
   check('another passenger cannot cancel a booking that is not theirs', denied(upOtherB), err(upOtherB));
-  const claimNoOffer = await attempt(() => as(ID.D3_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D3}', booking_status = 'Accepted' WHERE booking_id = '${B1.booking_id}'`)));
-  check('a driver with no offer cannot take an open booking', denied(claimNoOffer), err(claimNoOffer));
-  const claimWrongId = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D3}', booking_status = 'Accepted' WHERE booking_id = '${B1.booking_id}'`)));
-  check('a driver holding an offer cannot assign the booking to somebody else', !claimWrongId.ok, err(claimWrongId));
-  const claimOk = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D2}', booking_status = 'Accepted', accepted_at = now() WHERE booking_id = '${B1.booking_id}' AND booking_status IN ('Pending', 'Searching Driver') RETURNING driver_id`)));
-  check('a driver holding the offer can take the booking (exactly what the app does)', claimOk.ok && claimOk.value.rowCount === 1 && claimOk.value.rows[0].driver_id === ID.D2, err(claimOk));
-  const claimTwice = await attempt(() => as(ID.D3_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D3}' WHERE booking_id = '${B1.booking_id}'`)));
-  check('once taken, nobody else can take it', denied(claimTwice), err(claimTwice));
+  const claimNoOffer = await attempt(() => as(ID.D3_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D3}', booking_status = 'Accepted' WHERE booking_id = '${B1.booking_id}' RETURNING driver_id`)));
+  check("a driver with no offer cannot take an open booking", denied(claimNoOffer), err(claimNoOffer));
+  const claimWrongId = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D3}', booking_status = 'Accepted' WHERE booking_id = '${B1.booking_id}' RETURNING driver_id`)));
+  check("a driver holding an offer cannot assign the booking to somebody else", denied(claimWrongId), err(claimWrongId));
+  const claimSelf = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D2}', booking_status = 'Accepted', accepted_at = now() WHERE booking_id = '${B1.booking_id}' RETURNING driver_id`)));
+  check("not even a driver holding the offer can attach himself with a plain UPDATE: the only way is accept_booking_offer (Batch 6)", denied(claimSelf), err(claimSelf));
+  const offerId = (await q(`SELECT attempt_id FROM public.dispatch_attempt WHERE booking_id = '${B1.booking_id}' AND driver_id = '${ID.D2}' AND response_status = 'Pending' LIMIT 1`))[0]?.attempt_id;
+  await t.rpc(ID.D2_AUTH, 'select_active_driver_affiliation', ['e2000000-0000-0000-0000-000000000001']);   // D2 has two TODAs: it picks TODA One, then goes Online (accepting needs an Online driver)
+  await t.goOnline(ID.D2_AUTH);
+  const acceptOk = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`SELECT public.accept_booking_offer($1) AS r`, [offerId])));
+  check("the driver holding the offer takes the booking through accept_booking_offer (exactly what the app does)", acceptOk.ok && acceptOk.value.rows[0].r.success === true && (await one(`SELECT driver_id FROM public.booking WHERE booking_id = '${B1.booking_id}'`)).driver_id === ID.D2, err(acceptOk));
+  const claimTwice = await attempt(() => as(ID.D3_AUTH, (tx) => tx.query(`UPDATE public.booking SET driver_id = '${ID.D3}' WHERE booking_id = '${B1.booking_id}' RETURNING driver_id`)));
+  check("once taken, nobody else can take it", denied(claimTwice), err(claimTwice));
 
   await svc((tx) => tx.query(`UPDATE public.booking SET booking_status = 'Completed' WHERE booking_id = '${B2.booking_id}'`));
   const B4 = await book(ID.P2_AUTH, ID.P2, { km: 3 });
+  await offer(B4.booking_id, ID.D3);
   const attIns = await attempt(() => as(ID.P2_AUTH, (tx) => tx.query(`INSERT INTO public.dispatch_attempt (booking_id, driver_id, dispatch_method, response_status) VALUES ('${B4.booking_id}', '${ID.D3}', 'Sequential Tiered', 'Pending') RETURNING attempt_id`)));
-  check('a passenger can offer their own open booking to a driver', attIns.ok && attIns.value.rowCount === 1, err(attIns));
+  check("a passenger can no longer write offers (the database makes them): permission denied", !attIns.ok && /permission denied/.test(attIns.error), err(attIns));
   const attOther = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`INSERT INTO public.dispatch_attempt (booking_id, driver_id, dispatch_method, response_status) VALUES ('${B4.booking_id}', '${ID.D3}', 'Sequential Tiered', 'Pending')`)));
-  check('...but not somebody else\'s booking', !attOther.ok && /row-level security/.test(attOther.error), err(attOther));
-  const attAccepted = await attempt(() => as(ID.P2_AUTH, (tx) => tx.query(`INSERT INTO public.dispatch_attempt (booking_id, driver_id, dispatch_method, response_status) VALUES ('${B4.booking_id}', '${ID.D2}', 'Sequential Tiered', 'Accepted')`)));
-  check('...and cannot create an offer that is already "Accepted"', !attAccepted.ok, err(attAccepted));
+  check("...for anybody's booking", !attOther.ok && /permission denied/.test(attOther.error), err(attOther));
   const seeA = async (a) => idsOf(await attempt(() => a((tx) => tx.query(`SELECT driver_id FROM public.dispatch_attempt WHERE booking_id = '${B4.booking_id}'`))), 'driver_id');
-  check('the offer is visible to the passenger and to the driver it was made to, and to nobody else', same(await seeA((f) => as(ID.P2_AUTH, f)), [ID.D3]) && same(await seeA((f) => as(ID.D3_AUTH, f)), [ID.D3])
-    && same(await seeA((f) => as(ID.P_AUTH, f)), []) && same(await seeA((f) => as(ID.D2_AUTH, f)), []) && same(await seeA((f) => as(ID.T2_AUTH, f)), []));
+  check("an offer is visible to the driver it was made to and to the LGU, and to nobody else (not even the passenger: which drivers were asked is not theirs to know)",
+    same(await seeA((f) => as(ID.D3_AUTH, f)), [ID.D3]) && same(await seeA((f) => as(ID.P2_AUTH, f)), []) && same(await seeA((f) => as(ID.P_AUTH, f)), [])
+    && same(await seeA((f) => as(ID.D2_AUTH, f)), []) && same(await seeA((f) => as(ID.T2_AUTH, f)), []) && same(await seeA((f) => as(ID.L_AUTH, f)), [ID.D3]));
   const attAnswer = await attempt(() => as(ID.D3_AUTH, (tx) => tx.query(`UPDATE public.dispatch_attempt SET response_status = 'Declined', responded_at = now() WHERE booking_id = '${B4.booking_id}' AND driver_id = '${ID.D3}' RETURNING response_status`)));
-  check('the driver can answer their own offer', attAnswer.ok && attAnswer.value.rowCount === 1, err(attAnswer));
+  check("a driver can no longer answer an offer by writing it: he declines through decline_booking_offer", !attAnswer.ok && /permission denied/.test(attAnswer.error), err(attAnswer));
   const attMeddle = await attempt(() => as(ID.D2_AUTH, (tx) => tx.query(`UPDATE public.dispatch_attempt SET response_status = 'Declined' WHERE booking_id = '${B4.booking_id}'`)));
-  check('another driver cannot touch it', denied(attMeddle), err(attMeddle));
+  check("and another driver cannot touch it", !attMeddle.ok && /permission denied/.test(attMeddle.error), err(attMeddle));
 
   console.log('\nL6 notification, incident_report, rating, cancellation_record, audit_log');
   const seeN = async (a) => (await attempt(() => a((tx) => tx.query(`SELECT title FROM public.notification ORDER BY title`)))).value?.rows.map((r) => r.title) ?? null;

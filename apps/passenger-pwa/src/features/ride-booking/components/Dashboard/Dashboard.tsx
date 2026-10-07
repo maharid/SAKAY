@@ -18,7 +18,7 @@ import HomeBottomSheet from "./HomeBottomSheet";
 import PassengerNavigationDrawer from "./PassengerNavigationDrawer";
 import TulongDialog from "./TulongDialog";
 import NotificationsDialog from "./NotificationsDialog";
-import { getBooking } from "../../../../services/bookingService";
+import { useOpenBooking } from "../../hooks/useOpenBooking";
 import {
   DEFAULT_CALAPAN_CENTER,
   getCurrentDevicePosition,
@@ -30,54 +30,19 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Active Trip State check
-  const activeBookingId = sessionStorage.getItem("current_active_booking_id");
-  const activeBooking = activeBookingId ? getBooking(activeBookingId) : null;
-  const isTripInProgress = Boolean(
-    activeBookingId &&
-    activeBooking &&
-    activeBooking.booking_status !== "Completed" &&
-    activeBooking.booking_status !== "Cancelled"
-  );
+  // The passenger's open booking, from the database (not from what this browser remembers): a search that is running, or a trip in progress.
+  const { openBooking, loaded: openBookingLoaded } = useOpenBooking();
+  const activeBookingId = openBooking?.booking_id ?? null;
+  const isTripInProgress = openBooking !== null;
 
   useEffect(() => {
-    if (!activeBookingId) {
+    if (openBookingLoaded && !openBooking) {
       // Clear temporary draft states when arriving at Dashboard without an active trip
-      sessionStorage.removeItem("trip_dropoff");
-      sessionStorage.removeItem("trip_notes");
-      return;
-    }
-
-    if (!activeBooking || activeBooking.booking_status === "Completed" || activeBooking.booking_status === "Cancelled") {
       sessionStorage.removeItem("current_active_booking_id");
       sessionStorage.removeItem("trip_dropoff");
       sessionStorage.removeItem("trip_notes");
-      return;
     }
-
-    // Poll Supabase to check if the active trip was completed/cancelled by the driver
-    const pollInterval = setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from("booking")
-          .select("booking_status")
-          .eq("booking_id", activeBookingId)
-          .maybeSingle();
-
-        if (!error && data) {
-          if (data.booking_status === "Completed" || data.booking_status === "Cancelled") {
-            sessionStorage.removeItem("current_active_booking_id");
-            sessionStorage.removeItem("trip_dropoff");
-            sessionStorage.removeItem("trip_notes");
-            // Force re-render to hide the banner
-            window.location.reload();
-          }
-        }
-      } catch (err) {}
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [activeBookingId, activeBooking]);
+  }, [openBookingLoaded, openBooking]);
 
   // Passenger Identity State
   const [profileName, setProfileName] = useState<string>(() => {
@@ -418,10 +383,10 @@ const Dashboard: React.FC = () => {
             />
             <Box>
               <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6B00" }}>
-                {language === 'tl' ? 'Aktibong Biyahe:' : 'Active Trip:'} {activeBooking.booking_status}
+                {language === 'tl' ? 'Aktibong Biyahe:' : 'Active Trip:'} {openBooking?.booking_status}
               </Typography>
               <Typography sx={{ fontSize: "11px", color: "#94A3B8" }}>
-                {activeBooking.pickup_address.split(',')[0]} ➜ {activeBooking.dropoff_address.split(',')[0]}
+                {openBooking?.pickup_address.split(',')[0]} ➜ {openBooking?.dropoff_address.split(',')[0]}
               </Typography>
             </Box>
           </Box>

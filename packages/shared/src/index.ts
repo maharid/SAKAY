@@ -11,7 +11,6 @@ export * from './utils/apiClient';
 export * from './utils/storageUrls';
 export * from './utils/incidentEvidence';
 export * from './utils/transportAnalytics';
-export * from './utils/dispatchSchedule';
 export * from './config/calapanBarangays';
 export * from './utils/applicationReview';
 export * from './config/policyConfig';

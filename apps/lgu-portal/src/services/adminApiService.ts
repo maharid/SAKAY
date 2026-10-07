@@ -734,6 +734,39 @@ export async function enactFareMatrix(input: {
   if (error) throw new Error(error.message);
 }
 
+/** The two dispatch values an LGU administrator may change at run time (Intelligent Driver Dispatch). The database holds, checks and audits them. */
+export interface DispatchSettings {
+  offerWindowSeconds: number;
+  tier3MaxSeconds: number;
+  defaults: { offerWindowSeconds: number; tier3MaxSeconds: number };
+  limits: { offerWindowSeconds: [number, number]; tier3MaxSeconds: [number, number] };
+}
+
+export async function fetchDispatchSettings(): Promise<DispatchSettings> {
+  const { data, error } = await supabase.rpc('get_dispatch_settings');
+  const r = data as {
+    offer_window_seconds: number;
+    tier3_max_seconds: number;
+    defaults: { offer_window_seconds: number; tier3_max_seconds: number };
+    limits: { offer_window_seconds: [number, number]; tier3_max_seconds: [number, number] };
+  } | null;
+  if (error || !r) throw new Error(error?.message || 'The dispatch settings could not be loaded.');
+  return {
+    offerWindowSeconds: r.offer_window_seconds,
+    tier3MaxSeconds: r.tier3_max_seconds,
+    defaults: { offerWindowSeconds: r.defaults.offer_window_seconds, tier3MaxSeconds: r.defaults.tier3_max_seconds },
+    limits: { offerWindowSeconds: r.limits.offer_window_seconds, tier3MaxSeconds: r.limits.tier3_max_seconds },
+  };
+}
+
+/** Changes one setting. The database checks the range and the caller, and writes the audit row (before and after) itself. */
+export async function saveDispatchSetting(key: 'offer_window_seconds' | 'tier3_max_seconds', value: number): Promise<void> {
+  const { data, error } = await supabase.rpc('set_dispatch_setting', { p_key: key, p_value: value });
+  const r = data as { success?: boolean; error?: string } | null;
+  if (error) throw new Error(error.message);
+  if (!r?.success) throw new Error(r?.error || 'The setting was not saved.');
+}
+
 export interface FareExample {
   excessKm: number;
   seatFare: number;
