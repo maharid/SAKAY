@@ -391,7 +391,7 @@ Batch 3's `is_service_context()` answered NULL (not FALSE) in a database session
 
 ## 11. Batches 6 - 8 Compliance Matrix: Dispatch, the Booking Lifecycle, Stall / Unreachable, Arrival Wait, No-Show and Cancellation
 
-**Status: migrations `20261015000001` - `20261015000005`, the three apps and the LGU portal are written and verified on the local emulator; the owner applies the migrations to the hosted project (the repository has no pipeline that does it). Decisions and the list of what is not built: `docs/policy-decisions.md` section 12.**
+**Status: migrations `20261015000001` - `20261015000005`, the three apps and the LGU portal are written and verified on the local emulator; the migrations reach the hosted project on a push to `main` (no workflow in the repository; a Supabase GitHub integration is the likely cause, see `docs/policy-decisions.md` section 12, Deploying). Decisions and the list of what is not built: `docs/policy-decisions.md` section 12.**
 
 **How these statuses were verified**
 - **Executed:** `node scripts/db-tests/run-all.js` (46 suites, 1,869 checks, 0 failed, after the service-area gate fix), of which the Batch 6 suites are `dispatch-engine.js` (82), `offers-and-assignment.js` (74), `booking-lifecycle.js` (75), `booking-timers.js` (97), `config-drift.js` (63) and the scripted `e2e/solo-trip.js` (50). The database holds every deadline, so the suites move the stored timestamps back instead of waiting. `cd server && npx tsc --noEmit && npx tsx --test test/*.test.ts` (152 tests, 0 failed); `npm run build` of the passenger, driver and LGU apps.
