@@ -1,19 +1,177 @@
 import { supabase } from './supabaseClient';
-import { DRIVER_OFFER_TIMEOUT_SECONDS, getDistanceKm } from '@sakay/shared';
+import {
+  DISPATCH_OFFER_GRACE_SECONDS,
+  DISPATCH_TIER1_RADIUS_KM,
+  DISPATCH_TIER2_RADIUS_KM,
+  DISPATCH_TIER3_MAX_SECONDS,
+  DISPATCH_TIER3_REFRESH_SECONDS,
+  DRIVER_OFFER_TIMEOUT_SECONDS,
+  nearestAccreditedTodaId,
+  selectTierCandidates,
+  tier3RadiusKm,
+  type DispatchCandidate,
+  type TodaTerminal,
+} from '@sakay/shared';
 
-// How long the dispatcher waits for ONE driver. The driver's own countdown (DRIVER_OFFER_TIMEOUT_SECONDS) only starts when the driver's
-// phone shows the offer, up to a few seconds after the offer was created, so the dispatcher waits longer: otherwise it closes the
-// offer while the driver is still looking at it and the driver's tap on Accept is refused.
-const OFFER_WAIT_SECONDS = DRIVER_OFFER_TIMEOUT_SECONDS + 5;
+// How long the dispatcher waits for ONE driver: the driver's countdown plus a short grace (see DISPATCH_OFFER_GRACE_SECONDS).
+const OFFER_WAIT_SECONDS = DRIVER_OFFER_TIMEOUT_SECONDS + DISPATCH_OFFER_GRACE_SECONDS;
+
+// While Tier 3 waits for the next pool refresh it still looks at the booking this often, so a cancellation is noticed quickly.
+const IDLE_STATUS_CHECK_SECONDS = 3;
+
+const SEARCHING_STATUSES = ['Pending', 'Searching Driver'];
+const ACCEPTED_STATUSES = ['Accepted', 'Driver Assigned', 'In Transit', 'Trip Ongoing'];
 
 // Wait utility
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 const activeDispatches = new Set<string>();
 
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Progress: what the passenger's screen shows while the search runs. 'nearby' = Tiers 1-2 (the area around the pickup), 'widening' =
+// Tier 3 (the live search with a growing radius), 'ended' = the dispatcher stopped (a driver accepted, the passenger cancelled, or
+// nobody was found; the booking status says which). Kept for every screen: it lives here, not inside one component.
+// ---------------------------------------------------------------------------------------------------------------------------------
+export type DispatchPhase = 'nearby' | 'widening' | 'ended';
+
+export interface DispatchProgress {
+  phase: DispatchPhase;
+  /** When this search round began in this browser (ms since epoch) */
+  startedAt: number;
+}
+
+const progressByBooking = new Map<string, DispatchProgress>();
+const progressListeners = new Set<() => void>();
+
+const setProgress = (bookingId: string, next: DispatchProgress) => {
+  progressByBooking.set(bookingId, next);
+  progressListeners.forEach((listener) => listener());
+};
+
+export const getDispatchProgress = (bookingId?: string | null): DispatchProgress | null =>
+  bookingId ? progressByBooking.get(bookingId) ?? null : null;
+
+export const subscribeDispatchProgress = (listener: () => void): (() => void) => {
+  progressListeners.add(listener);
+  return () => {
+    progressListeners.delete(listener);
+  };
+};
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+/** The booking's status, or null when it could not be read (a failed read never ends a search). */
+const readBookingStatus = async (bookingId: string): Promise<string | null> => {
+  const { data, error } = await supabase.from('booking').select('booking_status').eq('booking_id', bookingId).maybeSingle();
+  return error || !data ? null : (data.booking_status as string);
+};
+
+/** Someone accepted, or the passenger cancelled: the search is over whatever it was doing. */
+const isSearchOver = (status: string | null): boolean => status !== null && !SEARCHING_STATUSES.includes(status);
+
+// The drivers the database says may be offered THIS booking now (Available, verified, not on a trip, not paused, not offered it in
+// this search round) inside the radius. A passenger cannot read the driver table, so the database answers for this booking only:
+// driver id, TODA and distance from the pickup rounded to 0.1 km. (GPS freshness is not checked there yet: Batch 6.)
+const fetchCandidates = async (bookingId: string, radiusKm: number): Promise<DispatchCandidate[]> => {
+  const { data, error } = await supabase.rpc('find_candidate_drivers', { p_booking_id: bookingId, p_max_km: radiusKm, p_limit: 50 });
+  if (error) {
+    console.warn('[dispatchService] find_candidate_drivers:', error.message);
+    return [];
+  }
+  return (data ?? []) as DispatchCandidate[];
+};
+
+// How one run of offers ended: 'closed' = a driver accepted or the passenger cancelled (stop everything), 'exhausted' = every driver in
+// the list was offered the booking and none accepted, 'expired' = the search ran out of time between two offers.
+type OfferOutcome = 'closed' | 'exhausted' | 'expired';
+
+// Offers the booking to the drivers one at a time, in the order given, each with its own response window.
+const sendSequentialOffers = async (bookingId: string, drivers: DispatchCandidate[], deadlineAt?: number): Promise<OfferOutcome> => {
+  for (let i = 0; i < drivers.length; i++) {
+    const driver = drivers[i];
+
+    if (deadlineAt !== undefined && Date.now() >= deadlineAt) return 'expired';
+
+    if (isSearchOver(await readBookingStatus(bookingId))) {
+      console.log('[dispatchService] Booking no longer searching. Halting dispatch.');
+      return 'closed';
+    }
+
+    console.log(`[dispatchService] Offering to driver ${driver.driver_id} (Rank ${i + 1})`);
+
+    const { data: attempt, error: attemptError } = await supabase
+      .from('dispatch_attempt')
+      .insert([{
+        booking_id: bookingId,
+        driver_id: driver.driver_id,
+        dispatch_method: 'Sequential Tiered',
+        driver_rank: i + 1,
+        response_status: 'Pending'
+      }])
+      .select()
+      .single();
+
+    if (attemptError) {
+      console.error('[dispatchService] Failed to create attempt:', attemptError);
+      continue;
+    }
+
+    // Wait for the driver's response
+    let waited = 0;
+    let attemptStatus = 'Pending';
+
+    while (waited < OFFER_WAIT_SECONDS) {
+      await delay(1000);
+      waited += 1;
+
+      const { data: currentAttempt } = await supabase
+        .from('dispatch_attempt')
+        .select('response_status')
+        .eq('attempt_id', attempt.attempt_id)
+        .single();
+
+      if (currentAttempt) {
+        attemptStatus = currentAttempt.response_status;
+        if (attemptStatus === 'Accepted') {
+          console.log(`[dispatchService] Driver ${driver.driver_id} accepted via attempt.`);
+          return 'closed';
+        } else if (attemptStatus === 'Declined' || attemptStatus === 'Expired') {
+          console.log(`[dispatchService] Driver ${driver.driver_id} ${attemptStatus.toLowerCase()}.`);
+          break;
+        }
+      }
+
+      // Concurrently check if the booking itself was accepted or cancelled
+      const status = await readBookingStatus(bookingId);
+      if (status !== null && ACCEPTED_STATUSES.includes(status)) {
+        console.log(`[dispatchService] Booking ${bookingId} was accepted!`);
+        return 'closed';
+      }
+      if (isSearchOver(status)) {
+        console.log(`[dispatchService] Booking ${bookingId} is '${status}'. Halting dispatch.`);
+        return 'closed';
+      }
+    }
+
+    if (attemptStatus === 'Pending') {
+      // Timeout, mark as Declined (no responded_at: the unanswered-offer counter expects exactly this)
+      await supabase.from('dispatch_attempt').update({ response_status: 'Declined' }).eq('attempt_id', attempt.attempt_id);
+      console.log(`[dispatchService] Driver ${driver.driver_id} timed out.`);
+    }
+  }
+  return 'exhausted';
+};
+
 /**
- * Dispatch Engine based on Fast Tiered Allocation Logic
- * Orchestrated by Passenger PWA
+ * Dispatch Engine: Tiered Allocation (Intelligent Driver Dispatch specification), run by the Passenger PWA until Batch 6 moves it to the server.
+ *
+ *   Tier 1  the Priority TODA's drivers within DISPATCH_TIER1_RADIUS_KM of the pickup (skipped at once when there are none)
+ *   Tier 2  any accredited TODA's drivers within DISPATCH_TIER2_RADIUS_KM
+ *   Tier 3  live search: the radius grows (DISPATCH_TIER3_RADIUS_STEPS) and the pool is refreshed every DISPATCH_TIER3_REFRESH_SECONDS,
+ *           until DISPATCH_TIER3_MAX_SECONDS; then the booking becomes 'No Driver Found'
+ *
+ * Offers are sequential and nearest first, each with its own response window. A driver is offered a booking once per search round
+ * (the database leaves out drivers already offered it since the round began). One search runs per booking at a time.
  */
 export const startDispatch = async (bookingId: string) => {
   if (!bookingId) return;
@@ -24,280 +182,96 @@ export const startDispatch = async (bookingId: string) => {
   }
   activeDispatches.add(bookingId);
 
-  console.log(`[dispatchService] Starting Fast Tiered Dispatch for booking: ${bookingId}`);
-  let isDispatchActive = true;
-
+  const startedAt = Date.now();
   try {
-    // Sync booking with DB
-    const { data: dbBooking, error: bErr } = await supabase.from('booking').select('*').eq('booking_id', bookingId).single();
+    const { data: dbBooking, error: bErr } = await supabase
+      .from('booking')
+      .select('booking_status, pickup_latitude, pickup_longitude')
+      .eq('booking_id', bookingId)
+      .single();
     if (bErr || !dbBooking) {
       console.warn('[dispatchService] Booking not found in database:', bErr);
       return;
     }
 
-    if (dbBooking.booking_status !== 'Pending' && dbBooking.booking_status !== 'Searching Driver') {
+    if (!SEARCHING_STATUSES.includes(dbBooking.booking_status)) {
       console.log(`[dispatchService] Booking ${bookingId} is already in status '${dbBooking.booking_status}'. No dispatch needed.`);
       return;
     }
 
-    // Offers made in an EARLIER search round (before "Retry search") do not count: only this round's offers exclude a driver.
-    const roundStart = new Date(dbBooking.search_restarted_at || dbBooking.created_at || 0).getTime();
-    const getPastDriverIds = async (): Promise<Set<string>> => {
-      const { data } = await supabase.from('dispatch_attempt').select('driver_id, notification_sent_at').eq('booking_id', bookingId);
-      return new Set(
-        (data ?? [])
-          .filter((a: any) => new Date(a.notification_sent_at).getTime() >= roundStart)
-          .map((a: any) => a.driver_id as string)
-      );
-    };
+    console.log(`[dispatchService] Starting tiered dispatch for booking: ${bookingId}`);
+    setProgress(bookingId, { phase: 'nearby', startedAt });
 
     const pickupLat = Number(dbBooking.pickup_latitude) || 13.4117;
     const pickupLng = Number(dbBooking.pickup_longitude) || 121.1803;
 
-    // Drivers are not read from the driver table (a passenger cannot see other people's records). The database answers, for THIS booking
-    // only, with the drivers that are Available and verified and have not been offered it yet: id, TODA and distance from the pickup
-    // (rounded to 0.1 km), nearest first. A driver whose position is unknown has no distance and is only tried in the last round.
-    interface Candidate { driver_id: string; toda_id: string | null; distance_km: number | null }
-    const fetchCandidates = async (): Promise<Candidate[]> => {
-      const { data, error } = await supabase.rpc('find_candidate_drivers', { p_booking_id: bookingId, p_max_km: 100, p_limit: 50 });
-      if (error) {
-        console.warn('[dispatchService] find_candidate_drivers:', error.message);
-        return [];
-      }
-      return (data ?? []) as Candidate[];
-    };
-    const getDriverDistance = (candidate: Candidate): number =>
-      candidate.distance_km === null || candidate.distance_km === undefined ? Number.POSITIVE_INFINITY : Number(candidate.distance_km);
-
-    // 1. Priority TODA Identification
-    // The public directory of accredited TODAs (id, name, terminal position): the toda table itself is not readable by passengers.
+    // Priority TODA: the public directory of accredited TODAs (id, name, terminal position); the toda table itself is not readable by passengers.
     const { data: todas } = await supabase.rpc('list_accredited_todas');
+    const priorityTodaId = nearestAccreditedTodaId((todas ?? []) as TodaTerminal[], pickupLat, pickupLng);
 
-    let priorityTodaId: string | null = null;
-    let closestTodaDistance = Infinity;
-
-    if (todas && todas.length > 0) {
-      for (const toda of todas) {
-        if (toda.terminal_latitude && toda.terminal_longitude) {
-          const dist = getDistanceKm(
-            pickupLat,
-            pickupLng,
-            Number(toda.terminal_latitude),
-            Number(toda.terminal_longitude)
-          );
-          if (dist < closestTodaDistance) {
-            closestTodaDistance = dist;
-            priorityTodaId = toda.toda_id;
-          }
-        }
-      }
-    }
-
-    // Helper to send offers to a ranked list of drivers
-    const sendSequentialOffers = async (drivers: any[]): Promise<boolean> => {
-      for (let i = 0; i < drivers.length; i++) {
-        const driver = drivers[i];
-        
-        // Check if booking is still Pending
-        const { data: checkBooking } = await supabase
-          .from('booking')
-          .select('booking_status')
-          .eq('booking_id', bookingId)
-          .single();
-
-        if (checkBooking?.booking_status !== 'Pending' && checkBooking?.booking_status !== 'Searching Driver') {
-          console.log('[dispatchService] Booking no longer pending. Halting dispatch.');
-          isDispatchActive = false;
-          return true; // Someone accepted or cancelled
-        }
-
-        console.log(`[dispatchService] Offering to driver ${driver.driver_id} (Rank ${i + 1})`);
-        
-        // Insert dispatch attempt
-        const { data: attempt, error: attemptError } = await supabase
-          .from('dispatch_attempt')
-          .insert([{
-            booking_id: bookingId,
-            driver_id: driver.driver_id,
-            dispatch_method: 'Sequential Tiered',
-            driver_rank: i + 1,
-            response_status: 'Pending'
-          }])
-          .select()
-          .single();
-
-        if (attemptError) {
-          console.error('[dispatchService] Failed to create attempt:', attemptError);
-          continue;
-        }
-
-        // Wait for the driver's response
-        let waited = 0;
-        let accepted = false;
-        let attemptStatus = 'Pending';
-
-        while (waited < OFFER_WAIT_SECONDS) {
-          await delay(1000);
-          waited += 1;
-
-          // Check attempt response status
-          const { data: currentAttempt } = await supabase
-            .from('dispatch_attempt')
-            .select('response_status')
-            .eq('attempt_id', attempt.attempt_id)
-            .single();
-
-          if (currentAttempt) {
-            attemptStatus = currentAttempt.response_status;
-            if (attemptStatus === 'Accepted') {
-              console.log(`[dispatchService] Driver ${driver.driver_id} accepted via attempt.`);
-              accepted = true;
-              isDispatchActive = false;
-              break;
-            } else if (attemptStatus === 'Declined' || attemptStatus === 'Expired') {
-              console.log(`[dispatchService] Driver ${driver.driver_id} ${attemptStatus.toLowerCase()}.`);
-              break;
-            }
-          }
-
-          // Concurrently check if booking itself was accepted or cancelled
-          const { data: currentBooking } = await supabase
-            .from('booking')
-            .select('booking_status')
-            .eq('booking_id', bookingId)
-            .single();
-
-          if (
-            currentBooking?.booking_status === 'Accepted' ||
-            currentBooking?.booking_status === 'In Transit' ||
-            currentBooking?.booking_status === 'Driver Assigned' ||
-            currentBooking?.booking_status === 'Trip Ongoing'
-          ) {
-            console.log(`[dispatchService] Booking ${bookingId} was accepted!`);
-            accepted = true;
-            isDispatchActive = false;
-            break;
-          }
-
-          if (currentBooking?.booking_status === 'Cancelled') {
-            console.log(`[dispatchService] Booking ${bookingId} was cancelled by passenger.`);
-            isDispatchActive = false;
-            return false;
-          }
-        }
-
-        if (accepted) return true;
-
-        if (attemptStatus === 'Pending') {
-          // Timeout, mark as Declined
-          await supabase.from('dispatch_attempt').update({ response_status: 'Declined' }).eq('attempt_id', attempt.attempt_id);
-          console.log(`[dispatchService] Driver ${driver.driver_id} timed out.`);
-        }
-      }
-      return false;
+    // The drivers of one tier, nearest first. 'closed' / 'exhausted' / 'expired' as above; 'empty' = nobody to offer.
+    const offerToTier = async (radiusKm: number, todaId: string | null, deadlineAt?: number): Promise<OfferOutcome | 'empty'> => {
+      const pool = selectTierCandidates(await fetchCandidates(bookingId, radiusKm), { radiusKm, todaId });
+      if (pool.length === 0) return 'empty';
+      console.log(`[dispatchService] ${pool.length} driver(s) within ${radiusKm} km${todaId ? ' of the Priority TODA' : ''}`);
+      return sendSequentialOffers(bookingId, pool, deadlineAt);
     };
 
-    // Pre-fetch available verified drivers
-    const onlineDrivers = await fetchCandidates();
-
-    // --- TIER 1: Priority TODA (<= 1.5km) OR Any Driver within Immediate Vicinity (<= 0.8km) ---
-    console.log('[dispatchService] Executing Tier 1');
-    if (onlineDrivers && onlineDrivers.length > 0) {
-      const eligibleTier1 = onlineDrivers.filter(d => {
-        const dist = getDriverDistance(d);
-        const isPriorityToda = priorityTodaId && d.toda_id === priorityTodaId && dist <= 1.5;
-        const isImmediateVicinity = dist <= 0.8;
-        return isPriorityToda || isImmediateVicinity;
-      });
-
-      eligibleTier1.sort((a, b) => getDriverDistance(a) - getDriverDistance(b));
-
-      if (eligibleTier1.length > 0) {
-        console.log(`[dispatchService] Tier 1 found ${eligibleTier1.length} driver(s)`);
-        const success = await sendSequentialOffers(eligibleTier1);
-        if (success) return;
-      }
+    // --- TIER 1: the Priority TODA, inside the small geofence ---
+    if (priorityTodaId) {
+      console.log('[dispatchService] Executing Tier 1');
+      if ((await offerToTier(DISPATCH_TIER1_RADIUS_KM, priorityTodaId)) === 'closed') return;
     }
 
-    if (!isDispatchActive) return;
-
-    // --- TIER 2: Any TODA within 2.5 km ---
+    // --- TIER 2: any accredited TODA, wider ---
     console.log('[dispatchService] Executing Tier 2');
-    if (onlineDrivers && onlineDrivers.length > 0) {
-      const pastDriverIds = await getPastDriverIds();
+    if ((await offerToTier(DISPATCH_TIER2_RADIUS_KM, null)) === 'closed') return;
 
-      const eligibleTier2 = onlineDrivers.filter(d => {
-        if (pastDriverIds.has(d.driver_id)) return false;
-        return getDriverDistance(d) <= 2.5;
-      });
+    // --- TIER 3: live search with a growing radius and a refreshed pool ---
+    console.log('[dispatchService] Executing Tier 3 (live search)');
+    setProgress(bookingId, { phase: 'widening', startedAt });
+    const tier3StartedAt = Date.now();
+    const deadlineAt = tier3StartedAt + DISPATCH_TIER3_MAX_SECONDS * 1000;
 
-      eligibleTier2.sort((a, b) => getDriverDistance(a) - getDriverDistance(b));
+    while (Date.now() < deadlineAt) {
+      const radiusKm = tier3RadiusKm((Date.now() - tier3StartedAt) / 1000);
+      if (radiusKm === null) break;
 
-      if (eligibleTier2.length > 0) {
-        console.log(`[dispatchService] Tier 2 found ${eligibleTier2.length} driver(s)`);
-        const success = await sendSequentialOffers(eligibleTier2);
-        if (success) return;
+      const nextRefreshAt = Date.now() + DISPATCH_TIER3_REFRESH_SECONDS * 1000;
+      const outcome = await offerToTier(radiusKm, null, deadlineAt);
+      if (outcome === 'closed') return;
+      if (outcome === 'expired') break;
+
+      // Everyone in this pool was offered (or nobody was there): wait for the next refresh, keeping an eye on the booking.
+      while (Date.now() < Math.min(nextRefreshAt, deadlineAt)) {
+        await delay(IDLE_STATUS_CHECK_SECONDS * 1000);
+        if (isSearchOver(await readBookingStatus(bookingId))) return;
       }
     }
 
-    if (!isDispatchActive) return;
-
-    // --- TIER 3: Dynamic Live Search (3.5km to 12.0km) ---
-    console.log('[dispatchService] Executing Tier 3 (Dynamic Live Search)');
-    const radii = [3.5, 5.0, 7.5, 12.0];
-    
-    for (const radius of radii) {
-      if (!isDispatchActive) break;
-
-      const pastDriverIds = await getPastDriverIds();
-
-      const currentDrivers = await fetchCandidates();
-
-      if (currentDrivers && currentDrivers.length > 0) {
-        const eligibleTier3 = currentDrivers.filter(d => {
-          if (pastDriverIds.has(d.driver_id)) return false;
-          return getDriverDistance(d) <= radius;
-        });
-
-        eligibleTier3.sort((a, b) => getDriverDistance(a) - getDriverDistance(b));
-
-        if (eligibleTier3.length > 0) {
-          console.log(`[dispatchService] Tier 3 (${radius}km) found ${eligibleTier3.length} driver(s)`);
-          const success = await sendSequentialOffers(eligibleTier3);
-          if (success) return;
-        }
-      }
-    }
-
-    // --- FALLBACK: Offer to Any Remaining Available Verified Driver ---
-    if (isDispatchActive) {
-      console.log('[dispatchService] Fallback: Checking any available verified driver...');
-      const allAvailable = await fetchCandidates();
-
-      if (allAvailable && allAvailable.length > 0) {
-        const pastDriverIds = await getPastDriverIds();
-        const remaining = allAvailable.filter(d => !pastDriverIds.has(d.driver_id));
-        remaining.sort((a, b) => getDriverDistance(a) - getDriverDistance(b));
-
-        if (remaining.length > 0) {
-          console.log(`[dispatchService] Offering to ${remaining.length} fallback online driver(s)`);
-          const success = await sendSequentialOffers(remaining);
-          if (success) return;
-        }
-      }
-    }
-
-    if (isDispatchActive) {
-      const { data: finalCheck } = await supabase.from('booking').select('booking_status').eq('booking_id', bookingId).single();
-      if (finalCheck?.booking_status === 'Pending' || finalCheck?.booking_status === 'Searching Driver') {
-        console.log('[dispatchService] Exhausted all tiers. No driver found.');
-        await supabase.from('booking').update({ booking_status: 'No Driver Found' }).eq('booking_id', bookingId);
-      }
-    }
-
+    // Out of time. The update only applies while the booking is still searching, so it can never overwrite an acceptance or a cancellation.
+    console.log('[dispatchService] Maximum search time reached. No driver found.');
+    await supabase
+      .from('booking')
+      .update({ booking_status: 'No Driver Found' })
+      .eq('booking_id', bookingId)
+      .in('booking_status', SEARCHING_STATUSES);
   } catch (err) {
     console.error('[dispatchService] Dispatch error:', err);
   } finally {
+    const progress = progressByBooking.get(bookingId);
+    if (progress) setProgress(bookingId, { ...progress, phase: 'ended' });
     activeDispatches.delete(bookingId);
   }
+};
+
+/**
+ * Retry after No Driver Found: the database reopens the booking and starts a new search round (offers of the earlier round no longer
+ * exclude anyone), and the search begins again from Tier 1. Returns false when the search could not be restarted.
+ */
+export const retryDriverSearch = async (bookingId: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('retry_driver_search', { p_booking_id: bookingId });
+  if (error || !data?.success) return false;
+  startDispatch(bookingId).catch(console.error);
+  return true;
 };
