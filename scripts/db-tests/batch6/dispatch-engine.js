@@ -280,9 +280,9 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.cancelAs(ID.P_AUTH, b.booking_id);
   o = await s.offers(b.booking_id);
   const dAfter = await one(`SELECT unanswered_streak FROM driver_online_session WHERE driver_id='${ID.D1}' AND ended_at IS NULL`);
-  check('Cancel Search: the open offer is withdrawn (Expired with an answer time = not "unanswered"), the driver\'s ignored-offer count is untouched',
+  check('cancelling the booking while it is searching: the open offer is withdrawn (Expired with an answer time = not "unanswered"), the driver\'s ignored-offer count is untouched',
     o[0].response_status === 'Expired' && o[0].responded_at !== null && o[0].unanswered === false && dBefore.unanswered_streak === dAfter.unanswered_streak, o[0]);
-  check('cancelling a search is free of any strike', (await s.strikes(ID.P1)).length === 0);
+  check('cancelling a booking that is still searching is free of any strike', (await s.strikes(ID.P1)).length === 0);
   check('the clocks stopped and the reason is recorded', (await s.booking(b.booking_id)).dispatch_next_action_at === null && (await s.booking(b.booking_id)).dispatch_ended_reason === 'cancelled');
   await s.online('D2', 400);
   b = await s.bookAs('P1');
