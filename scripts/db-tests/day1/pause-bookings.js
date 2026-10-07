@@ -47,9 +47,7 @@ const { ID, seed } = require('../fixtures');
     INSERT INTO booking(booking_id,passenger_id,booking_status,passenger_count,pickup_address,pickup_latitude,pickup_longitude,
                         dropoff_address,dropoff_latitude,dropoff_longitude,estimated_distance_km,estimated_fare)
     VALUES ('${B}','${ID.P1}','Searching Driver',1,'A',13.4115,121.1803,'B',13.42,121.19,1.5,60)`));
-  const cands = async () => (await as(ID.P_AUTH, (tx) => tx.query(`SELECT driver_id FROM public.find_candidate_drivers('${B}')`))).rows.map((x) => x.driver_id);
-  let list = await cands();
-  check('D2 (not paused) is a candidate; D1 (paused) is not', list.includes(ID.D2) && !list.includes(ID.D1), list);
+  // (Who is OFFERED a booking, and that a paused driver never is, is proved by batch6/dispatch-engine.js; here the database's own refusal is checked.)
   const offer = (driver) => svc((tx) => attempt(() => tx.query(
     `INSERT INTO dispatch_attempt(booking_id,driver_id,dispatch_method,driver_rank,response_status) VALUES ('${B}','${driver}','Sequential Tiered',1,'Pending')`)));
   let o = await offer(ID.D1);
@@ -61,8 +59,6 @@ const { ID, seed } = require('../fixtures');
   r = await call(ID.D_AUTH, `public.driver_resume_bookings()`);
   check('resuming ends the pause at once', r.success === true && (r.bookings_paused_until === null || r.bookings_paused_until === undefined) && (await driverRow(ID.D1)).bookings_paused_until === null, r);
   await db.exec(`DELETE FROM dispatch_attempt`);
-  list = await cands();
-  check('after resuming D1 is a candidate again', list.includes(ID.D1), list);
   o = await offer(ID.D1);
   check('and can be offered a booking', o.ok, o);
   r = await call(ID.D_AUTH, `public.driver_resume_bookings()`);
@@ -73,8 +69,6 @@ const { ID, seed } = require('../fixtures');
   const exp = await call(ID.D2_AUTH, `public.get_my_driver_presence()`);
   check('a pause that has run out is not reported any more (no job needed)', exp.bookings_paused_until === null || exp.bookings_paused_until === undefined, exp);
   await db.exec(`DELETE FROM dispatch_attempt`);
-  list = await cands();
-  check('and the driver is a candidate again', list.includes(ID.D2), list);
 
   await call(ID.D_AUTH, `public.driver_pause_bookings(30)`);
   r = await call(ID.D_AUTH, `public.driver_go_offline()`);

@@ -6,49 +6,30 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { DRIVER_CANCEL_REASONS, type DriverCancelReason } from "@sakay/shared";
 import { useLanguage } from "../../utils/LanguageContext";
 
 export interface DriverCancelModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirmCancel: (reasonText: string) => void | Promise<void>;
+  /** The reason CODE is what the database records (Rules 12.3 / 12.4); the text is what the driver read. */
+  onConfirmCancel: (reasonCode: DriverCancelReason, reasonText: string) => void | Promise<void>;
   language?: "tl" | "en";
   loading?: boolean;
 }
 
-interface CancelOption {
-  id: string;
-  tl: string;
-  en: string;
-}
+const CANCEL_LABELS: Record<DriverCancelReason, { tl: string; en: string }> = {
+  vehicle_breakdown: { tl: "Nasiraan ng sasakyan", en: "Vehicle breakdown / technical issue" },
+  personal_emergency: { tl: "Dahilang pangkagipitan", en: "Personal emergency" },
+  passenger_unreachable: { tl: "Hindi maabot ang pasahero", en: "Passenger unreachable" },
+  wrong_pickup_location: { tl: "Mali o hindi maabot ang pickup", en: "Wrong or unreachable pickup location" },
+  safety_concern: { tl: "Alalahanin sa kaligtasan", en: "Safety concern" },
+  road_closure_or_traffic: { tl: "Trapik o sarado ang daan", en: "Heavy traffic or road closure" },
+  other: { tl: "Iba pa", en: "Other reason" },
+};
 
-const DRIVER_CANCEL_OPTIONS: CancelOption[] = [
-  {
-    id: "traffic",
-    tl: "Trapik / Heavy traffic",
-    en: "Heavy traffic",
-  },
-  {
-    id: "passenger_unreachable",
-    tl: "Hindi maabot ang pasahero",
-    en: "Passenger unreachable",
-  },
-  {
-    id: "vehicle_issue",
-    tl: "Nasiraan ng sasakyan",
-    en: "Vehicle breakdown / technical issue",
-  },
-  {
-    id: "emergency",
-    tl: "Dahilang pangkagipitan",
-    en: "Personal emergency",
-  },
-  {
-    id: "other",
-    tl: "Iba pa",
-    en: "Other reason",
-  },
-];
+// The choices are exactly the reasons the database accepts (the drift test checks the list).
+const DRIVER_CANCEL_OPTIONS = DRIVER_CANCEL_REASONS.map((id) => ({ id, ...CANCEL_LABELS[id] }));
 
 /**
  * DriverCancelModal - Aesthetic cancel booking modal for Driver PWA
@@ -64,7 +45,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
   const { language: contextLanguage } = useLanguage();
   const effectiveLanguage = propLanguage || contextLanguage || "tl";
 
-  const [selectedOptionId, setSelectedOptionId] = useState<string>("traffic");
+  const [selectedOptionId, setSelectedOptionId] = useState<DriverCancelReason>(DRIVER_CANCEL_REASONS[0]);
 
   if (!open) return null;
 
@@ -76,7 +57,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
         : selected.en
       : "Cancelled by Driver";
 
-    await onConfirmCancel(reasonText);
+    await onConfirmCancel(selectedOptionId, reasonText);
   };
 
   return (
@@ -274,8 +255,8 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
               {effectiveLanguage === "tl" ? "PAALALA:" : "REMINDER:"}
             </Box>{" "}
             {effectiveLanguage === "tl"
-              ? "Ang pag-cancel ay maaaring makaapekto sa iyong driver acceptance rate."
-              : "Cancelling your trip affects your driver acceptance rate."}
+              ? "Ang pag-cancel pagkatapos tumanggap ay may strike: 1 kung wala ka pang 50 m na naibiyahe papunta sa pasahero, 2 kung mayroon na. Ibabalik ang booking sa paghahanap ng ibang drayber."
+              : "Cancelling after you accepted adds a strike: 1 if you have not yet travelled 50 m toward the passenger, 2 if you have. The booking goes back to the search for another driver."}
           </Typography>
         </Box>
 

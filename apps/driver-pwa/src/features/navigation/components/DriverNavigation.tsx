@@ -23,6 +23,10 @@ import { DriverCommunicationModal } from '../../communication/components/DriverC
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
+import SakayToast from '../../../common/components/SakayToast';
+import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
+import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
+import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
 import { calculateDistanceKm, formatDistance } from '@sakay/shared';
 
 export const DriverNavigation: React.FC = () => {
@@ -41,6 +45,9 @@ export const DriverNavigation: React.FC = () => {
   };
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Rules 8 / 9: the system's warning to a driver who has not started, and the notice that it gave the booking to another driver
+  const clocks = useAssignedBookingClocks(bookingId, true);
 
   useEffect(() => {
     if (!bookingId) return;
@@ -83,15 +90,17 @@ export const DriverNavigation: React.FC = () => {
   }, [bookingId]);
 
   useEffect(() => {
-    // Notify broker that driver is en route
+    // The driver is on the way: Accepted -> In Transit. Only from Accepted: opening this screen again later (after arriving, or mid-trip) must
+    // never move a booking backwards.
     const notifyEnRoute = async () => {
       try {
         await supabase
           .from('booking')
           .update({ booking_status: 'In Transit' })
-          .eq('booking_id', bookingId);
+          .eq('booking_id', bookingId)
+          .eq('booking_status', 'Accepted');
       } catch (err) {
-        // ignore
+        // the trip screen shows the real status
       }
     };
     notifyEnRoute();
@@ -135,19 +144,19 @@ export const DriverNavigation: React.FC = () => {
   }, [bookingId]);
 
   const handleArrivedAtPickup = async () => {
-    // Sync arrival with Supabase
-    try {
-      await supabase
-        .from('booking')
-        .update({
-          booking_status: 'Driver Arrived',
-          arrived_at: new Date().toISOString(),
-        })
-        .eq('booking_id', bookingId);
-    } catch (err) {
-      console.warn('[DriverNavigation] Arrived Supabase update note:', err);
+    // The database decides (and stamps the time): only a driver on the way can arrive. A refusal is shown, not hidden behind the next screen.
+    const { data, error } = await supabase
+      .from('booking')
+      .update({ booking_status: 'Driver Arrived' })
+      .eq('booking_id', bookingId)
+      .in('booking_status', ['Accepted', 'In Transit'])
+      .select('booking_id');
+    const alreadyArrived = (booking?.booking_status === 'Driver Arrived' || booking?.booking_status === 'Arrived at Pickup');
+    if (error || ((!data || data.length === 0) && !alreadyArrived)) {
+      const why = error?.message ? error.message.replace(/^ERR_[A-Z_]+:\s*/, '') : '';
+      setToastMessage(why || (language === 'tl' ? 'Hindi naitala ang pagdating. Pakisubukang muli.' : 'The arrival could not be recorded. Please try again.'));
+      return;
     }
-
     navigate('/driver/active-trip', { replace: true, state: { bookingId } });
   };
 
@@ -167,6 +176,10 @@ export const DriverNavigation: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#E3ECEF', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <SakayToast message={toastMessage} severity="warning" onClose={() => setToastMessage(null)} />
+
+      <BookingGivenAwayDialog open={clocks.bookingGone} language={language} onClose={() => navigate('/driver/home', { replace: true })} />
+
       {/* 1. Leaflet OpenStreetMap Surface with Driver and Pickup markers */}
       <MapView
         userLocation={driverLocation}
@@ -287,6 +300,8 @@ export const DriverNavigation: React.FC = () => {
             <Typography sx={{ fontSize: '17px', fontWeight: 900, color: '#FF6B00' }}>₱{fare.toFixed(2)}</Typography>
           </Box>
         </Box>
+
+        <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
 
         {/* Arrival Confirmation Action Button */}
         <Button

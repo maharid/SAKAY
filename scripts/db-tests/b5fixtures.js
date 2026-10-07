@@ -73,9 +73,19 @@ async function setup() {
   // The trusted server assigns the driver (Batch 6 owns dispatch; this is only test plumbing).
   const assign = (bookingId, driverId) =>
     svc((tx) => tx.query(`UPDATE public.booking SET driver_id = $2, booking_status = 'Accepted' WHERE booking_id = $1`, [bookingId, driverId]));
-  // The driver moves the booking along, exactly as DriverActiveTrip does (plain UPDATE of booking_status).
-  const setStatus = (uid, bookingId, status) =>
+  // The driver moves the booking along, exactly as the Driver app does (plain UPDATE of booking_status). Since Batch 6 the database refuses
+  // a jump (a trip cannot start before the driver has arrived), so a request for a later step walks through each step before it, as the app does.
+  const STEPS = ['Accepted', 'In Transit', 'Driver Arrived', 'Trip Ongoing', 'Arrived at Destination'];
+  const writeStatus = (uid, bookingId, status) =>
     as(uid, (tx) => tx.query(`UPDATE public.booking SET booking_status = $2 WHERE booking_id = $1 RETURNING *`, [bookingId, status])).then((r) => r.rows[0]);
+  const setStatus = async (uid, bookingId, status) => {
+    const to = STEPS.indexOf(status);
+    if (to > 1) {
+      const from = STEPS.indexOf((await one(`SELECT booking_status FROM public.booking WHERE booking_id = $1`, [bookingId])).booking_status);
+      for (let i = Math.max(from, 0) + 1; i < to; i++) await writeStatus(uid, bookingId, STEPS[i]);
+    }
+    return writeStatus(uid, bookingId, status);
+  };
 
   // A straight track along the meridian: n fixes, `stepDeg` apart, 5 s apart, from PICKUP northwards.
   const logTrack = (bookingId, driverId, { n = 100, stepDeg = 0.00045, accuracy = 10, skip = [], startAt = '2026-10-07T01:00:00Z', lngDeg = 0 } = {}) =>

@@ -121,6 +121,7 @@ const { setup, check, summary } = require('../b5fixtures');
 
   let r = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`UPDATE public.booking SET estimated_fare = estimated_fare, pickup_latitude = pickup_latitude WHERE booking_id = $1`, [B.booking_id])));
   check('writing the same values back is not a change and is allowed', r.ok, err(r));
+  await setStatus(ID.D_AUTH, B.booking_id, 'Driver Arrived');      // the driver arrives first (the database refuses a trip that starts before that)
   r = await attempt(() => as(ID.D_AUTH, (tx) => tx.query(`UPDATE public.booking SET booking_status = 'Trip Ongoing', trip_started_at = now() WHERE booking_id = $1 RETURNING booking_status`, [B.booking_id])));
   check('what the apps legitimately write (status, trip_started_at) still works', r.ok && r.value.rows[0].booking_status === 'Trip Ongoing', err(r));
   r = await attempt(() => svc((tx) => tx.query(`UPDATE public.booking SET pickup_address = 'Corrected by an administrator tool' WHERE booking_id = $1 RETURNING pickup_address`, [B.booking_id])));
@@ -176,6 +177,7 @@ const { setup, check, summary } = require('../b5fixtures');
   await assign(N.value.rows[0].booking_id, ID.D1);   // since the perimeter lockdown (S3) a driver can only move a booking they are on
   const nArr = await setStatus(ID.D_AUTH, N.value.rows[0].booking_id, 'Arrived at Destination');
   check('a row with no distance at all just gets locked: nothing is invented', nArr.actual_fare === null && nArr.fare_locked_at !== null, nArr);
+  await done(N.value.rows[0].booking_id);          // (an arrived trip is still an open booking; the next check is about the service area, not Rule 4.4)
 
   console.log('\nThe earlier booking rules still speak for themselves');
   a = await attempt(() => book(ID.P_AUTH, ID.P1, { km: 5, pickup: { lat: 14.9, lng: 121.9 }, dropoff: { lat: 14.93, lng: 121.9 }, fare: 72 }));

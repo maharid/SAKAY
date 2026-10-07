@@ -22,7 +22,6 @@ import { supabase } from "../../../../services/supabaseClient";
 import SuccessModal from "../../../../common/components/SuccessModal";
 import SharedFareNotice from "../../../../common/components/SharedFareNotice";
 import { createBooking } from "../../../../services/bookingService";
-import { startDispatch } from "../../../../services/dispatchService";
 import { getOSRMRoute, saveRecentDestination } from "../../../../services/locationService";
 import {
   fetchFareQuote,
@@ -169,8 +168,7 @@ const BookSummary: React.FC = () => {
         estimated_fare: fare,
       });
 
-      // Start tiered dispatch process in the background
-      startDispatch(newBooking.booking_id).catch((err) => console.error("Dispatch failed:", err));
+      // The database starts the search for a driver the moment the booking is inserted.
 
       setCreatedBookingId(newBooking.booking_id);
       sessionStorage.setItem("current_active_booking_id", newBooking.booking_id);

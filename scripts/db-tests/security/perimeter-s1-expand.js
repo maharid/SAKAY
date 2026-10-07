@@ -30,12 +30,12 @@ const { AFF } = require('../b4fixtures');
   check('rls_booking_is_mine: true for the owner, false for another passenger and for a driver',
     (await h(ID.P_AUTH, 'rls_booking_is_mine', B1.booking_id)) === true && (await h(ID.P2_AUTH, 'rls_booking_is_mine', B1.booking_id)) === false
     && (await h(ID.D_AUTH, 'rls_booking_is_mine', B1.booking_id)) === false);
-  check('rls_booking_open_and_mine: true while Pending', (await h(ID.P_AUTH, 'rls_booking_open_and_mine', B1.booking_id)) === true);
   await offer(B1.booking_id, ID.D1);
   check('rls_driver_has_pending_offer: only the driver who was offered it', (await h(ID.D_AUTH, 'rls_driver_has_pending_offer', B1.booking_id)) === true
     && (await h(ID.D2_AUTH, 'rls_driver_has_pending_offer', B1.booking_id)) === false);
-  check('rls_driver_can_claim_booking: the offered driver can, another driver cannot', (await h(ID.D_AUTH, 'rls_driver_can_claim_booking', B1.booking_id)) === true
-    && (await h(ID.D2_AUTH, 'rls_driver_can_claim_booking', B1.booking_id)) === false);
+  check('the helpers of the old offer model (rls_booking_open_and_mine, rls_driver_can_claim_booking) are gone: the apps no longer write offers or claim a booking',
+    (await one(`SELECT to_regprocedure('public.rls_booking_open_and_mine(uuid)') a, to_regprocedure('public.rls_driver_can_claim_booking(uuid)') b`)).a === null
+    && (await one(`SELECT to_regprocedure('public.rls_driver_can_claim_booking(uuid)') b`)).b === null);
   const helperAnon = await attempt(() => asRole('anon', (tx) => tx.query(`SELECT public.rls_booking_is_mine('${B1.booking_id}') r`)));
   check('the helpers are not callable by anon', !helperAnon.ok && /permission denied/.test(helperAnon.error), err(helperAnon));
 
@@ -45,26 +45,11 @@ const { AFF } = require('../b4fixtures');
   check('...and only directory columns (no documents, certificate data, officers, contacts)',
     JSON.stringify(Object.keys(dir.rows[0]).sort()) === JSON.stringify(['barangay', 'service_coverage_area', 'terminal_latitude', 'terminal_longitude', 'toda_acronym', 'toda_id', 'toda_name']), Object.keys(dir.rows[0]));
 
-  console.log('\nS1-3 find_candidate_drivers');
-  const cands = (uid, id, extra = '') => rpc(uid, `SELECT * FROM public.find_candidate_drivers($1::uuid${extra})`, [id]);
-  const cp = await cands(ID.P2_AUTH, B2.booking_id);                // B2 has no offers yet: both drivers qualify
-  check('the passenger gets only driver id, TODA and distance', JSON.stringify(Object.keys(cp.rows[0] || {}).sort()) === JSON.stringify(['distance_km', 'driver_id', 'toda_id']), Object.keys(cp.rows[0] || {}));
-  check('candidates come nearest first', cp.rows.map((r) => r.driver_id).join() === [ID.D1, ID.D2].join(), cp.rows);
-  check('distances are measured from the booking pickup and rounded to 0.1 km', cp.rows.every((r) => Math.abs(r.distance_km * 10 - Math.round(r.distance_km * 10)) < 1e-6) && cp.rows[0].distance_km < 0.5 && cp.rows[1].distance_km > 1.5 && cp.rows[1].distance_km < 2.5, cp.rows);
-  const cpB1 = await cands(ID.P_AUTH, B1.booking_id);               // D1 already holds an offer for B1
-  check('a driver who already holds an offer for this booking is left out', cpB1.rows.map((r) => r.driver_id).join() === [ID.D2].join(), cpB1.rows);
-  const cmax1 = await cands(ID.P_AUTH, B1.booking_id, ', 1');
-  const cmax3 = await cands(ID.P_AUTH, B1.booking_id, ', 3');
-  check('p_max_km limits the radius', cmax1.rows.length === 0 && cmax3.rows.map((r) => r.driver_id).join() === [ID.D2].join(), { cmax1: cmax1.rows, cmax3: cmax3.rows });
-  const notMine = await attempt(() => cands(ID.P2_AUTH, B1.booking_id));
-  check('asking about somebody else\'s booking is refused', !notMine.ok && /ERR_NOT_YOUR_BOOKING/.test(notMine.error), err(notMine));
-  const asDriver = await attempt(() => cands(ID.D_AUTH, B1.booking_id));
-  check('a driver cannot use it', !asDriver.ok && /ERR_NOT_A_PASSENGER/.test(asDriver.error), err(asDriver));
-  const asAnon = await attempt(() => asRole('anon', (tx) => tx.query(`SELECT * FROM public.find_candidate_drivers('${B1.booking_id}')`)));
-  check('anon cannot use it', !asAnon.ok && /permission denied/.test(asAnon.error), err(asAnon));
+  console.log('\nS1-3 find_candidate_drivers is gone (Batch 6: the database picks the driver; a passenger can no longer list nearby drivers)');
+  check('the function no longer exists for anybody', (await one(`SELECT to_regprocedure('public.find_candidate_drivers(uuid, double precision, integer)') f`)).f === null);
+  const gone = await attempt(() => rpc(ID.P_AUTH, `SELECT * FROM public.find_candidate_drivers($1::uuid)`, [B1.booking_id]));
+  check('a passenger asking for it gets "does not exist"', !gone.ok && /does not exist/.test(gone.error), err(gone));
   await assign(B2.booking_id, ID.D1);
-  const closed = await cands(ID.P2_AUTH, B2.booking_id);
-  check('once the booking is no longer open it answers with nothing', closed.rows.length === 0, closed.rows);
 
   console.log('\nS1-4 get_booking_counterparties');
   const cpt = async (uid, ids) => (await rpc(uid, `SELECT * FROM public.get_booking_counterparties($1::uuid[])`, [ids])).rows;
@@ -233,7 +218,7 @@ const { AFF } = require('../b4fixtures');
       has_function_privilege('authenticated', 'public.passenger_insert_guard()', 'EXECUTE') g1,
       has_function_privilege('authenticated', 'public.is_trusted_session()', 'EXECUTE') g2,
       has_function_privilege('anon', 'public.list_accredited_todas()', 'EXECUTE') a1,
-      has_function_privilege('authenticated', 'public.find_candidate_drivers(uuid, double precision, integer)', 'EXECUTE') a2,
+      has_function_privilege('authenticated', 'public.accept_booking_offer(uuid)', 'EXECUTE') a2,
       has_function_privilege('service_role', 'public.get_booking_counterparties(uuid[])', 'EXECUTE') a3,
       has_function_privilege('authenticated', 'public.get_my_toda_affiliations()', 'EXECUTE') a4,
       has_function_privilege('anon', 'public.get_my_toda_affiliations()', 'EXECUTE') a5`);

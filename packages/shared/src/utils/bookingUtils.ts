@@ -15,3 +15,24 @@ export function formatShortBookingId(id?: string): string {
   }
   return `SAKAY-${clean}`;
 }
+
+/**
+ * The statuses of a booking that is still OPEN (Rule 4.4): the search is running, or a driver is committed and the trip is not finished.
+ * A passenger may have only one open booking. Mirrors the database (_booking_is_searching + _booking_is_open_accepted); the drift test
+ * scripts/db-tests/batch6/config-drift.js fails if the two lists disagree. 'No Driver Found', 'Completed' and 'Cancelled' are not open.
+ */
+export const BOOKING_OPEN_STATUSES = [
+  'Pending',
+  'Searching Driver',
+  'Accepted',
+  'Assigned',
+  'Driver Assigned',
+  'Driver En Route',
+  'Heading to Passenger',
+  'In Transit',
+  'Driver Arrived',
+  'Arrived at Pickup',
+  'Trip Ongoing',
+  'Ongoing',
+  'Arrived at Destination',
+] as const;

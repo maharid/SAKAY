@@ -29,14 +29,19 @@ import MapView from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
-import { calculateDistanceKm, formatDistance } from '@sakay/shared';
+import { COMPLETION_CONFIRM_TIMEOUT_SECONDS, calculateDistanceKm, formatDistance, type DriverCancelReason } from '@sakay/shared';
 import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
 import { DriverCancelModal } from '../../../common/components/DriverCancelModal';
+import SakayToast from '../../../common/components/SakayToast';
+import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
+import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
+import EnRouteNotices from './EnRouteNotices';
+import ArrivalWaitPanel from './ArrivalWaitPanel';
 
 export const DriverActiveTrip: React.FC = () => {
   const { language } = useLanguage();
-  const { profile } = useDriverSession();
+  const { profile, refreshPresence } = useDriverSession();
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || '';
@@ -56,8 +61,13 @@ export const DriverActiveTrip: React.FC = () => {
   // Waiting for passenger payment & feedback states
   const [waitingForPayment, setWaitingForPayment] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [passengerFinished, setPassengerFinished] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  // A write the database refused must not look as if it worked: the screen says so and shows what is true.
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  // When the database locked the fare at the destination (Rule 16.6: the passenger then has the confirmation time before the driver may end the trip)
+  const [fareLockedAt, setFareLockedAt] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
   // Scroll to cancel drag tracking for driver
   const [dragY, setDragY] = useState(0);
@@ -72,6 +82,11 @@ export const DriverActiveTrip: React.FC = () => {
 
   // The fare on screen: the estimate until the trip arrives, then the final fare the database wrote (Rule 6.2).
   const [currentFare, setCurrentFare] = useState<number>(booking?.estimated_fare ?? 0);
+
+  // Rules 8 / 9: while the driver is on the way the system watches his progress. It may warn him (8.2), and if he does not start or cannot be
+  // reached it cancels on his behalf and gives the booking to another driver: this screen then has nothing left to show.
+  const onTheWay = booking?.booking_status === 'Accepted' || booking?.booking_status === 'Driver Assigned' || booking?.booking_status === 'In Transit';
+  const clocks = useAssignedBookingClocks(bookingId, onTheWay);
   const driverLocation = {
     lat: profile.currentLat || booking?.pickup_latitude || 13.4117,
     lng: profile.currentLng || booking?.pickup_longitude || 121.1803,
@@ -134,46 +149,20 @@ export const DriverActiveTrip: React.FC = () => {
     fetchBookingDetails();
   }, [bookingId, language]);
 
-  // Listen for Passenger Payment Confirmation & Passenger Cancellation Broadcasts
+  // The database is the source of truth. The passenger's phone is a DIFFERENT device, so neither this browser's storage nor a broadcast on a
+  // public channel (anyone can send one) can tell the driver that the passenger paid or cancelled; the booking row can, read every 2 seconds.
   useEffect(() => {
     if (!bookingId) return;
 
-    // The database writes the final fare when the trip first arrives (Rule 6.2), which may be because the passenger
-    // marked arrival first; read it so the driver sees the same binding figure the passenger sees.
-    const refreshFare = async () => {
-      const { data } = await supabase
-        .from('booking')
-        .select('actual_fare')
-        .eq('booking_id', bookingId)
-        .maybeSingle();
-      if (data && data.actual_fare !== null && data.actual_fare !== undefined) {
-        setCurrentFare(Number(data.actual_fare));
-      }
-    };
-
-    const checkPaymentConfirmed = () => {
-      const isConfirmed =
-        localStorage.getItem(`payment_confirmed_${bookingId}`) === 'true' ||
-        localStorage.getItem(`passenger_finished_${bookingId}`) === 'true';
-
-      if (isConfirmed && !paymentConfirmed) {
-        refreshFare();
-        setPaymentConfirmed(true);
-        setWaitingForPayment(false);
-        setFeedbackModalOpen(true);
-      }
-    };
-
-    // The database is the source of truth. The passenger's phone is a DIFFERENT device, so neither this browser's storage nor a
-    // broadcast that may be missed can tell the driver that the passenger paid or cancelled; the booking row can.
     const checkBookingInDb = async () => {
       try {
         const { data } = await supabase
           .from('booking')
-          .select('booking_status, actual_fare, cancelled_by, cancellation_reason')
+          .select('booking_status, actual_fare, fare_locked_at, cancelled_by, cancellation_reason')
           .eq('booking_id', bookingId)
           .maybeSingle();
         if (!data) return;
+        if (data.fare_locked_at) setFareLockedAt(data.fare_locked_at);
         if (data.booking_status === 'Completed') {
           if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
           setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
@@ -186,50 +175,29 @@ export const DriverActiveTrip: React.FC = () => {
           if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
           setBooking((prev: any) => (prev && prev.booking_status !== 'Arrived at Destination' ? { ...prev, booking_status: 'Arrived at Destination' } : prev));
           if (!paymentConfirmed) setWaitingForPayment(true);
-        } else if (data.booking_status === 'Cancelled' && data.cancelled_by === 'passenger') {
-          setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ng pasahero ang booking' : 'Passenger cancelled the booking'));
+        } else if (data.booking_status === 'Cancelled' && data.cancelled_by !== 'driver') {
+          setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking' : 'The booking was cancelled'));
           setPassengerCancelledAlertOpen(true);
+        } else if (data.booking_status === 'Pending') {
+          // The booking went back to the search (it is no longer ours): leave the trip screen.
+          navigate('/driver/home', { replace: true });
         }
       } catch {
         // the next poll tries again
       }
     };
 
-    checkPaymentConfirmed();
     checkBookingInDb();
-    const interval = setInterval(() => {
-      checkPaymentConfirmed();
-      checkBookingInDb();
-    }, 2000);
+    const interval = setInterval(checkBookingInDb, 2000);
+    return () => clearInterval(interval);
+  }, [bookingId, paymentConfirmed, language, navigate]);
 
-    const syncChannel = supabase.channel(`booking_sync_${bookingId}`);
-    syncChannel
-      .on('broadcast', { event: 'payment_confirmed' }, () => {
-        refreshFare();
-        setPaymentConfirmed(true);
-        setWaitingForPayment(false);
-        setFeedbackModalOpen(true);
-      })
-      .on('broadcast', { event: 'passenger_finished' }, () => {
-        refreshFare();
-        setPassengerFinished(true);
-        setPaymentConfirmed(true);
-        setWaitingForPayment(false);
-        setFeedbackModalOpen(true);
-      })
-      .on('broadcast', { event: 'booking_cancelled' }, (payload: any) => {
-        if (payload.payload?.cancelled_by === 'passenger' || payload.payload?.cancelledBy === 'passenger') {
-          setPassengerCancelReason(payload.payload?.reason || (language === 'tl' ? 'Kinansela ng pasahero ang booking' : 'Passenger cancelled the booking'));
-          setPassengerCancelledAlertOpen(true);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(syncChannel);
-    };
-  }, [bookingId, paymentConfirmed, language]);
+  // A clock for the confirmation countdown (only while waiting for the passenger)
+  useEffect(() => {
+    if (!waitingForPayment) return;
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [waitingForPayment]);
 
   // Real-time GPS broadcasting during active trip
   useEffect(() => {
@@ -265,72 +233,52 @@ export const DriverActiveTrip: React.FC = () => {
     };
   }, [bookingId, profile.currentLat, profile.currentLng, profile.id, booking?.driver_id]);
 
-  const handleEnRoute = async () => {
-    try {
-      await supabase
-        .from('booking')
-        .update({ booking_status: 'In Transit' })
-        .eq('booking_id', bookingId);
-      setBooking((prev: any) => ({ ...prev, booking_status: 'In Transit' }));
-    } catch (err) {
-      console.warn('[DriverActiveTrip] enRoute error:', err);
+  // Moves the booking one step (the database decides whether the step is allowed, and stamps the time). Returns the booking as the database now has it.
+  const moveBooking = async (status: string): Promise<{ ok: boolean; actualFare: number | null }> => {
+    const { data, error } = await supabase
+      .from('booking')
+      .update({ booking_status: status })
+      .eq('booking_id', bookingId)
+      .select('booking_status, actual_fare, fare_locked_at')
+      .maybeSingle();
+    if (error || !data) {
+      const why = error?.message ? error.message.replace(/^ERR_[A-Z_]+:\s*/, '') : '';
+      setToastMessage(why || (language === 'tl' ? 'Hindi na-update ang booking. Pakisubukang muli.' : 'The booking could not be updated. Please try again.'));
+      return { ok: false, actualFare: null };
     }
+    setBooking((prev: any) => ({ ...prev, booking_status: data.booking_status }));
+    if (data.fare_locked_at) setFareLockedAt(data.fare_locked_at);
+    return { ok: true, actualFare: data.actual_fare !== null && data.actual_fare !== undefined ? Number(data.actual_fare) : null };
+  };
+
+  const handleEnRoute = async () => {
+    await moveBooking('In Transit');
   };
 
   const handleArrived = async () => {
-    try {
-      await supabase
-        .from('booking')
-        .update({ booking_status: 'Arrived at Pickup' })
-        .eq('booking_id', bookingId);
-      setBooking((prev: any) => ({ ...prev, booking_status: 'Arrived at Pickup' }));
-    } catch (err) {
-      console.warn('[DriverActiveTrip] arrived error:', err);
-    }
+    await moveBooking('Arrived at Pickup');
   };
 
   const handleStartTrip = async () => {
-    try {
-      await supabase
-        .from('booking')
-        .update({
-          booking_status: 'Trip Ongoing',
-          trip_started_at: new Date().toISOString(),
-        })
-        .eq('booking_id', bookingId);
-      setBooking((prev: any) => ({ ...prev, booking_status: 'Trip Ongoing' }));
-    } catch (err) {
-      console.warn('[DriverActiveTrip] startTrip Supabase update note:', err);
-    }
+    await moveBooking('Trip Ongoing');
   };
 
   const handleDriverSlideComplete = async () => {
+    // The database computes and locks the final fare from the recorded GPS track when the trip first arrives (Rule 6.2); read it back
+    // so the driver sees the same binding figure as the passenger.
+    const arrived = await moveBooking('Arrived at Destination');
+    if (!arrived.ok) return;
+    if (arrived.actualFare !== null) setCurrentFare(arrived.actualFare);
     setWaitingForPayment(true);
-    try {
-      // The database computes and locks the final fare from the recorded GPS track when the trip first arrives
-      // (Rule 6.2); read it back so the driver sees the same binding figure as the passenger.
-      const { data: arrived } = await supabase
-        .from('booking')
-        .update({ booking_status: 'Arrived at Destination' })
-        .eq('booking_id', bookingId)
-        .select('actual_fare')
-        .maybeSingle();
-      if (arrived && arrived.actual_fare !== null && arrived.actual_fare !== undefined) {
-        setCurrentFare(Number(arrived.actual_fare));
-      }
-      setBooking((prev: any) => ({ ...prev, booking_status: 'Arrived at Destination' }));
-    } catch (err) {
-      console.warn('[DriverActiveTrip] slideComplete error:', err);
-    }
+  };
 
-    if (bookingId) {
-      const channel = supabase.channel(`booking_sync_${bookingId}`);
-      channel.send({
-        type: 'broadcast',
-        event: 'driver_arrived_destination',
-        payload: { bookingId },
-      });
-    }
+  // Rule 16.6: the passenger did not confirm within the confirmation time, so the driver may end the trip (recorded without the passenger's acknowledgement).
+  const handleEndTripWithoutConfirmation = async () => {
+    const ended = await moveBooking('Completed');
+    if (!ended.ok) return;
+    setPaymentConfirmed(true);
+    setWaitingForPayment(false);
+    setFeedbackModalOpen(true);
   };
 
   const handleFinishAndGoHome = () => {
@@ -345,31 +293,22 @@ export const DriverActiveTrip: React.FC = () => {
     });
   };
 
-  const handleConfirmCancelTrip = async (reasonText: string) => {
+  // The only way to give a booking back after accepting it: the database records the reason, strikes as the policy says (Rules 12.3 / 12.4) and
+  // puts the booking straight back into the search for another driver. Nothing is announced to the passenger from here: the booking row says it.
+  const handleConfirmCancelTrip = async (reasonCode: DriverCancelReason) => {
+    setCancelling(true);
+    const { data, error } = await supabase.rpc('driver_cancel_booking', { p_booking_id: bookingId, p_reason_code: reasonCode, p_note: null });
+    setCancelling(false);
     setCancelModalOpen(false);
-    try {
-      const channel = supabase.channel(`booking_sync_${bookingId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: 'booking_cancelled',
-        payload: {
-          bookingId,
-          cancelled_by: 'driver',
-          reason: reasonText,
-        },
-      });
-
-      await supabase
-        .from('booking')
-        .update({
-          booking_status: 'Cancelled',
-          cancelled_by: 'driver',
-          cancellation_reason: reasonText,
-        })
-        .eq('booking_id', bookingId);
-    } catch (err) {
-      console.warn('[DriverActiveTrip] Cancel update note:', err);
+    const result = data as { success?: boolean; error?: string } | null;
+    if (error || !result?.success) {
+      setToastMessage(
+        result?.error ||
+          (language === 'tl' ? 'Hindi makansela ang booking. Pakisubukang muli.' : 'The booking could not be cancelled. Please try again.')
+      );
+      return;
     }
+    refreshPresence();
     navigate('/driver/home', { replace: true });
   };
 
@@ -415,7 +354,7 @@ export const DriverActiveTrip: React.FC = () => {
   const isArrived = booking?.booking_status === 'Arrived at Destination';
 
   let computedProgress = 0;
-  if (isArrived || paymentConfirmed || passengerFinished) {
+  if (isArrived || paymentConfirmed) {
     computedProgress = 100;
   } else if (isOngoing) {
     const rawProgress = Math.round(((totalTripKm - dropoffDistKm) / totalTripKm) * 100);
@@ -734,6 +673,10 @@ export const DriverActiveTrip: React.FC = () => {
           </Typography>
         </Box>
 
+        {onTheWay && (
+          <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
+        )}
+
         {/* Dynamic Booking Action Button Controls */}
         {booking?.booking_status === 'Accepted' || booking?.booking_status === 'Driver Assigned' ? (
           <Button
@@ -772,29 +715,39 @@ export const DriverActiveTrip: React.FC = () => {
             {language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
           </Button>
         ) : booking?.booking_status === 'Arrived at Pickup' || booking?.booking_status === 'Driver Arrived' ? (
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleStartTrip}
-            startIcon={<LocalTaxiIcon />}
-            sx={{
-              height: 48,
-              borderRadius: '14px',
-              backgroundColor: '#10B981',
-              fontWeight: 800,
-              fontSize: '14.5px',
-              textTransform: 'none',
-              fontFamily: 'Poppins, sans-serif',
-              '&:hover': { backgroundColor: '#059669' },
-            }}
-          >
-            Start Trip
-          </Button>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <ArrivalWaitPanel
+              bookingId={bookingId}
+              language={language}
+              onMessage={setToastMessage}
+              onNoShowReported={() => {
+                refreshPresence();
+                navigate('/driver/home', { replace: true });
+              }}
+            />
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleStartTrip}
+              startIcon={<LocalTaxiIcon />}
+              sx={{
+                height: 48,
+                borderRadius: '14px',
+                backgroundColor: '#10B981',
+                fontWeight: 800,
+                fontSize: '14.5px',
+                textTransform: 'none',
+                fontFamily: 'Poppins, sans-serif',
+                '&:hover': { backgroundColor: '#059669' },
+              }}
+            >
+              Start Trip
+            </Button>
+          </Box>
         ) : (
           (() => {
-            const isPassengerFinished = paymentConfirmed || passengerFinished || booking?.passenger_finished;
             const isNearDestination = dropoffDistKm <= 0.05; // 50 meters
-            const canComplete = isPassengerFinished || isNearDestination;
+            const canComplete = paymentConfirmed || isNearDestination;
 
             return (
               <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -827,6 +780,26 @@ export const DriverActiveTrip: React.FC = () => {
                     ? (language === 'tl' ? 'Naghihintay ng Kumpirmasyon...' : 'Waiting for Passenger Confirmation...')
                     : (language === 'tl' ? 'Tapusin ang Biyahe' : 'Complete Trip')}
                 </Button>
+                {waitingForPayment && (() => {
+                  const lockedMs = fareLockedAt ? Date.parse(fareLockedAt) : nowMs;
+                  const left = Math.max(0, COMPLETION_CONFIRM_TIMEOUT_SECONDS - Math.floor((nowMs - lockedMs) / 1000));
+                  return left > 0 ? (
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', textAlign: 'center', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+                      {language === 'tl'
+                        ? `Kung hindi magkumpirma ang pasahero, maaari mong tapusin ang biyahe sa ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}.`
+                        : `If the passenger does not confirm, you can end the trip in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}.`}
+                    </Typography>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      onClick={handleEndTripWithoutConfirmation}
+                      sx={{ height: 44, borderRadius: '14px', fontWeight: 800, textTransform: 'none', fontFamily: 'Poppins, sans-serif', borderColor: '#FF6B00', color: '#FF6B00' }}
+                    >
+                      {language === 'tl' ? 'Tapusin ang biyahe (hindi nagkumpirma ang pasahero)' : 'End trip (the passenger did not confirm)'}
+                    </Button>
+                  );
+                })()}
                 {!canComplete && !waitingForPayment && (
                   <Typography sx={{ fontSize: '11px', color: '#64748B', textAlign: 'center', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
                     {language === 'tl'
@@ -868,6 +841,18 @@ export const DriverActiveTrip: React.FC = () => {
         onClose={() => setCancelModalOpen(false)}
         onConfirmCancel={handleConfirmCancelTrip}
         language={language}
+        loading={cancelling}
+      />
+
+      <SakayToast message={toastMessage} severity="warning" onClose={() => setToastMessage(null)} />
+
+      <BookingGivenAwayDialog
+        open={clocks.bookingGone}
+        language={language}
+        onClose={() => {
+          refreshPresence();
+          navigate('/driver/home', { replace: true });
+        }}
       />
 
       {/* Bidirectional Passenger Cancellation Realtime Notification Modal */}

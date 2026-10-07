@@ -398,7 +398,7 @@ async function verifyS1(h, a) {
   const { one, must, asRole, refused, q, skip, db } = h;
   const priv = await one(`select
       has_function_privilege('anon', 'public.list_accredited_todas()', 'EXECUTE') as dir_anon,
-      has_function_privilege('anon', 'public.find_candidate_drivers(uuid, double precision, integer)', 'EXECUTE') as cand_anon,
+      coalesce(has_function_privilege('anon', to_regprocedure('public.find_candidate_drivers(uuid, double precision, integer)'), 'EXECUTE'), false) as cand_anon,   -- removed by Batch 6 (20261015000003): absent = not callable
       has_function_privilege('anon', 'public.get_booking_counterparties(uuid[])', 'EXECUTE') as party_anon,
       has_function_privilege('anon', 'public.get_assigned_driver_details(uuid)', 'EXECUTE') as assigned_anon,
       has_function_privilege('anon', 'public.get_my_toda_affiliations()', 'EXECUTE') as mine_anon,
@@ -442,7 +442,7 @@ async function verifyS1(h, a) {
   });
   must(out.ok, `the stranger probes ran (${out.ok ? 'ok' : out.error})`);
   const r = out.value;
-  must(r.cand.ok === false && /ERR_NOT_A_PASSENGER/.test(r.cand.error || ''), 'find_candidate_drivers() refuses a caller who is not a passenger');
+  must(r.cand.ok === false && /ERR_NOT_A_PASSENGER|does not exist/.test(r.cand.error || ''), 'find_candidate_drivers() refuses a caller who is not a passenger (or no longer exists: Batch 6 removed it)');
   must(r.party.ok && r.party.value.length === 0, 'get_booking_counterparties() tells a stranger nothing');
   must(r.mine.ok && r.mine.value.length === 0, 'get_my_toda_affiliations() returns nothing to someone who is not a driver');
   must(r.paxActive.ok === false && /ERR_PASSENGER_PENDING_ONLY|row-level security|policy/.test(r.paxActive.error || ''), 'a new passenger record cannot be inserted Active (activation is the server\'s job, after the OTP)');

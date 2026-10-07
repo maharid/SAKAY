@@ -5,7 +5,7 @@
 
 import { supabase } from './supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
-import { describeFareError, describeRestriction, parseFareError, parseRestrictionError } from '@sakay/shared';
+import { BOOKING_OPEN_STATUSES, describeFareError, describeRestriction, parseFareError, parseRestrictionError } from '@sakay/shared';
 import { saveTripToHistory } from './tripService';
 
 export type { BookingRecord };
@@ -244,6 +244,25 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
 /**
  * Retrieves a booking by ID
  */
+/** The passenger's one open booking as the DATABASE has it (a search that is running, or a trip that is not finished), or null. */
+export interface OpenBooking {
+  booking_id: string;
+  booking_status: string;
+  pickup_address: string;
+  dropoff_address: string;
+}
+
+export const fetchOpenBooking = async (): Promise<OpenBooking | null> => {
+  const { data, error } = await supabase
+    .from('booking')
+    .select('booking_id, booking_status, pickup_address, dropoff_address')
+    .in('booking_status', [...BOOKING_OPEN_STATUSES])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return error || !data ? null : (data as OpenBooking);
+};
+
 export const getBooking = (bookingId: string): BookingRecord | null => {
   const store = loadBookings();
   return store[bookingId] || null;

@@ -42,7 +42,9 @@ import { formatShortBookingId, calculateDistanceKm, formatDistance, signedStorag
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { startDispatch, retryDriverSearch } from '../../../services/dispatchService';
+import { retryDriverSearch } from '../../../services/dispatchService';
+import { useArrivalWait } from '../hooks/useArrivalWait';
+import ArrivalWaitCard from './ArrivalWaitCard';
 
 const mapBookingStatus = (rawStatus: string): any => {
   if (rawStatus === 'Pending') return 'Searching Driver';
@@ -319,6 +321,11 @@ export const TripMonitoring: React.FC = () => {
   // Bidirectional Driver Cancelled Alert State
   const [driverCancelledAlertOpen, setDriverCancelledAlertOpen] = useState(false);
   const [driverCancelReason, setDriverCancelReason] = useState<string>('');
+  // The booking was cancelled because the passenger did not board in time (Rule 10.4), not because the driver gave it up
+  const [noShowCancelled, setNoShowCancelled] = useState(false);
+  // Rule 9.2: the database has not heard from the driver for 3 minutes (cleared the moment it does)
+  const [driverUnreachable, setDriverUnreachable] = useState(false);
+  const [extendingWait, setExtendingWait] = useState(false);
 
   // Draggable Bottom Sheet State
   const [isExpanded, setIsExpanded] = useState(false);
@@ -376,32 +383,37 @@ export const TripMonitoring: React.FC = () => {
 
   const handlePassengerFinishTrip = async () => {
     try {
-      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
         // The database computes and locks the final fare when the trip first arrives (Rule 6.2); read it back
         // so the figure on screen is the binding one, not the estimate.
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('booking')
-          .update({
-            booking_status: 'Arrived at Destination',
-            arrived_at: new Date().toISOString(),
-          })
+          .update({ booking_status: 'Arrived at Destination' })
           .eq('booking_id', activeBookingId)
           .select('actual_fare, actual_distance_km, fare_breakdown')
           .maybeSingle();
-        if (data) {
-          setBooking((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  actual_fare: data.actual_fare !== null && data.actual_fare !== undefined ? Number(data.actual_fare) : prev.actual_fare,
-                  actual_distance_km: data.actual_distance_km ?? prev.actual_distance_km,
-                  fare_breakdown: data.fare_breakdown ?? prev.fare_breakdown,
-                }
-              : prev
+        if (error || !data) {
+          // The database said no (for example the driver already ended the trip): show what is true, not a completion screen.
+          setToastMessage(
+            language === 'tl'
+              ? 'Hindi naitala ang pagdating. Pakisubukang muli.'
+              : 'We could not record the arrival. Please try again.'
           );
+          fetchBookingFromDb();
+          return;
         }
+        setBooking((prev) =>
+          prev
+            ? {
+                ...prev,
+                actual_fare: data.actual_fare !== null && data.actual_fare !== undefined ? Number(data.actual_fare) : prev.actual_fare,
+                actual_distance_km: data.actual_distance_km ?? prev.actual_distance_km,
+                fare_breakdown: data.fare_breakdown ?? prev.fare_breakdown,
+              }
+            : prev
+        );
       }
+      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
 
       const channel = supabase.channel(`booking_sync_${activeBookingId}`);
       await channel.send({
@@ -417,20 +429,17 @@ export const TripMonitoring: React.FC = () => {
 
   const handlePassengerPaid = async () => {
     try {
-      localStorage.setItem(`payment_confirmed_${activeBookingId}`, 'true');
-      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
         // The passenger confirms payment; the final fare is NOT sent from here (Rule 6.2): the database
         // already computed it when the trip arrived, and rejects any client that tries to write it.
         const { error } = await supabase
           .from('booking')
-          .update({
-            booking_status: 'Completed',
-            trip_completed_at: new Date().toISOString(),
-          })
+          .update({ booking_status: 'Completed' })
           .eq('booking_id', activeBookingId);
         if (error) throw error;
       }
+      localStorage.setItem(`payment_confirmed_${activeBookingId}`, 'true');
+      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
 
       const channel = supabase.channel(`booking_sync_${activeBookingId}`);
       await channel.send({
@@ -529,10 +538,6 @@ export const TripMonitoring: React.FC = () => {
 
           const mappedStatus = mapBookingStatus(d.booking_status);
 
-          if (d.booking_status === 'Pending' || d.booking_status === 'Searching Driver') {
-            startDispatch(activeBookingId).catch((err) => console.error('[TripMonitoring] Dispatch resume note:', err));
-          }
-
           const drvLat = driverInfo?.current_latitude ?? d.driver_latitude;
           const drvLng = driverInfo?.current_longitude ?? d.driver_longitude;
           if (drvLat && drvLng && !hasLiveDriverGpsRef.current) {
@@ -588,6 +593,23 @@ export const TripMonitoring: React.FC = () => {
     fetchBookingFromDb();
   }, [fetchBookingFromDb]);
 
+  // The booking went back to the search because the driver who had accepted gave it up (Rules 12.3 / 12.4) or could not proceed: forget
+  // that driver (details, photo, rating, position) and say so. The database is the only source of this: status Pending, no driver.
+  const handleBackToSearch = useCallback((row: { booking_status?: string; driver_id?: string | null }) => {
+    const searching = row.booking_status === 'Pending' || row.booking_status === 'Searching Driver';
+    if (!searching || row.driver_id || !loadedDriverIdRef.current) return;
+    loadedDriverIdRef.current = null;
+    hasLiveDriverGpsRef.current = false;
+    setDriverPhotoUrl('');
+    setDriverRating(null);
+    setBooking((prev) => (prev ? { ...prev, driver_id: undefined, driver_name: '', driver_phone: '', franchise_no: '', vehicle_plate: '', toda_name: '' } : prev));
+    setToastMessage(
+      language === 'tl'
+        ? 'Hindi nakapagpatuloy ang iyong drayber. Naghahanap kami ng ibang drayber...'
+        : 'Your driver was unable to proceed. We are finding you another driver...'
+    );
+  }, [language]);
+
   // Listen to Supabase Realtime for updates and broadcast for driver GPS
   useEffect(() => {
     if (!activeBookingId) return;
@@ -604,17 +626,22 @@ export const TripMonitoring: React.FC = () => {
             created_at,
             driver_id,
             cancelled_by,
-            cancellation_reason
+            cancellation_reason,
+            driver_unreachable_since
           `)
           .eq('booking_id', activeBookingId)
           .maybeSingle();
 
         if (!error && data) {
           const d = data as any;
-          if (d.booking_status === 'Cancelled' && (d.cancelled_by === 'driver' || !d.cancelled_by)) {
-            setDriverCancelReason(d.cancellation_reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
+          setDriverUnreachable(Boolean(d.driver_unreachable_since) && d.booking_status !== 'Cancelled' && d.booking_status !== 'Completed');
+          if (d.booking_status === 'Cancelled' && d.cancelled_by && d.cancelled_by !== 'passenger') {
+            const noShow = d.cancellation_reason === 'PASSENGER_NO_SHOW';
+            setNoShowCancelled(noShow);
+            setDriverCancelReason(noShow ? '' : d.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking ng sistema' : 'The booking was cancelled by the system'));
             setDriverCancelledAlertOpen(true);
           }
+          handleBackToSearch(d);
           // A driver accepted (or the driver changed): load who it is
           if (d.driver_id && d.driver_id !== loadedDriverIdRef.current) {
             loadedDriverIdRef.current = d.driver_id;
@@ -659,16 +686,6 @@ export const TripMonitoring: React.FC = () => {
       }
     }, 2500);
 
-    const syncChannel = supabase.channel(`booking_sync_${activeBookingId}`);
-    syncChannel
-      .on('broadcast', { event: 'booking_cancelled' }, (payload: any) => {
-        if (payload.payload?.cancelled_by === 'driver' || payload.payload?.cancelledBy === 'driver') {
-          setDriverCancelReason(payload.payload?.reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
-          setDriverCancelledAlertOpen(true);
-        }
-      })
-      .subscribe();
-
     const channel = supabase
       .channel(`passenger_trip_${activeBookingId}`)
       .on(
@@ -686,10 +703,13 @@ export const TripMonitoring: React.FC = () => {
               loadedDriverIdRef.current = row.driver_id;
               fetchBookingFromDb();
             }
-            if (row.booking_status === 'Cancelled' && (row.cancelled_by === 'driver' || !row.cancelled_by)) {
-              setDriverCancelReason(row.cancellation_reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
+            if (row.booking_status === 'Cancelled' && row.cancelled_by && row.cancelled_by !== 'passenger') {
+              const noShow = row.cancellation_reason === 'PASSENGER_NO_SHOW';
+              setNoShowCancelled(noShow);
+              setDriverCancelReason(noShow ? '' : row.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking ng sistema' : 'The booking was cancelled by the system'));
               setDriverCancelledAlertOpen(true);
             }
+            handleBackToSearch(row);
 
             if (row.driver_latitude && row.driver_longitude && !hasLiveDriverGpsRef.current) {
               setDriverPos({
@@ -728,23 +748,25 @@ export const TripMonitoring: React.FC = () => {
           });
         }
       })
-      .on('broadcast', { event: 'booking_cancelled' }, (payload: any) => {
-        if (payload.payload?.cancelled_by === 'driver' || payload.payload?.cancelledBy === 'driver') {
-          setDriverCancelReason(payload.payload?.reason || (language === 'tl' ? 'Kinansela ng drayber ang booking' : 'The driver cancelled the booking'));
-          setDriverCancelledAlertOpen(true);
-        }
-      })
       .subscribe();
 
     return () => {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
-      supabase.removeChannel(syncChannel);
     };
-  }, [activeBookingId, language, fetchBookingFromDb]);
+  }, [activeBookingId, language, fetchBookingFromDb, handleBackToSearch]);
 
   const status = booking?.booking_status || 'Searching Driver';
   const isTripActive = status !== 'Completed' && status !== 'Cancelled';
+
+  // Rule 10.3: once the driver is at the pickup the database counts the time the passenger has to board; "I'm Almost There" adds two minutes, once.
+  const { wait: arrivalWait, extend: extendArrivalWait } = useArrivalWait(activeBookingId, status === 'Driver Arrived');
+  const handleExtendWait = async () => {
+    setExtendingWait(true);
+    const problem = await extendArrivalWait();
+    setExtendingWait(false);
+    if (problem) setToastMessage(problem.replace(/^ERR_[A-Z_]+:\s*/, ''));
+  };
 
   const handleBackRequest = () => {
     if (isTripActive) {
@@ -756,21 +778,6 @@ export const TripMonitoring: React.FC = () => {
 
   const handleCancelTrip = async (reasonText?: string) => {
     const finalReason = reasonText || (language === 'tl' ? 'Kinansela ng pasahero bago ang pickup' : 'Passenger cancelled before pickup');
-    try {
-      const syncChannel = supabase.channel(`booking_sync_${activeBookingId}`);
-      await syncChannel.send({
-        type: 'broadcast',
-        event: 'booking_cancelled',
-        payload: {
-          bookingId: activeBookingId,
-          cancelled_by: 'passenger',
-          reason: finalReason,
-        },
-      });
-    } catch (err) {
-      console.warn('[TripMonitoring] Broadcast cancel note:', err);
-    }
-
     const cancelled = await cancelBooking(activeBookingId, finalReason);
     setCancelModalOpen(false);
     if (!cancelled) {
@@ -1098,6 +1105,18 @@ export const TripMonitoring: React.FC = () => {
           </Box>
         </Box>
 
+        {driverUnreachable && (
+          <Alert severity="warning" sx={{ borderRadius: '14px', fontSize: '12.5px', fontWeight: 600 }}>
+            {language === 'tl'
+              ? 'Mukhang may problema sa koneksyon ang iyong drayber. Patuloy kaming susubok na makontak siya.'
+              : "Your driver appears to be experiencing a connectivity issue. We'll keep trying to reach them."}
+          </Alert>
+        )}
+
+        {status === 'Driver Arrived' && arrivalWait && (
+          <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} />
+        )}
+
         {status === 'No Driver Found' ? (
           <Box sx={{ p: 2, backgroundColor: '#FEF2F2', borderRadius: '16px', border: '1.5px solid #FCA5A5', textAlign: 'center' }}>
             <Typography sx={{ fontWeight: 800, fontSize: '15px', color: '#991B1B' }}>
@@ -1336,14 +1355,11 @@ export const TripMonitoring: React.FC = () => {
               </Box>
             )}
 
-            {/* Slide to Cancel (Visible when pre-trip, or when sheet is expanded) */}
-            {(status !== 'Trip Ongoing' || isExpanded) && (
+            {/* Slide to Cancel: only before the trip starts. A trip in progress cannot be cancelled (it ends instead, Rule 13). */}
+            {status !== 'Trip Ongoing' && (
               <Box
                 sx={{
                   width: '100%',
-                  mt: isExpanded && status === 'Trip Ongoing' ? 1 : 0,
-                  pt: isExpanded && status === 'Trip Ongoing' ? 1.5 : 0,
-                  borderTop: isExpanded && status === 'Trip Ongoing' ? '1px dashed #FCA5A5' : 'none',
                   textAlign: 'center',
                 }}
               >
@@ -1747,9 +1763,13 @@ export const TripMonitoring: React.FC = () => {
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
           <Typography sx={{ fontSize: '14px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl'
-              ? 'Kinansela ng drayber ang booking.'
-              : 'The driver has cancelled the booking.'}
+            {noShowCancelled
+              ? language === 'tl'
+                ? 'Hindi ka sumakay sa loob ng oras ng paghihintay, kaya nakansela ang booking at 2 strike ang naitala. Maaari kang mag-book muli.'
+                : 'You did not board within the waiting time, so the booking was cancelled as a no-show and 2 strikes were recorded. You can book again.'
+              : language === 'tl'
+              ? 'Kinansela ang booking.'
+              : 'The booking has been cancelled.'}
           </Typography>
           {driverCancelReason && (
             <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
