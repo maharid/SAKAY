@@ -9,12 +9,10 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MessageIcon from "@mui/icons-material/Message";
-import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import LinearProgress from "@mui/material/LinearProgress";
 import Alert from "@mui/material/Alert";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -42,7 +40,10 @@ import HomeHeader from "../Dashboard/HomeHeader";
 import PassengerNavigationDrawer from "../Dashboard/PassengerNavigationDrawer";
 import TulongDialog from "../Dashboard/TulongDialog";
 import NotificationsDialog from "../Dashboard/NotificationsDialog";
+import DriverSearchPanel, { type DriverSearchOutcome } from "../DriverSearch/DriverSearchPanel";
+import { useDispatchProgress } from "../../hooks/useDispatchProgress";
 import { supabase } from "../../../../services/supabaseClient";
+import { startDispatch, retryDriverSearch } from "../../../../services/dispatchService";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import {
   DEFAULT_CALAPAN_CENTER,
@@ -178,6 +179,10 @@ const NewTrip: React.FC = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [activeBooking, setActiveBooking] = useState<BookingRecord | null>(null);
   const [bookingSubmitting, setBookingSubmitting] = useState<boolean>(false);
+  // While searching: still looking, or the search ended with nobody (No Driver Found: Retry or Cancel, Rule 7.4)
+  const [searchOutcome, setSearchOutcome] = useState<DriverSearchOutcome>("searching");
+  const [searchError, setSearchError] = useState<string>("");
+  const searchProgress = useDispatchProgress(activeBooking?.booking_id);
 
   // Always query real device location on mount so passenger actual location is pinned
   useEffect(() => {
@@ -328,9 +333,24 @@ const NewTrip: React.FC = () => {
     };
   }, [routeStatus, tripDistanceKm, passengers, quoteRetry, language]);
 
-  // Subscribe to real-time status updates while searching
+  // Follow the booking while searching, by realtime and by polling: a driver accepts (go to the trip), nobody is found (offer Retry
+  // or Cancel), the search is restarted, or the booking is cancelled elsewhere.
   useEffect(() => {
     if (!activeBooking?.booking_id) return;
+    const bookingId = activeBooking.booking_id;
+
+    const applyStatus = (status: string | null | undefined) => {
+      if (status === "Accepted" || status === "Driver Assigned") {
+        navigate("/trip-monitoring", { state: { bookingId } });
+      } else if (status === "No Driver Found") {
+        setSearchOutcome("noDriver");
+      } else if (status === "Pending" || status === "Searching Driver") {
+        setSearchOutcome("searching");
+      } else if (status === "Cancelled") {
+        setIsSearching(false);
+        setActiveBooking(null);
+      }
+    };
 
     // Polling fallback
     const pollInterval = setInterval(async () => {
@@ -338,40 +358,25 @@ const NewTrip: React.FC = () => {
         const { data, error } = await supabase
           .from('booking')
           .select('booking_status, actual_fare, updated_at, driver_id')
-          .eq('booking_id', activeBooking.booking_id)
+          .eq('booking_id', bookingId)
           .maybeSingle();
 
-        if (!error && data) {
-          if (data.booking_status === "Accepted" || data.booking_status === "Driver Assigned") {
-            clearInterval(pollInterval);
-            navigate("/trip-monitoring", {
-              state: { bookingId: activeBooking.booking_id },
-            });
-          }
-        }
+        if (!error && data) applyStatus(data.booking_status);
       } catch (err) {}
     }, 4000);
 
     // Realtime channel
     const channel = supabase
-      .channel(`new_trip_wait_${activeBooking.booking_id}`)
+      .channel(`new_trip_wait_${bookingId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'booking',
-          filter: `booking_id=eq.${activeBooking.booking_id}`,
+          filter: `booking_id=eq.${bookingId}`,
         },
-        (payload: any) => {
-          const row = payload.new;
-          if (row.booking_status === "Accepted" || row.booking_status === "Driver Assigned") {
-            clearInterval(pollInterval);
-            navigate("/trip-monitoring", {
-              state: { bookingId: activeBooking.booking_id },
-            });
-          }
-        }
+        (payload: any) => applyStatus(payload.new?.booking_status)
       )
       .subscribe();
 
@@ -505,8 +510,12 @@ const NewTrip: React.FC = () => {
       });
 
       setActiveBooking(newBookingRecord);
+      setSearchOutcome("searching");
+      setSearchError("");
       setIsSearching(true);
       setBookingSubmitting(false);
+      // The booking exists: now the search for a driver begins (nothing offers it to a driver until this runs)
+      startDispatch(newBookingRecord.booking_id).catch((err) => console.error("Dispatch failed:", err));
     } catch (err: unknown) {
       setBookingSubmitting(false);
       const msg = err instanceof Error ? err.message : "Booking submission error";
@@ -519,22 +528,49 @@ const NewTrip: React.FC = () => {
   };
 
   const handleConfirmCancelBooking = async (reasonText: string) => {
+    setCancelling(true);
     try {
-      setCancelling(true);
-      if (activeBooking?.booking_id) {
-        await cancelBooking(activeBooking.booking_id, reasonText);
+      // The search only stops when the booking really is cancelled in the database: if that did not save, keep showing the
+      // search (it is still running and the booking is still open) instead of pretending it was cancelled.
+      const cancelled = activeBooking?.booking_id ? await cancelBooking(activeBooking.booking_id, reasonText) : true;
+      setCancelModalOpen(false);
+      if (cancelled) {
+        setIsSearching(false);
+        setActiveBooking(null);
+        setSearchError("");
+      } else {
+        setSearchError(
+          language === "tl"
+            ? "Hindi na-kansela ang booking. Pakisubukang muli."
+            : "We couldn't cancel the booking. Please try again."
+        );
       }
-      setIsSearching(false);
-      setActiveBooking(null);
-      setCancelModalOpen(false);
-    } catch (err) {
-      console.warn("Error cancelling booking:", err);
-      setIsSearching(false);
-      setActiveBooking(null);
-      setCancelModalOpen(false);
     } finally {
       setCancelling(false);
     }
+  };
+
+  // No Driver Found -> Retry: a new search round that starts again from the nearest drivers (Rule 7.4)
+  const handleRetrySearch = async () => {
+    if (!activeBooking?.booking_id) return;
+    setSearchError("");
+    const restarted = await retryDriverSearch(activeBooking.booking_id);
+    if (restarted) {
+      setSearchOutcome("searching");
+    } else {
+      setSearchError(
+        language === "tl"
+          ? "Hindi masimulan muli ang paghahanap. Pakisubukang muli."
+          : "We could not restart the search. Please try again."
+      );
+    }
+  };
+
+  // No Driver Found -> Cancel: the booking is not open any more and stays No Driver Found (no charge, no penalty), so this only leaves the screen
+  const handleLeaveNoDriverFound = () => {
+    setIsSearching(false);
+    setActiveBooking(null);
+    setSearchError("");
   };
 
   const handleCancelBooking = () => {
@@ -580,7 +616,9 @@ const NewTrip: React.FC = () => {
         onClick={() => {
           sessionStorage.removeItem("trip_dropoff");
           sessionStorage.removeItem("trip_notes");
-          if (isSearching) {
+          if (isSearching && searchOutcome === "noDriver") {
+            handleLeaveNoDriverFound();
+          } else if (isSearching) {
             handleCancelBooking();
           } else {
             navigate("/dashboard");
@@ -655,129 +693,17 @@ const NewTrip: React.FC = () => {
       >
         {isSearching ? (
           /* ====================================================================
-             TIER 1 - SOLO.png SEARCHING STATE
+             TIER 1 - SOLO.png SEARCHING STATE (and its No Driver Found outcome)
              ==================================================================== */
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              py: 2,
-              gap: 2,
-            }}
-          >
-            {/* Drag Handle Bar */}
-            <Box
-              sx={{
-                width: "40px",
-                height: "4px",
-                backgroundColor: "#E2E8F0",
-                borderRadius: "2px",
-                mb: 1,
-              }}
-            />
-
-            {/* Large Concentric Search Circle with Pulsing Animation */}
-            <Box
-              sx={{
-                width: 84,
-                height: 84,
-                borderRadius: "50%",
-                backgroundColor: "#FFE5D4",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                animation: "pulseRing 2s infinite ease-in-out",
-                "@keyframes pulseRing": {
-                  "0%": { transform: "scale(0.96)", opacity: 0.9 },
-                  "50%": { transform: "scale(1.05)", opacity: 1 },
-                  "100%": { transform: "scale(0.96)", opacity: 0.9 },
-                },
-              }}
-            >
-              <Box
-                sx={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: "50%",
-                  backgroundColor: "#FF6B00",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <SearchIcon sx={{ color: "#FFFFFF", fontSize: 32 }} />
-              </Box>
-            </Box>
-
-            {/* Search Status Headings matching TIER 1 - SOLO.png */}
-            <Box sx={{ textAlign: "center", mt: 1 }}>
-              <Typography
-                sx={{
-                  fontSize: "17px",
-                  fontWeight: 800,
-                  color: "#0F172A",
-                  fontFamily: "Poppins, sans-serif",
-                }}
-              >
-                {language === "tl"
-                  ? "Naghahanap ng Drayber malapit sayo..."
-                  : "Finding a driver near you..."}
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: "13px",
-                  color: "#64748B",
-                  mt: 0.5,
-                  fontFamily: "Poppins, sans-serif",
-                }}
-              >
-                {language === "tl"
-                  ? "Sinusuri ang pinakamalapit na terminal ng TODA."
-                  : "Checking the nearest TODA terminal."}
-              </Typography>
-            </Box>
-
-            {/* Smooth Linear Progress Bar */}
-            <Box sx={{ width: "100%", px: 1, mt: 1 }}>
-              <LinearProgress
-                sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: "#E5E7EB",
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#FF6B00",
-                    borderRadius: 3,
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Cancel Booking Button matching TIER 1 - SOLO.png */}
-            <Button
-              fullWidth
-              onClick={() => setCancelModalOpen(true)}
-              sx={{
-                mt: 2,
-                height: "50px",
-                borderRadius: "16px",
-                backgroundColor: "#FEE2E2",
-                border: "1px solid #FCA5A5",
-                color: "#EF4444",
-                fontWeight: 700,
-                fontSize: "15px",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                boxShadow: "none",
-                "&:hover": {
-                  backgroundColor: "#FECACA",
-                  boxShadow: "none",
-                },
-              }}
-            >
-              {language === "tl" ? "Ikansel ang Booking" : "Cancel Booking"}
-            </Button>
-          </Box>
+          <DriverSearchPanel
+            language={language}
+            outcome={searchOutcome}
+            widening={searchProgress?.phase === "widening"}
+            startedAt={searchProgress?.startedAt}
+            errorMessage={searchError}
+            onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
+            onRetry={handleRetrySearch}
+          />
         ) : (
           /* ====================================================================
              BOOK - SOLO.png NORMAL BOOKING STATE

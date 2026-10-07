@@ -52,6 +52,43 @@ export const DEFAULT_TARIFF: TariffConfig = {
 export const DRIVER_OFFER_TIMEOUT_SECONDS = 15;
 export const DRIVER_OFFER_TIMEOUT_MS = DRIVER_OFFER_TIMEOUT_SECONDS * 1000;
 
+/**
+ * The driver's own countdown only starts when the offer reaches the driver's phone, up to a few seconds after the offer was
+ * created. The dispatcher waits this much longer than the countdown so it never closes an offer the driver is still looking at.
+ */
+export const DISPATCH_OFFER_GRACE_SECONDS = 5;
+
+// The search schedule (Intelligent Driver Dispatch specification, sections 4-8 and 21; decision PI-12 = A).
+// Tier 1: only the Priority TODA (the accredited TODA whose terminal is nearest the pickup), drivers inside this radius.
+// Tier 2: any accredited TODA, drivers inside this radius.
+// Tier 3: a live search whose radius grows over time and whose pool is refreshed, until the maximum duration.
+// Each tier offers one driver at a time, nearest first; a driver offered the booking in this search round is not offered it again.
+
+/** Tier 1: Priority TODA geofence around the pickup, in km (600 m) */
+export const DISPATCH_TIER1_RADIUS_KM = 0.6;
+
+/** Tier 2: any accredited TODA within this radius of the pickup, in km */
+export const DISPATCH_TIER2_RADIUS_KM = 2;
+
+/** Tier 3: radius (km) that applies from this many seconds after Tier 3 began (spec: 0:00 2.0 km, 1:30 2.5 km, 3:00 3.0 km, 4:30 3.5 km) */
+export const DISPATCH_TIER3_RADIUS_STEPS = [
+  { fromSecond: 0, radiusKm: 2.0 },
+  { fromSecond: 90, radiusKm: 2.5 },
+  { fromSecond: 180, radiusKm: 3.0 },
+  { fromSecond: 270, radiusKm: 3.5 },
+] as const;
+
+/** Tier 3: how often the pool of eligible drivers is refreshed, so a driver who comes online later can still be offered the booking */
+export const DISPATCH_TIER3_REFRESH_SECONDS = 30;
+
+/**
+ * Tier 3 maximum duration: with nobody accepting by then, the booking becomes No Driver Found and the passenger may Retry or Cancel.
+ * Figure F6.5. The specification says 10 minutes (decision log PI-12: provisional); 300 s (5 minutes) is applied for the pilot because
+ * a tricycle ride is short, the driver pool is small and a passenger can Retry at once (the last radius step then runs for 30 s).
+ * Change this one value to change the wait; nothing else depends on it.
+ */
+export const DISPATCH_TIER3_MAX_SECONDS = 300;
+
 // ============================================================================
 // 3. TELEMETRY & GPS MONITORING INTERVALS (Rule 17.1)
 // ============================================================================
@@ -252,6 +289,12 @@ export const POLICY_CONSTANTS = {
   DISPATCH: {
     DRIVER_OFFER_TIMEOUT_SECONDS,
     DRIVER_OFFER_TIMEOUT_MS,
+    DISPATCH_OFFER_GRACE_SECONDS,
+    DISPATCH_TIER1_RADIUS_KM,
+    DISPATCH_TIER2_RADIUS_KM,
+    DISPATCH_TIER3_RADIUS_STEPS,
+    DISPATCH_TIER3_REFRESH_SECONDS,
+    DISPATCH_TIER3_MAX_SECONDS,
   },
   TELEMETRY: {
     ACTIVE_TRIP_GPS_INTERVAL_SECONDS,

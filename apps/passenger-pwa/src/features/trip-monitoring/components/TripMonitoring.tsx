@@ -42,7 +42,7 @@ import { formatShortBookingId, calculateDistanceKm, formatDistance, signedStorag
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { startDispatch } from '../../../services/dispatchService';
+import { startDispatch, retryDriverSearch } from '../../../services/dispatchService';
 
 const mapBookingStatus = (rawStatus: string): any => {
   if (rawStatus === 'Pending') return 'Searching Driver';
@@ -267,20 +267,17 @@ export const TripMonitoring: React.FC = () => {
 
   const handleRetrySearch = async () => {
     try {
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
-        // A new search round: the database reopens the booking and closes the unanswered offers of the earlier round
-        const { data: retry, error: retryError } = await supabase.rpc('retry_driver_search', { p_booking_id: activeBookingId });
-        if (retryError || !retry?.success) {
-          setToastMessage(
-            language === 'tl'
-              ? 'Hindi masimulan muli ang paghahanap. Pakisubukang muli.'
-              : 'We could not restart the search. Please try again.'
-          );
-          return;
-        }
+      // A new search round that starts again from the nearest drivers (the same retry the booking screen uses)
+      const restarted = await retryDriverSearch(activeBookingId);
+      if (!restarted) {
+        setToastMessage(
+          language === 'tl'
+            ? 'Hindi masimulan muli ang paghahanap. Pakisubukang muli.'
+            : 'We could not restart the search. Please try again.'
+        );
+        return;
       }
       setBooking((prev) => prev ? { ...prev, booking_status: 'Searching Driver' as any } : prev);
-      startDispatch(activeBookingId).catch(console.error);
       setToastMessage(language === 'tl' ? 'Muling naghahanap ng drayber...' : 'Retrying driver search...');
     } catch (err) {
       console.warn('Retry search failed:', err);
