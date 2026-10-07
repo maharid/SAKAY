@@ -1,0 +1,270 @@
+{
+ "source": "OpenStreetMap Nominatim search \"<barangay>, Calapan, Oriental Mindoro\", 2026-10-07 (c) OpenStreetMap contributors, ODbL. Barangay names from the list in packages/shared/src/config/calapanBarangays.ts and the official 62-barangay list (from memory); only names OpenStreetMap located inside Calapan are kept. Not located by the lookup (so NOT covered by this check): Bondoc, Comunal, Gulod, Mahal Na Pangalan, Nag-Iba I, San Raphael, and Panggalaan (the lookup returned the Panggalaan River, a long feature, not the barangay).",
+ "places": [
+  {
+   "name": "Balingayan",
+   "lat": 13.332184,
+   "lng": 121.13964
+  },
+  {
+   "name": "Balite",
+   "lat": 13.4166,
+   "lng": 121.1601
+  },
+  {
+   "name": "Baruyan",
+   "lat": 13.3676,
+   "lng": 121.1284
+  },
+  {
+   "name": "Batino",
+   "lat": 13.348937,
+   "lng": 121.219104
+  },
+  {
+   "name": "Bayanan I",
+   "lat": 13.366936,
+   "lng": 121.168739
+  },
+  {
+   "name": "Bayanan II",
+   "lat": 13.359666,
+   "lng": 121.169436
+  },
+  {
+   "name": "Biga",
+   "lat": 13.327181,
+   "lng": 121.173218
+  },
+  {
+   "name": "Bucayao",
+   "lat": 13.345836,
+   "lng": 121.237242
+  },
+  {
+   "name": "Buhuan",
+   "lat": 13.309122,
+   "lng": 121.213802
+  },
+  {
+   "name": "Bulusan",
+   "lat": 13.404281,
+   "lng": 121.19974
+  },
+  {
+   "name": "Calero",
+   "lat": 13.416148,
+   "lng": 121.181748
+  },
+  {
+   "name": "Camansihan",
+   "lat": 13.366441,
+   "lng": 121.227389
+  },
+  {
+   "name": "Camilmil",
+   "lat": 13.406181,
+   "lng": 121.176096
+  },
+  {
+   "name": "Canubing I",
+   "lat": 13.357193,
+   "lng": 121.142395
+  },
+  {
+   "name": "Canubing II",
+   "lat": 13.317489,
+   "lng": 121.117246
+  },
+  {
+   "name": "Guinobatan",
+   "lat": 13.388259,
+   "lng": 121.184225
+  },
+  {
+   "name": "Gutad",
+   "lat": 13.3639,
+   "lng": 121.244
+  },
+  {
+   "name": "Ibaba East",
+   "lat": 13.415027,
+   "lng": 121.178032
+  },
+  {
+   "name": "Ibaba West",
+   "lat": 13.414633,
+   "lng": 121.176111
+  },
+  {
+   "name": "Ilaya",
+   "lat": 13.412973,
+   "lng": 121.183995
+  },
+  {
+   "name": "Lalud",
+   "lat": 13.400859,
+   "lng": 121.171199
+  },
+  {
+   "name": "Lazareto",
+   "lat": 13.427892,
+   "lng": 121.199812
+  },
+  {
+   "name": "Libis",
+   "lat": 13.414902,
+   "lng": 121.184072
+  },
+  {
+   "name": "Lumangbayan",
+   "lat": 13.401973,
+   "lng": 121.182423
+  },
+  {
+   "name": "Maidlang",
+   "lat": 13.38826,
+   "lng": 121.234193
+  },
+  {
+   "name": "Malad",
+   "lat": 13.338361,
+   "lng": 121.154645
+  },
+  {
+   "name": "Malamig",
+   "lat": 13.343572,
+   "lng": 121.145558
+  },
+  {
+   "name": "Managpi",
+   "lat": 13.366441,
+   "lng": 121.227389
+  },
+  {
+   "name": "Masipit",
+   "lat": 13.388588,
+   "lng": 121.158355
+  },
+  {
+   "name": "Nag-Iba II",
+   "lat": 13.346458,
+   "lng": 121.263715
+  },
+  {
+   "name": "Navotas",
+   "lat": 13.368047,
+   "lng": 121.25855
+  },
+  {
+   "name": "Pachoca",
+   "lat": 13.411518,
+   "lng": 121.167521
+  },
+  {
+   "name": "Palhi",
+   "lat": 13.3764,
+   "lng": 121.2047
+  },
+  {
+   "name": "Parang",
+   "lat": 13.40065,
+   "lng": 121.218572
+  },
+  {
+   "name": "Patas",
+   "lat": 13.336815,
+   "lng": 121.12708
+  },
+  {
+   "name": "Personas",
+   "lat": 13.312428,
+   "lng": 121.14416
+  },
+  {
+   "name": "Puting Tubig",
+   "lat": 13.34151,
+   "lng": 121.177493
+  },
+  {
+   "name": "San Antonio",
+   "lat": 13.425006,
+   "lng": 121.195648
+  },
+  {
+   "name": "San Vicente Central",
+   "lat": 13.412017,
+   "lng": 121.178722
+  },
+  {
+   "name": "San Vicente East",
+   "lat": 13.41077,
+   "lng": 121.180488
+  },
+  {
+   "name": "San Vicente North",
+   "lat": 13.414141,
+   "lng": 121.178461
+  },
+  {
+   "name": "San Vicente South",
+   "lat": 13.410314,
+   "lng": 121.178268
+  },
+  {
+   "name": "San Vicente West",
+   "lat": 13.412379,
+   "lng": 121.176592
+  },
+  {
+   "name": "Sapul",
+   "lat": 13.365168,
+   "lng": 121.18793
+  },
+  {
+   "name": "Silonay",
+   "lat": 13.398645,
+   "lng": 121.225682
+  },
+  {
+   "name": "Santa Isabel",
+   "lat": 13.377023,
+   "lng": 121.164606
+  },
+  {
+   "name": "Santa Maria Village",
+   "lat": 13.4096,
+   "lng": 121.174413
+  },
+  {
+   "name": "Santo Niño",
+   "lat": 13.406685,
+   "lng": 121.18434
+  },
+  {
+   "name": "Suqui",
+   "lat": 13.416675,
+   "lng": 121.206402
+  },
+  {
+   "name": "Tawagan",
+   "lat": 13.379197,
+   "lng": 121.138595
+  },
+  {
+   "name": "Tawiran",
+   "lat": 13.393911,
+   "lng": 121.167378
+  },
+  {
+   "name": "Tibag",
+   "lat": 13.411224,
+   "lng": 121.172415
+  },
+  {
+   "name": "Wawa",
+   "lat": 13.407331,
+   "lng": 121.144836
+  }
+ ]
+}
