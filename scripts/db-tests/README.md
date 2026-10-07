@@ -54,7 +54,7 @@ the dump into a new instance (`new PGlite({ loadDataDir: dump, extensions })`). 
 run a probe on an instance where `current_setting('sakay.internal_context', true)` is not NULL.
 
 ## Service-area gate (`batch1/service-area-gate.js`)
-`20261016000001` on the whole chain: a trip must start AND end inside the active service area (a destination in Puerto Galera or Manila is refused with `ERR_DESTINATION_OUT_OF_SERVICE_AREA`, a pickup outside keeps `ERR_OUT_OF_SERVICE_AREA`), the 16 km edge (15.8 km in, 16.2 km out), the gate follows a narrowed pilot area for both ends, and a passenger cannot widen the area (14 checks; 5 fail on the chain without the migration).
+`20261016000001` and `20261016000002` on the whole chain: the service area is the real boundary of Calapan City (a polygon) and a trip must start AND end inside it (`ERR_OUT_OF_SERVICE_AREA` for the pickup, `ERR_DESTINATION_OUT_OF_SERVICE_AREA` for the destination). Proves: the 53 barangays that OpenStreetMap locates in Calapan (`fixtures/calapan-places.json`) are inside; Puerto Galera, Baco, Naujan, Victoria, Socorro, Pola, Roxas and Manila are not; **12,221 grid points give the same answer in the database and in `packages/shared/src/utils/serviceAreaUtils.ts`** (the screens' copy of the logic); holes and MultiPolygons; a pilot narrowing (a circle row) still works and `use_city_service_area()` comes back to the city, audited; a passenger cannot change the area (36 checks). Needs Node 22.18+.
 
 ## Batch 6 suites (`batch6/*.js`, `e2e/solo-trip.js`): dispatch, the booking lifecycle and the booking timers
 These prove the five `20261015*` migrations on the whole chain. The search for a driver and every deadline of an accepted booking are stored in
