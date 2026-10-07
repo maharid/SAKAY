@@ -188,6 +188,11 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
       throw new Error(`${describeRestriction(restriction, 'tl')}\n\n(${describeRestriction(restriction, 'en')})`);
     }
 
+    if (msg.includes('ERR_DESTINATION_OUT_OF_SERVICE_AREA')) {
+      throw new Error(
+        'Nasa labas ng opisyal na service area ng Calapan City ang napiling destinasyon. Mangyaring pumili ng destinasyon sa loob ng lungsod.'
+      );
+    }
     if (msg.includes('ERR_OUT_OF_SERVICE_AREA')) {
       throw new Error(
         'Nasa labas ng opisyal na service area ng Calapan City ang napiling pickup location. Mangyaring pumili ng lokasyon sa loob ng lungsod.'

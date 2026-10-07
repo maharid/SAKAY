@@ -17,12 +17,16 @@ import {
   getCurrentDevicePosition,
 } from "../../../../services/locationService";
 import { useLanguage } from "../../../../utils/LanguageContext";
+import { useServiceArea } from "../../hooks/useServiceArea";
+import { isOutsideServiceArea, outsideServiceAreaMessage, type TripEnd } from "../../../../services/serviceAreaService";
 
 interface MapLocationPickerProps {
   open: boolean;
   onClose: () => void;
   initialCoords?: { lat: number; lng: number };
   onConfirmLocation: (location: { address: string; lat: number; lng: number }) => void;
+  /** What the pin is for (only used to word the "outside Calapan City" notice); a saved place reads as a destination */
+  end?: TripEnd;
 }
 
 const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
@@ -30,8 +34,11 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
   onClose,
   initialCoords,
   onConfirmLocation,
+  end = "destination",
 }) => {
   const { language } = useLanguage();
+  // SAKAY serves Calapan City only: a pin outside it cannot be confirmed (the booking would be refused anyway).
+  const serviceArea = useServiceArea();
   const [recenterTrigger, setRecenterTrigger] = useState<number>(1);
 
   const [centerCoords, setCenterCoords] = useState<{ lat: number; lng: number }>(() => {
@@ -114,7 +121,10 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
     };
   }, [centerCoords.lat, centerCoords.lng, open, language]);
 
+  const outside = isOutsideServiceArea(serviceArea, centerCoords.lat, centerCoords.lng);
+
   const handleConfirm = () => {
+    if (outside) return;
     const finalAddress =
       resolvedAddress ||
       (language === "tl" ? "Naitalang Lokasyon sa Calapan" : "Recorded Location in Calapan");
@@ -333,11 +343,20 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             </Box>
           </Box>
 
+          {outside && (
+            <Typography
+              role="alert"
+              sx={{ fontSize: "12.5px", fontWeight: 600, color: "#B91C1C", backgroundColor: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "12px", p: "8px 12px", fontFamily: "Poppins, sans-serif" }}
+            >
+              {outsideServiceAreaMessage(language, end)}
+            </Typography>
+          )}
+
           {/* Kumpirmahin ang Lokasyon Button */}
           <Button
             fullWidth
             variant="contained"
-            disabled={resolving}
+            disabled={resolving || outside}
             onClick={handleConfirm}
             sx={{
               backgroundColor: "#FF6B00",
