@@ -31,8 +31,8 @@ const formatElapsed = (seconds: number): string => {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 };
 
-/** The moment this search round began, and the seconds since then (ticking once a second). */
-const useSearchClock = (startedAt: number | null | undefined): { roundStart: number; elapsedSeconds: number } => {
+/** The seconds since this search round began (ticking once a second). */
+const useSearchClock = (startedAt: number | null | undefined): number => {
   const [openedAt] = useState<number>(() => Date.now());
   const roundStart = startedAt ?? openedAt;
   const [now, setNow] = useState<number>(() => Date.now());
@@ -42,7 +42,7 @@ const useSearchClock = (startedAt: number | null | undefined): { roundStart: num
     return () => clearInterval(timer);
   }, []);
 
-  return { roundStart, elapsedSeconds: Math.max(0, Math.floor((now - roundStart) / 1000)) };
+  return Math.max(0, Math.floor((now - roundStart) / 1000));
 };
 
 const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
@@ -55,11 +55,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
   onRetry,
 }) => {
   const isTagalog = language === "tl";
-  const { roundStart, elapsedSeconds } = useSearchClock(startedAt);
-
-  // "Keep Searching" only dismisses the notice for this search round: the search itself never pauses. A Retry starts a new round.
-  const [dismissedRound, setDismissedRound] = useState<number | null>(null);
-  const showWideningNotice = widening && dismissedRound !== roundStart;
+  const elapsedSeconds = useSearchClock(startedAt);
 
   const dragHandle = (
     <Box sx={{ width: "40px", height: "4px", backgroundColor: "#E2E8F0", borderRadius: "2px", mb: 1 }} />
@@ -84,8 +80,8 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
           </Typography>
           <Typography sx={{ fontSize: "12.5px", color: "#B91C1C", mt: 0.5, fontFamily: FONT }}>
             {isTagalog
-              ? "Maaaring offline o may biyahe ang mga drayber sa iyong lugar. Maaari kang mag-search muli o kanselahin ang booking. Walang bayad o parusa."
-              : "Nearby drivers may be offline or on trips. You can search again or cancel the booking. There is no charge or penalty."}
+              ? "Maaaring offline o may biyahe ang mga drayber sa iyong lugar. Maaari kang mag-search muli o bumalik sa Home. Walang bayad o parusa."
+              : "Nearby drivers may be offline or on trips. You can search again or go back home. There is no charge or penalty."}
           </Typography>
         </Box>
         {errorMessage && (
@@ -110,7 +106,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
               "&:hover": { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" },
             }}
           >
-            {isTagalog ? "Ikansel ang Booking" : "Cancel Booking"}
+            {isTagalog ? "Bumalik sa Home" : "Back to Home"}
           </Button>
           <Button
             variant="contained"
@@ -207,68 +203,29 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
         </Alert>
       )}
 
-      {showWideningNotice ? (
-        <Box sx={{ display: "flex", gap: 1.5, width: "100%", mt: 1 }}>
-          <Button
-            fullWidth
-            onClick={onCancel}
-            sx={{
-              height: "50px",
-              borderRadius: "16px",
-              backgroundColor: "#FEE2E2",
-              border: "1px solid #FCA5A5",
-              color: "#EF4444",
-              fontWeight: 700,
-              fontSize: "15px",
-              textTransform: "none",
-              fontFamily: FONT,
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "#FECACA", boxShadow: "none" },
-            }}
-          >
-            {isTagalog ? "Ikansel ang Paghahanap" : "Cancel Search"}
-          </Button>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => setDismissedRound(roundStart)}
-            sx={{
-              height: "50px",
-              borderRadius: "16px",
-              backgroundColor: "#FF6B00",
-              fontWeight: 700,
-              fontSize: "15px",
-              textTransform: "none",
-              fontFamily: FONT,
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-            }}
-          >
-            {isTagalog ? "Ituloy ang Paghahanap" : "Keep Searching"}
-          </Button>
-        </Box>
-      ) : (
-        <Button
-          fullWidth
-          onClick={onCancel}
-          sx={{
-            mt: 2,
-            height: "50px",
-            borderRadius: "16px",
-            backgroundColor: "#FEE2E2",
-            border: "1px solid #FCA5A5",
-            color: "#EF4444",
-            fontWeight: 700,
-            fontSize: "15px",
-            textTransform: "none",
-            fontFamily: FONT,
-            boxShadow: "none",
-            "&:hover": { backgroundColor: "#FECACA", boxShadow: "none" },
-          }}
-        >
-          {isTagalog ? "Ikansel ang Booking" : "Cancel Booking"}
-        </Button>
-      )}
+      <Button
+        fullWidth
+        onClick={onCancel}
+        sx={{
+          mt: 2,
+          height: "50px",
+          borderRadius: "16px",
+          backgroundColor: "#FEE2E2",
+          border: "1px solid #FCA5A5",
+          color: "#EF4444",
+          fontWeight: 700,
+          fontSize: "15px",
+          textTransform: "none",
+          fontFamily: FONT,
+          boxShadow: "none",
+          "&:hover": { backgroundColor: "#FECACA", boxShadow: "none" },
+        }}
+      >
+        {isTagalog ? "Ikansel ang Booking" : "Cancel Booking"}
+      </Button>
+      <Typography sx={{ fontSize: "11.5px", color: "#94A3B8", fontFamily: FONT, textAlign: "center" }}>
+        {isTagalog ? "Libre ang pagkansela bago may tumanggap na drayber." : "Free to cancel until a driver accepts."}
+      </Typography>
     </Box>
   );
 };
