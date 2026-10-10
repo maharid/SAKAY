@@ -20,6 +20,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { activateWithKeyboard } from '@sakay/shared';
 
 interface TripItem {
   id: string;
@@ -130,7 +131,7 @@ export const DriverEarnings: React.FC = () => {
           <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#1E8E3E', mb: 1 }}>
               <CheckCircleIcon />
-              <Typography sx={{ fontWeight: 800, fontSize: '15px' }}>
+              <Typography sx={{ fontWeight: 700, fontSize: '15px' }}>
                 {language === 'tl' ? 'Matagumpay na Nakumpleto ang Biyahe!' : 'Trip Successfully Completed!'}
               </Typography>
             </Box>
@@ -144,10 +145,10 @@ export const DriverEarnings: React.FC = () => {
             )}
             <Divider sx={{ my: 1.5, borderColor: '#A7F3D0' }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
+              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
                 {language === 'tl' ? 'Kabuuang Nakolekta (Gross):' : 'Total Collected (Gross):'}
               </Typography>
-              <Typography sx={{ fontSize: '24px', fontWeight: 900, color: '#1E8E3E' }}>₱{justCompleted.fareAmount.toFixed(2)}</Typography>
+              <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#1E8E3E' }}>₱{justCompleted.fareAmount.toFixed(2)}</Typography>
             </Box>
           </Paper>
         )}
@@ -157,17 +158,17 @@ export const DriverEarnings: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <AccountBalanceWalletIcon sx={{ color: '#FF6B00' }} />
-              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8' }}>
-                {language === 'tl' ? 'KABUUANG KITA NGAYONG ARAW' : "TODAY'S TOTAL EARNINGS"}
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
+                {language === 'tl' ? 'Kabuuang kita ngayong araw' : "Today's total earnings"}
               </Typography>
             </Box>
             <Chip label="Live Total" size="small" sx={{ backgroundColor: 'rgba(255, 107, 0, 0.2)', color: '#FF8533', fontWeight: 700, fontSize: '12px' }} />
           </Box>
 
-          <Typography sx={{ fontSize: '32px', fontWeight: 900, color: '#FFFFFF', lineHeight: 1 }}>
+          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
             ₱{todayTotal.toFixed(2)}
           </Typography>
-          <Typography sx={{ fontSize: '12px', color: '#94A3B8', mt: 0.5 }}>
+          <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
             {todayList.length} {language === 'tl' ? 'nakumpletong biyahe ngayong araw' : 'completed trips today'}
           </Typography>
 
@@ -175,16 +176,16 @@ export const DriverEarnings: React.FC = () => {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 {language === 'tl' ? 'Kita sa Linggong Ito' : "This Week's Earnings"}
               </Typography>
-              <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#FFFFFF' }}>₱{weekTotal.toFixed(2)}</Typography>
+              <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>₱{weekTotal.toFixed(2)}</Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 {language === 'tl' ? 'Kabuuang Biyahe (Linggo)' : 'Total Trips (Week)'}
               </Typography>
-              <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#34D399' }}>
+              <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#34D399' }}>
                 {weekList.length} {language === 'tl' ? 'biyahe' : 'trips'}
               </Typography>
             </Box>
@@ -194,18 +195,21 @@ export const DriverEarnings: React.FC = () => {
         {/* Recent Completed Trips Breakdown List */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 0.5 }}>
-            <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
+            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
               {language === 'tl' ? 'Mga Nakaraang Biyahe' : 'Recent Completed Trips'}
             </Typography>
             <Button
               onClick={() => navigate('/driver/history')}
               sx={{
-                fontSize: '12.5px',
+                fontSize: '13px',
                 fontWeight: 700,
-                color: '#FF6B00',
+                color: '#C2410C',
                 textTransform: 'none',
                 fontFamily: 'Poppins, sans-serif',
-                p: 0,
+                px: 1,
+                py: 0,
+                mr: -1,
+                minHeight: 44,
                 minWidth: 'auto',
                 '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' },
               }}
@@ -239,6 +243,9 @@ export const DriverEarnings: React.FC = () => {
               <Paper
                 key={trip.id || idx}
                 elevation={0}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
                 sx={{
                   p: '14px 16px',
@@ -261,21 +268,21 @@ export const DriverEarnings: React.FC = () => {
                     {trip.tripMode === 'Shared Ride' ? <GroupsIcon fontSize="small" /> : <TwoWheelerIcon fontSize="small" />}
                   </Avatar>
                   <Box>
-                    <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
                       {trip.passengerName}
                     </Typography>
                     <Typography sx={{ fontSize: '12px', color: '#64748B', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {trip.pickupLocation} → {trip.dropoffLocation}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
-                      <AccessTimeIcon sx={{ fontSize: 11, color: '#94A3B8' }} />
-                      <Typography sx={{ fontSize: '12px', color: '#94A3B8' }}>{trip.date} • {trip.time}</Typography>
+                      <AccessTimeIcon sx={{ fontSize: 11, color: '#64748B' }} />
+                      <Typography sx={{ fontSize: '12px', color: '#64748B' }}>{trip.date} • {trip.time}</Typography>
                     </Box>
                   </Box>
                 </Box>
 
                 <Box sx={{ textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: '16px', fontWeight: 900, color: '#10B981' }}>
+                  <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>
                     +₱{trip.fareAmount.toFixed(2)}
                   </Typography>
                   <Chip
@@ -283,7 +290,7 @@ export const DriverEarnings: React.FC = () => {
                     size="small"
                     sx={{
                       height: '18px',
-                      fontSize: '9.5px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       backgroundColor: trip.tripMode === 'Shared Ride' ? '#D1FAE5' : '#FEF3C7',
                       color: trip.tripMode === 'Shared Ride' ? '#047857' : '#B45309',

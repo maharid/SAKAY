@@ -27,7 +27,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
-import { calculateDistanceKm, formatDistance } from '@sakay/shared';
+import { calculateDistanceKm, formatDistance, useInFlight } from '@sakay/shared';
 
 export const DriverNavigation: React.FC = () => {
   const { language } = useLanguage();
@@ -143,7 +143,10 @@ export const DriverNavigation: React.FC = () => {
     };
   }, [bookingId]);
 
-  const handleArrivedAtPickup = async () => {
+  // One request at a time: a second tap while the first is being saved must not write again.
+  const arriveFlight = useInFlight();
+
+  const recordArrivalAtPickup = async () => {
     // The database decides (and stamps the time): only a driver on the way can arrive. A refusal is shown, not hidden behind the next screen.
     const { data, error } = await supabase
       .from('booking')
@@ -159,6 +162,8 @@ export const DriverNavigation: React.FC = () => {
     }
     navigate('/driver/active-trip', { replace: true, state: { bookingId } });
   };
+
+  const handleArrivedAtPickup = () => arriveFlight.run(recordArrivalAtPickup);
 
   const handleExitToHome = () => {
     setExitGuardOpen(false);
@@ -211,6 +216,7 @@ export const DriverNavigation: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Umalis sa navigation" : "Leave navigation"}
           onClick={() => setExitGuardOpen(true)}
           sx={{
             backgroundColor: 'rgba(255, 255, 255, 0.12)',
@@ -229,10 +235,10 @@ export const DriverNavigation: React.FC = () => {
           <NavigationIcon sx={{ fontSize: 22, transform: 'rotate(0deg)' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
-            {language === 'tl' ? 'PAPUNTA SA PICKUP' : 'EN ROUTE TO PICKUP'}
+          <Typography sx={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700, }}>
+            {language === 'tl' ? 'Papunta sa pickup' : 'En route to pickup'}
           </Typography>
-          <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2 }}>
             {language === 'tl' ? 'Pumunta sa pickup location ng pasahero' : 'Drive towards passenger pickup location'}
           </Typography>
         </Box>
@@ -260,11 +266,11 @@ export const DriverNavigation: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '16px' }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
                 {passengerName}
               </Typography>
               <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
@@ -274,10 +280,10 @@ export const DriverNavigation: React.FC = () => {
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <IconButton onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#ECFDF5', color: '#10B981', '&:hover': { backgroundColor: '#D1FAE5' } }}>
+            <IconButton aria-label={language === "tl" ? "Tawagan ang pasahero" : "Call passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#ECFDF5', color: '#10B981', '&:hover': { backgroundColor: '#D1FAE5' } }}>
               <PhoneIcon fontSize="small" />
             </IconButton>
-            <IconButton onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00', '&:hover': { backgroundColor: '#FFE8D6' } }}>
+            <IconButton aria-label={language === "tl" ? "Magpadala ng mensahe sa pasahero" : "Message passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00', '&:hover': { backgroundColor: '#FFE8D6' } }}>
               <MessageIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -286,18 +292,18 @@ export const DriverNavigation: React.FC = () => {
         {/* ETA & Distance */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: '10px 14px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
           <Box>
-            <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>
-              {language === 'tl' ? 'TINATAYANG DATING (ETA)' : 'ESTIMATED ARRIVAL (ETA)'}
+            <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>
+              {language === 'tl' ? 'Tinatayang dating (eta)' : 'Estimated arrival (eta)'}
             </Typography>
-            <Typography sx={{ fontSize: '16px', fontWeight: 900, color: '#0F172A' }}>
+            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
               {etaMinutes} {language === 'tl' ? 'min' : 'mins'} • {formatDistance(pickupDistanceKm)}
             </Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>
-              {language === 'tl' ? 'PAMASAHE' : 'FARE'}
+            <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>
+              {language === 'tl' ? 'Pamasahe' : 'Fare'}
             </Typography>
-            <Typography sx={{ fontSize: '17px', fontWeight: 900, color: '#FF6B00' }}>₱{fare.toFixed(2)}</Typography>
+            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#C2410C' }}>₱{fare.toFixed(2)}</Typography>
           </Box>
         </Box>
 
@@ -308,18 +314,22 @@ export const DriverNavigation: React.FC = () => {
           variant="contained"
           fullWidth
           onClick={handleArrivedAtPickup}
+          disabled={arriveFlight.busy}
           startIcon={<CheckCircleIcon />}
           sx={{
             height: 50,
             borderRadius: '14px',
+            '&.Mui-disabled': { backgroundColor: '#FF6B00', color: '#FFFFFF', opacity: 0.75 },
             backgroundColor: '#FF6B00',
-            fontWeight: 800,
+            fontWeight: 700,
             fontSize: '15px',
             textTransform: 'none',
             '&:hover': { backgroundColor: '#E66000' },
           }}
         >
-          {language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
+          {arriveFlight.busy
+            ? (language === 'tl' ? 'Itinatala...' : 'Recording...')
+            : (language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup')}
         </Button>
       </Paper>
 
@@ -346,11 +356,11 @@ export const DriverNavigation: React.FC = () => {
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
           {language === 'tl' ? 'Aktibong Navigasyon' : 'Active Navigation En Route'}
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', py: 1 }}>
-          <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.5 }}>
             {language === 'tl'
               ? `Kasalukuyan kang papunta sa pickup point ni `
               : `You are currently en route to the pickup point of `}

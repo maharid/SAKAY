@@ -51,6 +51,7 @@ const SakayMtopInput: React.FC<SakayMtopInputProps> = ({
   error,
   helperText,
 }) => {
+  const { language } = useLanguage();
   const [focused, setFocused] = useState(false);
   const isFloating = focused || Boolean(value);
 
@@ -95,11 +96,10 @@ const SakayMtopInput: React.FC<SakayMtopInputProps> = ({
             right: '16px',
             top: isFloating ? '8px' : '50%',
             transform: isFloating ? 'translateY(0)' : 'translateY(-50%)',
-            fontSize: isFloating ? '9.5px' : '15px',
+            fontSize: isFloating ? '12px' : '15px',
             fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : isFloating ? '#64748B' : '#94A3B8',
-            letterSpacing: isFloating ? '0.5px' : '0px',
-            textTransform: isFloating ? 'uppercase' : 'none',
+            color: error ? '#DC2626' : focused ? '#C2410C' : isFloating ? '#64748B' : '#64748B',
+            textTransform: 'none',
             userSelect: 'none',
             pointerEvents: 'none',
             whiteSpace: isFloating ? 'normal' : 'nowrap',
@@ -146,6 +146,7 @@ const SakayMtopInput: React.FC<SakayMtopInputProps> = ({
                 }}
               />
               <IconButton
+                aria-label={language === "tl" ? "Buksan ang kalendaryo" : "Open calendar"}
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -343,7 +344,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '18px', color: '#0F172A', pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '18px', color: '#0F172A', pb: 1 }}>
           {isTagalog ? 'Bumalik sa Pagkuha ng MTOP?' : 'Retake MTOP Photo?'}
         </DialogTitle>
         <DialogContent sx={{ py: 1 }}>
@@ -403,6 +404,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBackClick}
           sx={{
             width: 44,
@@ -435,7 +437,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
         <Typography
           sx={{
             fontSize: '26px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -472,7 +474,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* ROW 1: REHISTRADONG MAY-ARI / OPERATOR (Full Width) */}
           <SakayMtopInput
-            label={isTagalog ? "REHISTRADONG MAY-ARI / OPERATOR" : "REGISTERED OWNER / OPERATOR"}
+            label={isTagalog ? "Rehistradong may-ari / operator" : "Registered owner / operator"}
             value={formData.operatorName}
             onChange={(val) => handleFieldChange('operatorName', val)}
             placeholder="Dela Cruz, Juan G."
@@ -484,7 +486,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
               <SakayMtopInput
-                label={isTagalog ? "PRANGKISA" : "FRANCHISE NO."}
+                label={isTagalog ? "Prangkisa" : "Franchise no."}
                 value={formData.franchiseNumber}
                 onChange={(val) => handleFieldChange('franchiseNumber', val.slice(0, 25))}
                 placeholder="FR-CAL-101"
@@ -494,7 +496,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
             </Box>
             <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
               <SakayMtopInput
-                label="PLATE NUMBER"
+                label="Plate number"
                 value={formData.plateNumber}
                 onChange={(val) => handleFieldChange('plateNumber', val.toUpperCase().slice(0, 8))}
                 error={hasAttemptedSubmit && isFieldEmpty(formData.plateNumber)}
@@ -505,7 +507,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
 
           {/* ROW 3: CHASSIS NUMBER (Full Width) */}
           <SakayMtopInput
-            label="CHASSIS NUMBER"
+            label="Chassis number"
             value={formData.chassisNumber}
             onChange={(val) => handleFieldChange('chassisNumber', val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18))}
             error={hasAttemptedSubmit && isFieldEmpty(formData.chassisNumber)}
@@ -514,7 +516,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
 
           {/* ROW 4: MOTOR NUMBER (Full Width) */}
           <SakayMtopInput
-            label="MOTOR NUMBER"
+            label="Motor number"
             value={formData.motorNumber}
             onChange={(val) => handleFieldChange('motorNumber', val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18))}
             error={hasAttemptedSubmit && isFieldEmpty(formData.motorNumber)}
@@ -525,7 +527,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
               <SakayMtopInput
-                label="VEHICLE MAKE"
+                label="Vehicle make"
                 value={formData.vehicleMake}
                 onChange={(val) => handleFieldChange('vehicleMake', val)}
                 error={hasAttemptedSubmit && isFieldEmpty(formData.vehicleMake)}
@@ -534,7 +536,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
             </Box>
             <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
               <SakayMtopInput
-                label="YEAR MODEL"
+                label="Year model"
                 value={formData.yearModel || ''}
                 onChange={(val) => handleFieldChange('yearModel', val.replace(/\D/g, '').slice(0, 4))}
                 placeholder="YYYY"
@@ -545,7 +547,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
 
           {/* ROW 7: AUTHORIZED ROUTE / ZONE OF OPERATION (Full Width) */}
           <SakayMtopInput
-            label={isTagalog ? "AWTORISADONG RUTA / ZONA NG OPERASYON" : "AUTHORIZED ROUTE / ZONE OF OPERATION"}
+            label={isTagalog ? "Awtorisadong ruta / zona ng operasyon" : "Authorized route / zone of operation"}
             value={formData.authorizedRoute}
             onChange={(val) => handleFieldChange('authorizedRoute', val)}
             error={hasAttemptedSubmit && isFieldEmpty(formData.authorizedRoute)}
@@ -554,7 +556,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
 
           {/* ROW 7: PETSA NG PAGKAPASO (EXPIRATION) (Full Width) */}
           <SakayMtopInput
-            label={isTagalog ? "PETSA NG PAGKAPASO (EXPIRATION)" : "EXPIRATION DATE"}
+            label={isTagalog ? "Petsa ng pagkapaso (expiration)" : "Expiration date"}
             value={formData.expirationDate}
             onChange={(val) => handleFieldChange('expirationDate', val)}
             isDate

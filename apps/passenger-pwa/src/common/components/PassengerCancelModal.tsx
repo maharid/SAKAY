@@ -7,6 +7,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useLanguage } from "../../utils/LanguageContext";
+import { activateWithKeyboard } from "@sakay/shared";
 
 export interface PassengerCancelModalProps {
   open: boolean;
@@ -96,6 +97,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
         p: "calc(var(--safe-area-top) + 16px) 16px calc(var(--safe-area-bottom) + 20px) 16px",
         boxSizing: "border-box",
         overflowY: "auto",
+        "& > *": { flexShrink: 0 },
         animation: "fadeIn 0.2s ease-out",
       }}
     >
@@ -145,8 +147,8 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
         {/* Header Title */}
         <Typography
           sx={{
-            fontSize: "16.5px",
-            fontWeight: 800,
+            fontSize: "17px",
+            fontWeight: 700,
             color: "#0F172A",
             textAlign: "center",
             fontFamily: "Poppins, sans-serif",
@@ -169,6 +171,10 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
             return (
               <Box
                 key={option.id}
+                role="radio"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
+                aria-checked={selectedOptionId === option.id}
                 onClick={() => !loading && setSelectedOptionId(option.id)}
                 sx={{
                   display: "flex",
@@ -193,7 +199,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
                 {/* Option Text */}
                 <Typography
                   sx={{
-                    fontSize: "13.5px",
+                    fontSize: "14px",
                     fontWeight: isSelected ? 700 : 500,
                     color: isSelected ? "#0F172A" : "#475569",
                     fontFamily: "Poppins, sans-serif",
@@ -264,7 +270,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
           <InfoOutlinedIcon sx={{ fontSize: 18, color: "#64748B", flexShrink: 0 }} />
           <Typography
             sx={{
-              fontSize: "11.5px",
+              fontSize: "12px",
               color: "#64748B",
               lineHeight: 1.4,
               fontFamily: "Poppins, sans-serif",
@@ -289,8 +295,8 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
             borderRadius: "14px",
             backgroundColor: "#FF6B00",
             color: "#FFFFFF",
-            fontWeight: 800,
-            fontSize: "14.5px",
+            fontWeight: 700,
+            fontSize: "15px",
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",
             boxShadow: "0 4px 14px rgba(255, 107, 0, 0.25)",

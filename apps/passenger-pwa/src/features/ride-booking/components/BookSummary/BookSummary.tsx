@@ -237,10 +237,10 @@ const BookSummary: React.FC = () => {
           paddingRight: "20px",
         }}
       >
-        <IconButton onClick={() => navigate("/new-trip")} sx={{ color: "#0F172A", padding: 0 }}>
+        <IconButton aria-label={language === "tl" ? "Bumalik" : "Back"} onClick={() => navigate("/new-trip")} sx={{ color: "#0F172A", padding: 0 }}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography sx={{ fontSize: "18px", fontWeight: 800, marginLeft: "12px", color: "#0F172A" }}>
+        <Typography sx={{ fontSize: "18px", fontWeight: 700, marginLeft: "12px", color: "#0F172A" }}>
           {language === "tl" ? "Kumpirmahin ang Biyahe" : "Booking Details"}
         </Typography>
       </Box>
@@ -266,6 +266,7 @@ const BookSummary: React.FC = () => {
           sx={{
             flexGrow: 1,
             overflowY: "auto",
+            "& > *": { flexShrink: 0 },
             display: "flex",
             flexDirection: "column",
             gap: "20px",
@@ -289,8 +290,8 @@ const BookSummary: React.FC = () => {
             <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
               <LocationOnIcon sx={{ color: "#34A853", marginTop: "2px" }} />
               <Box>
-                <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8" }}>
-                  {language === "tl" ? "MULA SA (PICKUP)" : "PICKUP POINT"}
+                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B" }}>
+                  {language === "tl" ? "Mula sa (pickup)" : "Pickup point"}
                 </Typography>
                 <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
                   {pickup?.address}
@@ -304,8 +305,8 @@ const BookSummary: React.FC = () => {
             <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
               <LocationOnIcon sx={{ color: "#EF4444", marginTop: "2px" }} />
               <Box>
-                <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8" }}>
-                  {language === "tl" ? "PUPUNTA SA (DESTINASYON)" : "DESTINATION"}
+                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B" }}>
+                  {language === "tl" ? "Pupunta sa (destinasyon)" : "Destination"}
                 </Typography>
                 <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
                   {dropoff?.address}
@@ -336,10 +337,10 @@ const BookSummary: React.FC = () => {
                 </Typography>
               </Box>
               <Box sx={{ textAlign: "right" }}>
-                <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A" }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
                   {distance !== null ? distance + " km" : "—"}
                 </Typography>
-                <Typography sx={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>
+                <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>
                   via OSRM road-network
                 </Typography>
               </Box>
@@ -407,6 +408,7 @@ const BookSummary: React.FC = () => {
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <IconButton
+                  aria-label={language === "tl" ? "Bawasan ang pasahero" : "Fewer passengers"}
                   size="small"
                   disabled={passengers <= 1}
                   onClick={() => handleChangePassengers(-1)}
@@ -420,10 +422,11 @@ const BookSummary: React.FC = () => {
                 >
                   <RemoveIcon sx={{ fontSize: 14 }} />
                 </IconButton>
-                <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#0F172A", minWidth: "16px", textAlign: "center" }}>
+                <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", minWidth: "16px", textAlign: "center" }}>
                   {passengers}
                 </Typography>
                 <IconButton
+                  aria-label={language === "tl" ? "Dagdagan ang pasahero" : "More passengers"}
                   size="small"
                   disabled={tripType === "Shared" ? passengers >= 2 : passengers >= 4}
                   onClick={() => handleChangePassengers(1)}
@@ -474,17 +477,17 @@ const BookSummary: React.FC = () => {
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <Box sx={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <AccountBalanceWalletIcon sx={{ color: "#FF6B00" }} />
-                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#94A3B8" }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#64748B" }}>
                   {tripType === "Shared"
                     ? language === "tl" ? "ESTIMASYON NG SHARED FARE" : "SHARED FARE ESTIMATE"
                     : language === "tl" ? "ESTIMASYON NG PAMASAHE" : "ESTIMATED FARE"}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-                <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#FF6B00" }}>
+                <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#C2410C" }}>
                   ₱
                 </Typography>
-                <Typography sx={{ fontSize: "32px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1 }}>
+                <Typography sx={{ fontSize: "32px", fontWeight: 700, color: "#FFFFFF", lineHeight: 1 }}>
                   {fare !== null ? fare.toFixed(2) : "—"}
                 </Typography>
               </Box>
@@ -496,17 +499,17 @@ const BookSummary: React.FC = () => {
             <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {quote && tripType === "Solo" && (
                 <>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#94A3B8" }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748B" }}>
                     <Typography>{language === "tl" ? "Bawat Upuan (Seat Fare):" : "Fare per seat:"}</Typography>
                     <Typography>₱{quote.seat_fare.toFixed(2)}</Typography>
                   </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#94A3B8" }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748B" }}>
                     <Typography>{language === "tl" ? "Solo Trip multiplier (Buong Kapasidad):" : "Full capacity multiplier:"}</Typography>
                     <Typography>× {quote.seat_capacity}</Typography>
                   </Box>
                   <Box sx={{ display: "flex", gap: "6px", alignItems: "flex-start", marginTop: "4px", backgroundColor: "rgba(255, 107, 0, 0.08)", padding: "10px", borderRadius: "12px" }}>
                     <InfoIcon sx={{ color: "#FF6B00", fontSize: "16px", marginTop: "2px" }} />
-                    <Typography sx={{ fontSize: "10.5px", color: "#FF8533", lineHeight: 1.4 }}>
+                    <Typography sx={{ fontSize: "12px", color: "#FF8533", lineHeight: 1.4 }}>
                       {language === "tl"
                         ? "Dahil ito ay Solo Trip, sisingilin ang kabuuang pamasahe para sa buong kapasidad ng tricycle (" + quote.seat_capacity + " na upuan), kahit ilan pa ang sumakay."
                         : "As a Solo Trip, the total fare represents the exclusive capacity of the tricycle (" + quote.seat_capacity + " seats multiplied), regardless of passenger headcount entered."}

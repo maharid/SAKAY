@@ -188,7 +188,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <IconButton onClick={onClose} size="small" sx={{ color: "#0F172A", p: 0.5 }}>
+            <IconButton aria-label={language === "tl" ? "Bumalik" : "Back"} onClick={onClose} size="small" sx={{ color: "#0F172A", p: 0.5 }}>
               <ArrowBackIcon sx={{ fontSize: 22 }} />
             </IconButton>
             <Typography
@@ -231,7 +231,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
               whiteSpace: "nowrap",
             }}
           >
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, fontFamily: "Poppins, sans-serif" }}>
+            <Typography sx={{ fontSize: "12px", fontWeight: 700, fontFamily: "Poppins, sans-serif" }}>
               {resolving
                 ? (language === "tl" ? "Kinukuha ang address..." : "Resolving address...")
                 : (language === "tl" ? "Ipwesto ang mapa dito" : "Position map under pin")}
@@ -311,9 +311,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
               sx={{
                 fontSize: "12px",
                 fontWeight: 700,
-                color: "#94A3B8",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                color: "#64748B",
                 fontFamily: "Poppins, sans-serif",
                 mb: 0.25,
               }}
@@ -346,7 +344,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
           {outside && (
             <Typography
               role="alert"
-              sx={{ fontSize: "12.5px", fontWeight: 600, color: "#B91C1C", backgroundColor: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "12px", p: "8px 12px", fontFamily: "Poppins, sans-serif" }}
+              sx={{ fontSize: "13px", fontWeight: 600, color: "#B91C1C", backgroundColor: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "12px", p: "8px 12px", fontFamily: "Poppins, sans-serif" }}
             >
               {outsideServiceAreaMessage(language, end)}
             </Typography>

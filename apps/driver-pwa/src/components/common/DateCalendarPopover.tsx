@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, Popover, Select, MenuItem } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { activateWithKeyboard } from '@sakay/shared';
 
 interface DateCalendarPopoverProps {
   open: boolean;
@@ -203,7 +204,7 @@ export const DateCalendarPopover: React.FC<DateCalendarPopoverProps> = ({
         }}
       >
         {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d) => (
-          <Typography key={d} sx={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.2px' }}>
+          <Typography key={d} sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', }}>
             {d}
           </Typography>
         ))}
@@ -245,6 +246,9 @@ export const DateCalendarPopover: React.FC<DateCalendarPopoverProps> = ({
           return (
             <Box
               key={day}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => handleDayClick(day)}
               sx={{
                 height: 32,
@@ -262,14 +266,14 @@ export const DateCalendarPopover: React.FC<DateCalendarPopoverProps> = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '13px',
-                  fontWeight: isSelected ? 800 : 600,
+                  fontWeight: isSelected ? 700 : 600,
                   backgroundColor: isSelected ? '#FF6B00' : 'transparent',
                   color: isSelected ? '#FFFFFF' : '#0F172A',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   '&:hover': {
                     backgroundColor: isSelected ? '#FF6B00' : '#FFF0E6',
-                    color: isSelected ? '#FFFFFF' : '#FF6B00',
+                    color: isSelected ? '#FFFFFF' : '#C2410C',
                   },
                 }}
               >

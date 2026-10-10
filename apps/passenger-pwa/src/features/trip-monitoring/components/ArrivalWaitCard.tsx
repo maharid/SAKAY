@@ -55,7 +55,7 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
           <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
             {tl ? 'Naghihintay ang iyong drayber' : 'Your driver is waiting for you'}
           </Typography>
-          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 800, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
+          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 700, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
             {over ? (tl ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
           </Typography>
         </Box>

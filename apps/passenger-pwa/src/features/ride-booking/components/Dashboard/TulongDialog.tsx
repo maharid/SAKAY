@@ -14,7 +14,7 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
-import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
+import { TYPOGRAPHY_TOKENS, extendTapArea } from "@sakay/shared";
 
 interface TulongDialogProps {
   open: boolean;
@@ -64,7 +64,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
           <SupportAgentIcon sx={{ color: "#FF6B00", fontSize: 22 }} />
           <span>{language === "tl" ? "Tulong at Suporta" : "Help & Support"}</span>
         </Box>
-        <IconButton size="small" onClick={onClose} sx={{ color: "#64748B" }}>
+        <IconButton aria-label={language === "tl" ? "Isara" : "Close"} size="small" onClick={onClose} sx={{ ...extendTapArea(7), color: "#64748B" }}>
           <CloseIcon sx={{ fontSize: 20 }} />
         </IconButton>
       </DialogTitle>
@@ -118,17 +118,16 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
               sx={{
                 fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                 fontWeight: 700,
-                color: "#94A3B8",
-                letterSpacing: "0.5px",
+                color: "#64748B",
                 fontFamily: "Poppins, sans-serif",
               }}
             >
-              CALAPAN TODA HOTLINE
+              Calapan TODA hotline
             </Typography>
             <Typography
               sx={{
                 fontSize: TYPOGRAPHY_TOKENS.fontSize.section,
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
                 mt: "2px",

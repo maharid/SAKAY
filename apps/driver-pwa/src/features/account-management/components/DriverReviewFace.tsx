@@ -57,6 +57,7 @@ export const DriverReviewFace: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Ulitin ang larawan" : "Retake photo"}
           onClick={handleRetake}
           sx={{
             width: 44,
@@ -89,7 +90,7 @@ export const DriverReviewFace: React.FC = () => {
         <Typography
           sx={{
             fontSize: '24px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             textAlign: 'center',
             lineHeight: 1.2,

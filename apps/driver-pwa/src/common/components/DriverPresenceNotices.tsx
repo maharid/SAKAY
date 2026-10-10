@@ -15,16 +15,16 @@ export const DriverForegroundReminder: React.FC = () => {
     <Alert
       severity="info"
       icon={<ScreenLockPortraitIcon fontSize="small" />}
-      sx={{ borderRadius: '12px', fontSize: '11.5px', alignItems: 'center', py: 0.5 }}
+      sx={{ borderRadius: '12px', fontSize: '12px', alignItems: 'center', py: 0.5 }}
     >
-      <Typography sx={{ fontSize: '11.5px', fontWeight: 700, lineHeight: 1.35 }}>
+      <Typography sx={{ fontSize: '12px', fontWeight: 700, lineHeight: 1.35 }}>
         {language === 'tl'
           ? 'Panatilihing bukas ang SAKAY at hindi naka-lock ang screen habang Online.'
           : 'Keep SAKAY open and the screen unlocked while you are Online.'}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
         <BatterySaverIcon sx={{ fontSize: 13, color: '#64748B' }} />
-        <Typography sx={{ fontSize: '10.5px', color: '#475569', lineHeight: 1.3 }}>
+        <Typography sx={{ fontSize: '12px', color: '#475569', lineHeight: 1.3 }}>
           {language === 'tl'
             ? 'Kung bumagal ang update ng lokasyon dahil sa battery saver, tatanggapin ito ng app.'
             : 'If battery saver slows location updates, the app accepts that.'}
@@ -106,15 +106,15 @@ export const DriverPresenceNotices: React.FC = () => {
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px', color: '#0F172A' }}>
           {lang === 'tl' ? 'Mukhang hindi ka available' : 'Are you still there?'}
         </DialogTitle>
         <DialogContent>
           {/* Exact wording of Rule 7.6, followed by the Filipino line. */}
-          <Typography sx={{ fontSize: '13.5px', color: '#334155', lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: '14px', color: '#334155', lineHeight: 1.5 }}>
             You appear to be unavailable. Please switch to Offline if you are no longer accepting bookings.
           </Typography>
-          <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5, mt: 1 }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5, mt: 1 }}>
             Mukhang hindi ka available. Paki-switch sa Offline kung hindi ka na tumatanggap ng booking.
           </Typography>
           {reminderError && (
@@ -148,7 +148,7 @@ export const DriverPresenceNotices: React.FC = () => {
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px', color: '#0F172A' }}>
           {lang === 'tl' ? 'Nasa background ang SAKAY' : 'SAKAY was in the background'}
         </DialogTitle>
         <DialogContent>
@@ -176,7 +176,7 @@ export const DriverPresenceNotices: React.FC = () => {
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A' }}>{notice?.title}</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px', color: '#0F172A' }}>{notice?.title}</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: '13px', color: '#334155', lineHeight: 1.5 }}>{notice?.body}</Typography>
         </DialogContent>

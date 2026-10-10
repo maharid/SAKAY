@@ -23,6 +23,7 @@ import { useLanguage } from "../../../utils/LanguageContext";
 import { searchPlaces } from "../../../services/locationService";
 import type { PlaceSuggestion } from "../../../services/locationService";
 import MapLocationPicker from "../../ride-booking/components/Dashboard/MapLocationPicker";
+import { activateWithKeyboard } from "@sakay/shared";
 
 export interface SavedPlaceItem {
   id: string;
@@ -146,7 +147,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: "18px", color: "#0F172A", fontFamily: "Poppins, sans-serif", pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "18px", color: "#0F172A", fontFamily: "Poppins, sans-serif", pb: 1 }}>
           {initialPlace
             ? language === "tl"
               ? "I-edit ang Lugar"
@@ -196,6 +197,10 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
               return (
                 <Box
                   key={opt.key}
+                  role="radio"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
+                  aria-checked={selectedIcon === opt.key}
                   onClick={() => setSelectedIcon(opt.key)}
                   sx={{
                     flex: 1,
@@ -227,9 +232,9 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
                   </Box>
                   <Typography
                     sx={{
-                      fontSize: "10px",
+                      fontSize: "12px",
                       fontWeight: isSelected ? 700 : 500,
-                      color: isSelected ? "#FF6B00" : "#64748B",
+                      color: isSelected ? "#C2410C" : "#64748B",
                       fontFamily: "Poppins, sans-serif",
                       textAlign: "center",
                     }}
@@ -271,6 +276,9 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
                   <ListItem
                     key={idx}
                     component="div"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     onClick={() => handleSelectSuggestion(s)}
                     sx={{ cursor: "pointer", "&:hover": { backgroundColor: "#FFF7ED" } }}
                   >
@@ -287,7 +295,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
           {/* Divider "o" / "or" */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, my: 1.5 }}>
             <Divider sx={{ flex: 1, borderColor: "#E2E8F0" }} />
-            <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#94A3B8" }}>
+            <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#64748B" }}>
               {language === "tl" ? "o" : "or"}
             </Typography>
             <Divider sx={{ flex: 1, borderColor: "#E2E8F0" }} />

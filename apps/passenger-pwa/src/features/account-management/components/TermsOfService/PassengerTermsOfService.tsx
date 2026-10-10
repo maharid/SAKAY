@@ -51,6 +51,7 @@ export const PassengerTermsOfService: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -65,7 +66,7 @@ export const PassengerTermsOfService: React.FC = () => {
         <Typography
           sx={{
             fontSize: '24px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -77,7 +78,7 @@ export const PassengerTermsOfService: React.FC = () => {
         <Typography
           sx={{
             fontSize: '13px',
-            color: '#94A3B8',
+            color: '#64748B',
             fontWeight: 500,
             mb: 2.5,
           }}
@@ -90,10 +91,10 @@ export const PassengerTermsOfService: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {/* Section 1 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 1. Pagiging Karapat-dapat
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Maaaring gumamit ng SAKAY Passenger ang sinumang:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -105,10 +106,10 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 2 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 2. Katumpakan ng Impormasyon
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Responsibilidad mong tiyaking totoo at tama ang iyong buong pangalan at numero ng mobile phone na inilalagay sa pagpaparehistro.
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
@@ -118,7 +119,7 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 3 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 3. Mga Istruktura ng Pamasahe at Diskwento
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
@@ -144,17 +145,17 @@ export const PassengerTermsOfService: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
                 Mahigpit na ipinagbabawal ang pagtangging magbayad ng tamang pamasahe o pamimilit na magbayad nang mas mababa kaysa sa itinakdang taripa ng lungsod.
               </Typography>
             </Box>
 
             {/* Section 4 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 4. Pagsakay at Pag-uugali ng Pasahero
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Bilang pasahero, sumasang-ayon ka sa mga sumusunod na alituntunin:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -167,10 +168,10 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 5 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 5. Mga Alituntunin sa Pagkansela
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Nauunawaan ng SAKAY na may mga pagkakataong kailangang kanselahin ang biyahe, subalit:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -181,10 +182,10 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 6 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 6. Kaligtasan, Tulong SOS, at Pag-uulat ng Insidente
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 May karapatan ang bawat pasahero sa ligtas at maayos na biyahe:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -195,7 +196,7 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 7 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 7. Pagsuspinde ng Account at Fair Use
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -208,10 +209,10 @@ export const PassengerTermsOfService: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {/* Section 1 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 1. Eligibility
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 To use SAKAY as a passenger, you must:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -223,10 +224,10 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 2 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 2. Information Accuracy
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 You are responsible for ensuring that your registered name and contact number are true, accurate, and current.
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
@@ -236,7 +237,7 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 3 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 3. Fare Structures & Statutory Discounts
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
@@ -262,17 +263,17 @@ export const PassengerTermsOfService: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
                 Refusal to pay the computed legal fare or demanding unauthorized underpayments is strictly prohibited.
               </Typography>
             </Box>
 
             {/* Section 4 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 4. Passenger Conduct & Safety
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 As a passenger, you agree to:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -285,10 +286,10 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 5 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 5. Cancellation Policy
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Cancellations should be avoided whenever possible:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -299,10 +300,10 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 6 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 6. Safety, Emergency SOS, and Incident Reporting
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 You have the right to a secure, fair, and professional ride:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -313,7 +314,7 @@ export const PassengerTermsOfService: React.FC = () => {
 
             {/* Section 7 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 7. Account Suspension & Fair Use
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -349,7 +350,7 @@ export const PassengerTermsOfService: React.FC = () => {
               height: '56px',
               borderRadius: '16px',
               fontSize: '16px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

@@ -91,6 +91,7 @@ export const DriverSupportPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           p: 2.5,
           display: 'flex',
           flexDirection: 'column',
@@ -129,7 +130,7 @@ export const DriverSupportPage: React.FC = () => {
               <Typography sx={{ fontSize: '15px', fontWeight: 700 }}>
                 {isTagalog ? 'TODA & Transport Hotline' : 'TODA & Transport Hotline'}
               </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#94A3B8' }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 {isTagalog ? 'Calapan City Public Safety Office' : 'Calapan City Public Safety Office'}
               </Typography>
             </Box>

@@ -395,7 +395,7 @@ export const DriverStatusMonitor: React.FC = () => {
         elevation={0}
         sx={{ width: '100%', maxWidth: 340, p: 2.5, borderRadius: '16px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'left', mb: 2 }}
       >
-        <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
+        <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 1 }}>
           {isTagalog ? 'Mga Dokumento' : 'Documents'}
         </Typography>
         {REVIEW_DOCUMENT_ORDER.filter((doc) => doc !== 'selfie' || appStatus.documentStates[doc] !== 'not_returned').map((doc) => {
@@ -418,7 +418,7 @@ export const DriverStatusMonitor: React.FC = () => {
                   backgroundColor: resubmitted ? '#EDE9FE' : '#E2E8F0',
                   color: resubmitted ? '#4C1D95' : '#475569',
                   fontWeight: 700,
-                  fontSize: '11px',
+                  fontSize: '12px',
                   height: 'auto',
                   '& .MuiChip-label': { whiteSpace: 'normal', py: '3px' },
                 }}
@@ -426,7 +426,7 @@ export const DriverStatusMonitor: React.FC = () => {
             </Box>
           );
         })}
-        <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
+        <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 1 }}>
           {isTagalog
             ? 'Hindi pa ito aprubado: ang pagsusuri ng reviewer ang magpapasya.'
             : 'These are NOT approved yet: the reviewer decides after looking at what you resubmitted.'}
@@ -467,6 +467,7 @@ export const DriverStatusMonitor: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           px: 3,
           py: 4,
           display: 'flex',
@@ -498,7 +499,7 @@ export const DriverStatusMonitor: React.FC = () => {
             <Typography
               sx={{
                 fontSize: '22px',
-                fontWeight: 800,
+                fontWeight: 700,
                 color: '#0F172A',
                 lineHeight: 1.3,
                 mb: 1.5,
@@ -534,7 +535,7 @@ export const DriverStatusMonitor: React.FC = () => {
                 mb: 4,
               }}
             >
-              <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#BE123C', letterSpacing: '0.5px', textTransform: 'uppercase', mb: 1 }}>
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#BE123C', mb: 1 }}>
                 {isTagalog ? 'Dahilan ng Pagtanggi:' : 'Reason for Rejection:'}
               </Typography>
               <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#9F1239', mb: 1 }}>
@@ -577,7 +578,7 @@ export const DriverStatusMonitor: React.FC = () => {
             <Typography
               sx={{
                 fontSize: '22px',
-                fontWeight: 800,
+                fontWeight: 700,
                 color: '#0F172A',
                 lineHeight: 1.3,
                 mb: 1.5,
@@ -623,7 +624,7 @@ export const DriverStatusMonitor: React.FC = () => {
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '12px', fontWeight: 800, color: isResubmittedApplication ? '#5B21B6' : '#1E40AF', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 700, color: isResubmittedApplication ? '#5B21B6' : '#1E40AF', }}>
                   {isTagalog ? 'Status ng Rehistrasyon' : 'Registration Status'}
                 </Typography>
                 <Chip
@@ -632,8 +633,8 @@ export const DriverStatusMonitor: React.FC = () => {
                   sx={{
                     backgroundColor: isResubmittedApplication ? '#EDE9FE' : '#DBEAFE',
                     color: isResubmittedApplication ? '#4C1D95' : '#1D4ED8',
-                    fontWeight: 800,
-                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontSize: '12px',
                   }}
                 />
               </Box>
@@ -661,10 +662,10 @@ export const DriverStatusMonitor: React.FC = () => {
                   sx={{ color: notifyEnabled ? '#0066CC' : '#64748B', fontSize: 22 }}
                 />
                 <Box sx={{ textAlign: 'left' }}>
-                  <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
                     {isTagalog ? 'I-notify ako kapag nagbago ang status' : 'Notify me when status changes'}
                   </Typography>
-                  <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500, mt: '2px' }}>
+                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, mt: '2px' }}>
                     {isTagalog ? 'Magpapadala ng SMS kapag na-aprubahan ng LGU' : 'SMS will be sent upon LGU approval'}
                   </Typography>
                 </Box>
@@ -673,6 +674,7 @@ export const DriverStatusMonitor: React.FC = () => {
               <Switch
                 checked={notifyEnabled}
                 onChange={(e) => handleToggleNotify(e.target.checked)}
+                slotProps={{ input: { 'aria-label': isTagalog ? 'I-notify ako kapag nagbago ang status' : 'Notify me when status changes' } }}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
                     color: '#0066CC',
@@ -702,7 +704,7 @@ export const DriverStatusMonitor: React.FC = () => {
               <PendingActionsIcon sx={{ fontSize: 40 }} />
             </Box>
 
-            <Typography sx={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3, mb: 1.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3, mb: 1.5 }}>
               {isTagalog ? 'Naisumite Muli — Hinihintay ang Pagsusuri ng TODA' : 'Resubmitted, Awaiting TODA Review'}
             </Typography>
 
@@ -719,13 +721,13 @@ export const DriverStatusMonitor: React.FC = () => {
               sx={{ width: '100%', maxWidth: 340, p: 2.5, borderRadius: '16px', backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE', textAlign: 'left', mb: 4 }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#5B21B6', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#5B21B6', }}>
                   {isTagalog ? 'Status ng Rehistrasyon' : 'Registration Status'}
                 </Typography>
                 <Chip
                   label={isTagalog ? 'Muling Sinusuri ng TODA' : 'TODA Re-review'}
                   size="small"
-                  sx={{ backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 800, fontSize: '11px' }}
+                  sx={{ backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 700, fontSize: '12px' }}
                 />
               </Box>
             </Paper>
@@ -752,7 +754,7 @@ export const DriverStatusMonitor: React.FC = () => {
             <Typography
               sx={{
                 fontSize: '22px',
-                fontWeight: 800,
+                fontWeight: 700,
                 color: '#0F172A',
                 lineHeight: 1.3,
                 mb: 1.5,
@@ -788,7 +790,7 @@ export const DriverStatusMonitor: React.FC = () => {
                 mb: 3,
               }}
             >
-              <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#B45309', letterSpacing: '0.5px', textTransform: 'uppercase', mb: 1.5 }}>
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', mb: 1.5 }}>
                 {isTagalog ? 'Kailangang Iwasto na Dokumento:' : 'Documents Requiring Correction:'}
               </Typography>
 
@@ -810,15 +812,15 @@ export const DriverStatusMonitor: React.FC = () => {
                           label={documentLabel(issue.documentType)}
                           size="small"
                           sx={{
-                            fontSize: '11px',
-                            fontWeight: 800,
+                            fontSize: '12px',
+                            fontWeight: 700,
                             backgroundColor: '#FEF3C7',
                             color: '#92400E',
                             height: 22,
                           }}
                         />
                         {row && (
-                          <Typography sx={{ fontSize: '11px', color: '#92400E', fontWeight: 600 }}>
+                          <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600 }}>
                             {isTagalog ? 'Ibinalik ng' : 'Returned by'} {row.stage === 'LGU' ? 'LGU' : row.toda_acronym}
                             {row.returned_at ? ` · ${formatWhen(row.returned_at)}` : ''}
                           </Typography>
@@ -847,7 +849,7 @@ export const DriverStatusMonitor: React.FC = () => {
                   height: '52px',
                   borderRadius: '14px',
                   fontSize: '15px',
-                  fontWeight: 800,
+                  fontWeight: 700,
                   backgroundColor: '#D97706',
                   boxShadow: 'none',
                   '&:hover': { backgroundColor: '#B45309', boxShadow: 'none' },
@@ -885,7 +887,7 @@ export const DriverStatusMonitor: React.FC = () => {
             <Typography
               sx={{
                 fontSize: '22px',
-                fontWeight: 800,
+                fontWeight: 700,
                 color: '#0F172A',
                 lineHeight: 1.3,
                 mb: 1.5,
@@ -930,7 +932,7 @@ export const DriverStatusMonitor: React.FC = () => {
                     height: '52px',
                     borderRadius: '14px',
                     fontSize: '15px',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     backgroundColor: '#FF6B00',
                     boxShadow: 'none',
                     '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
@@ -956,7 +958,7 @@ export const DriverStatusMonitor: React.FC = () => {
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', }}>
                   {isTagalog ? 'Status ng Rehistrasyon' : 'Registration Status'}
                 </Typography>
                 <Chip
@@ -969,8 +971,8 @@ export const DriverStatusMonitor: React.FC = () => {
                   sx={{
                     backgroundColor: isDocIncomplete ? '#FEE2E2' : '#FEF3C7',
                     color: isDocIncomplete ? '#DC2626' : '#B45309',
-                    fontWeight: 800,
-                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontSize: '12px',
                   }}
                 />
               </Box>
@@ -991,7 +993,7 @@ export const DriverStatusMonitor: React.FC = () => {
                   mb: 2,
                 }}
               >
-                <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 1 }}>
                   {isTagalog ? 'Ang iyong mga TODA' : 'Your TODAs'}
                 </Typography>
                 {affiliations.map((aff) => (
@@ -1006,13 +1008,13 @@ export const DriverStatusMonitor: React.FC = () => {
                       sx={{
                         backgroundColor: aff.isSelectable ? '#DCFCE7' : '#FEF3C7',
                         color: aff.isSelectable ? '#15803D' : '#B45309',
-                        fontWeight: 800,
-                        fontSize: '11px',
+                        fontWeight: 700,
+                        fontSize: '12px',
                       }}
                     />
                   </Box>
                 ))}
-                <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
+                <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 1 }}>
                   {isTagalog
                     ? 'Bawat TODA ay sinusuri nang hiwalay. Maaari kang mag-online kapag may kahit isa nang ganap na aprubado.'
                     : 'Each TODA is reviewed separately. You can go online once at least one is fully approved.'}
@@ -1042,10 +1044,10 @@ export const DriverStatusMonitor: React.FC = () => {
                   sx={{ color: notifyEnabled ? '#FF6B00' : '#64748B', fontSize: 22 }}
                 />
                 <Box sx={{ textAlign: 'left' }}>
-                  <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
                     {isTagalog ? 'I-notify ako kapag nagbago ang status' : 'Notify me when status changes'}
                   </Typography>
-                  <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500, mt: '2px' }}>
+                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, mt: '2px' }}>
                     {isTagalog ? 'Magpapadala ng SMS kapag na-aprubahan' : 'SMS will be sent once approved'}
                   </Typography>
                 </Box>
@@ -1054,6 +1056,7 @@ export const DriverStatusMonitor: React.FC = () => {
               <Switch
                 checked={notifyEnabled}
                 onChange={(e) => handleToggleNotify(e.target.checked)}
+                slotProps={{ input: { 'aria-label': isTagalog ? 'I-notify ako kapag nagbago ang status' : 'Notify me when status changes' } }}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
                     color: '#FF6B00',

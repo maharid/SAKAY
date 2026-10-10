@@ -15,7 +15,7 @@ import driver01 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboar
 import driver02 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-02.webp";
 import driver03 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-03.webp";
 import driver04 from "@sakay/shared/src/assets/icons/splash-screen/driver-onboarding-04.webp";
-import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
+import { TYPOGRAPHY_TOKENS, activateWithKeyboard, extendTapArea } from "@sakay/shared";
 
 import { useLocation } from "react-router-dom";
 
@@ -434,9 +434,12 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
           {t.hasAccount}
           <Box
             component="span"
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
             onClick={() => navigate("/login")}
-            sx={{
-              color: "#FF6B00",
+            sx={{ ...extendTapArea(12),
+              color: "#C2410C",
               fontWeight: 600,
               cursor: "pointer",
               ml: "4px",

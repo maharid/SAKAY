@@ -11,6 +11,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PageHeader from '../../../common/components/PageHeader';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { activateWithKeyboard } from '@sakay/shared';
 
 interface AccordionItem {
   id: string;
@@ -117,6 +118,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -131,7 +133,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
         <Typography
           sx={{
             fontSize: '24px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -143,7 +145,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
         <Typography
           sx={{
             fontSize: '13px',
-            color: '#94A3B8',
+            color: '#64748B',
             fontWeight: 500,
             mb: 1.75,
           }}
@@ -152,7 +154,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
         </Typography>
 
         {/* Intro */}
-        <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
+        <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
           {isTagalog
             ? 'Mahalaga sa amin ang iyong privacy. Ipinapaliwanag ng patakarang ito kung paano kinokolekta, ginagamit, iniimbak, at pinoprotektahan ng SAKAY ang iyong impormasyon.'
             : 'Your privacy matters to us. This policy explains what information SAKAY collects from you as a driver, how it is used, stored, and protected.'}
@@ -163,10 +165,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {/* Section 1 with Accordions */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 1. Pagtanggap sa mga Tuntunin
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
                 Upang gumana ang SAKAY, maaari naming kolektahin ang mga sumusunod:
               </Typography>
 
@@ -185,6 +187,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
                       }}
                     >
                       <Box
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={activateWithKeyboard}
+                        aria-expanded={isOpen}
                         onClick={() => toggleAccordion(item.id)}
                         sx={{
                           display: 'flex',
@@ -195,18 +201,18 @@ export const DriverPrivacyPolicy: React.FC = () => {
                           cursor: 'pointer',
                         }}
                       >
-                        <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#334155' }}>
+                        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                           {item.title}
                         </Typography>
                         {isOpen ? (
                           <KeyboardArrowUpIcon sx={{ fontSize: 18, color: '#FF6B00' }} />
                         ) : (
-                          <KeyboardArrowDownIcon sx={{ fontSize: 18, color: '#94A3B8' }} />
+                          <KeyboardArrowDownIcon sx={{ fontSize: 18, color: '#64748B' }} />
                         )}
                       </Box>
                       <Collapse in={isOpen}>
                         <Box sx={{ px: 2, pb: 1.5, pt: 0 }}>
-                          <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6 }}>
+                          <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
                             {item.desc}
                           </Typography>
                         </Box>
@@ -219,10 +225,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 2 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 2. Paano Namin Ginagamit ang Iyong Impormasyon
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Ginagamit namin ang iyong impormasyon upang:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -239,10 +245,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 3 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 3. Paggamit ng Lokasyon
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Ginagamit ang iyong lokasyon para sa:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -251,14 +257,14 @@ export const DriverPrivacyPolicy: React.FC = () => {
                 <li>Pag-monitor ng CPSD</li>
                 <li>Kaligtasan ng pasahero at drayber</li>
               </Box>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6, mt: 1 }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6, mt: 1 }}>
                 Ang GPS route data ay iniimbak nang hanggang <strong>90 araw</strong>, maliban kung kailangan para sa imbestigasyon.
               </Typography>
             </Box>
 
             {/* Section 4 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 4. Pagbabahagi ng Impormasyon
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -268,7 +274,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 5 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 5. Pag-iimbak at Pagtanggal ng Data
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -278,7 +284,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 6 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 6. Ang Iyong mga Karapatan
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -291,7 +297,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 7 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 7. Seguridad ng Data
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -301,7 +307,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 8 & 9 */}
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 8. Pakikipag-ugnayan
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -314,10 +320,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {/* Section 1 with Accordions */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 1. Information We Collect
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
                 To operate SAKAY and ensure passenger safety, we collect:
               </Typography>
 
@@ -336,6 +342,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
                       }}
                     >
                       <Box
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={activateWithKeyboard}
+                        aria-expanded={isOpen}
                         onClick={() => toggleAccordion(item.id)}
                         sx={{
                           display: 'flex',
@@ -346,18 +356,18 @@ export const DriverPrivacyPolicy: React.FC = () => {
                           cursor: 'pointer',
                         }}
                       >
-                        <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#334155' }}>
+                        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                           {item.title}
                         </Typography>
                         {isOpen ? (
                           <KeyboardArrowUpIcon sx={{ fontSize: 18, color: '#FF6B00' }} />
                         ) : (
-                          <KeyboardArrowDownIcon sx={{ fontSize: 18, color: '#94A3B8' }} />
+                          <KeyboardArrowDownIcon sx={{ fontSize: 18, color: '#64748B' }} />
                         )}
                       </Box>
                       <Collapse in={isOpen}>
                         <Box sx={{ px: 2, pb: 1.5, pt: 0 }}>
-                          <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6 }}>
+                          <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
                             {item.desc}
                           </Typography>
                         </Box>
@@ -370,10 +380,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 2 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 2. How We Use Your Information
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 We process your data to:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -390,10 +400,10 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 3 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 3. How We Use Location
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Location (GPS) is required for:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -402,14 +412,14 @@ export const DriverPrivacyPolicy: React.FC = () => {
                 <li>Monitoring CPSD compliance and security</li>
                 <li>Protecting both commuters and drivers</li>
               </Box>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6, mt: 1 }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6, mt: 1 }}>
                 GPS route telemetry is retained for up to <strong>90 days</strong>, unless required for ongoing investigations.
               </Typography>
             </Box>
 
             {/* Section 4 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 4. Sharing Your Information
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -419,7 +429,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 5 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 5. Data Storage and Deletion
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -429,7 +439,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 6 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 6. Your Rights
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -442,7 +452,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 7 */}
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 7. Data Security
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -452,7 +462,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
 
             {/* Section 8 & 9 */}
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 8. Contact
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -488,7 +498,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
               height: '56px',
               borderRadius: '16px',
               fontSize: '16px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

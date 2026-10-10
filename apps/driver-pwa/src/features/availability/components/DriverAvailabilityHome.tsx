@@ -40,6 +40,7 @@ import {
   fetchOwnAccountRestriction,
   parseRestrictionError,
   type AccountRestriction,
+  activateWithKeyboard,
 } from '@sakay/shared';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
@@ -514,7 +515,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               width: 42,
               height: 42,
               backgroundColor: '#FF6B00',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: '17px',
               border: '2px solid #FFFFFF',
               boxShadow: '0 2px 8px rgba(255, 107, 0, 0.3)',
@@ -523,7 +524,7 @@ export const DriverAvailabilityHome: React.FC = () => {
             {initialLetter}
           </Avatar>
           <Box>
-            <Typography sx={{ color: '#0F172A', fontWeight: 800, fontSize: '14.5px', lineHeight: 1.2 }}>
+            <Typography sx={{ color: '#0F172A', fontWeight: 700, fontSize: '15px', lineHeight: 1.2 }}>
               {firstName}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
@@ -531,7 +532,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
                 {ratingNum.toFixed(1)}
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: '#64748B' }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 ({tripsCount} trips)
               </Typography>
             </Box>
@@ -560,16 +561,17 @@ export const DriverAvailabilityHome: React.FC = () => {
           <Typography
             sx={{
               fontSize: '12px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: profile.isOnline ? '#047857' : '#64748B',
             }}
           >
-            {profile.isOnline ? 'ONLINE' : 'OFFLINE'}
+            {profile.isOnline ? 'Online' : 'Offline'}
           </Typography>
           <Switch
             checked={profile.isOnline}
             disabled={!canGoOnline || togglingOnline}
             onChange={handleToggleOnline}
+            slotProps={{ input: { 'aria-label': language === 'tl' ? 'Mag-online para tumanggap ng biyahe' : 'Go online to receive trips' } }}
             color="success"
             size="small"
             sx={{
@@ -604,16 +606,16 @@ export const DriverAvailabilityHome: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
             <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 26, mt: 0.2, flexShrink: 0 }} />
             <Box sx={{ flex: 1 }}>
-              <Typography sx={{ color: '#991B1B', fontWeight: 800, fontSize: '13px', lineHeight: 1.2 }}>
+              <Typography sx={{ color: '#991B1B', fontWeight: 700, fontSize: '13px', lineHeight: 1.2 }}>
                 {accountRestriction.kind === 'DEACTIVATED' || accountRestriction.kind === 'CLOSED'
                   ? (language === 'tl' ? 'Na-deactivate ang Account' : 'Account Deactivated')
                   : (language === 'tl' ? 'Suspendido ang Account' : 'Account Suspended')}
               </Typography>
-              <Typography sx={{ color: '#7F1D1D', fontSize: '11.5px', mt: 0.5, lineHeight: 1.4 }}>
+              <Typography sx={{ color: '#7F1D1D', fontSize: '12px', mt: 0.5, lineHeight: 1.4 }}>
                 {describeRestriction(accountRestriction, language === 'tl' ? 'tl' : 'en')}
               </Typography>
               {accountRestriction.kind === 'SUSPENDED' && (
-                <Typography sx={{ color: '#991B1B', fontSize: '10.5px', fontStyle: 'italic', mt: 0.5 }}>
+                <Typography sx={{ color: '#991B1B', fontSize: '12px', fontStyle: 'italic', mt: 0.5 }}>
                   {language === 'tl'
                     ? 'Kusang mawawala ang suspensyon kapag natapos ang panahon nito.'
                     : 'The suspension lifts automatically when this period ends.'}
@@ -644,17 +646,17 @@ export const DriverAvailabilityHome: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
             <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 26, mt: 0.2, flexShrink: 0 }} />
             <Box sx={{ flex: 1 }}>
-              <Typography sx={{ color: '#991B1B', fontWeight: 800, fontSize: '13px', lineHeight: 1.2 }}>
+              <Typography sx={{ color: '#991B1B', fontWeight: 700, fontSize: '13px', lineHeight: 1.2 }}>
                 {language === 'tl'
                   ? 'Pansamantalang Naka-block Mag-Online (Documentary Restriction)'
                   : 'Service Restriction (Documentary)'}
               </Typography>
-              <Typography sx={{ color: '#7F1D1D', fontSize: '11.5px', mt: 0.5, lineHeight: 1.4 }}>
+              <Typography sx={{ color: '#7F1D1D', fontSize: '12px', mt: 0.5, lineHeight: 1.4 }}>
                 {restrictionInfo.reasons && restrictionInfo.reasons.length > 0
                   ? restrictionInfo.reasons.join('. ')
                   : (language === 'tl' ? 'Paso na ang iyong lisensya, MTOP, o akreditasyon ng TODA.' : 'Expired license, MTOP, or TODA accreditation.')}
               </Typography>
-              <Typography sx={{ color: '#991B1B', fontSize: '10.5px', fontStyle: 'italic', mt: 0.5 }}>
+              <Typography sx={{ color: '#991B1B', fontSize: '12px', fontStyle: 'italic', mt: 0.5 }}>
                 {language === 'tl'
                   ? 'Hindi ito strike o administrative penalty. Kusang mawawala matapos maaprubahan ng LGU ang renewal.'
                   : 'This is not a disciplinary strike. Restriction lifts automatically upon LGU verification.'}
@@ -670,7 +672,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                     color: '#FFFFFF',
                     textTransform: 'none',
                     fontWeight: 700,
-                    fontSize: '11.5px',
+                    fontSize: '12px',
                     borderRadius: '8px',
                     boxShadow: 'none',
                     '&:hover': { backgroundColor: '#B91C1C', boxShadow: 'none' },
@@ -699,7 +701,7 @@ export const DriverAvailabilityHome: React.FC = () => {
             backgroundColor: '#FFFFFF',
             color: profile.isOnline ? '#0F172A' : '#64748B',
             fontWeight: 700,
-            fontSize: '11.5px',
+            fontSize: '12px',
             boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
             border: '1px solid #E2E8F0',
             zIndex: 10,
@@ -792,7 +794,7 @@ export const DriverAvailabilityHome: React.FC = () => {
 
         {/* No Supabase session (demo login): the database refuses every presence request */}
         {sessionMissing && (
-          <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+          <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
             {language === 'tl'
               ? 'Walang secure na login session (demo login). Mag-login gamit ang tunay na account ng drayber para makapag-Online.'
               : 'No secure login session (demo login). Sign in with your real driver account to go Online.'}
@@ -804,21 +806,21 @@ export const DriverAvailabilityHome: React.FC = () => {
 
         {/* The database's reason when Online was refused (never a guess) */}
         {presenceMessage && (
-          <Alert severity="warning" onClose={() => setPresenceMessage(null)} sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+          <Alert severity="warning" onClose={() => setPresenceMessage(null)} sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
             {presenceMessage}
           </Alert>
         )}
 
         {/* Only the real blocker is shown: suspension and documents have their own banners above */}
         {!isOnline && isDriverVerifiedInDb && !accountRestriction?.restricted && !documentsBlock && affiliations.length > 0 && selectableAffiliations.length === 0 && (
-          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
             {language === 'tl'
               ? 'Hindi pa tapos ang beripikasyon ng iyong TODA affiliation. Hindi ka pa makakapag-Online.'
               : 'Your TODA affiliation is not fully verified yet, so you cannot go Online.'}
           </Alert>
         )}
         {!isOnline && isDriverVerifiedInDb && !accountRestriction?.restricted && !documentsBlock && selectableAffiliations.length > 1 && !activeAffiliation && (
-          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
             {language === 'tl'
               ? 'Pumili ng isang aktibong TODA sa ibaba bago mag-Online.'
               : 'Select one active TODA below before going Online.'}
@@ -826,6 +828,9 @@ export const DriverAvailabilityHome: React.FC = () => {
         )}
 
         <Box
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={() => setTodaModalOpen(true)}
           sx={{
             display: 'flex',
@@ -841,14 +846,14 @@ export const DriverAvailabilityHome: React.FC = () => {
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: '10.5px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Kinabibilangang TODA' : 'Active TODA Affiliation'}
             </Typography>
             <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
               {displayTodaText}
             </Typography>
           </Box>
-          <ArrowForwardIosIcon sx={{ fontSize: 13, color: '#94A3B8' }} />
+          <ArrowForwardIosIcon sx={{ fontSize: 13, color: '#64748B' }} />
         </Box>
 
         <Box
@@ -863,7 +868,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: '10.5px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Gamit na Tricycle Unit' : 'Tricycle Unit in Use'}
             </Typography>
             <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
@@ -872,7 +877,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                 : (language === 'tl' ? 'Rehistradong Tricycle Unit' : 'Registered Tricycle Unit')}
             </Typography>
             {/* Rules 3.10 / 29.18: the verified unit is fixed; substituting needs TODA and LGU approval */}
-            <Typography sx={{ fontSize: '10.5px', color: '#64748B', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '12px', color: '#64748B', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl'
                 ? 'Naka-lock ang beripikadong unit. Makipag-ugnayan sa TODA at LGU para magpalit.'
                 : 'Your verified unit is locked. Ask your TODA and the LGU to change it.'}
@@ -882,14 +887,14 @@ export const DriverAvailabilityHome: React.FC = () => {
       </Paper>
 
       <Dialog open={todaModalOpen} onClose={() => setTodaModalOpen(false)} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '24px' } } }}>
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A', px: 2.5, pt: 2.5, pb: 1, fontFamily: 'Poppins, sans-serif' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px', color: '#0F172A', px: 2.5, pt: 2.5, pb: 1, fontFamily: 'Poppins, sans-serif' }}>
           {language === 'tl' ? 'Pumili ng Aktibong TODA' : 'Select Active TODA'}
         </DialogTitle>
         <DialogContent sx={{ px: 2.5, py: 0 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mt: 0.5 }}>
             {/* Rule 3.10: no change while Online */}
             {isOnline && (
-              <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '11.5px', py: 0.25 }}>
+              <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
                 {language === 'tl'
                   ? 'Hindi maaaring magpalit ng aktibong TODA habang Online. Mag-Offline muna.'
                   : 'The active TODA cannot be changed while you are Online. Go Offline first.'}
@@ -901,6 +906,9 @@ export const DriverAvailabilityHome: React.FC = () => {
                 return (
                   <Box
                     key={option.affiliationId}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     onClick={() => !locked && handleSelectAffiliation(option)}
                     sx={{
                       p: 1.5,
@@ -918,7 +926,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                   >
                     <Box>
                       <Typography sx={{ fontWeight: 700, fontSize: '13px', color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>{option.todaName} ({option.todaAcronym})</Typography>
-                      <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
                         {option.isSelectable ? `Terminal: ${option.coverage}` : option.statusLabel}
                       </Typography>
                     </Box>
@@ -936,7 +944,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               })
             ) : (
               <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+                <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
                   {language === 'tl' ? 'Wala ka pang TODA affiliation' : 'You have no TODA affiliations yet'}
                 </Typography>
               </Box>
@@ -990,7 +998,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           <Typography
             sx={{
               fontSize: '17px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.35,
               mb: '12px',
@@ -1048,7 +1056,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           onClick={() => handleAllowLocation(true)}
           sx={{
             py: '14px',
-            color: '#FF6B00',
+            color: '#C2410C',
             fontWeight: 700,
             fontSize: '14px',
             textTransform: 'none',
@@ -1093,11 +1101,11 @@ export const DriverAvailabilityHome: React.FC = () => {
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: '20px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '16px', color: '#0F172A' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px', color: '#0F172A' }}>
           {language === 'tl' ? 'Mag-sumite ng Document Renewal' : 'Submit Document Renewal'}
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: '12.5px', color: '#64748B', mb: 2 }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748B', mb: 2 }}>
             {language === 'tl'
               ? 'Ilagay ang bagong petsa ng expiration ng iyong mga dokumento. Susuriin ito ng LGU bago i-update ang opisyal na rekord.'
               : 'Enter new document expiration dates. These will be reviewed by LGU before official records update.'}

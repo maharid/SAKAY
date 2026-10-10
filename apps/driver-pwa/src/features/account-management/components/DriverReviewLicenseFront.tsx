@@ -96,6 +96,7 @@ export const DriverReviewLicenseFront: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Ulitin ang larawan" : "Retake photo"}
           onClick={handleRetake}
           sx={{
             width: 44,
@@ -129,7 +130,7 @@ export const DriverReviewLicenseFront: React.FC = () => {
         <Typography
           sx={{
             fontSize: '26px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -229,7 +230,7 @@ export const DriverReviewLicenseFront: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: '#FF6B00',
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

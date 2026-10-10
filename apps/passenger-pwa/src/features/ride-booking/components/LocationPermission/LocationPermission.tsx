@@ -138,7 +138,7 @@ const LocationPermission: React.FC = () => {
             <Typography
               sx={{
                 fontSize: "17px",
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "#0F172A",
                 lineHeight: 1.3,
                 marginBottom: "12px",
@@ -165,7 +165,7 @@ const LocationPermission: React.FC = () => {
             {requesting && (
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "12px" }}>
                 <CircularProgress size={16} sx={{ color: "#FF6B00" }} />
-                <Typography sx={{ fontSize: "12px", color: "#FF6B00", fontWeight: 600 }}>
+                <Typography sx={{ fontSize: "12px", color: "#C2410C", fontWeight: 600 }}>
                   {language === 'tl' ? 'Humihingi ng pahintulot sa browser...' : 'Requesting browser permission...'}
                 </Typography>
               </Box>

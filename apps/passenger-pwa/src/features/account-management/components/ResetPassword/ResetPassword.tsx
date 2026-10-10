@@ -15,6 +15,7 @@ import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
 import { supabase } from "../../../../services/supabaseClient";
+import { extendTapArea } from "@sakay/shared";
 
 const ResetPassword: React.FC = () => {
   const { language, t } = useLanguage();
@@ -94,6 +95,7 @@ const ResetPassword: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         overflowY: "auto",
+        "& > *": { flexShrink: 0 },
       }}
       className="hide-scrollbar"
     >
@@ -107,6 +109,7 @@ const ResetPassword: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => navigate("/forgot-password")}
           sx={{
             backgroundColor: "#FFFFFF",
@@ -133,7 +136,7 @@ const ResetPassword: React.FC = () => {
           component="h2"
           sx={{
             fontSize: "26px",
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#0F172A",
             lineHeight: 1.3,
           }}
@@ -186,17 +189,18 @@ const ResetPassword: React.FC = () => {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#94A3B8" }} />
+                    <LockOutlinedIcon sx={{ color: "#64748B" }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
+                      aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")} sx={extendTapArea(8)}
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                       disabled={loading}
                     >
-                      {showPassword ? <VisibilityOff sx={{ color: "#94A3B8" }} /> : <Visibility sx={{ color: "#94A3B8" }} />}
+                      {showPassword ? <VisibilityOff sx={{ color: "#64748B" }} /> : <Visibility sx={{ color: "#64748B" }} />}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -225,17 +229,18 @@ const ResetPassword: React.FC = () => {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#94A3B8" }} />
+                    <LockOutlinedIcon sx={{ color: "#64748B" }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
+                      aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")} sx={extendTapArea(8)}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       edge="end"
                       disabled={loading}
                     >
-                      {showConfirmPassword ? <VisibilityOff sx={{ color: "#94A3B8" }} /> : <Visibility sx={{ color: "#94A3B8" }} />}
+                      {showConfirmPassword ? <VisibilityOff sx={{ color: "#64748B" }} /> : <Visibility sx={{ color: "#64748B" }} />}
                     </IconButton>
                   </InputAdornment>
                 ),

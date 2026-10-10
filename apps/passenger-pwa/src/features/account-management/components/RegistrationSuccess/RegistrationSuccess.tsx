@@ -61,7 +61,7 @@ const RegistrationSuccess: React.FC = () => {
           component="h2"
           sx={{
             fontSize: "22px",
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#0F172A",
             lineHeight: 1.35,
           }}
@@ -69,7 +69,7 @@ const RegistrationSuccess: React.FC = () => {
           <Box component="span" sx={{ display: "block" }}>
             {language === "tl" ? "Maligayang Pagbabalik," : "Welcome Back,"}
           </Box>
-          <Box component="span" sx={{ display: "block", color: "#FF6B00", mt: "2px" }}>
+          <Box component="span" sx={{ display: "block", color: "#C2410C", mt: "2px" }}>
             {(state?.name?.trim() || (language === "tl" ? "Pasahero" : "Passenger"))}!
           </Box>
         </Typography>

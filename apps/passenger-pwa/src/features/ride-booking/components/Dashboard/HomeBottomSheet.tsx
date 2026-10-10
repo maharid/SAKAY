@@ -20,6 +20,7 @@ import { useLanguage } from "../../../../utils/LanguageContext";
 import SakayToast from "../../../../common/components/SakayToast";
 import SavedPlaceModal from "../../../account-management/components/SavedPlaceModal";
 import type { SavedPlaceItem } from "../../../account-management/components/SavedPlaceModal";
+import { activateWithKeyboard } from '@sakay/shared';
 
 export type SavedPlace = SavedPlaceItem & { isHome?: boolean };
 
@@ -244,6 +245,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          role="button"
+          tabIndex={0}
+          aria-expanded={!isCollapsed}
+          aria-label={isCollapsed ? (language === "tl" ? "Buksan ang panel" : "Expand panel") : (language === "tl" ? "Itupi ang panel" : "Collapse panel")}
+          onKeyDown={activateWithKeyboard}
           onClick={() => {
             if (Math.abs(dragOffsetY) < 5 && onToggleCollapse) {
               onToggleCollapse();
@@ -255,6 +261,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             justifyContent: "center",
             cursor: "grab",
             py: 0.75,
+            minHeight: 28,
             width: "100%",
             userSelect: "none",
             touchAction: "none",
@@ -276,6 +283,10 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          role={isCollapsed ? "button" : undefined}
+          tabIndex={isCollapsed ? 0 : undefined}
+          aria-label={isCollapsed ? (language === "tl" ? "Buksan ang panel" : "Expand panel") : undefined}
+          onKeyDown={isCollapsed ? activateWithKeyboard : undefined}
           onClick={() => {
             if (isCollapsed && Math.abs(dragOffsetY) < 5 && onToggleCollapse) {
               onToggleCollapse();
@@ -301,7 +312,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             }}
           >
             {language === "tl" ? `Kamusta, ${firstName}! ` : `Hello, ${firstName}! `}
-            <Box component="span" sx={{ fontWeight: 800 }}>
+            <Box component="span" sx={{ fontWeight: 700 }}>
               {language === "tl" ? "Saan tayo pupunta?" : "Where are we going?"}
             </Box>
           </Typography>
@@ -326,6 +337,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               onClick={onStartNewTrip}
               role="button"
               tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               sx={{
                 flex: "1 1 0px",
                 minWidth: "130px",
@@ -363,7 +375,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 <Typography
                   sx={{
                     fontSize: "14px",
-                    fontWeight: 800,
+                    fontWeight: 700,
                     color: "#0F172A",
                     lineHeight: 1.2,
                     fontFamily: "Poppins, sans-serif",
@@ -404,6 +416,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 }}
                 role="button"
                 tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 sx={{
                   flex: "1 1 0px",
                   minWidth: "130px",
@@ -437,6 +450,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                     {renderPlaceIcon(place.icon)}
                   </Box>
                   <IconButton
+                    aria-label={language === "tl" ? "I-edit ang naka-save na lugar" : "Edit saved place"}
                     size="small"
                     onClick={(e) => handleOpenEditPlace(e, place)}
                     sx={{ color: '#64748B', p: '4px' }}
@@ -449,7 +463,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   <Typography
                     sx={{
                       fontSize: "14px",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       color: "#0F172A",
                       lineHeight: 1.2,
                       fontFamily: "Poppins, sans-serif",
@@ -484,6 +498,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
               onClick={handleOpenAddModal}
               role="button"
               tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               sx={{
                 flex: "1 1 0px",
                 minWidth: "130px",
@@ -520,7 +535,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                 <Typography
                   sx={{
                     fontSize: "14px",
-                    fontWeight: 800,
+                    fontWeight: 700,
                     color: "#0F172A",
                     lineHeight: 1.2,
                     fontFamily: "Poppins, sans-serif",
@@ -569,7 +584,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: "16px", p: 0, mb: 1, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "16px", p: 0, mb: 1, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
           {actionPlace?.name || (language === "tl" ? "Opsyon sa Lugar" : "Place Options")}
         </DialogTitle>
         <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", gap: 1 }}>

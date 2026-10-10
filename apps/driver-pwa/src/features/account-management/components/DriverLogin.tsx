@@ -17,7 +17,7 @@ import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
-import { describeRestriction, fetchOwnAccountRestriction } from '@sakay/shared';
+import { describeRestriction, fetchOwnAccountRestriction, activateWithKeyboard, extendTapArea } from '@sakay/shared';
 import { fetchOwnDriverRecord, getPhoneLookupCandidates, rotateDriverSession } from '../../../services/driverApiService';
 
 export const formatMobileNumber = (value: string): string => {
@@ -298,6 +298,7 @@ export const DriverLogin: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBack}
           sx={{
             backgroundColor: '#FFFFFF',
@@ -323,6 +324,7 @@ export const DriverLogin: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '24px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -335,7 +337,7 @@ export const DriverLogin: React.FC = () => {
               component="h2"
               sx={{
                 fontSize: '26px',
-                fontWeight: 800,
+                fontWeight: 700,
                 color: '#0F172A',
                 lineHeight: 1.3,
               }}
@@ -367,7 +369,7 @@ export const DriverLogin: React.FC = () => {
             }}
           >
             <SakayPhoneInput
-              label={language === 'tl' ? 'NUMERO NG TELEPONO' : 'MOBILE NUMBER'}
+              label={language === 'tl' ? 'Numero ng telepono' : 'Mobile number'}
               value={phone}
               onChange={(val) => setPhone(val)}
               onFocus={() => setPhoneTouched(true)}
@@ -384,17 +386,18 @@ export const DriverLogin: React.FC = () => {
             />
 
             <RegisterInput
-              label="PASSWORD"
+              label="Password"
               required
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(val) => setPassword(val)}
               endAdornment={
                 <IconButton
+                  aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")}
                   onClick={() => setShowPassword(!showPassword)}
                   edge="end"
                   size="small"
-                  sx={{ color: '#64748B' }}
+                  sx={{ ...extendTapArea(8), color: '#64748B' }}
                 >
                   {showPassword ? (
                     <VisibilityOffOutlinedIcon fontSize="small" />
@@ -407,10 +410,13 @@ export const DriverLogin: React.FC = () => {
 
             <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
               <Typography
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 onClick={() => navigate('/forgot-password')}
-                sx={{
+                sx={{ ...extendTapArea(12),
                   fontSize: '14px',
-                  color: '#FF6B00',
+                  color: '#C2410C',
                   fontWeight: 600,
                   cursor: 'pointer',
                   '&:hover': { textDecoration: 'underline', color: '#E66000' },
@@ -447,9 +453,12 @@ export const DriverLogin: React.FC = () => {
             {t.dontHaveAccount || 'Wala ka pang account?'}{' '}
             <Box
               component="span"
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => navigate('/driver/register')}
-              sx={{
-                color: '#FF6B00',
+              sx={{ ...extendTapArea(12),
+                color: '#C2410C',
                 fontWeight: 700,
                 cursor: 'pointer',
                 marginLeft: '6px',

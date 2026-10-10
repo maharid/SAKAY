@@ -273,6 +273,7 @@ export const DriverScanMtop: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
             if ((state as any)?.isResubmission) {
               navigate('/driver/status');
@@ -312,7 +313,7 @@ export const DriverScanMtop: React.FC = () => {
         >
           <WarningAmberRoundedIcon sx={{ color: '#D97706', fontSize: 20, flexShrink: 0 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', lineHeight: 1.2 }}>
               {isTagalog ? 'Kailangang Iwasto: MTOP / Prangkisa' : 'Required Correction: MTOP / Franchise'}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600, lineHeight: 1.3, mt: 0.25 }} noWrap>
@@ -336,6 +337,7 @@ export const DriverScanMtop: React.FC = () => {
           py: 2.5,
           position: 'relative',
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
         }}
@@ -354,7 +356,7 @@ export const DriverScanMtop: React.FC = () => {
           }}
         >
           {isTagalog ? 'I-scan ang ' : 'Scan your '}
-          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
             Motorized Tricycle Operator's Permit (MTOP)
           </Box>{' '}
           {isTagalog ? 'sa frame' : 'in the frame'}
@@ -516,9 +518,9 @@ export const DriverScanMtop: React.FC = () => {
         >
           <Typography
             sx={{
-              color: '#FF6B00',
-              fontWeight: 800,
-              fontSize: '13.5px',
+              color: '#C2410C',
+              fontWeight: 700,
+              fontSize: '14px',
               mb: 1.25,
             }}
           >
@@ -530,7 +532,7 @@ export const DriverScanMtop: React.FC = () => {
               margin: 0,
               paddingLeft: '18px',
               color: '#E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               lineHeight: 1.6,
               '& li': { mb: 0.5 },
             }}
@@ -559,6 +561,7 @@ export const DriverScanMtop: React.FC = () => {
       >
         {/* Flashlight / Torch Toggle */}
         <IconButton
+          aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
           onClick={handleToggleTorch}
           sx={{
             color: torchOn ? '#FF6B00' : '#FFFFFF',
@@ -575,6 +578,7 @@ export const DriverScanMtop: React.FC = () => {
 
         {/* Concentric Ring SAKAY Orange Shutter Capture Button */}
         <IconButton
+          aria-label={language === "tl" ? "Kumuha ng larawan" : "Take photo"}
           onClick={handleCapture}
           disabled={isCapturing}
           sx={{
@@ -600,6 +604,7 @@ export const DriverScanMtop: React.FC = () => {
 
         {/* Camera Flip (Front/Back) */}
         <IconButton
+          aria-label={language === "tl" ? "Palitan ang camera" : "Switch camera"}
           onClick={handleToggleCamera}
           disabled={isCapturing}
           sx={{

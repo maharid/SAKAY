@@ -48,6 +48,7 @@ export const DriverForgotPassword: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => navigate('/driver/login')}
           sx={{
             color: '#0F172A',
@@ -70,6 +71,7 @@ export const DriverForgotPassword: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -79,7 +81,7 @@ export const DriverForgotPassword: React.FC = () => {
           <Typography
             sx={{
               fontSize: '26px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
               letterSpacing: '-0.5px',
@@ -118,7 +120,7 @@ export const DriverForgotPassword: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: '#FF6B00',
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

@@ -53,6 +53,7 @@ export const DriverAppFeedbackPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           p: 2.5,
           pb: 'calc(var(--safe-area-bottom) + 24px)',
           display: 'flex',
@@ -74,12 +75,12 @@ export const DriverAppFeedbackPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>
+          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
             {isTagalog
               ? 'Kamusta ang iyong karanasan sa SAKAY Driver?'
               : 'How was your experience using SAKAY Driver?'}
           </Typography>
-          <Typography sx={{ fontSize: '12.5px', color: '#64748B' }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
             {isTagalog
               ? 'Tulungan kaming mapabuti ang serbisyo para sa mga drayber sa Calapan City.'
               : 'Help us improve our service for all drivers in Calapan City.'}
@@ -147,7 +148,7 @@ export const DriverAppFeedbackPage: React.FC = () => {
               borderRadius: '14px',
               height: '52px',
               fontSize: '15px',
-              fontWeight: 800,
+              fontWeight: 700,
               textTransform: 'none',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

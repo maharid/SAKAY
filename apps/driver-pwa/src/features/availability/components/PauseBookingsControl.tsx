@@ -58,7 +58,7 @@ export const PauseBookingsControl: React.FC<PauseBookingsControlProps> = ({ lang
             backgroundColor: '#FFF7ED',
             color: '#C2410C',
             fontWeight: 700,
-            fontSize: '11.5px',
+            fontSize: '12px',
             border: '1px solid #FDBA74',
             boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
           }}
@@ -75,7 +75,7 @@ export const PauseBookingsControl: React.FC<PauseBookingsControlProps> = ({ lang
               color: '#0F172A',
               textTransform: 'none',
               fontWeight: 700,
-              fontSize: '11.5px',
+              fontSize: '12px',
               borderRadius: '999px',
               border: '1px solid #E2E8F0',
               boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
@@ -102,7 +102,7 @@ export const PauseBookingsControl: React.FC<PauseBookingsControlProps> = ({ lang
         </>
       )}
       {error && (
-        <Typography sx={{ fontSize: '10.5px', color: '#B91C1C', backgroundColor: '#FEF2F2', borderRadius: '8px', px: 1, py: 0.25, maxWidth: 280, textAlign: 'center' }}>
+        <Typography sx={{ fontSize: '12px', color: '#B91C1C', backgroundColor: '#FEF2F2', borderRadius: '8px', px: 1, py: 0.25, maxWidth: 280, textAlign: 'center' }}>
           {error}
         </Typography>
       )}

@@ -19,7 +19,7 @@ import SendIcon from '@mui/icons-material/Send';
 import CircularProgress from '@mui/material/CircularProgress';
 import { sendDriverPassengerSms } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { TYPOGRAPHY_TOKENS } from '@sakay/shared';
+import { TYPOGRAPHY_TOKENS, extendTapArea } from '@sakay/shared';
 
 export interface DriverCommunicationModalProps {
   open: boolean;
@@ -168,14 +168,14 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
         <Box>
-          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 800, color: '#0F172A' }}>
+          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 700, color: '#0F172A' }}>
             {language === 'tl' ? `Mensahe kay Pasahero` : `Contact Passenger`}
           </Typography>
           <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, color: '#64748B' }}>
             {passengerName} ({passengerPhone})
           </Typography>
         </Box>
-        <IconButton onClick={onClose} size="small">
+        <IconButton aria-label={language === "tl" ? "Isara" : "Close"} onClick={onClose} size="small" sx={extendTapArea(7)}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -207,7 +207,7 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
             height: 44,
             borderRadius: '14px',
             backgroundColor: '#1E8E3E',
-            fontWeight: 800,
+            fontWeight: 700,
             fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
             textTransform: 'none',
             fontFamily: 'Poppins, sans-serif',
@@ -217,8 +217,8 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
           {language === 'tl' ? 'Tawagan ang Pasahero' : 'Call Passenger'}
         </Button>
 
-        <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mt: 0.5 }}>
-          {language === 'tl' ? 'PUMILI NG MENSAHE' : 'SELECT A MESSAGE'}
+        <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 700, color: '#64748B',mt: 0.5 }}>
+          {language === 'tl' ? 'Pumili ng mensahe' : 'Select a message'}
         </Typography>
 
         {/* Radio Group Quick Templates */}
@@ -279,12 +279,12 @@ export const DriverCommunicationModal: React.FC<DriverCommunicationModalProps> =
             height: 46,
             borderRadius: '14px',
             backgroundColor: '#FF6B00',
-            fontWeight: 800,
+            fontWeight: 700,
             fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
             textTransform: 'none',
             fontFamily: 'Poppins, sans-serif',
             '&:hover': { backgroundColor: '#E05000' },
-            '&.Mui-disabled': { backgroundColor: '#CBD5E1', color: '#94A3B8' },
+            '&.Mui-disabled': { backgroundColor: '#CBD5E1', color: '#64748B' },
           }}
         >
           {language === 'tl' ? 'Ipadala ang Mensahe' : 'Send Message'}

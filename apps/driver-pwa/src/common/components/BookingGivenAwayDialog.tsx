@@ -16,7 +16,7 @@ const BookingGivenAwayDialog: React.FC<BookingGivenAwayDialogProps> = ({ open, l
   <Dialog open={open} onClose={onClose} slotProps={{ paper: { sx: { borderRadius: '24px', p: 1.5, maxWidth: '380px', width: '90%' } } }}>
     <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 1 }}>
       <CancelIcon sx={{ fontSize: 48, color: '#EF4444', mb: 1 }} />
-      <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+      <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
         {language === 'tl' ? 'Nakansela ang Booking' : 'Booking Cancelled'}
       </Typography>
     </DialogTitle>
@@ -32,7 +32,7 @@ const BookingGivenAwayDialog: React.FC<BookingGivenAwayDialogProps> = ({ open, l
         fullWidth
         variant="contained"
         onClick={onClose}
-        sx={{ height: 46, borderRadius: '14px', backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '14px', textTransform: 'none', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#E66000' } }}
+        sx={{ height: 46, borderRadius: '14px', backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '14px', textTransform: 'none', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#E66000' } }}
       >
         {language === 'tl' ? 'OK (Bumalik sa Home)' : 'OK (Return Home)'}
       </Button>

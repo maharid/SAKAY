@@ -146,9 +146,9 @@ export const DriverIncomingRequestModal: React.FC = () => {
           <Chip
             label={language === 'tl' ? `Bagong Booking Request (${countdown}s)` : `New Booking Request (${countdown}s)`}
             color="warning"
-            sx={{ fontWeight: 800, fontSize: TYPOGRAPHY_TOKENS.fontSize.caption }}
+            sx={{ fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.caption }}
           />
-          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 800, color: '#0F172A', mt: 1 }}>
+          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 700, color: '#0F172A', mt: 1 }}>
             {incomingRequest.is_shared_trip
               ? (language === 'tl' ? 'Shared Commuter Ride' : 'Shared Commuter Ride')
               : (language === 'tl' ? 'Solo Trip' : 'Solo Trip')}
@@ -157,7 +157,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
             {language === 'tl' ? 'Pasahero:' : 'Passenger:'} <strong>{incomingRequest.passenger_name}</strong> • {incomingRequest.passenger_count} {language === 'tl' ? 'pasahero' : 'passenger(s)'}
           </Typography>
           {offerInfo?.distanceM != null && (
-            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#FF6B00', fontWeight: 700, mt: 0.5 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#C2410C', fontWeight: 700, mt: 0.5 }}>
               {language === 'tl'
                 ? `Pickup: ${formatDistance(offerInfo.distanceM / 1000)} mula sa iyo${etaMinutes ? ` (~${etaMinutes} min)` : ''}`
                 : `Pickup is ${formatDistance(offerInfo.distanceM / 1000)} from you${etaMinutes ? ` (~${etaMinutes} min)` : ''}`}
@@ -175,8 +175,8 @@ export const DriverIncomingRequestModal: React.FC = () => {
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
               <LocationOnIcon sx={{ color: '#10B981', fontSize: 20 }} />
               <Box>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#94A3B8', fontWeight: 700 }}>
-                  {language === 'tl' ? 'LOKASYON NG PICKUP' : 'PICKUP LOCATION'}
+                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>
+                  {language === 'tl' ? 'Lokasyon ng pickup' : 'Pickup location'}
                 </Typography>
                 <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.pickup_address}</Typography>
               </Box>
@@ -185,8 +185,8 @@ export const DriverIncomingRequestModal: React.FC = () => {
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
               <LocationOnIcon sx={{ color: '#EF4444', fontSize: 20 }} />
               <Box>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#94A3B8', fontWeight: 700 }}>
-                  {language === 'tl' ? 'DESTINASYON' : 'DESTINATION'}
+                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>
+                  {language === 'tl' ? 'Destinasyon' : 'Destination'}
                 </Typography>
                 <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.dropoff_address}</Typography>
               </Box>
@@ -204,12 +204,12 @@ export const DriverIncomingRequestModal: React.FC = () => {
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
                 {language === 'tl' ? 'Pamasahe' : 'Fare'}
               </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 900, color: '#FF6B00' }}>₱{incomingRequest.estimated_fare.toFixed(2)}</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 700, color: '#C2410C' }}>₱{incomingRequest.estimated_fare.toFixed(2)}</Typography>
             </Box>
           </Box>
 
           {/* Rule 7.3: respond only when it is safe to do so */}
-          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#94A3B8', textAlign: 'center', mt: 1.5 }}>
+          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', textAlign: 'center', mt: 1.5 }}>
             {language === 'tl'
               ? 'Tumugon lamang kapag ligtas. Huwag gamitin ang app habang nagmamaneho.'
               : 'Respond only when it is safe to do so. Do not use the app while driving.'}
@@ -238,7 +238,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
               borderRadius: '14px',
               backgroundColor: '#1E8E3E',
               color: '#FFFFFF',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
               textTransform: 'none',
               '&:hover': { backgroundColor: '#137333' },
@@ -251,7 +251,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
 
       {/* Rule 7.9: a decline carries a reason from the fixed list; it is no strike and the offer goes to the next driver at once */}
       <Dialog open={declineOpen} maxWidth="xs" fullWidth onClose={() => !declining && setDeclineOpen(false)}>
-        <DialogTitle sx={{ fontWeight: 800, fontSize: TYPOGRAPHY_TOKENS.fontSize.section }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.section }}>
           {language === 'tl' ? 'Bakit mo tinatanggihan?' : 'Why are you declining?'}
           <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B', fontWeight: 500, mt: 0.5 }}>
             {language === 'tl' ? `May ${countdown}s pa. Walang strike sa pagtanggi.` : `${countdown}s left. Declining is not a strike.`}
@@ -278,7 +278,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
             variant="contained"
             disabled={!declineReason || declining}
             onClick={handleConfirmDecline}
-            sx={{ height: 44, borderRadius: '14px', backgroundColor: '#EF4444', textTransform: 'none', fontWeight: 800, '&:hover': { backgroundColor: '#DC2626' } }}
+            sx={{ height: 44, borderRadius: '14px', backgroundColor: '#EF4444', textTransform: 'none', fontWeight: 700, '&:hover': { backgroundColor: '#DC2626' } }}
           >
             {language === 'tl' ? 'Tanggihan' : 'Decline'}
           </Button>

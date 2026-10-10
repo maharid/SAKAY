@@ -148,7 +148,7 @@ export const DriverRegistrationComplete: React.FC = () => {
         <Typography
           sx={{
             fontSize: '22px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             textAlign: 'center',
             lineHeight: 1.25,
@@ -168,7 +168,7 @@ export const DriverRegistrationComplete: React.FC = () => {
         {/* Body Description */}
         <Typography
           sx={{
-            fontSize: '14.5px',
+            fontSize: '15px',
             fontWeight: 500,
             color: '#64748B',
             textAlign: 'center',

@@ -93,8 +93,8 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
       </Typography>
       {rows.map((row) => (
         <Box key={row.label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 1 }}>
-          <Typography sx={{ fontSize: "11.5px", color: c.label, fontFamily: "Poppins, sans-serif" }}>{row.label}</Typography>
-          <Typography sx={{ fontSize: "13px", fontWeight: 800, color: row.color, fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "12px", color: c.label, fontFamily: "Poppins, sans-serif" }}>{row.label}</Typography>
+          <Typography sx={{ fontSize: "13px", fontWeight: 700, color: row.color, fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap" }}>
             ₱{row.value.toFixed(2)}
           </Typography>
         </Box>
@@ -104,7 +104,7 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
           <Typography
             key={line}
             component="li"
-            sx={{ fontSize: "10.5px", color: c.text, lineHeight: 1.4, fontFamily: "Poppins, sans-serif" }}
+            sx={{ fontSize: "12px", color: c.text, lineHeight: 1.4, fontFamily: "Poppins, sans-serif" }}
           >
             {line}
           </Typography>

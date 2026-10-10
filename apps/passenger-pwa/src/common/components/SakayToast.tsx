@@ -120,7 +120,7 @@ export const SakayToast: React.FC<SakayToastProps> = ({
           backgroundColor: `${getBackgroundColor()} !important`,
           color: "#FFFFFF !important",
           fontFamily: "Poppins, sans-serif",
-          fontSize: "13.5px",
+          fontSize: "14px",
           fontWeight: 700,
           boxShadow: getShadowColor(),
           position: "relative",

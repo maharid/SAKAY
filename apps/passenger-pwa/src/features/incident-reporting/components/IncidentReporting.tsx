@@ -22,6 +22,7 @@ import { fetchReportableTrips, submitIncidentReport, type ReportableTrip } from 
 import { useLanguage } from '../../../utils/LanguageContext';
 import PageHeader from '../../../common/components/PageHeader';
 import { RegisterInput } from '../../../common/components/RegisterInput';
+import { activateWithKeyboard } from '@sakay/shared';
 
 /** The floating-label select used by this form (same look as RegisterInput). */
 interface FloatingSelectProps {
@@ -61,11 +62,10 @@ const FloatingSelect: React.FC<FloatingSelectProps> = ({ label, value, onChange,
             left: '16px',
             top: floating ? '8px' : '50%',
             transform: floating ? 'translateY(0)' : 'translateY(-50%)',
-            fontSize: floating ? '9.5px' : '14px',
+            fontSize: floating ? '12px' : '14px',
             fontWeight: floating ? 700 : 500,
-            color: focused ? '#FF6B00' : floating ? '#64748B' : '#94A3B8',
-            letterSpacing: floating ? '0.5px' : '0px',
-            textTransform: floating ? 'uppercase' : 'none',
+            color: focused ? '#C2410C' : floating ? '#64748B' : '#64748B',
+            textTransform: 'none',
             pointerEvents: 'none',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             zIndex: 1,
@@ -203,13 +203,14 @@ export const IncidentReporting: React.FC = () => {
           p: 2.5,
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
           pb: 'calc(var(--safe-area-bottom) + 90px)',
         }}
       >
-        <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif', lineHeight: 1.45 }}>
+        <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif', lineHeight: 1.45 }}>
           {language === 'tl'
             ? 'Direktang ipinapadala ang ulat na ito sa LGU Transport Board at TODA Grievance Committee para sa kaukulang imbestigasyon.'
             : 'This report is forwarded directly to the LGU Transport Board and TODA Grievance Committee for official investigation.'}
@@ -264,6 +265,9 @@ export const IncidentReporting: React.FC = () => {
         {/* Flat Photo Evidence Upload Card (No Shadow, No Optional, No Browse Pill) */}
         <Paper
           elevation={0}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={() => fileInputRef.current?.click()}
           sx={{
             p: 2,
@@ -299,7 +303,7 @@ export const IncidentReporting: React.FC = () => {
                   ? selectedFile.name
                   : (language === 'tl' ? 'Mag-upload ng Larawan o Katibayan' : 'Upload Photo or Evidence')}
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: '#64748B', fontFamily: 'Poppins, sans-serif', mt: 0.25 }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif', mt: 0.25 }}>
                 {selectedFile
                   ? (language === 'tl' ? 'Nai-attach na ang larawan' : 'Photo attached successfully')
                   : (language === 'tl' ? 'Screenshot, resibo, o litrato ng tricycle' : 'Screenshot, receipt, or photo of tricycle')}
@@ -309,10 +313,10 @@ export const IncidentReporting: React.FC = () => {
 
           {selectedFile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <IconButton size="small" onClick={() => fileInputRef.current?.click()} sx={{ color: '#FF6B00' }}>
+              <IconButton aria-label={language === "tl" ? "Palitan ang file" : "Replace file"} size="small" onClick={() => fileInputRef.current?.click()} sx={{ color: '#FF6B00' }}>
                 <RefreshIcon sx={{ fontSize: 18 }} />
               </IconButton>
-              <IconButton size="small" onClick={handleRemoveFile} sx={{ color: '#EF4444' }}>
+              <IconButton aria-label={language === "tl" ? "Alisin ang file" : "Remove file"} size="small" onClick={handleRemoveFile} sx={{ color: '#EF4444' }}>
                 <DeleteOutlinedIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Box>
@@ -364,7 +368,7 @@ export const IncidentReporting: React.FC = () => {
               textTransform: 'none',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#B91C1C', boxShadow: 'none' },
-              '&.Mui-disabled': { backgroundColor: '#F1F5F9', color: '#94A3B8' },
+              '&.Mui-disabled': { backgroundColor: '#F1F5F9', color: '#64748B' },
             }}
           >
             {submitting ? (language === 'tl' ? 'Isinusumite...' : 'Submitting...') : language === 'tl' ? 'Isumite ang Reklamo' : 'Submit Report'}

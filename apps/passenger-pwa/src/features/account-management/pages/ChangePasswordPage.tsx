@@ -13,6 +13,7 @@ import PageHeader from "../../../common/components/PageHeader";
 import { RegisterInput } from "../../../common/components/RegisterInput";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { supabase } from "../../../services/supabaseClient";
+import { extendTapArea } from "@sakay/shared";
 
 const ChangePasswordPage: React.FC = () => {
   const { language } = useLanguage();
@@ -102,6 +103,7 @@ const ChangePasswordPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2.5,
           display: "flex",
           flexDirection: "column",
@@ -138,7 +140,7 @@ const ChangePasswordPage: React.FC = () => {
             onChange={(val) => setCurrentPassword(val)}
             type={showCurrentPassword ? "text" : "password"}
             endAdornment={
-              <IconButton size="small" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+              <IconButton aria-label={showCurrentPassword ? (language === "tl" ? "Itago ang kasalukuyang password" : "Hide current password") : (language === "tl" ? "Ipakita ang kasalukuyang password" : "Show current password")} sx={extendTapArea(8)} size="small" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
                 {showCurrentPassword ? (
                   <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
                 ) : (
@@ -155,7 +157,7 @@ const ChangePasswordPage: React.FC = () => {
             type={showNewPassword ? "text" : "password"}
             required
             endAdornment={
-              <IconButton size="small" onClick={() => setShowNewPassword(!showNewPassword)}>
+              <IconButton aria-label={showNewPassword ? (language === "tl" ? "Itago ang bagong password" : "Hide new password") : (language === "tl" ? "Ipakita ang bagong password" : "Show new password")} sx={extendTapArea(8)} size="small" onClick={() => setShowNewPassword(!showNewPassword)}>
                 {showNewPassword ? (
                   <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
                 ) : (
@@ -172,7 +174,7 @@ const ChangePasswordPage: React.FC = () => {
             type={showConfirmPassword ? "text" : "password"}
             required
             endAdornment={
-              <IconButton size="small" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+              <IconButton aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")} sx={extendTapArea(8)} size="small" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                 {showConfirmPassword ? (
                   <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
                 ) : (
@@ -199,7 +201,7 @@ const ChangePasswordPage: React.FC = () => {
               boxShadow: "none",
               mt: 1,
               "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-              "&:disabled": { backgroundColor: "#F1F5F9", color: "#94A3B8" },
+              "&:disabled": { backgroundColor: "#F1F5F9", color: "#64748B" },
             }}
           >
             {loading ? (

@@ -19,6 +19,7 @@ import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { extendTapArea } from '@sakay/shared';
 
 export const DriverResetPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -122,6 +123,7 @@ export const DriverResetPassword: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label="Back"
           onClick={() => navigate('/driver/login')}
           sx={{
             color: '#0F172A',
@@ -146,6 +148,7 @@ export const DriverResetPassword: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -155,7 +158,7 @@ export const DriverResetPassword: React.FC = () => {
           <Typography
             sx={{
               fontSize: '26px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
               letterSpacing: '-0.5px',
@@ -195,7 +198,7 @@ export const DriverResetPassword: React.FC = () => {
                   color: '#64748B',
                   fontSize: '14px',
                   fontWeight: 500,
-                  '&.Mui-focused': { color: '#FF6B00', fontWeight: 600 },
+                  '&.Mui-focused': { color: '#C2410C', fontWeight: 600 },
                   ...(showPasswordIcon ? { transform: 'translate(44px, 16px) scale(1)' } : {}),
                 },
               },
@@ -208,10 +211,11 @@ export const DriverResetPassword: React.FC = () => {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                       size="small"
-                      sx={{ color: '#64748B' }}
+                      sx={{ ...extendTapArea(8), color: '#64748B' }}
                     >
                       {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                     </IconButton>
@@ -234,10 +238,10 @@ export const DriverResetPassword: React.FC = () => {
           {!isPasswordValid && newPassword.length > 0 && (
             <Box sx={{ mt: -0.5, mb: 0.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
+                <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
                   Password Strength:
                 </Typography>
-                <Typography sx={{ fontSize: '11px', color: getStrengthColor(), fontWeight: 700 }}>
+                <Typography sx={{ fontSize: '12px', color: getStrengthColor(), fontWeight: 700 }}>
                   {getStrengthLabel()}
                 </Typography>
               </Box>
@@ -270,11 +274,11 @@ export const DriverResetPassword: React.FC = () => {
                     {crit.met ? (
                       <CheckCircleIcon sx={{ fontSize: 16, color: '#16A34A' }} />
                     ) : (
-                      <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
+                      <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: '#64748B' }} />
                     )}
                     <Typography
                       sx={{
-                        fontSize: '11.5px',
+                        fontSize: '12px',
                         color: crit.met ? '#16A34A' : '#64748B',
                         fontWeight: crit.met ? 600 : 400,
                       }}
@@ -308,7 +312,7 @@ export const DriverResetPassword: React.FC = () => {
             slotProps={{
               formHelperText: {
                 sx: {
-                  fontSize: '11.5px',
+                  fontSize: '12px',
                   color: isPasswordMismatched ? '#DC2626' : showMatchSuccess ? '#16A34A' : '#64748B',
                   fontWeight: isPasswordMismatched || showMatchSuccess ? 600 : 400,
                 },
@@ -319,7 +323,7 @@ export const DriverResetPassword: React.FC = () => {
                   color: '#64748B',
                   fontSize: '14px',
                   fontWeight: 500,
-                  '&.Mui-focused': { color: '#FF6B00', fontWeight: 600 },
+                  '&.Mui-focused': { color: '#C2410C', fontWeight: 600 },
                   ...(showConfirmPasswordIcon ? { transform: 'translate(44px, 16px) scale(1)' } : {}),
                 },
               },
@@ -332,10 +336,11 @@ export const DriverResetPassword: React.FC = () => {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       edge="end"
                       size="small"
-                      sx={{ color: '#64748B' }}
+                      sx={{ ...extendTapArea(8), color: '#64748B' }}
                     >
                       {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                     </IconButton>
@@ -366,7 +371,7 @@ export const DriverResetPassword: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: '#FF6B00',
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

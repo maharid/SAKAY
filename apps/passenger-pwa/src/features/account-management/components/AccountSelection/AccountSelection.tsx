@@ -9,6 +9,7 @@ import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import Logo from "../../../../common/components/Logo";
+import { activateWithKeyboard } from '@sakay/shared';
 
 const AccountSelection: React.FC = () => {
   const { t } = useLanguage();
@@ -41,6 +42,7 @@ const AccountSelection: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label="Back"
           onClick={() => navigate("/get-started")}
           sx={{
             backgroundColor: "#FFFFFF",
@@ -67,7 +69,7 @@ const AccountSelection: React.FC = () => {
           component="h2"
           sx={{
             fontSize: "24px",
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#0F172A",
             lineHeight: 1.3,
           }}
@@ -103,6 +105,7 @@ const AccountSelection: React.FC = () => {
           onClick={() => handleSelectRole("passenger")}
           role="button"
           tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -159,7 +162,7 @@ const AccountSelection: React.FC = () => {
             </Typography>
           </Box>
 
-          <ChevronRightIcon sx={{ color: "#94A3B8" }} />
+          <ChevronRightIcon sx={{ color: "#64748B" }} />
         </Box>
 
         {/* Driver Card */}
@@ -167,6 +170,7 @@ const AccountSelection: React.FC = () => {
           onClick={() => handleSelectRole("driver")}
           role="button"
           tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -223,7 +227,7 @@ const AccountSelection: React.FC = () => {
             </Typography>
           </Box>
 
-          <ChevronRightIcon sx={{ color: "#94A3B8" }} />
+          <ChevronRightIcon sx={{ color: "#64748B" }} />
         </Box>
       </Box>
     </Box>

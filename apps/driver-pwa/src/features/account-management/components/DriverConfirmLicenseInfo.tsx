@@ -218,11 +218,10 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
             right: isRestriction || isGender ? '36px' : '16px',
             top: isFloating ? '6px' : '50%',
             transform: isFloating ? 'translateY(0)' : 'translateY(-50%)',
-            fontSize: isFloating ? '9.5px' : '14px',
+            fontSize: isFloating ? '12px' : '14px',
             fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : isFloating ? '#64748B' : '#94A3B8',
-            letterSpacing: isFloating ? '0.5px' : '0px',
-            textTransform: isFloating ? 'uppercase' : 'none',
+            color: error ? '#DC2626' : focused ? '#C2410C' : isFloating ? '#64748B' : '#64748B',
+            textTransform: 'none',
             userSelect: 'none',
             pointerEvents: 'none',
             whiteSpace: isFloating ? 'normal' : 'nowrap',
@@ -322,7 +321,7 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
                       justifyContent: 'space-between',
                     }}
                   >
-                    <Typography sx={{ fontSize: '14px', fontWeight: isChecked ? 800 : 600, color: isChecked ? '#FF6B00' : '#0F172A' }}>
+                    <Typography sx={{ fontSize: '14px', fontWeight: isChecked ? 700 : 600, color: isChecked ? '#C2410C' : '#0F172A' }}>
                       {code}
                     </Typography>
                     {isChecked && <CheckIcon sx={{ fontSize: 18, color: '#FF6B00' }} />}
@@ -356,6 +355,7 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
                 }}
               />
               <IconButton
+                aria-label={language === "tl" ? "Buksan ang kalendaryo" : "Open calendar"}
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -633,7 +633,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '18px', color: '#0F172A', pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '18px', color: '#0F172A', pb: 1 }}>
           {isTagalog ? 'Bumalik sa Pagkuha ng Lisensya?' : "Retake Driver's License?"}
         </DialogTitle>
         <DialogContent sx={{ py: 1 }}>
@@ -693,6 +693,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBackClick}
           sx={{
             width: 44,
@@ -725,7 +726,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
         <Typography
           sx={{
             fontSize: '26px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -765,14 +766,14 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* 1. Unang Pangalan (100%) */}
           <SakayFormInput
-            label={isTagalog ? "UNANG PANGALAN" : "FIRST NAME"}
+            label={isTagalog ? "Unang pangalan" : "First name"}
             value={formData.firstName || ''}
             onChange={(val) => handleFieldChange('firstName', val)}
           />
 
           {/* 2. Gitnang Pangalan (100%) */}
           <SakayFormInput
-            label={isTagalog ? "GITNANG PANGALAN" : "MIDDLE NAME"}
+            label={isTagalog ? "Gitnang pangalan" : "Middle name"}
             value={formData.middleName || ''}
             onChange={(val) => handleFieldChange('middleName', val)}
           />
@@ -781,14 +782,14 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Box sx={{ flex: '7 7 70%', minWidth: 0 }}>
               <SakayFormInput
-                label={isTagalog ? "APELYIDO" : "LAST NAME"}
+                label={isTagalog ? "Apelyido" : "Last name"}
                 value={formData.lastName || ''}
                 onChange={(val) => handleFieldChange('lastName', val)}
               />
             </Box>
             <Box sx={{ flex: '3 3 30%', minWidth: 0 }}>
               <SakayFormInput
-                label="SUFFIX"
+                label="Suffix"
                 value={formData.suffix || ''}
                 onChange={(val) => handleFieldChange('suffix', val)}
               />
@@ -799,7 +800,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Box sx={{ flex: '7 7 70%', minWidth: 0 }}>
               <SakayFormInput
-                label={isTagalog ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"}
+                label={isTagalog ? "Petsa ng kapanganakan" : "Date of birth"}
                 value={formData.dob}
                 onChange={(val) => handleFieldChange('dob', val)}
                 isDate
@@ -811,7 +812,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
             </Box>
             <Box sx={{ flex: '3 3 30%', minWidth: 0 }}>
               <SakayFormInput
-                label={isTagalog ? "KASARIAN" : "GENDER"}
+                label={isTagalog ? "Kasarian" : "Gender"}
                 value={formData.gender || (isTagalog ? 'Lalaki' : 'Male')}
                 onChange={(val) => handleFieldChange('gender', val)}
                 isGender
@@ -821,7 +822,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
 
           {/* 5. Tirahan (100%) */}
           <SakayFormInput
-            label={isTagalog ? "TIRAHAN" : "ADDRESS"}
+            label={isTagalog ? "Tirahan" : "Address"}
             value={formData.address}
             onChange={(val) => handleFieldChange('address', val)}
             multiline
@@ -832,7 +833,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
 
           {/* 6. Numero ng Lisensya (100%) */}
           <SakayFormInput
-            label={isTagalog ? "NUMERO NG LISENSYA" : "LICENSE NUMBER"}
+            label={isTagalog ? "Numero ng lisensya" : "License number"}
             value={formData.licenseNumber}
             onChange={(val) => handleFieldChange('licenseNumber', val)}
             error={Boolean(formData.licenseNumber && !isLicNoValid)}
@@ -841,7 +842,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
 
           {/* 7. RESTRICTIONS (100%) */}
           <SakayFormInput
-            label="RESTRICTIONS"
+            label="Restrictions"
             value={formData.dlCodes}
             onChange={(val) => handleFieldChange('dlCodes', val)}
             isRestriction
@@ -849,7 +850,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
 
           {/* 8. Petsa ng Pagkapaso (100%) */}
           <SakayFormInput
-            label={isTagalog ? "PETSA NG PAGKAPASO (EXPIRATION)" : "EXPIRATION DATE"}
+            label={isTagalog ? "Petsa ng pagkapaso (expiration)" : "Expiration date"}
             value={formData.expirationDate}
             onChange={(val) => handleFieldChange('expirationDate', val)}
             isDate
@@ -889,13 +890,13 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: isFormValid ? '#FF6B00' : '#E2E8F0',
-            color: isFormValid ? '#FFFFFF' : '#94A3B8',
+            color: isFormValid ? '#FFFFFF' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
-              color: '#94A3B8',
+              color: '#64748B',
             },
             '&:hover': {
               backgroundColor: isFormValid ? '#E66000' : '#E2E8F0',

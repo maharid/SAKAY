@@ -50,6 +50,7 @@ const AppFeedbackPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2.5,
           pb: "calc(var(--safe-area-bottom) + 24px)",
           display: "flex",
@@ -71,12 +72,12 @@ const AppFeedbackPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl"
               ? "Kamusta ang iyong karanasan sa SAKAY?"
               : "How was your experience using SAKAY?"}
           </Typography>
-          <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl"
               ? "Tulungan kaming mapabuti ang serbisyo para sa buong Calapan City."
               : "Help us improve our service for all of Calapan City."}
@@ -145,7 +146,7 @@ const AppFeedbackPage: React.FC = () => {
               borderRadius: "14px",
               height: "52px",
               fontSize: "15px",
-              fontWeight: 800,
+              fontWeight: 700,
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
               boxShadow: "none",

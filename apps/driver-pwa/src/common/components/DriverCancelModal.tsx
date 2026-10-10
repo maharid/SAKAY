@@ -6,7 +6,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { DRIVER_CANCEL_REASONS, type DriverCancelReason } from "@sakay/shared";
+import { DRIVER_CANCEL_REASONS, type DriverCancelReason, activateWithKeyboard } from "@sakay/shared";
 import { useLanguage } from "../../utils/LanguageContext";
 
 export interface DriverCancelModalProps {
@@ -77,6 +77,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
         p: "calc(var(--safe-area-top) + 16px) 16px calc(var(--safe-area-bottom) + 20px) 16px",
         boxSizing: "border-box",
         overflowY: "auto",
+        "& > *": { flexShrink: 0 },
         animation: "fadeIn 0.2s ease-out",
       }}
     >
@@ -126,8 +127,8 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
         {/* Header Title */}
         <Typography
           sx={{
-            fontSize: "16.5px",
-            fontWeight: 800,
+            fontSize: "17px",
+            fontWeight: 700,
             color: "#0F172A",
             textAlign: "center",
             fontFamily: "Poppins, sans-serif",
@@ -150,6 +151,10 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
             return (
               <Box
                 key={option.id}
+                role="radio"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
+                aria-checked={selectedOptionId === option.id}
                 onClick={() => !loading && setSelectedOptionId(option.id)}
                 sx={{
                   display: "flex",
@@ -174,7 +179,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
                 {/* Option Text */}
                 <Typography
                   sx={{
-                    fontSize: "13.5px",
+                    fontSize: "14px",
                     fontWeight: isSelected ? 700 : 500,
                     color: isSelected ? "#0F172A" : "#475569",
                     fontFamily: "Poppins, sans-serif",
@@ -245,7 +250,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
           <InfoOutlinedIcon sx={{ fontSize: 18, color: "#64748B", flexShrink: 0 }} />
           <Typography
             sx={{
-              fontSize: "11.5px",
+              fontSize: "12px",
               color: "#64748B",
               lineHeight: 1.4,
               fontFamily: "Poppins, sans-serif",
@@ -270,8 +275,8 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
             borderRadius: "14px",
             backgroundColor: "#FF6B00",
             color: "#FFFFFF",
-            fontWeight: 800,
-            fontSize: "14.5px",
+            fontWeight: 700,
+            fontSize: "15px",
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",
             boxShadow: "0 4px 14px rgba(255, 107, 0, 0.25)",

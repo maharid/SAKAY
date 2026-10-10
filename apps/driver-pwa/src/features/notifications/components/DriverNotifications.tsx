@@ -16,6 +16,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverNotifications } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { activateWithKeyboard } from '@sakay/shared';
 
 export interface NotificationItem {
   id: string;
@@ -212,10 +213,10 @@ export const DriverNotifications: React.FC = () => {
               {getCategoryIcon(selectedNotif.category)}
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#FF6B00' }}>
+              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#C2410C' }}>
                 TODA Administrator
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 {time}
               </Typography>
             </Box>
@@ -224,7 +225,7 @@ export const DriverNotifications: React.FC = () => {
           <Typography
             sx={{
               fontSize: '18px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.3,
               mb: 2,
@@ -283,6 +284,10 @@ export const DriverNotifications: React.FC = () => {
             return (
               <Box
                 key={f.key}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
+                aria-pressed={activeFilter === f.key}
                 onClick={() => setActiveFilter(f.key as any)}
                 sx={{
                   px: 1.75,
@@ -295,7 +300,7 @@ export const DriverNotifications: React.FC = () => {
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.18s ease',
-                  height: '28px',
+                  height: '36px',
                   display: 'flex',
                   alignItems: 'center',
                   '&:hover': {
@@ -339,12 +344,14 @@ export const DriverNotifications: React.FC = () => {
               sx={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: '#FF6B00',
+                color: '#C2410C',
                 textTransform: 'none',
-                p: '2px 4px',
-                borderRadius: '6px',
-                lineHeight: 1,
-                whiteSpace: 'nowrap',
+                p: '6px 8px',
+                minHeight: 40,
+                maxWidth: '60%',
+                textAlign: 'right',
+                borderRadius: '8px',
+                lineHeight: 1.25,
                 '&:hover': { backgroundColor: '#FFF7ED' },
               }}
             >
@@ -360,7 +367,7 @@ export const DriverNotifications: React.FC = () => {
           </Box>
         ) : filteredNotifications.length === 0 ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '13px', color: '#94A3B8' }}>
+            <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
               {isTagalog
                 ? 'Walang notification sa kategoryang ito'
                 : 'No notifications in this category'}
@@ -377,6 +384,9 @@ export const DriverNotifications: React.FC = () => {
                 <React.Fragment key={item.id}>
                   {index > 0 && <Divider sx={{ borderColor: '#F1F5F9' }} />}
                   <Box
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     onClick={() => handleNotificationClick(item)}
                     sx={{
                       py: 1.5,
@@ -451,16 +461,16 @@ export const DriverNotifications: React.FC = () => {
 
                       <Typography
                         sx={{
-                          fontSize: '11px',
+                          fontSize: '12px',
                           fontWeight: 400,
-                          color: '#94A3B8',
+                          color: '#64748B',
                         }}
                       >
                         {time}
                       </Typography>
                     </Box>
 
-                    <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20, mt: 0.5, flexShrink: 0 }} />
+                    <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20, mt: 0.5, flexShrink: 0 }} />
                   </Box>
                 </React.Fragment>
               );

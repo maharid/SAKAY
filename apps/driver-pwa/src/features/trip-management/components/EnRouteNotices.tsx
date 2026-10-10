@@ -50,14 +50,14 @@ const EnRouteNotices: React.FC<EnRouteNoticesProps> = ({ bookingId, language, st
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       {stallWarnedAt && (
-        <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12.5px', fontWeight: 600 }}>
+        <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '13px', fontWeight: 600 }}>
           {language === 'tl'
             ? 'Hindi ka pa nagsisimulang pumunta sa pasahero. Pakisimulan o ikansela ang booking.'
             : 'You have not started traveling toward the passenger. Please proceed or cancel the booking.'}
         </Alert>
       )}
       <Box>
-        <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 0.5 }}>
           {language === 'tl' ? 'Huminto sa daan? Ipaalam kung bakit:' : 'Stopped on the way? Tell us why:'}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>

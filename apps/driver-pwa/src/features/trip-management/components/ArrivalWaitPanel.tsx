@@ -102,18 +102,18 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
           <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
             {language === 'tl' ? 'Oras ng paghihintay sa pasahero' : "Passenger's waiting time"}
           </Typography>
-          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 800, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
+          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 700, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
             {over ? (language === 'tl' ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
           </Typography>
         </Box>
       </Box>
       {wait.extended && !over && (
-        <Typography sx={{ fontSize: '11.5px', color: '#78350F', fontWeight: 600 }}>
+        <Typography sx={{ fontSize: '12px', color: '#78350F', fontWeight: 600 }}>
           {language === 'tl' ? 'Humingi ang pasahero ng dagdag na 2 minuto ("Papunta Na Ako").' : 'The passenger asked for 2 more minutes ("I\'m Almost There").'}
         </Typography>
       )}
       {over && !wait.canReportNoShow && (
-        <Typography sx={{ fontSize: '11.5px', color: '#B91C1C', fontWeight: 600 }}>
+        <Typography sx={{ fontSize: '12px', color: '#B91C1C', fontWeight: 600 }}>
           {language === 'tl'
             ? 'Para maiulat ang no-show, dapat nasa pickup point ka at malinaw ang GPS.'
             : 'To report a no-show you must be at the pickup point with a clear GPS signal.'}
@@ -131,11 +131,11 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
       </Button>
 
       <Dialog open={confirmOpen} onClose={() => !reporting && setConfirmOpen(false)} slotProps={{ paper: { sx: { borderRadius: '20px', p: 1 } } }}>
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '17px', textAlign: 'center' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', textAlign: 'center' }}>
           {language === 'tl' ? 'Iulat ang no-show?' : 'Report a no-show?'}
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: '13.5px', color: '#475569', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '14px', color: '#475569', textAlign: 'center' }}>
             {language === 'tl'
               ? 'Makakansela ang booking at 2 strike ang ibibigay sa pasahero. Hindi na ito mababawi. Kumpirmahin lamang kung talagang hindi siya sumakay.'
               : 'The booking will be cancelled and the passenger will get 2 strikes. This cannot be undone. Confirm only if the passenger really did not board.'}
@@ -148,7 +148,7 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
             color="error"
             disabled={reporting}
             onClick={confirmNoShow}
-            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 800, height: 44 }}
+            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700, height: 44 }}
           >
             {reporting ? (language === 'tl' ? 'Isinusumite...' : 'Reporting...') : language === 'tl' ? 'Oo, iulat ang no-show' : 'Yes, report the no-show'}
           </Button>

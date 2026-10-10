@@ -15,7 +15,7 @@ import splash01 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onb
 import splash02 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-02.webp";
 import splash03 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-03.webp";
 import splash04 from "@sakay/shared/src/assets/icons/splash-screen/passenger-onboarding-04.webp";
-import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
+import { TYPOGRAPHY_TOKENS, activateWithKeyboard, extendTapArea } from "@sakay/shared";
 
 interface SplashProps {
   initialStep?: number;
@@ -432,9 +432,12 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
           {t.hasAccount}
           <Box
             component="span"
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
             onClick={() => navigate("/login")}
-            sx={{
-              color: "#FF6B00",
+            sx={{ ...extendTapArea(12),
+              color: "#C2410C",
               fontWeight: 600,
               cursor: "pointer",
               ml: "4px",

@@ -46,6 +46,8 @@ import {
   buildTripDetails,
   calculateTripProgressPercent,
   fetchServerTripProgress,
+  useInFlight,
+  extendTapArea,
 } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
@@ -196,7 +198,9 @@ export const TripMonitoring: React.FC = () => {
     if (!activeBookingId) navigate('/dashboard', { replace: true });
   }, [activeBookingId, navigate]);
 
-  const handleRetrySearch = async () => {
+  const retryFlight = useInFlight();
+
+  const restartDriverSearch = async () => {
     try {
       // A new search round that starts again from the nearest drivers (the same retry the booking screen uses)
       const restarted = await retryDriverSearch(activeBookingId);
@@ -214,6 +218,8 @@ export const TripMonitoring: React.FC = () => {
       console.warn('Retry search failed:', err);
     }
   };
+
+  const handleRetrySearch = () => retryFlight.run(restartDriverSearch);
 
   const [booking, setBooking] = useState<BookingRecord | null>(() => {
     // Until the real booking is loaded from the database this is an EMPTY placeholder (the map starts on the city centre). It
@@ -312,7 +318,12 @@ export const TripMonitoring: React.FC = () => {
   const [disputeError, setDisputeError] = useState<string | null>(null);
   const [disputeSending, setDisputeSending] = useState(false);
 
-  const handlePassengerFinishTrip = async () => {
+  // One request at a time: a second tap while the first is being saved must not write again (the database would refuse it and the toast would lie).
+  const finishFlight = useInFlight();
+  const paidFlight = useInFlight();
+  const cancelFlight = useInFlight();
+
+  const markArrivedAtDestination = async () => {
     try {
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
         // The database computes and locks the final fare when the trip first arrives (Rule 6.2); read it back
@@ -358,7 +369,9 @@ export const TripMonitoring: React.FC = () => {
     setCompletionFareModalOpen(true);
   };
 
-  const handlePassengerPaid = async () => {
+  const handlePassengerFinishTrip = () => finishFlight.run(markArrivedAtDestination);
+
+  const confirmPassengerPayment = async () => {
     try {
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
         // The passenger confirms payment; the final fare is NOT sent from here (Rule 6.2): the database
@@ -395,6 +408,8 @@ export const TripMonitoring: React.FC = () => {
     setCompletionFareModalOpen(true);
   };
 
+
+  const handlePassengerPaid = () => paidFlight.run(confirmPassengerPayment);
 
   // Driver Location Telemetry
   const [driverPos, setDriverPos] = useState<{ lat: number; lng: number; at?: number }>({
@@ -731,7 +746,7 @@ export const TripMonitoring: React.FC = () => {
     }
   };
 
-  const handleCancelTrip = async (reasonText?: string) => {
+  const cancelPassengerBooking = async (reasonText?: string) => {
     const finalReason = reasonText || (language === 'tl' ? 'Kinansela ng pasahero bago ang pickup' : 'Passenger cancelled before pickup');
     const cancelled = await cancelBooking(activeBookingId, finalReason);
     setCancelModalOpen(false);
@@ -747,6 +762,8 @@ export const TripMonitoring: React.FC = () => {
     sessionStorage.removeItem('current_active_booking_id');
     navigate('/dashboard');
   };
+
+  const handleCancelTrip = (reasonText?: string) => cancelFlight.run(() => cancelPassengerBooking(reasonText));
 
   const handleOpenCommModal = () => {
     setSelectedSmsTemplate('');
@@ -886,7 +903,7 @@ export const TripMonitoring: React.FC = () => {
           </Typography>
           <Typography
             sx={{
-              fontSize: '11px',
+              fontSize: '12px',
               color: '#64748B',
               fontFamily: 'Poppins, sans-serif',
             }}
@@ -957,8 +974,8 @@ export const TripMonitoring: React.FC = () => {
                 ? '#1E8E3E'
                 : '#0F172A',
             color: '#FFFFFF',
-            fontWeight: 800,
-            fontSize: '12.5px',
+            fontWeight: 700,
+            fontSize: '13px',
             backdropFilter: 'blur(8px)',
             border: '1px solid rgba(255, 255, 255, 0.15)',
             boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
@@ -1110,7 +1127,7 @@ export const TripMonitoring: React.FC = () => {
                 <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
                   {language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
                 </Typography>
-                <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>{tripProgress}%</Typography>
+                <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{tripProgress}%</Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
@@ -1166,7 +1183,8 @@ export const TripMonitoring: React.FC = () => {
                   variant="contained"
                   fullWidth
                   onClick={handleRetrySearch}
-                  sx={{ minHeight: 52, borderRadius: '16px', backgroundColor: '#FF6B00', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E55F00', boxShadow: 'none' } }}
+                  disabled={retryFlight.busy}
+                  sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6B00', color: '#FFFFFF', opacity: 0.75 }, backgroundColor: '#FF6B00', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E55F00', boxShadow: 'none' } }}
                 >
                   {language === 'tl' ? 'Subukan Muli' : 'Retry Search'}
                 </Button>
@@ -1176,9 +1194,11 @@ export const TripMonitoring: React.FC = () => {
                 variant="contained"
                 fullWidth
                 onClick={handlePassengerPaid}
+                disabled={paidFlight.busy}
                 sx={{
                   minHeight: 52,
                   borderRadius: '16px',
+                  '&.Mui-disabled': { backgroundColor: '#15803D', color: '#FFFFFF', opacity: 0.75 },
                   backgroundColor: '#15803D',
                   fontWeight: 700,
                   fontSize: '16px',
@@ -1187,11 +1207,13 @@ export const TripMonitoring: React.FC = () => {
                   '&:hover': { backgroundColor: '#166534', boxShadow: 'none' },
                 }}
               >
-                {language === 'tl' ? 'Nabayaran Ko Na (I Paid)' : 'I Paid'}
+                {paidFlight.busy
+                  ? (language === 'tl' ? 'Kinukumpirma...' : 'Confirming...')
+                  : (language === 'tl' ? 'Nabayaran Ko Na (I Paid)' : 'I Paid')}
               </Button>
             ) : status === 'Trip Ongoing' ? (
               /* A trip in progress cannot be cancelled (it ends instead, Rule 13) */
-              <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} disabled={false} />
+              <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} disabled={finishFlight.busy} />
             ) : (
               /* Before the trip starts the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
               <Button
@@ -1213,6 +1235,7 @@ export const TripMonitoring: React.FC = () => {
         onClose={() => setCancelModalOpen(false)}
         onConfirmCancel={handleCancelTrip}
         language={language}
+        loading={cancelFlight.busy}
       />
 
       {/* 5. Passenger SMS Communication Modal */}
@@ -1224,14 +1247,14 @@ export const TripMonitoring: React.FC = () => {
         slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
-          <Typography sx={{ fontSize: '17px', fontWeight: 800 }}>
+          <Typography sx={{ fontSize: '17px', fontWeight: 700 }}>
             {language === 'tl' ? `Mensahe kay Driver ${driverName.split(' ')[0]}` : `Message Driver ${driverName.split(' ')[0]}`}
           </Typography>
-          <IconButton onClick={() => setCommModalOpen(false)} size="small"><CloseIcon /></IconButton>
+          <IconButton aria-label={language === "tl" ? "Isara" : "Close"} onClick={() => setCommModalOpen(false)} size="small" sx={extendTapArea(7)}><CloseIcon /></IconButton>
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
           <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
-            {language === 'tl' ? 'PUMILI NG MENSAHE' : 'SELECT A MESSAGE'}
+            {language === 'tl' ? 'Pumili ng mensahe' : 'Select a message'}
           </Typography>
 
           <FormControl component="fieldset">
@@ -1301,7 +1324,7 @@ export const TripMonitoring: React.FC = () => {
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
               '&:hover': { backgroundColor: '#E05000' },
-              '&.Mui-disabled': { backgroundColor: '#CBD5E1', color: '#94A3B8' },
+              '&.Mui-disabled': { backgroundColor: '#CBD5E1', color: '#64748B' },
             }}
           >
             {language === 'tl' ? 'Ipadala ang Mensahe' : 'Send Message'}
@@ -1317,7 +1340,7 @@ export const TripMonitoring: React.FC = () => {
         maxWidth="xs"
         slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '17px', color: '#0F172A' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', color: '#0F172A' }}>
           {language === 'tl' ? 'Kasalukuyang Aktibo ang Biyahe' : 'Trip Is Currently Active'}
         </DialogTitle>
         <DialogContent>
@@ -1360,23 +1383,23 @@ export const TripMonitoring: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5, mt: 0.5 }}>
           <CheckCircleIcon sx={{ fontSize: 60, color: '#10B981' }} />
         </Box>
-        <Typography sx={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+        <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
           {language === 'tl' ? 'Nakarating na sa Destinasyon!' : 'Arrived at Destination!'}
         </Typography>
-        <Typography sx={{ fontSize: '13.5px', color: '#64748B', mb: 2.5, px: 1 }}>
+        <Typography sx={{ fontSize: '14px', color: '#64748B', mb: 2.5, px: 1 }}>
           {language === 'tl'
             ? 'Pakisuri ang siningil na pamasahe ng drayber bago magpatuloy.'
             : 'Please verify the fare charged by the driver before proceeding.'}
         </Typography>
 
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', mb: 3, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: '#64748B', letterSpacing: '0.5px', textAlign: 'center', display: 'block' }}>
-            {language === 'tl' ? 'OPISYAL NA PAMASAHE' : 'OFFICIAL TARIFF FARE'}
+          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textAlign: 'center', display: 'block' }}>
+            {language === 'tl' ? 'Opisyal na pamasahe' : 'Official tariff fare'}
           </Typography>
-          <Typography sx={{ fontSize: '34px', fontWeight: 900, color: '#FF6B00', my: 1, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '34px', fontWeight: 700, color: '#C2410C', my: 1, textAlign: 'center' }}>
             ₱{passengerPayableFare.toFixed(2)}
           </Typography>
-          <Typography sx={{ fontSize: '11.5px', color: '#94A3B8', textAlign: 'center', display: 'block' }}>
+          <Typography sx={{ fontSize: '12px', color: '#64748B', textAlign: 'center', display: 'block' }}>
             {fareOrdinance
               ? (language === 'tl' ? `Batay sa ${fareOrdinance}` : `Based on ${fareOrdinance}`)
               : (language === 'tl' ? 'Batay sa opisyal na taripa ng Lungsod ng Calapan' : 'Based on the official Calapan City tariff')}
@@ -1411,12 +1434,12 @@ export const TripMonitoring: React.FC = () => {
             sx={{
               height: '52px',
               borderRadius: '16px',
-              backgroundColor: '#10B981',
-              fontWeight: 800,
-              fontSize: '14.5px',
+              backgroundColor: '#15803D',
+              fontWeight: 700,
+              fontSize: '15px',
               textTransform: 'none',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-              '&:hover': { backgroundColor: '#059669' },
+              boxShadow: '0 4px 14px rgba(21, 128, 61, 0.3)',
+              '&:hover': { backgroundColor: '#166534' },
             }}
           >
             {language === 'tl'
@@ -1437,7 +1460,7 @@ export const TripMonitoring: React.FC = () => {
               height: '46px',
               borderRadius: '16px',
               fontWeight: 700,
-              fontSize: '13.5px',
+              fontSize: '14px',
               textTransform: 'none',
               borderColor: '#FCA5A5',
               color: '#EF4444',
@@ -1458,7 +1481,7 @@ export const TripMonitoring: React.FC = () => {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
           <ReportProblemIcon sx={{ color: '#EF4444' }} />
-          <Typography sx={{ fontSize: '17px', fontWeight: 800, color: '#0F172A' }}>
+          <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#0F172A' }}>
             {language === 'tl' ? 'Isumite ang Reklamo sa LGU' : 'Submit Dispute to City LGU'}
           </Typography>
         </DialogTitle>
@@ -1472,7 +1495,7 @@ export const TripMonitoring: React.FC = () => {
             </Alert>
           ) : (
             <>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B' }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
                 {language === 'tl'
                   ? 'Ipapadala ang ulat na ito sa City LGU Administrator sa ilalim ng Complaint & Incident Management.'
                   : 'This report is sent directly to the City LGU Administrator under Complaint & Incident Management.'}
@@ -1593,7 +1616,7 @@ export const TripMonitoring: React.FC = () => {
       >
         <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 1 }}>
           <CancelIcon sx={{ fontSize: 48, color: '#EF4444', mb: 1 }} />
-          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Kanselado ang Biyahe' : 'Trip Cancelled'}
           </Typography>
         </DialogTitle>
@@ -1609,7 +1632,7 @@ export const TripMonitoring: React.FC = () => {
           </Typography>
           {driverCancelReason && (
             <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
-              <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+              <Typography sx={{ fontSize: '13px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
                 {language === 'tl' ? 'Rason:' : 'Reason:'} "{driverCancelReason}"
               </Typography>
             </Box>
@@ -1628,7 +1651,7 @@ export const TripMonitoring: React.FC = () => {
               height: 46,
               borderRadius: '14px',
               backgroundColor: '#FF6B00',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',

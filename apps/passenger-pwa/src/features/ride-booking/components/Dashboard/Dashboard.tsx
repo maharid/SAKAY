@@ -345,7 +345,16 @@ const Dashboard: React.FC = () => {
       {isTripInProgress && activeBookingId && (
         <Paper
           elevation={4}
+          role="button"
+          tabIndex={0}
+          aria-label={language === 'tl' ? 'Subaybayan ang aktibong biyahe' : 'Track the active trip'}
           onClick={() => navigate('/trip-monitoring', { state: { bookingId: activeBookingId } })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate('/trip-monitoring', { state: { bookingId: activeBookingId } });
+            }
+          }}
           sx={{
             position: "absolute",
             top: "calc(var(--safe-area-top) + 80px)",
@@ -363,10 +372,10 @@ const Dashboard: React.FC = () => {
             boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
             border: "1px solid rgba(255, 107, 0, 0.5)",
             transition: "transform 0.2s ease",
-            "&:hover": { transform: "scale(1.02)" },
+            "&:active": { transform: "scale(0.99)" },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
             <Box
               sx={{
                 width: "10px",
@@ -381,16 +390,16 @@ const Dashboard: React.FC = () => {
                 },
               }}
             />
-            <Box>
+            <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6B00" }}>
                 {language === 'tl' ? 'Aktibong Biyahe:' : 'Active Trip:'} {openBooking?.booking_status}
               </Typography>
-              <Typography sx={{ fontSize: "11px", color: "#94A3B8" }}>
+              <Typography noWrap sx={{ fontSize: "12px", color: "#CBD5E1" }}>
                 {openBooking?.pickup_address.split(',')[0]} ➜ {openBooking?.dropoff_address.split(',')[0]}
               </Typography>
             </Box>
           </Box>
-          <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF" }}>
+          <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FFFFFF", whiteSpace: "nowrap", flexShrink: 0, pl: 1.5 }}>
             {language === 'tl' ? 'Subaybayan ➜' : 'Track ➜'}
           </Typography>
         </Paper>
@@ -499,7 +508,7 @@ const Dashboard: React.FC = () => {
               <Typography
                 sx={{
                   fontSize: "17px",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   color: "#0F172A",
                   lineHeight: 1.35,
                   marginBottom: "12px",
@@ -525,7 +534,7 @@ const Dashboard: React.FC = () => {
               {permissionRequesting && (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "12px" }}>
                   <CircularProgress size={16} sx={{ color: "#FF6B00" }} />
-                  <Typography sx={{ fontSize: "12px", color: "#FF6B00", fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: "12px", color: "#C2410C", fontWeight: 600 }}>
                     {language === 'tl' ? 'Humihingi ng pahintulot sa browser...' : 'Requesting browser permission...'}
                   </Typography>
                 </Box>
@@ -564,7 +573,7 @@ const Dashboard: React.FC = () => {
               onClick={() => handleAllowLocation(true)}
               sx={{
                 padding: "14px 16px",
-                color: "#FF6B00",
+                color: "#C2410C",
                 fontWeight: 700,
                 fontSize: "14px",
                 textTransform: "none",
