@@ -433,6 +433,7 @@ export const VerifyOtp: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
             if (state?.returnTo) navigate(state.returnTo);
             else if (state?.isRecovery) navigate('/forgot-password');
@@ -460,6 +461,7 @@ export const VerifyOtp: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px 16px 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -470,7 +472,7 @@ export const VerifyOtp: React.FC = () => {
           <Typography
             sx={{
               fontSize: '26px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
               letterSpacing: '-0.5px',
@@ -518,7 +520,7 @@ export const VerifyOtp: React.FC = () => {
                 {language === 'tl'
                   ? 'Masyadong maraming maling code. Subukan muli sa loob ng'
                   : 'Too many incorrect attempts. Try again in'}{' '}
-                <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 800 }}>
+                <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                   {mmss(lockRemaining)}
                 </Box>
               </Typography>
@@ -558,7 +560,7 @@ export const VerifyOtp: React.FC = () => {
                   style: {
                     textAlign: 'center',
                     fontSize: '22px',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     color: '#0F172A',
                     padding: 0,
                     height: '58px',
@@ -596,14 +598,14 @@ export const VerifyOtp: React.FC = () => {
             borderRadius: '14px',
             backgroundColor: resendBlocked ? '#F8FAFC' : '#FFFFFF',
             border: resendBlocked ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
-            color: resendBlocked ? '#94A3B8' : '#FF6B00',
+            color: resendBlocked ? '#64748B' : '#C2410C',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 1,
             cursor: resendBlocked ? 'not-allowed' : 'pointer',
             outline: 'none',
-            fontSize: '14.5px',
+            fontSize: '15px',
             fontWeight: 700,
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -624,7 +626,7 @@ export const VerifyOtp: React.FC = () => {
           ) : (
             <RefreshRoundedIcon sx={{ fontSize: 19, color: 'inherit' }} />
           )}
-          <Typography sx={{ fontSize: '14.5px', fontWeight: 700, color: 'inherit' }}>
+          <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'inherit' }}>
             {isResending
               ? (language === 'tl' ? 'Ipinapadala...' : 'Sending...')
               : isLockedOut
@@ -655,13 +657,13 @@ export const VerifyOtp: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: isComplete ? '#FF6B00' : '#E2E8F0',
-            color: isComplete ? '#FFFFFF' : '#94A3B8',
+            color: isComplete ? '#FFFFFF' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
-              color: '#94A3B8',
+              color: '#64748B',
             },
             '&:hover': {
               backgroundColor: isComplete ? '#E66000' : '#E2E8F0',

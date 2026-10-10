@@ -308,6 +308,7 @@ export const DriverScanLicenseBack: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => navigate('/driver/review-license-front', { state })}
           sx={{
             width: 44,
@@ -337,6 +338,7 @@ export const DriverScanLicenseBack: React.FC = () => {
           py: 2.5,
           position: 'relative',
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
         }}
@@ -355,12 +357,12 @@ export const DriverScanLicenseBack: React.FC = () => {
           }}
         >
           {t.scanBackPromptPrefix}
-          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
             {t.scanBackWord}
           </Box>
           {t.scanPromptMid}
           <br />
-          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
             {t.philippineDriversLicense}
           </Box>
           {t.scanPromptSuffix}
@@ -505,7 +507,7 @@ export const DriverScanLicenseBack: React.FC = () => {
               }}
             >
               <CircularProgress size={38} sx={{ color: '#FF6B00', thickness: 4.5 }} />
-              <Typography sx={{ color: '#FFFFFF', fontSize: '14.5px', fontWeight: 700, textAlign: 'center' }}>
+              <Typography sx={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}>
                 {t.analyzingImageQuality}
               </Typography>
             </Box>
@@ -568,9 +570,9 @@ export const DriverScanLicenseBack: React.FC = () => {
         >
           <Typography
             sx={{
-              color: '#FF6B00',
-              fontWeight: 800,
-              fontSize: '13.5px',
+              color: '#C2410C',
+              fontWeight: 700,
+              fontSize: '14px',
               mb: 1.25,
               display: 'flex',
               alignItems: 'center',
@@ -585,7 +587,7 @@ export const DriverScanLicenseBack: React.FC = () => {
               margin: 0,
               paddingLeft: '18px',
               color: '#E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               lineHeight: 1.6,
               '& li': { mb: 0.5 },
             }}
@@ -609,6 +611,7 @@ export const DriverScanLicenseBack: React.FC = () => {
           }}
         >
           <IconButton
+            aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
             onClick={handleToggleTorch}
             sx={{
               color: torchOn ? '#FF6B00' : '#FFFFFF',
@@ -624,6 +627,7 @@ export const DriverScanLicenseBack: React.FC = () => {
           </IconButton>
 
           <IconButton
+            aria-label={language === "tl" ? "Kumuha ng larawan" : "Take photo"}
             onClick={handleCapture}
             disabled={isAnalyzing}
             sx={{
@@ -648,6 +652,7 @@ export const DriverScanLicenseBack: React.FC = () => {
           </IconButton>
 
           <IconButton
+            aria-label={language === "tl" ? "Palitan ang camera" : "Switch camera"}
             onClick={handleToggleFacingMode}
             disabled={isAnalyzing}
             sx={{
@@ -700,7 +705,7 @@ export const DriverScanLicenseBack: React.FC = () => {
           </Box>
         </Box>
 
-        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', fontSize: '19px', p: 0, mb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, color: '#0F172A', fontSize: '19px', p: 0, mb: 1 }}>
           {t.qualityWarningTitle}
         </DialogTitle>
 
@@ -726,7 +731,7 @@ export const DriverScanLicenseBack: React.FC = () => {
               height: '52px',
               borderRadius: '14px',
               fontSize: '15px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

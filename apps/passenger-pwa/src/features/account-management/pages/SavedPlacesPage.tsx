@@ -15,6 +15,7 @@ import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 import SavedPlaceModal, { ICON_OPTIONS } from "../components/SavedPlaceModal";
 import type { SavedPlaceItem } from "../components/SavedPlaceModal";
+import { activateWithKeyboard } from "@sakay/shared";
 
 export type SavedPlace = SavedPlaceItem;
 
@@ -123,6 +124,7 @@ const SavedPlacesPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2.5,
           display: "flex",
           flexDirection: "column",
@@ -132,6 +134,9 @@ const SavedPlacesPage: React.FC = () => {
         {/* Home-style Add Place Card */}
         <Paper
           elevation={0}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={handleOpenAdd}
           sx={{
             p: 2,
@@ -164,7 +169,7 @@ const SavedPlacesPage: React.FC = () => {
             <Typography
               sx={{
                 fontSize: "14px",
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "#0F172A",
                 fontFamily: "Poppins, sans-serif",
               }}
@@ -278,10 +283,10 @@ const SavedPlacesPage: React.FC = () => {
                   </Box>
 
                   <Box sx={{ display: "flex", gap: 0.5 }}>
-                    <IconButton size="small" onClick={() => handleOpenEdit(place)} sx={{ color: "#64748B" }}>
+                    <IconButton aria-label={language === "tl" ? "I-edit ang naka-save na lugar" : "Edit saved place"} size="small" onClick={() => handleOpenEdit(place)} sx={{ color: "#64748B" }}>
                       <EditOutlinedIcon sx={{ fontSize: 18 }} />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(place.id)} sx={{ color: "#EF4444" }}>
+                    <IconButton aria-label={language === "tl" ? "Burahin ang naka-save na lugar" : "Delete saved place"} size="small" onClick={() => handleDelete(place.id)} sx={{ color: "#EF4444" }}>
                       <DeleteOutlinedIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Box>

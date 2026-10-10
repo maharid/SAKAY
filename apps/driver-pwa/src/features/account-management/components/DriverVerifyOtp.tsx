@@ -264,6 +264,7 @@ export const DriverVerifyOtp: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
             if (window.history.length > 1) navigate(-1);
             else navigate('/driver/register');
@@ -291,6 +292,7 @@ export const DriverVerifyOtp: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -302,7 +304,7 @@ export const DriverVerifyOtp: React.FC = () => {
           <Typography
             sx={{
               fontSize: '26px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
               letterSpacing: '-0.5px',
@@ -336,7 +338,7 @@ export const DriverVerifyOtp: React.FC = () => {
                   style: {
                     textAlign: 'center',
                     fontSize: '22px',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     padding: 0,
                     height: '58px',
                     color: '#0F172A',
@@ -374,7 +376,7 @@ export const DriverVerifyOtp: React.FC = () => {
             borderRadius: '14px',
             backgroundColor: resendTimer > 0 ? '#F8FAFC' : '#FFFFFF',
             border: resendTimer > 0 ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
-            color: resendTimer > 0 ? '#94A3B8' : '#FF6B00',
+            color: resendTimer > 0 ? '#64748B' : '#C2410C',
             boxShadow: 'none',
             display: 'flex',
             alignItems: 'center',
@@ -382,7 +384,7 @@ export const DriverVerifyOtp: React.FC = () => {
             gap: 1,
             cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
             outline: 'none',
-            fontSize: '14.5px',
+            fontSize: '15px',
             fontWeight: 700,
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -405,7 +407,7 @@ export const DriverVerifyOtp: React.FC = () => {
               transition: 'transform 0.3s ease',
             }}
           />
-          <Typography sx={{ fontSize: '14.5px', fontWeight: 700, color: 'inherit' }}>
+          <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'inherit' }}>
             {resendTimer > 0 ? `${t.resendCode} (${resendTimer}s)` : t.resendCode}
           </Typography>
         </Box>
@@ -421,7 +423,7 @@ export const DriverVerifyOtp: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: '#FF6B00',
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

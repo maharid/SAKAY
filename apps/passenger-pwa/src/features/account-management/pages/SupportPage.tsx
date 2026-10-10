@@ -16,6 +16,7 @@ import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
 import Divider from "@mui/material/Divider";
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
+import { activateWithKeyboard } from "@sakay/shared";
 
 const FAQS_TL = [
   {
@@ -86,6 +87,7 @@ const SupportPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2.5,
           display: "flex",
           flexDirection: "column",
@@ -124,7 +126,7 @@ const SupportPage: React.FC = () => {
               <Typography sx={{ fontSize: "15px", fontWeight: 700, fontFamily: "Poppins, sans-serif" }}>
                 {language === "tl" ? "TODA & Transport Hotline" : "TODA & Transport Hotline"}
               </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+              <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                 {language === "tl" ? "Calapan City Public Safety Office" : "Calapan City Public Safety Office"}
               </Typography>
             </Box>
@@ -156,6 +158,9 @@ const SupportPage: React.FC = () => {
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Paper
             elevation={0}
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
             onClick={() => navigate("/incident-report")}
             sx={{
               flex: 1,
@@ -181,6 +186,9 @@ const SupportPage: React.FC = () => {
 
           <Paper
             elevation={0}
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
             onClick={() => navigate("/track-reports")}
             sx={{
               flex: 1,

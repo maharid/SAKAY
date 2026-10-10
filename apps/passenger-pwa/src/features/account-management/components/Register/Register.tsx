@@ -24,6 +24,7 @@ import {
   ensurePassengerAuthSession,
   formatPhoneToE164,
 } from '../../../../services/passengerApiService';
+import { activateWithKeyboard, extendTapArea } from '@sakay/shared';
 
 export const formatMobileNumber = (value: string): string => {
   const digits = value.replace(/\D/g, '');
@@ -319,6 +320,7 @@ export const Register: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBack}
           sx={{
             color: '#0F172A',
@@ -344,6 +346,7 @@ export const Register: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px 16px 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -354,7 +357,7 @@ export const Register: React.FC = () => {
           <Typography
             sx={{
               fontSize: '26px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
               letterSpacing: '-0.5px',
@@ -380,7 +383,7 @@ export const Register: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Box id="field-first-name">
               <RegisterInput
-                label={language === 'tl' ? "UNANG PANGALAN" : "FIRST NAME"}
+                label={language === 'tl' ? "Unang pangalan" : "First name"}
                 value={firstName}
                 onChange={setFirstName}
                 required
@@ -391,7 +394,7 @@ export const Register: React.FC = () => {
             </Box>
 
             <RegisterInput
-              label={language === 'tl' ? "GITNANG PANGALAN" : "MIDDLE NAME"}
+              label={language === 'tl' ? "Gitnang pangalan" : "Middle name"}
               value={middleName}
               onChange={setMiddleName}
             />
@@ -399,7 +402,7 @@ export const Register: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 1.5 }}>
               <Box id="field-last-name" sx={{ flex: '7 7 70%', minWidth: 0 }}>
                 <RegisterInput
-                  label={language === 'tl' ? "APELYIDO" : "LAST NAME"}
+                  label={language === 'tl' ? "Apelyido" : "Last name"}
                   value={lastName}
                   onChange={setLastName}
                   required
@@ -410,7 +413,7 @@ export const Register: React.FC = () => {
               </Box>
               <Box sx={{ flex: '3 3 30%', minWidth: 0 }}>
                 <RegisterInput
-                  label="SUFFIX"
+                  label="Suffix"
                   value={suffix}
                   onChange={setSuffix}
                 />
@@ -421,7 +424,7 @@ export const Register: React.FC = () => {
           {/* Mobile Number with SakayPhoneInput */}
           <Box id="field-phone">
             <SakayPhoneInput
-              label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
+              label={language === 'tl' ? "Numero ng telepono" : "Mobile number"}
               value={phone}
               onChange={(fullVal) => {
                 setPhone(fullVal);
@@ -440,7 +443,10 @@ export const Register: React.FC = () => {
             />
           </Box>
           {phoneRegisteredError && (
-            <Typography sx={{ fontSize: '12px', color: '#FF6B00', fontWeight: 600, px: 0.5, mt: -0.5, cursor: 'pointer' }}
+            <Typography sx={{ ...extendTapArea(12), fontSize: '12px', color: '#C2410C', fontWeight: 600, px: 0.5, mt: -0.5, cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => navigate('/forgot-password')}>
               {language === 'tl' ? '→ I-recover ang Password' : '→ Recover Password'}
             </Typography>
@@ -449,7 +455,7 @@ export const Register: React.FC = () => {
           {/* Date of Birth Input */}
           <Box id="field-dob">
             <RegisterInput
-              label={language === 'tl' ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"}
+              label={language === 'tl' ? "Petsa ng kapanganakan" : "Date of birth"}
               type="date"
               value={dob}
               onFocus={() => setDobTouched(true)}
@@ -469,7 +475,7 @@ export const Register: React.FC = () => {
           {/* Password Input */}
           <Box id="field-password">
             <RegisterInput
-              label="PASSWORD"
+              label="Password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(val) => setPassword(val)}
@@ -485,10 +491,11 @@ export const Register: React.FC = () => {
               shake={shakeTrigger > 0 && hasAttemptedSubmit && (!password || !isPasswordValid)}
               endAdornment={
                 <IconButton
+                  aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")}
                   onClick={() => setShowPassword(!showPassword)}
                   edge="end"
                   size="small"
-                  sx={{ color: '#64748B' }}
+                  sx={{ ...extendTapArea(8), color: '#64748B' }}
                 >
                   {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                 </IconButton>
@@ -528,7 +535,7 @@ export const Register: React.FC = () => {
                     {item.met ? (
                       <CheckCircleIcon sx={{ fontSize: 16, color: '#16A34A' }} />
                     ) : (
-                      <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
+                      <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: '#64748B' }} />
                     )}
                     <Typography
                       sx={{
@@ -548,7 +555,7 @@ export const Register: React.FC = () => {
           {/* Confirm Password Input */}
           <Box id="field-confirm-password">
             <RegisterInput
-              label={language === 'tl' ? "KUMPIRMAHIN ANG PASSWORD" : "CONFIRM PASSWORD"}
+              label={language === 'tl' ? "Kumpirmahin ang password" : "Confirm password"}
               type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(val) => setConfirmPassword(val)}
@@ -564,10 +571,11 @@ export const Register: React.FC = () => {
               shake={shakeTrigger > 0 && (isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword.trim()))}
               endAdornment={
                 <IconButton
+                  aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   edge="end"
                   size="small"
-                  sx={{ color: '#64748B' }}
+                  sx={{ ...extendTapArea(8), color: '#64748B' }}
                 >
                   {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                 </IconButton>
@@ -603,13 +611,13 @@ export const Register: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6B00' : '#E2E8F0',
-            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#94A3B8',
+            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
-              color: '#94A3B8',
+              color: '#64748B',
             },
             '&:hover': {
               backgroundColor: (isAllRequiredFilled && !submitted) ? '#E66000' : '#E2E8F0',
@@ -621,10 +629,13 @@ export const Register: React.FC = () => {
         </PrimaryButton>
 
         <Typography
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={() => navigate('/login')}
-          sx={{
+          sx={{ ...extendTapArea(12),
             textAlign: 'center',
-            fontSize: '13.5px',
+            fontSize: '14px',
             color: '#64748B',
             mt: 1.5,
             fontWeight: 500,
@@ -636,7 +647,7 @@ export const Register: React.FC = () => {
           <Box
             component="span"
             sx={{
-              color: '#FF6B00',
+              color: '#C2410C',
               fontWeight: 700,
               textDecoration: 'none',
               '&:hover': { textDecoration: 'underline' },

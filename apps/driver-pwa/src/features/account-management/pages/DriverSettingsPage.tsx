@@ -26,6 +26,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PageHeader from '../../../common/components/PageHeader';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
+import { activateWithKeyboard } from '@sakay/shared';
 
 export const DriverSettingsPage: React.FC = () => {
   const { language, setLanguage } = useLanguage();
@@ -73,6 +74,7 @@ export const DriverSettingsPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           p: 2.5,
           display: 'flex',
           flexDirection: 'column',
@@ -85,9 +87,7 @@ export const DriverSettingsPage: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -117,7 +117,7 @@ export const DriverSettingsPage: React.FC = () => {
                       </Typography>
                     }
                   />
-                  <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
               <Divider sx={{ borderColor: '#F8FAFC' }} />
@@ -134,7 +134,7 @@ export const DriverSettingsPage: React.FC = () => {
                       </Typography>
                     }
                   />
-                  <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
             </List>
@@ -147,9 +147,7 @@ export const DriverSettingsPage: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -193,10 +191,15 @@ export const DriverSettingsPage: React.FC = () => {
                   }}
                 >
                   <Box
+                    role="radio"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
+                    aria-checked={language === 'tl'}
                     onClick={() => setLanguage('tl')}
                     sx={{
                       flex: 1,
                       py: 1,
+                      minHeight: 44,
                       borderRadius: '9px',
                       backgroundColor: language === 'tl' ? '#FF6B00' : 'transparent',
                       color: language === 'tl' ? '#FFFFFF' : '#64748B',
@@ -209,7 +212,6 @@ export const DriverSettingsPage: React.FC = () => {
                       boxShadow: language === 'tl' ? '0 2px 8px rgba(255,107,0,0.25)' : 'none',
                     }}
                   >
-                    <Typography sx={{ fontSize: '14px' }}>🇵🇭</Typography>
                     <Typography
                       sx={{
                         fontSize: '13px',
@@ -221,10 +223,15 @@ export const DriverSettingsPage: React.FC = () => {
                   </Box>
 
                   <Box
+                    role="radio"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
+                    aria-checked={language === 'en'}
                     onClick={() => setLanguage('en')}
                     sx={{
                       flex: 1,
                       py: 1,
+                      minHeight: 44,
                       borderRadius: '9px',
                       backgroundColor: language === 'en' ? '#FF6B00' : 'transparent',
                       color: language === 'en' ? '#FFFFFF' : '#64748B',
@@ -237,7 +244,6 @@ export const DriverSettingsPage: React.FC = () => {
                       boxShadow: language === 'en' ? '0 2px 8px rgba(255,107,0,0.25)' : 'none',
                     }}
                   >
-                    <Typography sx={{ fontSize: '14px' }}>🇺🇸</Typography>
                     <Typography
                       sx={{
                         fontSize: '13px',
@@ -259,9 +265,7 @@ export const DriverSettingsPage: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -291,7 +295,7 @@ export const DriverSettingsPage: React.FC = () => {
                       </Typography>
                     }
                   />
-                  <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
               <Divider sx={{ borderColor: '#F8FAFC' }} />
@@ -308,7 +312,7 @@ export const DriverSettingsPage: React.FC = () => {
                       </Typography>
                     }
                   />
-                  <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
             </List>
@@ -321,9 +325,7 @@ export const DriverSettingsPage: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -353,7 +355,7 @@ export const DriverSettingsPage: React.FC = () => {
                       </Typography>
                     }
                   />
-                  <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
               <Divider sx={{ borderColor: '#F8FAFC' }} />
@@ -370,7 +372,7 @@ export const DriverSettingsPage: React.FC = () => {
                       </Typography>
                     }
                   />
-                  <ChevronRightIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
             </List>
@@ -395,7 +397,7 @@ export const DriverSettingsPage: React.FC = () => {
             <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
               SAKAY Driver PWA v1.2.0
             </Typography>
-            <Typography sx={{ fontSize: '11px', color: '#64748B' }}>
+            <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
               Calapan City Localized Tricycle Logistics & Ride Platform
             </Typography>
           </Box>

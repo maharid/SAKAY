@@ -45,6 +45,7 @@ export const DriverTricycleInstructions: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => navigate('/driver/confirm-mtop-info', { state })}
           sx={{
             width: 44,
@@ -67,6 +68,7 @@ export const DriverTricycleInstructions: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           px: 3,
           pb: 'calc(var(--safe-area-bottom) + 110px)',
           display: 'flex',
@@ -93,7 +95,7 @@ export const DriverTricycleInstructions: React.FC = () => {
         <Typography
           sx={{
             fontSize: '26px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -168,7 +170,7 @@ export const DriverTricycleInstructions: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: '#FF6B00',
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

@@ -104,6 +104,7 @@ export const DriverFaceResult: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => navigate('/driver/scan-face', { state })}
           sx={{
             width: 44,
@@ -196,7 +197,7 @@ export const DriverFaceResult: React.FC = () => {
           ) : (
             <ErrorIcon sx={{ fontSize: 20, color: '#DC2626' }} />
           )}
-          <Typography sx={{ fontSize: '14px', fontWeight: 800 }}>
+          <Typography sx={{ fontSize: '14px', fontWeight: 700 }}>
             {result.match
               ? (isTagalog ? 'Magkatugma ang mga larawan' : 'Face Matched Successfully')
               : (isTagalog ? 'Hindi magkatugma ang mga larawan' : 'Faces Do Not Match')}

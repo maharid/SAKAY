@@ -15,6 +15,7 @@ import PageHeader from "../../../common/components/PageHeader";
 import Alert from "@mui/material/Alert";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { fetchMyIncidentReports, type IncidentReportItem } from "../../../services/incidentService";
+import { activateWithKeyboard } from "@sakay/shared";
 
 const TrackReportsPage: React.FC = () => {
   const { language } = useLanguage();
@@ -97,12 +98,15 @@ const TrackReportsPage: React.FC = () => {
       {/* History-Style Segmented Pill Tabs */}
       <Box sx={{ px: 2, pt: 1.5, pb: 0.5, backgroundColor: "#FFFFFF" }}>
         <Box
+          className="hide-scrollbar"
           sx={{
             display: "flex",
             backgroundColor: "#F1F5F9",
             borderRadius: "14px",
             p: 0.5,
             gap: 0.5,
+            // Tagalog labels are long; on the narrowest phones the filter row scrolls instead of overlapping.
+            overflowX: "auto",
           }}
         >
           {[
@@ -115,19 +119,21 @@ const TrackReportsPage: React.FC = () => {
             return (
               <Button
                 key={tab.key}
-                fullWidth
                 disableRipple
+                aria-pressed={isSelected}
                 onClick={() => setActiveTab(tab.key as any)}
                 sx={{
+                  flex: "1 0 auto",
+                  minHeight: 40,
                   py: 0.75,
-                  px: 0.5,
+                  px: 1,
                   borderRadius: "10px",
                   fontSize: "12px",
                   fontWeight: isSelected ? 700 : 500,
                   fontFamily: "Poppins, sans-serif",
                   textTransform: "none",
                   backgroundColor: isSelected ? "#FFFFFF" : "transparent",
-                  color: isSelected ? "#FF6B00" : "#64748B",
+                  color: isSelected ? "#C2410C" : "#64748B",
                   boxShadow: isSelected ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
                   whiteSpace: "nowrap",
                   minWidth: 0,
@@ -147,6 +153,7 @@ const TrackReportsPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           display: "flex",
           flexDirection: "column",
         }}
@@ -169,25 +176,6 @@ const TrackReportsPage: React.FC = () => {
             <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
               {language === "tl" ? "Wala pang ulat sa kategoryang ito" : "No reports in this category"}
             </Typography>
-            <Button
-              variant="contained"
-              onClick={() => navigate("/incident-report")}
-              sx={{
-                mt: 2,
-                backgroundColor: "#FF6B00",
-                color: "#FFFFFF",
-                borderRadius: "12px",
-                height: "40px",
-                fontSize: "13px",
-                fontWeight: 700,
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                boxShadow: "none",
-                "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
-              }}
-            >
-              {language === "tl" ? "+ Magsumite ng Reklamo" : "+ Submit Report"}
-            </Button>
           </Box>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -198,6 +186,9 @@ const TrackReportsPage: React.FC = () => {
                 <React.Fragment key={report.id}>
                   {idx > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
                   <Box
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     onClick={() => navigate(`/track-reports/${report.id}`)}
                     sx={{
                       py: 2,
@@ -231,14 +222,14 @@ const TrackReportsPage: React.FC = () => {
                     {/* Report Info */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, mb: 0.5 }}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                           {report.id}
                         </Typography>
                         <Chip
                           label={report.status}
                           size="small"
                           sx={{
-                            fontSize: "10.5px",
+                            fontSize: "12px",
                             fontWeight: 700,
                             fontFamily: "Poppins, sans-serif",
                             height: "auto",
@@ -254,9 +245,9 @@ const TrackReportsPage: React.FC = () => {
 
                       <Typography
                         sx={{
-                          fontSize: "13.5px",
+                          fontSize: "14px",
                           fontWeight: 700,
-                          color: "#FF6B00",
+                          color: "#C2410C",
                           fontFamily: "Poppins, sans-serif",
                           lineHeight: 1.3,
                           mb: 0.5,
@@ -267,7 +258,7 @@ const TrackReportsPage: React.FC = () => {
 
                       <Typography
                         sx={{
-                          fontSize: "12.5px",
+                          fontSize: "13px",
                           color: "#475569",
                           fontFamily: "Poppins, sans-serif",
                           lineHeight: 1.4,
@@ -277,12 +268,12 @@ const TrackReportsPage: React.FC = () => {
                         Trip: <strong>{report.tripSummary}</strong> • {report.description}
                       </Typography>
 
-                      <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                      <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                         {report.submittedAt}
                       </Typography>
                     </Box>
 
-                    <ChevronRightIcon sx={{ color: "#94A3B8", fontSize: 20, mt: 1, flexShrink: 0 }} />
+                    <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20, mt: 1, flexShrink: 0 }} />
                   </Box>
                 </React.Fragment>
               );
@@ -302,7 +293,7 @@ const TrackReportsPage: React.FC = () => {
             color: "#FFFFFF",
             borderRadius: "14px",
             height: "44px",
-            fontSize: "13.5px",
+            fontSize: "14px",
             fontWeight: 700,
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",

@@ -289,6 +289,7 @@ export const DriverScanFace: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBack}
           sx={{
             width: 44,
@@ -322,7 +323,7 @@ export const DriverScanFace: React.FC = () => {
         >
           <WarningAmberRoundedIcon sx={{ color: '#D97706', fontSize: 20, flexShrink: 0 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', lineHeight: 1.2 }}>
               {isTagalog ? 'Kailangang Iwasto: Larawan ng Mukha / Selfie' : 'Required Correction: Driver Selfie'}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600, lineHeight: 1.3, mt: 0.25 }} noWrap>
@@ -367,7 +368,7 @@ export const DriverScanFace: React.FC = () => {
           {isTagalog ? (
             <>
               Ilagay ang iyong{' '}
-              <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+              <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
                 mukha
               </Box>{' '}
               sa loob ng frame at tumingin nang diretso sa camera.
@@ -375,7 +376,7 @@ export const DriverScanFace: React.FC = () => {
           ) : (
             <>
               Position your{' '}
-              <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+              <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
                 face
               </Box>{' '}
               inside the frame and look straight at the camera.
@@ -483,8 +484,8 @@ export const DriverScanFace: React.FC = () => {
           <Typography
             sx={{
               color: '#FF6B00',
-              fontWeight: 800,
-              fontSize: '13.5px',
+              fontWeight: 700,
+              fontSize: '14px',
               mb: 1.25,
             }}
           >
@@ -500,7 +501,7 @@ export const DriverScanFace: React.FC = () => {
                   borderRadius: '50%',
                   backgroundColor: 'rgba(255, 255, 255, 0.15)',
                   color: '#FFFFFF',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -511,7 +512,7 @@ export const DriverScanFace: React.FC = () => {
               >
                 1
               </Box>
-              <Typography sx={{ fontSize: '12.5px', color: '#E2E8F0', lineHeight: 1.45 }}>
+              <Typography sx={{ fontSize: '13px', color: '#E2E8F0', lineHeight: 1.45 }}>
                 {isTagalog ? 'Huwag magsuot ng sombrero, salamin, o face mask.' : 'Do not wear a hat, glasses, or face mask.'}
               </Typography>
             </Box>
@@ -524,7 +525,7 @@ export const DriverScanFace: React.FC = () => {
                   borderRadius: '50%',
                   backgroundColor: 'rgba(255, 255, 255, 0.15)',
                   color: '#FFFFFF',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -535,7 +536,7 @@ export const DriverScanFace: React.FC = () => {
               >
                 2
               </Box>
-              <Typography sx={{ fontSize: '12.5px', color: '#E2E8F0', lineHeight: 1.45 }}>
+              <Typography sx={{ fontSize: '13px', color: '#E2E8F0', lineHeight: 1.45 }}>
                 {isTagalog ? 'Siguraduhing maliwanag ang paligid.' : 'Ensure your surroundings are well-lit.'}
               </Typography>
             </Box>
@@ -548,7 +549,7 @@ export const DriverScanFace: React.FC = () => {
                   borderRadius: '50%',
                   backgroundColor: 'rgba(255, 255, 255, 0.15)',
                   color: '#FFFFFF',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -559,7 +560,7 @@ export const DriverScanFace: React.FC = () => {
               >
                 3
               </Box>
-              <Typography sx={{ fontSize: '12.5px', color: '#E2E8F0', lineHeight: 1.45 }}>
+              <Typography sx={{ fontSize: '13px', color: '#E2E8F0', lineHeight: 1.45 }}>
                 {isTagalog
                   ? 'Tumingin nang diretso sa camera at panatilihing nasa gitna ang iyong mukha.'
                   : 'Look straight at the camera and keep your face centered.'}
@@ -582,6 +583,7 @@ export const DriverScanFace: React.FC = () => {
         >
           {/* Flashlight / Torch Toggle */}
           <IconButton
+            aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
             onClick={handleToggleTorch}
             sx={{
               color: torchOn ? '#FF6B00' : '#FFFFFF',
@@ -598,6 +600,7 @@ export const DriverScanFace: React.FC = () => {
 
           {/* Concentric Ring SAKAY Orange Shutter Capture Button */}
           <IconButton
+            aria-label={language === "tl" ? "Kumuha ng larawan" : "Take photo"}
             onClick={handleCaptureSelfie}
             sx={{
               width: 74,
@@ -622,6 +625,7 @@ export const DriverScanFace: React.FC = () => {
 
           {/* Camera Flip (Front/Back) */}
           <IconButton
+            aria-label={language === "tl" ? "Palitan ang camera" : "Switch camera"}
             onClick={handleToggleFacingMode}
             sx={{
               color: '#FFFFFF',

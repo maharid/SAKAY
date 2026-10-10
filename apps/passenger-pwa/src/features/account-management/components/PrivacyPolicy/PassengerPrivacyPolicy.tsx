@@ -11,6 +11,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PageHeader from '../../../../common/components/PageHeader';
 import PrimaryButton from '../../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../../utils/LanguageContext';
+import { activateWithKeyboard } from '@sakay/shared';
 
 interface AccordionItem {
   id: string;
@@ -119,6 +120,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -133,7 +135,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
         <Typography
           sx={{
             fontSize: '24px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -145,7 +147,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
         <Typography
           sx={{
             fontSize: '13px',
-            color: '#94A3B8',
+            color: '#64748B',
             fontWeight: 500,
             mb: 2.5,
           }}
@@ -154,14 +156,14 @@ export const PassengerPrivacyPolicy: React.FC = () => {
         </Typography>
 
         {/* Intro */}
-        <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
+        <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
           {isTagalog
             ? 'Pinapahalagahan ng SAKAY ang iyong privacy alinsunod sa Philippine Data Privacy Act of 2012 (Republic Act No. 10173). Ipinapaliwanag dito kung paano kinokolekta, ginagamit, at pinoprotektahan ang iyong personal na datos para sa maayos na serbisyo ng transportasyon.'
             : 'SAKAY values your privacy in full compliance with the Philippine Data Privacy Act of 2012 (Republic Act No. 10173). This policy details how your personal data is collected, utilized, and safeguarded to facilitate localized tricycle transport services.'}
         </Typography>
 
         {/* Accordions */}
-        <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 1.5 }}>
+        <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 1.5 }}>
           {isTagalog ? 'Mga Datos na Kinokolekta' : 'Information We Collect'}
         </Typography>
 
@@ -180,6 +182,10 @@ export const PassengerPrivacyPolicy: React.FC = () => {
                 }}
               >
                 <Box
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
+                  aria-expanded={isExpanded}
                   onClick={() => toggleAccordion(item.id)}
                   sx={{
                     p: 2,
@@ -196,7 +202,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
                   {isExpanded ? (
                     <KeyboardArrowUpIcon sx={{ fontSize: 20, color: '#FF6B00' }} />
                   ) : (
-                    <KeyboardArrowDownIcon sx={{ fontSize: 20, color: '#94A3B8' }} />
+                    <KeyboardArrowDownIcon sx={{ fontSize: 20, color: '#64748B' }} />
                   )}
                 </Box>
                 <Collapse in={isExpanded}>
@@ -213,7 +219,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
 
         {/* Data Sharing & Retention */}
         <Box sx={{ mb: 2 }}>
-          <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+          <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
             {isTagalog ? 'Pagbabahagi at Proteksyon ng Datos' : 'Data Sharing & Protection'}
           </Typography>
           <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
@@ -253,7 +259,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
               height: '56px',
               borderRadius: '16px',
               fontSize: '16px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

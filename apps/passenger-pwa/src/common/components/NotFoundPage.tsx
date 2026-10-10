@@ -40,7 +40,7 @@ export const NotFoundPage: React.FC = () => {
       <Typography
         sx={{
           fontSize: "24px",
-          fontWeight: 800,
+          fontWeight: 700,
           color: "#0F172A",
           mb: 1,
         }}

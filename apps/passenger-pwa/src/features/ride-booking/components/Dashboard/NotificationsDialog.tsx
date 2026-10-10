@@ -15,7 +15,7 @@ import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
-import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
+import { TYPOGRAPHY_TOKENS, activateWithKeyboard } from "@sakay/shared";
 
 export interface NotificationItem {
   id: string;
@@ -231,6 +231,10 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             return (
               <Box
                 key={f.key}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
+                aria-pressed={activeFilter === f.key}
                 onClick={() => setActiveFilter(f.key as any)}
                 sx={{
                   px: 1.75,
@@ -244,7 +248,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   transition: "all 0.18s ease",
-                  height: "28px",
+                  height: "36px",
                   display: "flex",
                   alignItems: "center",
                   "&:hover": {
@@ -289,13 +293,15 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               sx={{
                 fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                 fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
-                color: "#FF6B00",
+                color: "#C2410C",
                 textTransform: "none",
-                p: "2px 4px",
-                borderRadius: "6px",
+                p: "6px 8px",
+                minHeight: 40,
+                maxWidth: "60%",
+                textAlign: "right",
+                borderRadius: "8px",
                 fontFamily: "Poppins, sans-serif",
-                lineHeight: 1,
-                whiteSpace: "nowrap",
+                lineHeight: 1.25,
                 "&:hover": { backgroundColor: "#FFF7ED" },
               }}
             >
@@ -310,7 +316,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             <Typography
               sx={{
                 fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                color: "#94A3B8",
+                color: "#64748B",
                 fontFamily: "Poppins, sans-serif",
               }}
             >
@@ -330,6 +336,9 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                 <React.Fragment key={item.id}>
                   {index > 0 && <Divider sx={{ borderColor: "#F1F5F9" }} />}
                   <Box
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     onClick={() => {
                       if (!item.isRead) handleMarkAsRead(item.id);
                     }}
@@ -410,7 +419,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                         sx={{
                           fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                           fontWeight: TYPOGRAPHY_TOKENS.fontWeight.regular,
-                          color: "#94A3B8",
+                          color: "#64748B",
                           fontFamily: "Poppins, sans-serif",
                         }}
                       >
@@ -420,7 +429,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
                     {/* Chevron right icon only for announcements / advisories */}
                     {item.category === "advisories" && (
-                      <ChevronRightIcon sx={{ color: "#94A3B8", fontSize: 20, mt: 0.5, flexShrink: 0 }} />
+                      <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20, mt: 0.5, flexShrink: 0 }} />
                     )}
                   </Box>
                 </React.Fragment>

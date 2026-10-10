@@ -17,7 +17,7 @@ import StarIcon from '@mui/icons-material/Star';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { formatShortBookingId } from '@sakay/shared';
+import { formatShortBookingId, activateWithKeyboard } from '@sakay/shared';
 import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
 
 export interface TripRecord {
@@ -134,12 +134,10 @@ export const DriverTripHistory: React.FC = () => {
       <Box key={title} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         <Typography
           sx={{
-            fontSize: '11px',
+            fontSize: '12px',
             fontWeight: 700,
             color: '#64748B',
-            letterSpacing: '0.5px',
             fontFamily: 'Poppins, sans-serif',
-            textTransform: 'uppercase',
           }}
         >
           {title}
@@ -154,6 +152,9 @@ export const DriverTripHistory: React.FC = () => {
             <Paper
               key={trip.id}
               elevation={0}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
               sx={{
                 p: 2,
@@ -174,14 +175,14 @@ export const DriverTripHistory: React.FC = () => {
               {/* Top Row: Passenger Name, Booking Code, Fare */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
                     {trip.bookingCode}
                   </Typography>
                   <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
                     • {trip.passengerName}
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: '16px', fontWeight: 900, color: '#FF6B00', fontFamily: 'Poppins, sans-serif' }}>
+                <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#C2410C', fontFamily: 'Poppins, sans-serif' }}>
                   ₱{trip.fareAmount.toFixed(2)}
                 </Typography>
               </Box>
@@ -200,7 +201,7 @@ export const DriverTripHistory: React.FC = () => {
 
                   <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                     <Box sx={{ mb: 1 }}>
-                      <Typography sx={{ fontSize: '10.5px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
+                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
                         {language === 'tl' ? 'Pickup' : 'Pickup'}
                       </Typography>
                       <Typography
@@ -219,7 +220,7 @@ export const DriverTripHistory: React.FC = () => {
                     </Box>
 
                     <Box>
-                      <Typography sx={{ fontSize: '10.5px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
+                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
                         {language === 'tl' ? 'Destinasyon' : 'Drop-off'}
                       </Typography>
                       <Typography
@@ -245,15 +246,15 @@ export const DriverTripHistory: React.FC = () => {
                     label={trip.tripMode}
                     size="small"
                     sx={{
-                      fontSize: '10.5px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       backgroundColor: trip.tripMode === 'Shared Ride' ? '#E6F4EA' : '#FFF8F0',
-                      color: trip.tripMode === 'Shared Ride' ? '#1E8E3E' : '#FF6B00',
+                      color: trip.tripMode === 'Shared Ride' ? '#1E8E3E' : '#C2410C',
                       height: '22px',
                       fontFamily: 'Poppins, sans-serif',
                     }}
                   />
-                  <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
+                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
                     {trip.time} {trip.distanceKm > 0 ? `• ${trip.distanceKm.toFixed(1)} km` : ''}
                   </Typography>
                 </Box>
@@ -267,7 +268,7 @@ export const DriverTripHistory: React.FC = () => {
                     label={`${language === 'tl' ? 'Na-rate:' : 'Rated:'} ${(savedRating.stars || 5).toFixed(1)} ★`}
                     size="small"
                     sx={{
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       backgroundColor: '#FFF8F0',
                       color: '#FF6B00',
@@ -281,7 +282,7 @@ export const DriverTripHistory: React.FC = () => {
                     startIcon={<StarIcon sx={{ fontSize: 14 }} />}
                     onClick={(e) => handleOpenRateModal(trip, e)}
                     sx={{
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       color: '#FF6B00',
                       textTransform: 'none',
@@ -344,10 +345,10 @@ export const DriverTripHistory: React.FC = () => {
           </Paper>
         ) : (
           <>
-            {renderSection(language === 'tl' ? 'NGAYONG ARAW' : 'TODAY', grouped.today)}
-            {renderSection(language === 'tl' ? 'KAHAPON' : 'YESTERDAY', grouped.yesterday)}
-            {renderSection(language === 'tl' ? 'MAS MAAGA SA LINGGONG ITO' : 'EARLIER THIS WEEK', grouped.thisWeek)}
-            {renderSection(language === 'tl' ? 'NAKARAANG MGA BIYAHE' : 'PREVIOUS TRIPS', grouped.previous)}
+            {renderSection(language === 'tl' ? 'Ngayong araw' : 'Today', grouped.today)}
+            {renderSection(language === 'tl' ? 'Kahapon' : 'Yesterday', grouped.yesterday)}
+            {renderSection(language === 'tl' ? 'Mas maaga sa linggong ito' : 'Earlier this week', grouped.thisWeek)}
+            {renderSection(language === 'tl' ? 'Nakaraang mga biyahe' : 'Previous trips', grouped.previous)}
           </>
         )}
       </Box>

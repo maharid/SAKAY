@@ -27,6 +27,7 @@ import {
 import { submitFinalDriverRegistration } from '../../../services/driverApiService';
 import { fetchAccreditedTodas } from '../../../services/driverApiService';
 import { splitNameParts } from '../../../services/licenseOcrService';
+import { activateWithKeyboard } from '@sakay/shared';
 
 interface ReviewFieldRowProps {
   label: string;
@@ -48,11 +49,9 @@ const ReviewFieldRow: React.FC<ReviewFieldRowProps> = ({ label, value }) => (
       sx={{
         flex: '0 0 42%',
         minWidth: 0,
-        fontSize: '10px',
+        fontSize: '12px',
         fontWeight: 700,
         color: '#64748B',
-        letterSpacing: '0.3px',
-        textTransform: 'uppercase',
         lineHeight: 1.35,
         pt: '1px',
       }}
@@ -254,6 +253,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
             if (isResubmission) {
               navigate(-1);
@@ -292,7 +292,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
         <Typography
           sx={{
             fontSize: '20px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.4px',
@@ -359,10 +359,13 @@ export const DriverConfirmAllInfo: React.FC = () => {
             {/* SECTION A: Personal na Impormasyon */}
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', mb: 1.5 }}>
-                <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3 }}>
+                <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
                   {isTagalog ? 'Personal na Impormasyon' : 'Personal Information'}
                 </Typography>
                 <Typography
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
                   onClick={() =>
                     navigate('/driver/confirm-license-info', {
                       state: {
@@ -385,7 +388,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
                     whiteSpace: 'nowrap',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FF6B00',
+                    color: '#C2410C',
                     cursor: 'pointer',
                     px: 1.5,
                     py: 0.4,
@@ -406,31 +409,34 @@ export const DriverConfirmAllInfo: React.FC = () => {
                 </Typography>
               </Box>
 
-              <ReviewFieldRow label={isTagalog ? "UNANG PANGALAN" : "FIRST NAME"} value={firstName || 'Juan'} />
-              <ReviewFieldRow label={isTagalog ? "GITNANG PANGALAN" : "MIDDLE NAME"} value={middleName?.trim() ? middleName : 'N/A'} />
-              <ReviewFieldRow label={isTagalog ? "APELYIDO" : "LAST NAME"} value={lastName || 'Dela Cruz'} />
-              <ReviewFieldRow label="SUFFIX" value={suffix?.trim() ? suffix : 'N/A'} />
-              <ReviewFieldRow label={isTagalog ? "PETSA NG KAPANGANAKAN" : "DATE OF BIRTH"} value={licenseData.dob} />
-              <ReviewFieldRow label={isTagalog ? "KASARIAN" : "GENDER"} value={licenseData.gender} />
-              <ReviewFieldRow label={isTagalog ? "TIRAHAN" : "ADDRESS"} value={licenseData.address} />
-              <ReviewFieldRow label={isTagalog ? "MGA KINABABILANGANG TODA" : "AFFILIATED TODA(S)"} value={todaName} />
+              <ReviewFieldRow label={isTagalog ? "Unang pangalan" : "First name"} value={firstName || 'Juan'} />
+              <ReviewFieldRow label={isTagalog ? "Gitnang pangalan" : "Middle name"} value={middleName?.trim() ? middleName : 'N/A'} />
+              <ReviewFieldRow label={isTagalog ? "Apelyido" : "Last name"} value={lastName || 'Dela Cruz'} />
+              <ReviewFieldRow label="Suffix" value={suffix?.trim() ? suffix : 'N/A'} />
+              <ReviewFieldRow label={isTagalog ? "Petsa ng kapanganakan" : "Date of birth"} value={licenseData.dob} />
+              <ReviewFieldRow label={isTagalog ? "Kasarian" : "Gender"} value={licenseData.gender} />
+              <ReviewFieldRow label={isTagalog ? "Tirahan" : "Address"} value={licenseData.address} />
+              <ReviewFieldRow label={isTagalog ? "Mga kinababilangang TODA" : "Affiliated TODA(S)"} value={todaName} />
               <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
             </Box>
 
             {/* SECTION B: Driver's License */}
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', mb: 1.5 }}>
-                <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3 }}>
+                <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
                   Driver's License
                 </Typography>
                 <Typography
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
                   onClick={() => navigate('/driver/confirm-license-info', { state: { ...state, isEditMode: true, isResubmission, faultyDocuments } })}
                   sx={{
                     flexShrink: 0,
                     whiteSpace: 'nowrap',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FF6B00',
+                    color: '#C2410C',
                     cursor: 'pointer',
                     px: 1.5,
                     py: 0.4,
@@ -451,9 +457,9 @@ export const DriverConfirmAllInfo: React.FC = () => {
                 </Typography>
               </Box>
 
-              <ReviewFieldRow label={isTagalog ? "NUMERO NG LISENSYA" : "DRIVER'S LICENSE NUMBER"} value={licenseData.licenseNumber} />
-              <ReviewFieldRow label="RESTRICTIONS" value={licenseData.dlCodes} />
-              <ReviewFieldRow label={isTagalog ? "PETSA NG PAGKAPASO (EXPIRATION)" : "EXPIRATION DATE"} value={licenseData.expirationDate} />
+              <ReviewFieldRow label={isTagalog ? "Numero ng lisensya" : "Driver's license number"} value={licenseData.licenseNumber} />
+              <ReviewFieldRow label="Restrictions" value={licenseData.dlCodes} />
+              <ReviewFieldRow label={isTagalog ? "Petsa ng pagkapaso (expiration)" : "Expiration date"} value={licenseData.expirationDate} />
               <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
             </Box>
           </>
@@ -463,17 +469,20 @@ export const DriverConfirmAllInfo: React.FC = () => {
         {showMtopSection && (
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', mb: 1.5 }}>
-              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3 }}>
+              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
                 {isTagalog ? "Permiso ng Prangkisa (MTOP)" : "Motorized Tricycle Operator's Permit (MTOP)"}
               </Typography>
               <Typography
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 onClick={() => navigate('/driver/confirm-mtop-info', { state: { ...state, isEditMode: true, isResubmission, faultyDocuments } })}
                 sx={{
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#FF6B00',
+                  color: '#C2410C',
                   cursor: 'pointer',
                   px: 1.5,
                   py: 0.4,
@@ -494,15 +503,15 @@ export const DriverConfirmAllInfo: React.FC = () => {
               </Typography>
             </Box>
 
-            <ReviewFieldRow label={isTagalog ? "REHISTRADONG MAY-ARI / OPERATOR" : "REGISTERED OWNER / OPERATOR"} value={mtopData.operatorName} />
-            <ReviewFieldRow label={isTagalog ? "PRANGKISA" : "FRANCHISE NO."} value={mtopData.franchiseNumber} />
-            <ReviewFieldRow label="PLATE NUMBER" value={mtopData.plateNumber} />
-            <ReviewFieldRow label="CHASSIS NUMBER" value={mtopData.chassisNumber} />
-            <ReviewFieldRow label="MOTOR NUMBER" value={mtopData.motorNumber} />
-            <ReviewFieldRow label="VEHICLE MAKE" value={mtopData.vehicleMake} />
-            <ReviewFieldRow label="YEAR MODEL" value={mtopData.yearModel || 'N/A'} />
-            <ReviewFieldRow label={isTagalog ? "AWTORISADONG RUTA / ZONA" : "AUTHORIZED ROUTE / ZONE"} value={mtopData.authorizedRoute} />
-            <ReviewFieldRow label={isTagalog ? "PETSA NG PAGKAPASO (EXPIRATION)" : "EXPIRATION DATE"} value={mtopData.expirationDate} />
+            <ReviewFieldRow label={isTagalog ? "Rehistradong may-ari / operator" : "Registered owner / operator"} value={mtopData.operatorName} />
+            <ReviewFieldRow label={isTagalog ? "Prangkisa" : "Franchise no."} value={mtopData.franchiseNumber} />
+            <ReviewFieldRow label="Plate number" value={mtopData.plateNumber} />
+            <ReviewFieldRow label="Chassis number" value={mtopData.chassisNumber} />
+            <ReviewFieldRow label="Motor number" value={mtopData.motorNumber} />
+            <ReviewFieldRow label="Vehicle make" value={mtopData.vehicleMake} />
+            <ReviewFieldRow label="Year model" value={mtopData.yearModel || 'N/A'} />
+            <ReviewFieldRow label={isTagalog ? "Awtorisadong ruta / zona" : "Authorized route / zone"} value={mtopData.authorizedRoute} />
+            <ReviewFieldRow label={isTagalog ? "Petsa ng pagkapaso (expiration)" : "Expiration date"} value={mtopData.expirationDate} />
             <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
           </Box>
         )}
@@ -511,17 +520,20 @@ export const DriverConfirmAllInfo: React.FC = () => {
         {showTricycleSection && (
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', mb: 1.5 }}>
-              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3 }}>
+              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
                 {isTagalog ? 'Unit ng Tricycle' : 'Tricycle Unit'}
               </Typography>
               <Typography
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 onClick={() => navigate('/driver/scan-tricycle', { state: { ...state, isEditMode: true, isResubmission, faultyDocuments } })}
                 sx={{
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#FF6B00',
+                  color: '#C2410C',
                   cursor: 'pointer',
                   px: 1.5,
                   py: 0.4,
@@ -542,7 +554,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
               </Typography>
             </Box>
 
-            <ReviewFieldRow label={isTagalog ? "LARAWAN NG TRICYCLE" : "TRICYCLE PHOTO"} value={isTagalog ? "Nakuha (Na-verify)" : "Captured (Verified)"} />
+            <ReviewFieldRow label={isTagalog ? "Larawan ng tricycle" : "Tricycle photo"} value={isTagalog ? "Nakuha (Na-verify)" : "Captured (Verified)"} />
             <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
           </Box>
         )}
@@ -551,17 +563,20 @@ export const DriverConfirmAllInfo: React.FC = () => {
         {showFaceSection && (
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', mb: 1.5 }}>
-              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 800, color: '#0F172A', lineHeight: 1.3 }}>
+              <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
                 {isTagalog ? 'Beripikasyon ng Mukha' : 'Face Verification'}
               </Typography>
               <Typography
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 onClick={() => navigate('/driver/scan-face', { state: { ...state, isEditMode: true, isResubmission, faultyDocuments } })}
                 sx={{
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#FF6B00',
+                  color: '#C2410C',
                   cursor: 'pointer',
                   px: 1.5,
                   py: 0.4,
@@ -582,13 +597,17 @@ export const DriverConfirmAllInfo: React.FC = () => {
               </Typography>
             </Box>
 
-            <ReviewFieldRow label={isTagalog ? "STATUS NG MATCH" : "MATCH STATUS"} value={isTagalog ? "Magkatugma (Na-verify)" : "Matched (Verified)"} />
+            <ReviewFieldRow label={isTagalog ? "Status ng match" : "Match status"} value={isTagalog ? "Magkatugma (Na-verify)" : "Matched (Verified)"} />
             <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
           </Box>
         )}
 
         {/* Confirmation Checkbox */}
         <Box
+          role="checkbox"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
+          aria-checked={confirmed}
           onClick={() => setConfirmed(!confirmed)}
           sx={{
             display: 'flex',
@@ -604,8 +623,8 @@ export const DriverConfirmAllInfo: React.FC = () => {
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
             sx={{
-              color: '#FF6B00',
-              '&.Mui-checked': { color: '#FF6B00' },
+              color: '#C2410C',
+              '&.Mui-checked': { color: '#C2410C' },
               '& .MuiSvgIcon-root': { fontSize: 22 },
               p: 0,
               flexShrink: 0,

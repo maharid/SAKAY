@@ -89,6 +89,7 @@ export const DriverPrepareDocuments: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label="Back"
           onClick={handleBack}
           sx={{
             width: 44,
@@ -125,7 +126,7 @@ export const DriverPrepareDocuments: React.FC = () => {
         <Typography
           sx={{
             fontSize: '26px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -139,7 +140,7 @@ export const DriverPrepareDocuments: React.FC = () => {
         {/* Subtitle Description */}
         <Typography
           sx={{
-            fontSize: '14.5px',
+            fontSize: '15px',
             color: '#334155',
             lineHeight: 1.45,
             fontWeight: 400,
@@ -159,14 +160,14 @@ export const DriverPrepareDocuments: React.FC = () => {
               border: '1.5px solid #FDE68A',
             }}
           >
-            <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.4px', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', mb: 0.5 }}>
               Kailangang Iwasto / Required Correction
             </Typography>
             <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#92400E', mb: 0.5 }}>
               {state.rejectionReason}
             </Typography>
             {state.rejectionComment && (
-              <Typography sx={{ fontSize: '12.5px', color: '#78350F' }}>
+              <Typography sx={{ fontSize: '13px', color: '#78350F' }}>
                 "{state.rejectionComment}"
               </Typography>
             )}
@@ -238,7 +239,7 @@ export const DriverPrepareDocuments: React.FC = () => {
                     </Typography>
                     <Typography
                       sx={{
-                        fontSize: '12.5px',
+                        fontSize: '13px',
                         color: '#64748B',
                         lineHeight: 1.45,
                         fontWeight: 400,
@@ -271,8 +272,8 @@ export const DriverPrepareDocuments: React.FC = () => {
       >
         <Typography
           sx={{
-            color: '#FF6B00',
-            fontSize: '13.5px',
+            color: '#C2410C',
+            fontSize: '14px',
             fontWeight: 600,
             textAlign: 'center',
             mb: 1.5,
@@ -288,7 +289,7 @@ export const DriverPrepareDocuments: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: '#FF6B00',
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

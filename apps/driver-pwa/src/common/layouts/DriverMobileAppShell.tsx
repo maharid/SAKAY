@@ -231,7 +231,7 @@ export const DriverMobileAppShell: React.FC = () => {
                       padding: '4px 0',
                       minHeight: '48px',
                       borderRadius: '12px',
-                      color: isActive ? '#FF6B00' : '#64748B',
+                      color: isActive ? '#C2410C' : '#64748B',
                       transition: 'all 0.18s ease-in-out',
                       '&:hover': {
                         backgroundColor: 'rgba(255, 107, 0, 0.04)',
@@ -245,16 +245,16 @@ export const DriverMobileAppShell: React.FC = () => {
                         justifyContent: 'center',
                         transform: isActive ? 'scale(1.12)' : 'scale(1.0)',
                         transition: 'transform 0.18s ease',
-                        color: isActive ? '#FF6B00' : '#64748B',
+                        color: isActive ? '#C2410C' : '#64748B',
                       }}
                     >
                       {tab.icon}
                     </Box>
                     <Typography
                       sx={{
-                        fontSize: '11px',
-                        fontWeight: isActive ? 800 : 500,
-                        color: isActive ? '#FF6B00' : '#64748B',
+                        fontSize: '12px',
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? '#C2410C' : '#64748B',
                         marginTop: '2px',
                         lineHeight: 1.2,
                       }}

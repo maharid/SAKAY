@@ -136,6 +136,7 @@ export const TrackReportDetailPage: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2.5,
           display: "flex",
           flexDirection: "column",
@@ -162,10 +163,10 @@ export const TrackReportDetailPage: React.FC = () => {
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", }}>
               {language === "tl" ? "Reference ID" : "Reference ID"}
             </Typography>
-            <Typography sx={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+            <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
               {report.id}
             </Typography>
           </Box>
@@ -173,7 +174,7 @@ export const TrackReportDetailPage: React.FC = () => {
             label={report.status}
             size="small"
             sx={{
-              fontSize: "11px",
+              fontSize: "12px",
               fontWeight: 700,
               fontFamily: "Poppins, sans-serif",
               ...chipProps,
@@ -195,16 +196,16 @@ export const TrackReportDetailPage: React.FC = () => {
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+            <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 700, }}>
               {language === "tl" ? "Kategorya" : "Category"}
             </Typography>
-            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#FF6B00", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#C2410C", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
               {report.incidentType}
             </Typography>
           </Box>
 
           <Box>
-            <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+            <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 700, }}>
               {language === "tl" ? "Inirereklamong Biyahe & Petsa" : "Reported Trip & Date"}
             </Typography>
             <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
@@ -213,7 +214,7 @@ export const TrackReportDetailPage: React.FC = () => {
           </Box>
 
           <Box>
-            <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+            <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 700, }}>
               {language === "tl" ? "Detalyadong Salaysay" : "Detailed Narrative"}
             </Typography>
             <Typography sx={{ fontSize: "13px", color: "#334155", fontFamily: "Poppins, sans-serif", mt: 0.5, lineHeight: 1.45 }}>
@@ -225,7 +226,7 @@ export const TrackReportDetailPage: React.FC = () => {
         {/* Attached photo evidence */}
         {evidenceUrls.length > 0 && (
           <Paper elevation={0} sx={{ p: 2, borderRadius: "16px", backgroundColor: "#FFFFFF", border: "1px solid #F1F5F9", display: "flex", flexDirection: "column", gap: 1 }}>
-            <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+            <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 700, }}>
               {language === "tl" ? "Naka-attach na Larawan" : "Attached Photo"}
             </Typography>
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -259,7 +260,7 @@ export const TrackReportDetailPage: React.FC = () => {
               gap: 0.75,
             }}
           >
-            <Typography sx={{ fontSize: "11px", color: "#1D4ED8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <Typography sx={{ fontSize: "12px", color: "#1D4ED8", fontWeight: 700, }}>
               {language === "tl" ? "Tugon mula sa LGU & TODA" : "Official LGU & TODA Response"}
             </Typography>
             <Typography sx={{ fontSize: "13px", color: "#1E3A8A", fontFamily: "Poppins, sans-serif", lineHeight: 1.45 }}>
@@ -282,7 +283,7 @@ export const TrackReportDetailPage: React.FC = () => {
               gap: 0.75,
             }}
           >
-            <Typography sx={{ fontSize: "11px", color: "#DC2626", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <Typography sx={{ fontSize: "12px", color: "#DC2626", fontWeight: 700, }}>
               {language === "tl" ? "Dahilan ng Pagkakansela" : "Cancellation Reason"}
             </Typography>
             <Typography sx={{ fontSize: "13px", color: "#991B1B", fontFamily: "Poppins, sans-serif", lineHeight: 1.45 }}>
@@ -328,7 +329,7 @@ export const TrackReportDetailPage: React.FC = () => {
           {language === "tl" ? "Kanselahin ang Ulat" : "Cancel Incident Report"}
         </DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-          <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl"
               ? "Sigurado ka bang nais mong kanselahin ang ulat na ito? Pakisulat ang dahilan."
               : "Are you sure you want to cancel this report? Please state your reason."}

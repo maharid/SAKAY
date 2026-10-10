@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 
 export interface SakayPhoneInputProps {
@@ -60,6 +60,14 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
   shake = false,
 }) => {
   const [focused, setFocused] = useState(false);
+  const inputId = useId();
+  const helpId = `${inputId}-help`;
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // The whole box is the tap target, not just the line of text inside it.
+  const handleBoxClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (!readOnly && !(e.target as HTMLElement).closest('input')) inputRef.current?.focus();
+  };
   const [digits10, setDigits10] = useState(() => extractPhDigits10(value));
 
   useEffect(() => {
@@ -98,6 +106,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
     <Box sx={{ width: '100%' }}>
       <Box
         className={shake ? 'anim-shake' : ''}
+        onClick={handleBoxClick}
         data-error={error ? 'true' : undefined}
         sx={{
           width: '100%',
@@ -118,17 +127,17 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
       >
         {/* Floating Label inside container */}
         <Typography
+          component="label"
+          htmlFor={inputId}
           sx={{
             position: 'absolute',
             left: '16px',
             right: '16px',
             top: '8px',
             transform: 'translateY(0)',
-            fontSize: '9.5px',
+            fontSize: '12px',
             fontWeight: 700,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : '#64748B',
-            letterSpacing: '0.5px',
-            textTransform: 'uppercase',
+            color: error ? '#DC2626' : focused ? '#C2410C' : '#64748B',
             userSelect: 'none',
             pointerEvents: 'none',
             lineHeight: 1.15,
@@ -140,7 +149,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
         >
           {label}
           {required && (
-            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 800 }}>
+            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 700 }}>
               *
             </Box>
           )}
@@ -167,7 +176,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
               flexShrink: 0,
             }}
           >
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
               +63
             </Typography>
             <Box
@@ -182,6 +191,11 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
 
           {/* Editable text input */}
           <input
+            id={inputId}
+            ref={inputRef}
+            aria-invalid={error || undefined}
+            aria-required={required || undefined}
+            aria-describedby={helperText ? helpId : undefined}
             type="tel"
             placeholder="9XX XXX XXXX"
             value={displayInputValue}
@@ -201,7 +215,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
               border: 'none',
               outline: 'none',
               background: 'transparent',
-              fontSize: '15px',
+              fontSize: '16px',
               fontWeight: 600,
               color: '#0F172A',
               fontFamily: 'inherit',
@@ -215,8 +229,10 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
 
       {helperText && (
         <Typography
+          id={helpId}
+          role={error ? 'alert' : undefined}
           sx={{
-            fontSize: '11.5px',
+            fontSize: '12px',
             color: error ? '#DC2626' : '#64748B',
             fontWeight: error ? 600 : 400,
             mt: '4px',

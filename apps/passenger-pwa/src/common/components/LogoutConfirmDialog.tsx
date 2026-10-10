@@ -80,7 +80,7 @@ export const LogoutConfirmDialog: React.FC<LogoutConfirmDialogProps> = ({
         <Typography
           sx={{
             fontSize: '20px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             letterSpacing: '-0.4px',
             mb: 1,
@@ -92,7 +92,7 @@ export const LogoutConfirmDialog: React.FC<LogoutConfirmDialogProps> = ({
         {/* Subtitle / Explanation */}
         <Typography
           sx={{
-            fontSize: '14.5px',
+            fontSize: '15px',
             color: '#64748B',
             fontWeight: 500,
             lineHeight: 1.5,

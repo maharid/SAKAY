@@ -231,6 +231,7 @@ export const PassengerFeedback: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Isara" : "Close"}
           onClick={handleReturnToDashboard}
           sx={{
             color: '#0F172A',
@@ -246,14 +247,14 @@ export const PassengerFeedback: React.FC = () => {
         <Button
           onClick={() => navigate('/support')}
           sx={{
-            color: '#FF6B00',
+            color: '#C2410C',
             fontWeight: 700,
-            fontSize: '13.5px',
+            fontSize: '14px',
             textTransform: 'none',
             fontFamily: 'Poppins, sans-serif',
             borderRadius: '10px',
             px: 1.5,
-            py: 0.5,
+            minHeight: 44,
             '&:hover': { backgroundColor: '#FFF7ED' },
           }}
         >
@@ -267,6 +268,7 @@ export const PassengerFeedback: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           p: 2.5,
           display: 'flex',
           flexDirection: 'column',
@@ -281,19 +283,19 @@ export const PassengerFeedback: React.FC = () => {
 
         {/* Driver Card */}
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6B00', fontWeight: 800, fontSize: '22px', margin: '0 auto 12px auto' }}>
+          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '22px', margin: '0 auto 12px auto' }}>
             {driverName.charAt(0)}
           </Avatar>
-          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
             {driverName}
           </Typography>
-          <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
             Franchise #{franchiseNo} • {todaName}
           </Typography>
 
           {/* Star Rating Picker */}
           <Box sx={{ mt: 2.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#475569', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#475569', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Kamusta ang inyong naging biyahe?' : 'How was your trip?'}
             </Typography>
             <Rating
@@ -308,7 +310,7 @@ export const PassengerFeedback: React.FC = () => {
 
         {/* Compliment Tags */}
         <Box>
-          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1, letterSpacing: '0.5px', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Mga Papuri at Katangian (Compliments)' : 'Compliments & Badges'}
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -320,15 +322,17 @@ export const PassengerFeedback: React.FC = () => {
                   key={tag}
                   label={tag}
                   clickable={!submitted}
+                  aria-pressed={isSelected}
                   onClick={() => handleToggleTag(tag)}
                   sx={{
                     fontWeight: 600,
-                    fontSize: '12.5px',
+                    fontSize: '13px',
                     fontFamily: 'Poppins, sans-serif',
+                    height: 40,
+                    borderRadius: '20px',
                     backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
-                    color: isSelected ? '#FF6B00' : '#475569',
+                    color: isSelected ? '#C2410C' : '#475569',
                     border: isSelected ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
-                    py: 0.5,
                   }}
                 />
               );
@@ -338,7 +342,7 @@ export const PassengerFeedback: React.FC = () => {
 
         {/* Written Feedback (Optional) */}
         <Box>
-          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', mb: 1, letterSpacing: '0.5px', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Karagdagang Komento (Optional)' : 'Additional Comments (Optional)'}
           </Typography>
           <TextField
@@ -358,7 +362,7 @@ export const PassengerFeedback: React.FC = () => {
       <Box sx={{ p: 2, borderTop: '1px solid #F1F5F9', backgroundColor: '#FFFFFF', flexShrink: 0, pb: 'calc(var(--safe-area-bottom) + 16px)' }}>
         {submitted ? (
           <Paper elevation={0} sx={{ p: 2, borderRadius: '14px', backgroundColor: '#E6F4EA', border: '1px solid #A7F3D0', textAlign: 'center' }}>
-            <Typography sx={{ color: '#1E8E3E', fontWeight: 800, fontSize: '14px', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ color: '#1E8E3E', fontWeight: 700, fontSize: '14px', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? '✓ Naitala na ang iyong rating. Maraming salamat!' : '✓ Your rating has been saved. Thank you!'}
             </Typography>
           </Paper>
@@ -372,7 +376,7 @@ export const PassengerFeedback: React.FC = () => {
               height: 52,
               borderRadius: '16px',
               backgroundColor: '#FF6B00',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: '15px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
@@ -414,7 +418,7 @@ export const PassengerFeedback: React.FC = () => {
           <CheckCircleIcon sx={{ fontSize: 64, color: '#10B981' }} />
         </Box>
 
-        <Typography sx={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif', mb: 1, lineHeight: 1.3 }}>
+        <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', mb: 1, lineHeight: 1.3 }}>
           {language === 'tl'
             ? '🎉 Maraming Salamat sa Pagbiyahe Kasama ang SAKAY!'
             : '🎉 Thank You for Riding with SAKAY!'}
@@ -434,7 +438,7 @@ export const PassengerFeedback: React.FC = () => {
             height: '52px',
             borderRadius: '16px',
             backgroundColor: '#FF6B00',
-            fontWeight: 800,
+            fontWeight: 700,
             fontSize: '15px',
             textTransform: 'none',
             fontFamily: 'Poppins, sans-serif',

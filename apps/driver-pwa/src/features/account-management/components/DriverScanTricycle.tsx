@@ -325,6 +325,7 @@ export const DriverScanTricycle: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
             if ((state as any)?.isResubmission) {
               navigate('/driver/status');
@@ -364,7 +365,7 @@ export const DriverScanTricycle: React.FC = () => {
         >
           <WarningAmberRoundedIcon sx={{ color: '#D97706', fontSize: 20, flexShrink: 0 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', lineHeight: 1.2 }}>
               {isTagalog ? 'Kailangang Iwasto: Larawan ng Tricycle' : 'Required Correction: Tricycle Photo'}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600, lineHeight: 1.3, mt: 0.25 }} noWrap>
@@ -388,6 +389,7 @@ export const DriverScanTricycle: React.FC = () => {
           py: 2.5,
           position: 'relative',
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
         }}
@@ -408,7 +410,7 @@ export const DriverScanTricycle: React.FC = () => {
           {isTagalog ? (
             <>
               I-scan ang{' '}
-              <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+              <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
                 Tricycle Unit
               </Box>{' '}
               sa frame
@@ -416,7 +418,7 @@ export const DriverScanTricycle: React.FC = () => {
           ) : (
             <>
               Scan the{' '}
-              <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+              <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
                 Tricycle Unit
               </Box>{' '}
               in the frame
@@ -565,7 +567,7 @@ export const DriverScanTricycle: React.FC = () => {
               }}
             >
               <CircularProgress size={38} sx={{ color: '#FF6B00', thickness: 4.5 }} />
-              <Typography sx={{ color: '#FFFFFF', fontSize: '14.5px', fontWeight: 700, textAlign: 'center' }}>
+              <Typography sx={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}>
                 {isTagalog ? 'Sinusuri ang kalidad ng larawan...' : 'Analyzing photo quality...'}
               </Typography>
             </Box>
@@ -628,9 +630,9 @@ export const DriverScanTricycle: React.FC = () => {
         >
           <Typography
             sx={{
-              color: '#FF6B00',
-              fontWeight: 800,
-              fontSize: '13.5px',
+              color: '#C2410C',
+              fontWeight: 700,
+              fontSize: '14px',
               mb: 1.25,
               display: 'flex',
               alignItems: 'center',
@@ -645,7 +647,7 @@ export const DriverScanTricycle: React.FC = () => {
               margin: 0,
               paddingLeft: '18px',
               color: '#E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               lineHeight: 1.6,
               '& li': { mb: 0.5 },
             }}
@@ -686,6 +688,7 @@ export const DriverScanTricycle: React.FC = () => {
         >
           {/* Flashlight / Torch Toggle */}
           <IconButton
+            aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
             onClick={handleToggleTorch}
             sx={{
               color: torchOn ? '#FF6B00' : '#FFFFFF',
@@ -702,6 +705,7 @@ export const DriverScanTricycle: React.FC = () => {
 
           {/* Shutter Capture Button */}
           <IconButton
+            aria-label={language === "tl" ? "Kumuha ng larawan" : "Take photo"}
             onClick={handleCapture}
             disabled={isAnalyzing}
             sx={{
@@ -727,6 +731,7 @@ export const DriverScanTricycle: React.FC = () => {
 
           {/* Camera Flip (Front/Back) */}
           <IconButton
+            aria-label={language === "tl" ? "Palitan ang camera" : "Switch camera"}
             onClick={handleToggleFacingMode}
             disabled={isAnalyzing}
             sx={{
@@ -779,7 +784,7 @@ export const DriverScanTricycle: React.FC = () => {
           </Box>
         </Box>
 
-        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', fontSize: '19px', p: 0, mb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, color: '#0F172A', fontSize: '19px', p: 0, mb: 1 }}>
           {isTagalog ? 'Maayos ba ang Kuha?' : 'Does the photo look good?'}
         </DialogTitle>
 
@@ -807,7 +812,7 @@ export const DriverScanTricycle: React.FC = () => {
               height: '52px',
               borderRadius: '14px',
               fontSize: '15px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

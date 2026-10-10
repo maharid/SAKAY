@@ -12,6 +12,7 @@ import type { HistoryTrip } from "../../../services/tripService";
 import { fetchTripHistory } from "../../../services/tripService";
 import { useLanguage } from "../../../utils/LanguageContext";
 import PageHeader from "../../../common/components/PageHeader";
+import { activateWithKeyboard } from "@sakay/shared";
 
 const PassengerHistory: React.FC = () => {
   const { language } = useLanguage();
@@ -100,9 +101,7 @@ const PassengerHistory: React.FC = () => {
             fontSize: "12px",
             fontWeight: 700,
             color: "#64748B",
-            letterSpacing: "0.5px",
             fontFamily: "Poppins, sans-serif",
-            textTransform: "uppercase",
           }}
         >
           {title}
@@ -112,6 +111,9 @@ const PassengerHistory: React.FC = () => {
           <Paper
             key={trip.id}
             elevation={0}
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
             onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
             sx={{
               backgroundColor: "#FFFFFF",
@@ -176,13 +178,13 @@ const PassengerHistory: React.FC = () => {
 
                 <Box sx={{ flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
                   <Box sx={{ marginBottom: "10px" }}>
-                    <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
+                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
                       {language === "tl" ? "Pickup" : "Pickup"}
                     </Typography>
                     <Typography
                       sx={{
                         fontSize: "14px",
-                        fontWeight: 800,
+                        fontWeight: 700,
                         color: "#0F172A",
                         fontFamily: "Poppins, sans-serif",
                         whiteSpace: "nowrap",
@@ -195,13 +197,13 @@ const PassengerHistory: React.FC = () => {
                   </Box>
 
                   <Box>
-                    <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
+                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
                       {language === "tl" ? "Destinasyon" : "Drop-off"}
                     </Typography>
                     <Typography
                       sx={{
                         fontSize: "14px",
-                        fontWeight: 800,
+                        fontWeight: 700,
                         color: "#0F172A",
                         fontFamily: "Poppins, sans-serif",
                         whiteSpace: "nowrap",
@@ -228,8 +230,8 @@ const PassengerHistory: React.FC = () => {
                 <Typography
                   sx={{
                     fontSize: "18px",
-                    fontWeight: 800,
-                    color: "#FF6B00",
+                    fontWeight: 700,
+                    color: "#C2410C",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
@@ -241,8 +243,8 @@ const PassengerHistory: React.FC = () => {
                   size="small"
                   sx={{
                     backgroundColor: trip.type === "Share" ? "#E6F4EA" : "#FFF5EB",
-                    color: trip.type === "Share" ? "#1E8E3E" : "#FF6B00",
-                    fontSize: "11.5px",
+                    color: trip.type === "Share" ? "#1E8E3E" : "#C2410C",
+                    fontSize: "12px",
                     fontWeight: 700,
                     height: "22px",
                     fontFamily: "Poppins, sans-serif",
@@ -251,7 +253,7 @@ const PassengerHistory: React.FC = () => {
 
                 <Typography
                   sx={{
-                    fontSize: "11px",
+                    fontSize: "12px",
                     color: "#64748B",
                     fontWeight: 500,
                     marginTop: "2px",
@@ -337,6 +339,7 @@ const PassengerHistory: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           padding: "16px 20px calc(var(--safe-area-bottom) + 32px) 20px",
           display: "flex",
           flexDirection: "column",
@@ -377,10 +380,10 @@ const PassengerHistory: React.FC = () => {
           </Box>
         ) : (
           <>
-            {renderSection(language === "tl" ? "NGAYONG ARAW" : "TODAY", grouped.today)}
-            {renderSection(language === "tl" ? "KAHAPON" : "YESTERDAY", grouped.yesterday)}
-            {renderSection(language === "tl" ? "MAS MAAGA SA LINGGONG ITO" : "EARLIER THIS WEEK", grouped.thisWeek)}
-            {renderSection(language === "tl" ? "NAKARAANG MGA BIYAHE" : "PREVIOUS TRIPS", grouped.previous)}
+            {renderSection(language === "tl" ? "Ngayong araw" : "Today", grouped.today)}
+            {renderSection(language === "tl" ? "Kahapon" : "Yesterday", grouped.yesterday)}
+            {renderSection(language === "tl" ? "Mas maaga sa linggong ito" : "Earlier this week", grouped.thisWeek)}
+            {renderSection(language === "tl" ? "Nakaraang mga biyahe" : "Previous trips", grouped.previous)}
           </>
         )}
       </Box>

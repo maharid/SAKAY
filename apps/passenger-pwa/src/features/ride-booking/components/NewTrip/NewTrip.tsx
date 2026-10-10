@@ -31,12 +31,16 @@ import {
   parseFareError,
   describeFareError,
   buildTripDetails,
+  activateWithKeyboard,
+  extendTapArea,
+  useInFlight,
   type FareQuote,
 } from "@sakay/shared";
 
 import MapView from "../../../../common/components/MapView";
 import SharedFareNotice from "../../../../common/components/SharedFareNotice";
 import PassengerCancelModal from "../../../../common/components/PassengerCancelModal";
+import PrimaryButton from "../../../../common/components/PrimaryButton";
 import HomeHeader from "../Dashboard/HomeHeader";
 import PassengerNavigationDrawer from "../Dashboard/PassengerNavigationDrawer";
 import TulongDialog from "../Dashboard/TulongDialog";
@@ -534,7 +538,9 @@ const NewTrip: React.FC = () => {
   };
 
   // No Driver Found -> Retry: a new search round that starts again from the nearest drivers (Rule 7.4)
-  const handleRetrySearch = async () => {
+  const retryFlight = useInFlight();
+
+  const restartDriverSearch = async () => {
     if (!activeBooking?.booking_id) return;
     setSearchError("");
     const restarted = await retryDriverSearch(activeBooking.booking_id);
@@ -548,6 +554,8 @@ const NewTrip: React.FC = () => {
       );
     }
   };
+
+  const handleRetrySearch = () => retryFlight.run(restartDriverSearch);
 
   // No Driver Found -> Cancel: the booking is not open any more and stays No Driver Found (no charge, no penalty), so this only leaves the screen
   const handleLeaveNoDriverFound = () => {
@@ -728,6 +736,9 @@ const NewTrip: React.FC = () => {
 
             {/* 1. PICKUP Card (Soft Beige/Cream #FAF2EA) */}
             <Box
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => handleOpenSetPlace("pickup")}
               sx={{
                 backgroundColor: "#FAF2EA",
@@ -767,15 +778,13 @@ const NewTrip: React.FC = () => {
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: 700,
                     color: "#64748B",
-                    letterSpacing: "0.5px",
-                    textTransform: "uppercase",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  PICKUP
+                  Pickup
                 </Typography>
                 <Typography
                   sx={{
@@ -798,7 +807,9 @@ const NewTrip: React.FC = () => {
                 size="small"
                 onClick={(e) => handleSetCurrentLocationFor("pickup", e)}
                 title={language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon" : "Use current location"}
+                aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang pickup" : "Use current location as pickup"}
                 sx={{
+                  ...extendTapArea(6),
                   backgroundColor: "rgba(255, 107, 0, 0.12)",
                   color: "#FF6B00",
                   width: "32px",
@@ -815,6 +826,10 @@ const NewTrip: React.FC = () => {
             {/* 2. DESTINASYON Card (Soft Mint #F2F8F4) */}
             <Box
               onClick={() => handleOpenSetPlace("dropoff")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
+              aria-label={language === "tl" ? "Piliin ang destinasyon" : "Choose destination"}
               sx={{
                 backgroundColor: "#F2F8F4",
                 borderRadius: "16px",
@@ -833,21 +848,19 @@ const NewTrip: React.FC = () => {
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: 700,
                     color: "#64748B",
-                    letterSpacing: "0.5px",
-                    textTransform: "uppercase",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  {language === "tl" ? "DESTINASYON" : "DESTINATION"}
+                  {language === "tl" ? "Destinasyon" : "Destination"}
                 </Typography>
                 <Typography
                   sx={{
                     fontSize: "13px",
                     fontWeight: dropoff.address ? 600 : 400,
-                    color: dropoff.address ? "#0F172A" : "#94A3B8",
+                    color: dropoff.address ? "#0F172A" : "#64748B",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -869,7 +882,9 @@ const NewTrip: React.FC = () => {
                     setRouteCoordinates([]);
                   }}
                   title={language === "tl" ? "Burahin ang destinasyon" : "Clear destination"}
+                  aria-label={language === "tl" ? "Burahin ang destinasyon" : "Clear destination"}
                   sx={{
+                    ...extendTapArea(6),
                     backgroundColor: "rgba(239, 68, 68, 0.1)",
                     color: "#EF4444",
                     width: "32px",
@@ -887,7 +902,9 @@ const NewTrip: React.FC = () => {
                   size="small"
                   onClick={(e) => handleSetCurrentLocationFor("dropoff", e)}
                   title={language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon para sa Destinasyon" : "Use current location for destination"}
+                  aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang destinasyon" : "Use current location as destination"}
                   sx={{
+                    ...extendTapArea(6),
                     backgroundColor: "rgba(15, 23, 42, 0.08)",
                     color: "#0F172A",
                     width: "32px",
@@ -914,6 +931,14 @@ const NewTrip: React.FC = () => {
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: "8px",
+                // Small phones: trip type and passengers share a row, notes take their own row, so nothing wraps or clips.
+                "@media (max-width:359.95px)": {
+                  flexWrap: "wrap",
+                  rowGap: "10px",
+                  "& > :nth-child(1), & > :nth-child(3)": { flex: "1 1 calc(50% - 12px)" },
+                  "& > :nth-child(4)": { display: "none" },
+                  "& > :nth-child(5)": { flex: "1 1 100%" },
+                },
               }}
             >
               {/* --- Section A: TRIP TYPE --- */}
@@ -924,17 +949,18 @@ const NewTrip: React.FC = () => {
                       fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
-                      letterSpacing: "0.5px",
+                      whiteSpace: "nowrap",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {language === "tl" ? "URI NG BIYAHE" : "TRIP TYPE"}
+                    {language === "tl" ? "Uri ng biyahe" : "Trip type"}
                   </Typography>
                   <IconButton
                     size="small"
                     onClick={() => setTripTypeInfoOpen(true)}
                     title={language === "tl" ? "Impormasyon sa Uri ng Biyahe" : "Trip Type Info"}
-                    sx={{ p: 0, color: "#94A3B8", "&:hover": { color: "#64748B" } }}
+                    aria-label={language === "tl" ? "Impormasyon sa uri ng biyahe" : "About trip types"}
+                    sx={{ p: 0, color: "#64748B", "&:hover": { color: "#64748B" }, ...extendTapArea(16) }}
                   >
                     <InfoOutlinedIcon sx={{ fontSize: 13 }} />
                   </IconButton>
@@ -942,16 +968,22 @@ const NewTrip: React.FC = () => {
 
                 {/* Segmented Pill [ Solo | Share ] */}
                 <Box
+                  role="radiogroup"
+                  aria-label={language === "tl" ? "Uri ng biyahe" : "Trip type"}
                   sx={{
                     backgroundColor: "#F1F5F9",
                     borderRadius: "10px",
                     p: "2px",
                     display: "flex",
-                    height: "32px",
+                    height: "40px",
                   }}
                 >
                   <Box
                     onClick={() => setTripType("Solo")}
+                    role="radio"
+                    aria-checked={tripType === "Solo"}
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     sx={{
                       flex: 1,
                       display: "flex",
@@ -966,7 +998,7 @@ const NewTrip: React.FC = () => {
                   >
                     <Typography
                       sx={{
-                        fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
+                        fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
                         fontWeight: tripType === "Solo" ? 700 : 500,
                         color: tripType === "Solo" ? "#0F172A" : "#64748B",
                         fontFamily: "Poppins, sans-serif",
@@ -981,6 +1013,10 @@ const NewTrip: React.FC = () => {
                       setTripType("Shared");
                       if (passengers > 2) setPassengers(2);
                     }}
+                    role="radio"
+                    aria-checked={tripType === "Shared"}
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     sx={{
                       flex: 1,
                       display: "flex",
@@ -995,7 +1031,7 @@ const NewTrip: React.FC = () => {
                   >
                     <Typography
                       sx={{
-                        fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
+                        fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
                         fontWeight: tripType === "Shared" ? 700 : 500,
                         color: tripType === "Shared" ? "#0F172A" : "#64748B",
                         fontFamily: "Poppins, sans-serif",
@@ -1025,11 +1061,11 @@ const NewTrip: React.FC = () => {
                       fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
-                      letterSpacing: "0.5px",
+                      whiteSpace: "nowrap",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {language === "tl" ? "PASAHERO" : "PASSENGERS"}
+                    {language === "tl" ? "Pasahero" : "Passengers"}
                   </Typography>
                 </Box>
 
@@ -1041,20 +1077,22 @@ const NewTrip: React.FC = () => {
                     justifyContent: "space-between",
                     backgroundColor: "#F1F5F9",
                     borderRadius: "10px",
-                    px: "4px",
-                    height: "32px",
+                    px: 0,
+                    height: "40px",
                   }}
                 >
                   <IconButton
                     size="small"
                     disabled={passengers <= 1}
                     onClick={() => setPassengers((prev) => Math.max(1, prev - 1))}
-                    sx={{ width: 24, height: 24, p: 0, color: "#0F172A" }}
+                    aria-label={language === "tl" ? "Bawasan ang pasahero" : "Fewer passengers"}
+                    sx={{ width: 40, height: 40, p: 0, color: "#0F172A", ...extendTapArea(2) }}
                   >
                     <RemoveIcon sx={{ fontSize: 14 }} />
                   </IconButton>
 
                   <Typography
+                    aria-live="polite"
                     sx={{
                       fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
                       fontWeight: 700,
@@ -1074,7 +1112,8 @@ const NewTrip: React.FC = () => {
                         setPassengers((prev) => prev + 1);
                       }
                     }}
-                    sx={{ width: 24, height: 24, p: 0, color: "#0F172A" }}
+                    aria-label={language === "tl" ? "Dagdagan ang pasahero" : "More passengers"}
+                    sx={{ width: 40, height: 40, p: 0, color: "#0F172A", ...extendTapArea(2) }}
                   >
                     <AddIcon sx={{ fontSize: 14 }} />
                   </IconButton>
@@ -1099,11 +1138,11 @@ const NewTrip: React.FC = () => {
                       fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                       fontWeight: 700,
                       color: "#64748B",
-                      letterSpacing: "0.5px",
+                      whiteSpace: "nowrap",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {language === "tl" ? "TALA" : "NOTES"}
+                    {language === "tl" ? "Tala" : "Notes"}
                   </Typography>
                 </Box>
 
@@ -1113,11 +1152,15 @@ const NewTrip: React.FC = () => {
                     setTempNoteText(noteText);
                     setNotesDialogOpen(true);
                   }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
+                  aria-label={language === "tl" ? "Magdagdag o baguhin ang tala para sa driver" : "Add or edit a note for the driver"}
                   sx={{
                     backgroundColor: "#F1F5F9",
                     borderRadius: "10px",
                     px: "6px",
-                    height: "32px",
+                    height: "40px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1127,12 +1170,12 @@ const NewTrip: React.FC = () => {
                     "&:hover": { backgroundColor: "#E2E8F0" },
                   }}
                 >
-                  <MessageIcon sx={{ fontSize: 13, color: noteText ? "#FF6B00" : "#64748B" }} />
+                  <MessageIcon sx={{ fontSize: 14, color: noteText ? "#C2410C" : "#64748B" }} />
                   <Typography
                     sx={{
                       fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
                       fontWeight: 600,
-                      color: noteText ? "#FF6B00" : "#64748B",
+                      color: noteText ? "#C2410C" : "#64748B",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -1144,8 +1187,8 @@ const NewTrip: React.FC = () => {
                         ? "May tala"
                         : "Has note"
                       : language === "tl"
-                      ? "Magdagdag ng tala"
-                      : "Add notes"}
+                      ? "Idagdag"
+                      : "Add"}
                   </Typography>
                 </Box>
               </Box>
@@ -1185,7 +1228,7 @@ const NewTrip: React.FC = () => {
                   <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#1E40AF", display: "flex", alignItems: "center", mb: 0.25, fontFamily: "Poppins, sans-serif" }}>
                     {language === "tl" ? "Paunawa sa Shared Trip" : "Shared Trip Notice"}
                   </Typography>
-                  <Typography sx={{ fontSize: "11.5px", color: "#1E3A8A", lineHeight: 1.45, fontFamily: "Poppins, sans-serif" }}>
+                  <Typography sx={{ fontSize: "12px", color: "#1E3A8A", lineHeight: 1.45, fontFamily: "Poppins, sans-serif" }}>
                     {language === "tl"
                       ? "Naiintindihan ko na ang aking pamasahe ay mahahati kapag may na-match na kasabay, ngunit babayaran ko ang buong Solo fare kung walang mahanap na kapares."
                       : "I understand that my fare will be shared if matched with another commuter, but I will pay the full Solo fare if no shared match is found."}
@@ -1213,17 +1256,17 @@ const NewTrip: React.FC = () => {
                         fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                         fontWeight: 700,
                         color: "#64748B",
-                        letterSpacing: "0.5px",
                         fontFamily: "Poppins, sans-serif",
                       }}
                     >
-                      {language === "tl" ? "TINATAYANG PAMASAHE" : "ESTIMATED FARE"}
+                      {language === "tl" ? "Tinatayang pamasahe" : "Estimated fare"}
                     </Typography>
                     <IconButton
                       size="small"
                       onClick={() => setTariffInfoOpen(true)}
                       title={language === "tl" ? "Taripa at Detalye ng Pamasahe" : "Tariff & Fare Details"}
-                      sx={{ p: 0, color: "#94A3B8", "&:hover": { color: "#64748B" } }}
+                      aria-label={language === "tl" ? "Taripa at detalye ng pamasahe" : "Tariff and fare details"}
+                      sx={{ p: 0, color: "#64748B", "&:hover": { color: "#64748B" }, ...extendTapArea(16) }}
                     >
                       <InfoOutlinedIcon sx={{ fontSize: 13 }} />
                     </IconButton>
@@ -1243,7 +1286,7 @@ const NewTrip: React.FC = () => {
                 <Typography
                   sx={{
                     fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
-                    fontWeight: 800,
+                    fontWeight: 700,
                     color: "#0F172A",
                     fontFamily: "Poppins, sans-serif",
                   }}
@@ -1279,12 +1322,12 @@ const NewTrip: React.FC = () => {
             {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
             <Box sx={{ width: "100%", mt: "6px" }}>
               {/* Primary Mag-book ng Biyahe Button */}
-              <Button
-                variant="contained"
+              <PrimaryButton
                 fullWidth
                 onClick={handleBookTrip}
+                loading={bookingSubmitting}
+                loadingLabel={language === "tl" ? "Inihahanda..." : "Preparing..."}
                 disabled={
-                  bookingSubmitting ||
                   outsideEnd !== null ||
                   !dropoff.address ||
                   dropoff.lat === 0 ||
@@ -1293,30 +1336,9 @@ const NewTrip: React.FC = () => {
                   estimatedFare === null ||
                   (tripType === "Shared" && !sharedDisclaimerAgreed)
                 }
-                sx={{
-                  height: "52px",
-                  borderRadius: "16px",
-                  backgroundColor: "#FF6B00",
-                  color: "#FFFFFF",
-                  fontWeight: 700,
-                  fontSize: "15px",
-                  textTransform: "none",
-                  fontFamily: "Poppins, sans-serif",
-                  boxShadow: "none",
-                  "&:hover": {
-                    backgroundColor: "#E66000",
-                    boxShadow: "none",
-                  },
-                }}
               >
-                {bookingSubmitting
-                  ? language === "tl"
-                    ? "Inihahanda..."
-                    : "Preparing..."
-                  : language === "tl"
-                  ? "Mag-book ng Biyahe"
-                  : "Book Ride"}
-              </Button>
+                {language === "tl" ? "Mag-book ng Biyahe" : "Book Ride"}
+              </PrimaryButton>
             </Box>
           </>
         )}
@@ -1342,13 +1364,13 @@ const NewTrip: React.FC = () => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            fontWeight: 800,
+            fontWeight: 700,
             fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
             fontFamily: "Poppins, sans-serif",
           }}
         >
           {language === "tl" ? "Mga Tala para sa Drayber" : "Notes for Driver"}
-          <IconButton size="small" onClick={() => setNotesDialogOpen(false)}>
+          <IconButton aria-label={language === "tl" ? "Isara" : "Close"} size="small" onClick={() => setNotesDialogOpen(false)} sx={extendTapArea(7)}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -1436,18 +1458,19 @@ const NewTrip: React.FC = () => {
           }}
         >
           <IconButton
+            aria-label={language === "tl" ? "Isara" : "Close"}
             onClick={() => setTariffInfoOpen(false)}
-            sx={{ position: "absolute", top: 12, right: 12, color: "#64748B" }}
+            sx={{ ...extendTapArea(7), position: "absolute", top: 12, right: 12, color: "#64748B" }}
             size="small"
           >
             <CloseIcon fontSize="small" />
           </IconButton>
 
           <Box component="img" src={totoHeadImg} alt="Toto Head" sx={{ width: 44, height: 44, objectFit: "contain", mb: 0.75 }} />
-          <Typography sx={{ fontSize: "17px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "17px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
           </Typography>
-          <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600, mt: "2px", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600, mt: "2px", fontFamily: "Poppins, sans-serif" }}>
             {quote?.rule.ordinance_reference
               ? `Official City Tariff Rate • ${quote.rule.ordinance_reference}`
               : "Official City Tariff Rate"}
@@ -1477,7 +1500,7 @@ const NewTrip: React.FC = () => {
               >
                 {/* Distance Row */}
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                  <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                     {language === "tl" ? "Kabuuang Distansya" : "Total Distance"}
                   </Typography>
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
@@ -1488,12 +1511,12 @@ const NewTrip: React.FC = () => {
                 {/* Base Fare Row */}
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Box>
-                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                    <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                       {language === "tl"
                         ? `Unang ${rule.base_distance_km.toFixed(1)} km (Base Fare)`
                         : `Base Fare (First ${rule.base_distance_km.toFixed(1)} km)`}
                     </Typography>
-                    <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                       {tripType === "Solo"
                         ? `${money(rule.base_fare)} × ${quote.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`
                         : language === "tl"
@@ -1509,13 +1532,13 @@ const NewTrip: React.FC = () => {
                 {/* Distance Charge Row */}
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Box>
-                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                    <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                       {language === "tl"
                         ? `Dagdag na Distansya (${quote.excess_km.toFixed(1)} km)`
                         : `Distance Charge (${quote.excess_km.toFixed(1)} km)`}
                     </Typography>
                     {tripType === "Solo" && quote.excess_km > 0 && (
-                      <Typography sx={{ fontSize: "11px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                      <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                         {quote.excess_km.toFixed(1)} km × {money(rule.succeeding_rate)} × {quote.seat_capacity}
                       </Typography>
                     )}
@@ -1528,7 +1551,7 @@ const NewTrip: React.FC = () => {
                 {/* Rounding to the nearest peso / the minimum fare, only when it changes the total */}
                 {comps.adjustment !== 0 && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                    <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                       {language === "tl" ? "Pag-round sa pinakamalapit na piso" : "Rounded to the nearest peso"}
                     </Typography>
                     <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
@@ -1542,10 +1565,10 @@ const NewTrip: React.FC = () => {
 
                 {/* Total Fare Row */}
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                     {language === "tl" ? "Kabuuan" : "Total Fare"}
                   </Typography>
-                  <Typography sx={{ fontSize: "17px", fontWeight: 900, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
+                  <Typography sx={{ fontSize: "17px", fontWeight: 700, color: "#C2410C", fontFamily: "Poppins, sans-serif" }}>
                     {money(displayedTotal)}
                   </Typography>
                 </Box>
@@ -1553,13 +1576,13 @@ const NewTrip: React.FC = () => {
 
               {/* Payment Method Badge */}
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 0.5 }}>
-                <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+                <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                   {language === "tl" ? "Paraan ng Pagbayad" : "Pay Using"}
                 </Typography>
                 <Chip
                   label="₱ Cash"
                   size="small"
-                  sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
+                  sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
                 />
               </Box>
             </Box>
@@ -1593,13 +1616,13 @@ const NewTrip: React.FC = () => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            fontWeight: 800,
+            fontWeight: 700,
             fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle,
             fontFamily: "Poppins, sans-serif",
           }}
         >
           {language === "tl" ? "Uri ng Biyahe" : "Trip Type"}
-          <IconButton size="small" onClick={() => setTripTypeInfoOpen(false)}>
+          <IconButton aria-label={language === "tl" ? "Isara" : "Close"} size="small" onClick={() => setTripTypeInfoOpen(false)} sx={extendTapArea(7)}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -1614,7 +1637,7 @@ const NewTrip: React.FC = () => {
                 border: "1px solid #FFE4D6",
               }}
             >
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#FF6B00" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#C2410C" }}>
                 Solo Trip
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#64748B", mt: 0.5 }}>

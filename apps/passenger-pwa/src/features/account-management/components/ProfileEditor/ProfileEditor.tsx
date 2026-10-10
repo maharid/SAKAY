@@ -15,7 +15,7 @@ import PageHeader from "../../../../common/components/PageHeader";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { supabase } from "../../../../services/supabaseClient";
-import { SIGNED_URL_TTL, ownedObjectPath, signedStorageUrl } from "@sakay/shared";
+import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl } from "@sakay/shared";
 
 export const ProfileEditor: React.FC = () => {
   const { language, t } = useLanguage();
@@ -33,7 +33,9 @@ export const ProfileEditor: React.FC = () => {
   const [fullName, setFullName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [initialContactNumber, setInitialContactNumber] = useState("");
+  const [initialFullName, setInitialFullName] = useState("");
   const [address, setAddress] = useState("");
+  const [initialAddress, setInitialAddress] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
 
   // Feedback State
@@ -72,15 +74,21 @@ export const ProfileEditor: React.FC = () => {
       }
 
       if (profile) {
-        setFullName(profile.full_name || user.user_metadata?.full_name || "");
-        setAddress(profile.residential_address || "");
+        const loadedName = profile.full_name || user.user_metadata?.full_name || "";
+        const loadedAddress = profile.residential_address || "";
+        setFullName(loadedName);
+        setInitialFullName(loadedName);
+        setAddress(loadedAddress);
+        setInitialAddress(loadedAddress);
         setProfilePhotoUrl((await signedStorageUrl(supabase, "profiles", profile.profile_photo_url, SIGNED_URL_TTL.avatar)) || "");
         if (profile.contact_number) {
           setContactNumber(profile.contact_number);
           setInitialContactNumber(profile.contact_number);
         }
       } else {
-        setFullName(user.user_metadata?.full_name || "");
+        const loadedName = user.user_metadata?.full_name || "";
+        setFullName(loadedName);
+        setInitialFullName(loadedName);
       }
 
       setLoadingProfile(false);
@@ -216,6 +224,12 @@ export const ProfileEditor: React.FC = () => {
     }
   };
 
+  // Save only means something once a field differs from what was loaded.
+  const isDirty =
+    fullName.trim() !== initialFullName.trim() ||
+    address.trim() !== initialAddress.trim() ||
+    cleanDigits(contactNumber) !== cleanDigits(initialContactNumber);
+
   if (loadingProfile) {
     return (
       <Box
@@ -260,6 +274,7 @@ export const ProfileEditor: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2.5,
           display: "flex",
           flexDirection: "column",
@@ -282,9 +297,11 @@ export const ProfileEditor: React.FC = () => {
               {fullName.charAt(0).toUpperCase()}
             </Avatar>
             <IconButton
+              aria-label={language === "tl" ? "Palitan ang larawan" : "Change photo"}
               component="label"
               disabled={uploadingPhoto}
               sx={{
+                ...extendTapArea(7),
                 position: "absolute",
                 bottom: 0,
                 right: 0,
@@ -324,11 +341,12 @@ export const ProfileEditor: React.FC = () => {
         {/* Mobile Number with OTP Note */}
         <Box>
           <SakayPhoneInput
+            label={language === "tl" ? "Numero ng telepono" : "Mobile number"}
             value={contactNumber}
             onChange={(val) => setContactNumber(val)}
             error={false}
           />
-          <Typography sx={{ fontSize: "11px", color: "#64748B", mt: 0.5, ml: 1, fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.5, ml: 1, fontFamily: "Poppins, sans-serif" }}>
             {language === "tl"
               ? "Ang pagpapalit ng numero ay nangangailangan ng OTP verification."
               : "Changing your mobile number requires OTP verification."}
@@ -345,7 +363,7 @@ export const ProfileEditor: React.FC = () => {
 
         {/* Save Button */}
         <Box sx={{ mt: 2 }}>
-          <PrimaryButton type="submit" loading={saving} fullWidth>
+          <PrimaryButton type="submit" loading={saving} disabled={!isDirty} fullWidth>
             {language === "tl" ? "I-save ang mga Pagbabago" : "Save Changes"}
           </PrimaryButton>
         </Box>

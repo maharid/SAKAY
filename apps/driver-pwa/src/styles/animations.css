@@ -160,3 +160,21 @@
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
+
+/* People who ask their device for less motion get none: no pulses, floats or entrances (what changes on screen still changes). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pulse-ring,
+  .gmaps-pickup-radar-wave,
+  .gmaps-pickup-aura {
+    animation: none !important;
+  }
+}

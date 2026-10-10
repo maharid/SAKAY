@@ -17,7 +17,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import splashBg from "@sakay/shared/src/assets/images/webp/splash-bg.webp";
-import { TYPOGRAPHY_TOKENS } from "@sakay/shared";
+import { TYPOGRAPHY_TOKENS, activateWithKeyboard, extendTapArea } from "@sakay/shared";
 
 import type { PlaceSuggestion, RecentDestination } from "../../../../services/locationService";
 import {
@@ -314,6 +314,7 @@ const SetPlace: React.FC = () => {
         {/* Row 1: Back Button */}
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <IconButton
+            aria-label={language === "tl" ? "Bumalik" : "Back"}
             onClick={() => navigate("/new-trip")}
             sx={{
               backgroundColor: "rgba(255, 255, 255, 0.2)",
@@ -334,6 +335,9 @@ const SetPlace: React.FC = () => {
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
             {/* PICKUP Card */}
             <Box
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => setActiveTarget("pickup")}
               sx={{
                 backgroundColor: "rgba(255, 255, 255, 0.25)",
@@ -373,14 +377,13 @@ const SetPlace: React.FC = () => {
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontSize: "10px",
+                    fontSize: "12px",
                     fontWeight: 700,
                     color: "rgba(255, 255, 255, 0.85)",
-                    letterSpacing: "0.5px",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  PICKUP
+                  Pickup
                 </Typography>
                 <InputBase
                   value={pickupText}
@@ -401,6 +404,9 @@ const SetPlace: React.FC = () => {
 
             {/* DESTINASYON Card */}
             <Box
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => setActiveTarget("dropoff")}
               sx={{
                 backgroundColor: "rgba(255, 255, 255, 0.25)",
@@ -420,14 +426,13 @@ const SetPlace: React.FC = () => {
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontSize: "10px",
+                    fontSize: "12px",
                     fontWeight: 700,
                     color: "rgba(255, 255, 255, 0.85)",
-                    letterSpacing: "0.5px",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  {language === "tl" ? "DESTINASYON" : "DESTINATION"}
+                  {language === "tl" ? "Destinasyon" : "Destination"}
                 </Typography>
                 <InputBase
                   value={dropoffText}
@@ -451,8 +456,9 @@ const SetPlace: React.FC = () => {
           {/* Swap Places Button */}
           <IconButton
             onClick={handleSwap}
-            aria-label="Swap pickup and destination"
+            aria-label={language === "tl" ? "Ipagpalit ang pickup at destinasyon" : "Swap pickup and destination"}
             sx={{
+              ...extendTapArea(4),
               color: "#FFFFFF",
               backgroundColor: "transparent",
               width: "36px",
@@ -486,6 +492,9 @@ const SetPlace: React.FC = () => {
       >
         {/* Action 1: Current Location */}
         <Box
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={() => handleUseCurrentLocation(activeTarget)}
           sx={{
             display: "flex",
@@ -557,6 +566,9 @@ const SetPlace: React.FC = () => {
 
         {/* Action 2: Select on Map */}
         <Box
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={() => setMapPickerOpen(true)}
           sx={{
             display: "flex",
@@ -641,6 +653,9 @@ const SetPlace: React.FC = () => {
             suggestions.map((place, idx) => (
               <React.Fragment key={place.id}>
                 <Box
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
                   onClick={() => handleSelectPlace(place)}
                   sx={{
                     padding: "16px 20px",
@@ -677,9 +692,9 @@ const SetPlace: React.FC = () => {
                     </Box>
                     <Typography
                       sx={{
-                        fontSize: "11px",
+                        fontSize: "12px",
                         fontWeight: 500,
-                        color: "#94A3B8",
+                        color: "#64748B",
                         fontFamily: "Poppins, sans-serif",
                       }}
                     >
@@ -706,9 +721,7 @@ const SetPlace: React.FC = () => {
                   </Box>
 
                   {/* Right Top-Right Arrow Icon */}
-                  <IconButton size="small" sx={{ color: "#0F172A" }}>
-                    <NorthEastIcon sx={{ fontSize: "20px" }} />
-                  </IconButton>
+                  <NorthEastIcon sx={{ color: "#0F172A", fontSize: "20px", mx: "5px", flexShrink: 0 }} />
                 </Box>
                 {idx < suggestions.length - 1 && (
                   <Divider sx={{ borderColor: "#F1F5F9" }} />
@@ -739,11 +752,9 @@ const SetPlace: React.FC = () => {
                 >
                   <Typography
                     sx={{
-                      fontSize: "11px",
+                      fontSize: "12px",
                       fontWeight: 700,
                       color: "#64748B",
-                      letterSpacing: "0.6px",
-                      textTransform: "uppercase",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
@@ -756,8 +767,8 @@ const SetPlace: React.FC = () => {
                       setRecentDestinations([]);
                     }}
                     sx={{
-                      color: "#94A3B8",
-                      fontSize: "11px",
+                      color: "#64748B",
+                      fontSize: "12px",
                       textTransform: "none",
                       p: 0,
                       minWidth: "auto",
@@ -775,6 +786,9 @@ const SetPlace: React.FC = () => {
                   return (
                     <React.Fragment key={place.id}>
                       <Box
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={activateWithKeyboard}
                         onClick={() => handleSelectPlace(place)}
                         sx={{
                           padding: "14px 20px",
@@ -810,9 +824,9 @@ const SetPlace: React.FC = () => {
                           </Box>
                           <Typography
                             sx={{
-                              fontSize: "11px",
+                              fontSize: "12px",
                               fontWeight: 500,
-                              color: "#94A3B8",
+                              color: "#64748B",
                               fontFamily: "Poppins, sans-serif",
                             }}
                           >
@@ -849,9 +863,7 @@ const SetPlace: React.FC = () => {
                           </Typography>
                         </Box>
 
-                        <IconButton size="small" sx={{ color: "#0F172A" }}>
-                          <NorthEastIcon sx={{ fontSize: "20px" }} />
-                        </IconButton>
+                        <NorthEastIcon sx={{ color: "#0F172A", fontSize: "20px", mx: "5px", flexShrink: 0 }} />
                       </Box>
                       {idx < recentDestinations.length - 1 && (
                         <Divider sx={{ borderColor: "#F1F5F9" }} />
@@ -872,11 +884,9 @@ const SetPlace: React.FC = () => {
             >
               <Typography
                 sx={{
-                  fontSize: "11px",
+                  fontSize: "12px",
                   fontWeight: 700,
                   color: "#64748B",
-                  letterSpacing: "0.6px",
-                  textTransform: "uppercase",
                   fontFamily: "Poppins, sans-serif",
                 }}
               >
@@ -890,6 +900,9 @@ const SetPlace: React.FC = () => {
               return (
                 <React.Fragment key={place.id}>
                   <Box
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateWithKeyboard}
                     onClick={() => handleSelectPlace(place)}
                     sx={{
                       padding: "14px 20px",
@@ -925,9 +938,9 @@ const SetPlace: React.FC = () => {
                       </Box>
                       <Typography
                         sx={{
-                          fontSize: "11px",
+                          fontSize: "12px",
                           fontWeight: 500,
-                          color: "#94A3B8",
+                          color: "#64748B",
                           fontFamily: "Poppins, sans-serif",
                         }}
                       >
@@ -964,9 +977,7 @@ const SetPlace: React.FC = () => {
                       </Typography>
                     </Box>
 
-                    <IconButton size="small" sx={{ color: "#0F172A" }}>
-                      <NorthEastIcon sx={{ fontSize: "20px" }} />
-                    </IconButton>
+                    <NorthEastIcon sx={{ color: "#0F172A", fontSize: "20px", mx: "5px", flexShrink: 0 }} />
                   </Box>
                   {idx < CURATED_CALAPAN_PLACES.length - 1 && (
                     <Divider sx={{ borderColor: "#F1F5F9" }} />

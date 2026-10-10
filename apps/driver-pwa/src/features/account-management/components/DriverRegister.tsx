@@ -26,6 +26,7 @@ import { applyDriverTodaAffiliations, ensureDriverAuthSession, fetchAccreditedTo
 import type { TodaDirectoryEntry } from '../../../services/driverApiService';
 import type { DriverTodaApplicationInput } from '@sakay/shared';
 import { saveRegisteredNameParts } from '../../../services/driverOnboardingCache';
+import { activateWithKeyboard, extendTapArea } from '@sakay/shared';
 
 export const formatMobileNumber = (value: string): string => {
   const digits = value.replace(/\D/g, '');
@@ -305,6 +306,7 @@ export const DriverRegister: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBack}
           sx={{
             color: '#0F172A',
@@ -330,6 +332,7 @@ export const DriverRegister: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px 16px 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -340,7 +343,7 @@ export const DriverRegister: React.FC = () => {
           <Typography
             sx={{
               fontSize: '26px',
-              fontWeight: 800,
+              fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
               letterSpacing: '-0.5px',
@@ -365,7 +368,7 @@ export const DriverRegister: React.FC = () => {
           {/* Stacked Name Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <RegisterInput
-              label={language === 'tl' ? "UNANG PANGALAN" : "FIRST NAME"}
+              label={language === 'tl' ? "Unang pangalan" : "First name"}
               required
               value={firstName}
               onChange={setFirstName}
@@ -375,7 +378,7 @@ export const DriverRegister: React.FC = () => {
             />
 
             <RegisterInput
-              label={language === 'tl' ? "GITNANG PANGALAN" : "MIDDLE NAME"}
+              label={language === 'tl' ? "Gitnang pangalan" : "Middle name"}
               value={middleName}
               onChange={setMiddleName}
             />
@@ -383,7 +386,7 @@ export const DriverRegister: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 1.5 }}>
               <Box sx={{ flex: '7 7 70%', minWidth: 0 }}>
                 <RegisterInput
-                  label={language === 'tl' ? "APELYIDO" : "LAST NAME"}
+                  label={language === 'tl' ? "Apelyido" : "Last name"}
                   required
                   value={lastName}
                   onChange={setLastName}
@@ -394,7 +397,7 @@ export const DriverRegister: React.FC = () => {
               </Box>
               <Box sx={{ flex: '3 3 30%', minWidth: 0 }}>
                 <RegisterInput
-                  label="SUFFIX"
+                  label="Suffix"
                   value={suffix}
                   onChange={setSuffix}
                 />
@@ -436,18 +439,17 @@ export const DriverRegister: React.FC = () => {
                   left: '16px',
                   top: hasTodaSelection ? '8px' : '50%',
                   transform: hasTodaSelection ? 'translateY(0)' : 'translateY(-50%)',
-                  fontSize: hasTodaSelection ? '9.5px' : '15px',
+                  fontSize: hasTodaSelection ? '12px' : '15px',
                   fontWeight: hasTodaSelection ? 700 : 500,
                   color:
                     hasAttemptedSubmit && !hasTodaSelection
                       ? '#DC2626'
                       : todaFocused
-                      ? '#FF6B00'
+                      ? '#C2410C'
                       : hasTodaSelection
                       ? '#64748B'
-                      : '#94A3B8',
-                  letterSpacing: hasTodaSelection ? '0.5px' : '0px',
-                  textTransform: hasTodaSelection ? 'uppercase' : 'none',
+                      : '#64748B',
+                  textTransform: 'none',
                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   pointerEvents: 'none',
                   zIndex: 1,
@@ -456,8 +458,8 @@ export const DriverRegister: React.FC = () => {
                   gap: '4px',
                 }}
               >
-                {language === 'tl' ? 'MGA TODA NA KINABABILANGAN' : 'AFFILIATED TODA(S)'}
-                <Box component="span" sx={{ color: '#DC2626', fontWeight: 800 }}>
+                {language === 'tl' ? 'Mga TODA na kinababilangan' : 'Affiliated TODA(S)'}
+                <Box component="span" sx={{ color: '#DC2626', fontWeight: 700 }}>
                   *
                 </Box>
               </Typography>
@@ -503,7 +505,7 @@ export const DriverRegister: React.FC = () => {
                     <Checkbox
                       size="small"
                       checked={selectedTodaIds.includes(toda.id)}
-                      sx={{ p: 0.5, mr: 1, color: '#94A3B8', '&.Mui-checked': { color: '#FF6B00' } }}
+                      sx={{ p: 0.5, mr: 1, color: '#64748B', '&.Mui-checked': { color: '#C2410C' } }}
                     />
                     {toda.name} ({toda.acronym})
                   </MenuItem>
@@ -524,7 +526,7 @@ export const DriverRegister: React.FC = () => {
           </Box>
 
           <SakayPhoneInput
-            label={language === 'tl' ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
+            label={language === 'tl' ? "Numero ng telepono" : "Mobile number"}
             value={phone}
             onChange={(fullVal) => setPhone(fullVal)}
             onFocus={() => setPhoneTouched(true)}
@@ -540,7 +542,7 @@ export const DriverRegister: React.FC = () => {
           />
 
           <RegisterInput
-            label="PASSWORD"
+            label="Password"
             required
             type={showPassword ? 'text' : 'password'}
             value={password}
@@ -549,10 +551,11 @@ export const DriverRegister: React.FC = () => {
             error={hasAttemptedSubmit && (!password || !isPasswordValid)}
             endAdornment={
               <IconButton
+                aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")}
                 onClick={() => setShowPassword(!showPassword)}
                 edge="end"
                 size="small"
-                sx={{ color: '#64748B' }}
+                sx={{ ...extendTapArea(8), color: '#64748B' }}
               >
                 {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
               </IconButton>
@@ -591,7 +594,7 @@ export const DriverRegister: React.FC = () => {
                     {item.met ? (
                       <CheckCircleIcon sx={{ fontSize: 16, color: '#16A34A' }} />
                     ) : (
-                      <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: '#94A3B8' }} />
+                      <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: '#64748B' }} />
                     )}
                     <Typography
                       sx={{
@@ -609,7 +612,7 @@ export const DriverRegister: React.FC = () => {
           )}
 
           <RegisterInput
-            label={language === 'tl' ? "KUMPIRMAHIN ANG PASSWORD" : "CONFIRM PASSWORD"}
+            label={language === 'tl' ? "Kumpirmahin ang password" : "Confirm password"}
             required
             type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
@@ -625,10 +628,11 @@ export const DriverRegister: React.FC = () => {
             }
             endAdornment={
               <IconButton
+                aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")}
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 edge="end"
                 size="small"
-                sx={{ color: '#64748B' }}
+                sx={{ ...extendTapArea(8), color: '#64748B' }}
               >
                 {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
               </IconButton>
@@ -663,13 +667,13 @@ export const DriverRegister: React.FC = () => {
             height: '56px',
             borderRadius: '16px',
             fontSize: '16px',
-            fontWeight: 800,
+            fontWeight: 700,
             backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6B00' : '#E2E8F0',
-            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#94A3B8',
+            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',
-              color: '#94A3B8',
+              color: '#64748B',
             },
             '&:hover': {
               backgroundColor: (isAllRequiredFilled && !submitted) ? '#E66000' : '#E2E8F0',
@@ -681,10 +685,13 @@ export const DriverRegister: React.FC = () => {
         </PrimaryButton>
 
         <Typography
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={() => navigate('/driver/login')}
-          sx={{
+          sx={{ ...extendTapArea(12),
             textAlign: 'center',
-            fontSize: '13.5px',
+            fontSize: '14px',
             color: '#64748B',
             mt: 1.5,
             fontWeight: 500,
@@ -696,7 +703,7 @@ export const DriverRegister: React.FC = () => {
           <Box
             component="span"
             sx={{
-              color: '#FF6B00',
+              color: '#C2410C',
               fontWeight: 700,
               textDecoration: 'none',
               '&:hover': { textDecoration: 'underline' },

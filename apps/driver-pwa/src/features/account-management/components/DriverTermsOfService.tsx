@@ -51,6 +51,7 @@ export const DriverTermsOfService: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           padding: '16px 24px calc(var(--safe-area-bottom) + 24px) 24px',
           display: 'flex',
           flexDirection: 'column',
@@ -65,7 +66,7 @@ export const DriverTermsOfService: React.FC = () => {
         <Typography
           sx={{
             fontSize: '24px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',
@@ -77,7 +78,7 @@ export const DriverTermsOfService: React.FC = () => {
         <Typography
           sx={{
             fontSize: '13px',
-            color: '#94A3B8',
+            color: '#64748B',
             fontWeight: 500,
             mb: 2.5,
           }}
@@ -89,10 +90,10 @@ export const DriverTermsOfService: React.FC = () => {
           /* TAGALOG CONTENT */
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 1. Pagiging Karapat-dapat
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Maaari lamang gumamit ng SAKAY Driver ang:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -107,10 +108,10 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 2. Katumpakan ng Impormasyon
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Responsibilidad mong tiyaking tama at napapanahon ang lahat ng impormasyong isinusumite.
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
@@ -119,7 +120,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 3. Mga Istruktura ng Pamasahe
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -128,10 +129,10 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 4. Pagtanggap ng Booking
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Kapag tinanggap mo ang isang booking:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -142,10 +143,10 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 5. Pagkansela ng Booking
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Ang madalas o hindi makatarungang pagkansela ng booking ay maaaring magresulta sa:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -154,7 +155,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 6. Sistema ng Strike at Parusa
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
@@ -177,13 +178,13 @@ export const DriverTermsOfService: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
                 Ang mga malubhang paglabag (tulad ng away, harassment, o pagmamaneho nang lasing) ay direktang hahantong sa agarang suspensyon habang iniimbestigahan.
               </Typography>
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 7. Pag-uugali bilang Driver
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -194,7 +195,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 8. Pagsuspinde at Pag-deactivate
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -203,7 +204,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 9. Pagbabago sa mga Tuntunin
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -212,7 +213,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 10. Pakikipag-ugnayan
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -224,10 +225,10 @@ export const DriverTermsOfService: React.FC = () => {
           /* ENGLISH CONTENT */
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 1. Eligibility
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 To use SAKAY as a driver, you must meet all of the following:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -242,10 +243,10 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 2. Accuracy of Information
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 You are responsible for making sure all information you submit is accurate, complete, and up to date.
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
@@ -254,7 +255,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 3. Fare Structure
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -263,10 +264,10 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 4. Accepting a Booking
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Once you accept a booking:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -277,10 +278,10 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 5. Cancelling a Booking
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 Frequent or unjustified cancellations may result in:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -289,7 +290,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 6. Strike System and Penalties
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
@@ -312,13 +313,13 @@ export const DriverTermsOfService: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.6 }}>
                 Severe offenses (harassment, physical altercation, driving under the influence) will result in immediate suspension pending formal investigation.
               </Typography>
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 7. Driver Conduct
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
@@ -329,7 +330,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 8. Suspension and Deactivation
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -338,7 +339,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 9. Changes to These Terms
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -347,7 +348,7 @@ export const DriverTermsOfService: React.FC = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
                 10. Contact
               </Typography>
               <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
@@ -384,7 +385,7 @@ export const DriverTermsOfService: React.FC = () => {
               height: '56px',
               borderRadius: '16px',
               fontSize: '16px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

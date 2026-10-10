@@ -18,6 +18,7 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import LogoutConfirmDialog from "../../../../common/components/LogoutConfirmDialog";
+import { activateWithKeyboard } from "@sakay/shared";
 
 export interface PassengerNavigationDrawerProps {
   isOpen: boolean;
@@ -95,10 +96,14 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           transform: isOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
         }}
       >
         {/* Top Header Card matching SIDEBAR MENU.png (Vibrant Orange Header respecting safe area) */}
         <Box
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateWithKeyboard}
           onClick={handleProfileClick}
           sx={{
             background: "linear-gradient(135deg, #FF6B00 0%, #FF8533 100%)",
@@ -119,7 +124,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
               height: "52px",
               backgroundColor: "#FFFFFF",
               color: "#FF6B00",
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: "19px",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
               border: "2px solid #FFFFFF",
@@ -133,7 +138,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
             <Typography
               sx={{
                 fontSize: "17px",
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "#FFFFFF",
                 letterSpacing: "-0.2px",
                 fontFamily: "Poppins, sans-serif",

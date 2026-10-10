@@ -2,6 +2,7 @@ import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useLanguage } from "../../utils/LanguageContext";
+import { activateWithKeyboard } from "@sakay/shared";
 
 const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();
@@ -21,6 +22,10 @@ const LanguageSelector: React.FC = () => {
     >
       {/* Tagalog Option */}
       <Box
+        role="radio"
+        tabIndex={0}
+        onKeyDown={activateWithKeyboard}
+        aria-checked={language === "tl"}
         onClick={() => setLanguage("tl")}
         sx={{
           display: "flex",
@@ -28,6 +33,7 @@ const LanguageSelector: React.FC = () => {
           alignItems: "center",
           gap: "6px",
           padding: "8px 16px",
+        minHeight: "40px",
           borderRadius: "24px",
           cursor: "pointer",
           whiteSpace: "nowrap",
@@ -47,7 +53,6 @@ const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        <Box component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>🇵🇭</Box>
         <Typography sx={{ fontSize: "14px", fontWeight: 700, whiteSpace: "nowrap", lineHeight: 1 }}>
           Tagalog
         </Typography>
@@ -55,6 +60,10 @@ const LanguageSelector: React.FC = () => {
 
       {/* English Option */}
       <Box
+        role="radio"
+        tabIndex={0}
+        onKeyDown={activateWithKeyboard}
+        aria-checked={language === "en"}
         onClick={() => setLanguage("en")}
         sx={{
           display: "flex",
@@ -62,6 +71,7 @@ const LanguageSelector: React.FC = () => {
           alignItems: "center",
           gap: "6px",
           padding: "8px 16px",
+        minHeight: "40px",
           borderRadius: "24px",
           cursor: "pointer",
           whiteSpace: "nowrap",
@@ -81,7 +91,6 @@ const LanguageSelector: React.FC = () => {
               }),
         }}
       >
-        <Box component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>🇺🇸</Box>
         <Typography sx={{ fontSize: "14px", fontWeight: 700, whiteSpace: "nowrap", lineHeight: 1 }}>
           English
         </Typography>

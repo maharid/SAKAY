@@ -44,6 +44,7 @@ const ForgotPassword: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => navigate("/login")}
           sx={{
             backgroundColor: "#FFFFFF",
@@ -70,7 +71,7 @@ const ForgotPassword: React.FC = () => {
           component="h2"
           sx={{
             fontSize: "26px",
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#0F172A",
             lineHeight: 1.3,
           }}

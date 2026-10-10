@@ -547,7 +547,7 @@ export const DriverActiveTrip: React.FC = () => {
             <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
               {isPreTrip ? (tl ? 'Layo sa pickup' : 'Distance to pickup') : tl ? 'Progreso papunta sa destinasyon' : 'Progress to destination'}
             </Typography>
-            <Typography sx={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
               {isPreTrip
                 ? formatDistance(pickupDistKm)
                 : isArrived || paymentConfirmed
@@ -750,7 +750,7 @@ export const DriverActiveTrip: React.FC = () => {
       >
         <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 1 }}>
           <CancelIcon sx={{ fontSize: 48, color: '#EF4444', mb: 1 }} />
-          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Kanselado ang Biyahe' : 'Trip Cancelled'}
           </Typography>
         </DialogTitle>
@@ -762,7 +762,7 @@ export const DriverActiveTrip: React.FC = () => {
           </Typography>
           {passengerCancelReason && (
             <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
-              <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+              <Typography sx={{ fontSize: '13px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
                 {language === 'tl' ? 'Rason:' : 'Reason:'} "{passengerCancelReason}"
               </Typography>
             </Box>
@@ -780,7 +780,7 @@ export const DriverActiveTrip: React.FC = () => {
               height: 46,
               borderRadius: '14px',
               backgroundColor: '#FF6B00',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
@@ -803,11 +803,11 @@ export const DriverActiveTrip: React.FC = () => {
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
           {language === 'tl' ? 'Biyahe ay Aktibo' : 'Active Trip'}
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', py: 1 }}>
-          <Typography sx={{ fontSize: '13.5px', color: '#475569', lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.5 }}>
             {language === 'tl'
               ? `May pasahero ka sa biyahe (${passengerName}). Nais mo bang bumalik sa Home?`
               : `You currently have passenger (${passengerName}). Do you want to return to Home? Your trip progress will remain active.`}

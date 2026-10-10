@@ -67,6 +67,7 @@ export const DriverReviewMtop: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Ulitin ang larawan" : "Retake photo"}
           onClick={handleRetake}
           sx={{
             width: 44,
@@ -89,6 +90,7 @@ export const DriverReviewMtop: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           px: 3,
           pb: 3,
           display: 'flex',
@@ -101,7 +103,7 @@ export const DriverReviewMtop: React.FC = () => {
         <Typography
           sx={{
             fontSize: '26px',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
             letterSpacing: '-0.5px',

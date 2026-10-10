@@ -325,6 +325,7 @@ export const DriverScanLicenseFront: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
             if (state?.isResubmission) {
               navigate('/driver/status');
@@ -364,7 +365,7 @@ export const DriverScanLicenseFront: React.FC = () => {
         >
           <WarningAmberRoundedIcon sx={{ color: '#D97706', fontSize: 20, flexShrink: 0 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', lineHeight: 1.2 }}>
               {isTagalog ? 'Kailangang Iwasto / Required Correction' : 'Required Correction'}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600, lineHeight: 1.3, mt: 0.25 }} noWrap>
@@ -388,6 +389,7 @@ export const DriverScanLicenseFront: React.FC = () => {
           py: 2.5,
           position: 'relative',
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
         }}
@@ -406,12 +408,12 @@ export const DriverScanLicenseFront: React.FC = () => {
           }}
         >
           {t.scanFrontPromptPrefix}
-          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
             {t.scanFrontWord}
           </Box>
           {t.scanPromptMid}
           <br />
-          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
             {t.philippineDriversLicense}
           </Box>
           {t.scanPromptSuffix}
@@ -558,7 +560,7 @@ export const DriverScanLicenseFront: React.FC = () => {
               }}
             >
               <CircularProgress size={38} sx={{ color: '#FF6B00', thickness: 4.5 }} />
-              <Typography sx={{ color: '#FFFFFF', fontSize: '14.5px', fontWeight: 700, textAlign: 'center' }}>
+              <Typography sx={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}>
                 {t.analyzingImageQuality}
               </Typography>
             </Box>
@@ -621,9 +623,9 @@ export const DriverScanLicenseFront: React.FC = () => {
         >
           <Typography
             sx={{
-              color: '#FF6B00',
-              fontWeight: 800,
-              fontSize: '13.5px',
+              color: '#C2410C',
+              fontWeight: 700,
+              fontSize: '14px',
               mb: 1.25,
               display: 'flex',
               alignItems: 'center',
@@ -638,7 +640,7 @@ export const DriverScanLicenseFront: React.FC = () => {
               margin: 0,
               paddingLeft: '18px',
               color: '#E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               lineHeight: 1.6,
               '& li': { mb: 0.5 },
             }}
@@ -663,6 +665,7 @@ export const DriverScanLicenseFront: React.FC = () => {
         >
           {/* Flashlight / Torch Toggle */}
           <IconButton
+            aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
             onClick={handleToggleTorch}
             sx={{
               color: torchOn ? '#FF6B00' : '#FFFFFF',
@@ -679,6 +682,7 @@ export const DriverScanLicenseFront: React.FC = () => {
 
           {/* Shutter Capture Button */}
           <IconButton
+            aria-label={language === "tl" ? "Kumuha ng larawan" : "Take photo"}
             onClick={handleCapture}
             disabled={isAnalyzing}
             sx={{
@@ -704,6 +708,7 @@ export const DriverScanLicenseFront: React.FC = () => {
 
           {/* Camera Flip (Front/Back) */}
           <IconButton
+            aria-label={language === "tl" ? "Palitan ang camera" : "Switch camera"}
             onClick={handleToggleFacingMode}
             disabled={isAnalyzing}
             sx={{
@@ -756,7 +761,7 @@ export const DriverScanLicenseFront: React.FC = () => {
           </Box>
         </Box>
 
-        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', fontSize: '19px', p: 0, mb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, color: '#0F172A', fontSize: '19px', p: 0, mb: 1 }}>
           {t.qualityWarningTitle}
         </DialogTitle>
 
@@ -782,7 +787,7 @@ export const DriverScanLicenseFront: React.FC = () => {
               height: '52px',
               borderRadius: '14px',
               fontSize: '15px',
-              fontWeight: 800,
+              fontWeight: 700,
               backgroundColor: '#FF6B00',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },

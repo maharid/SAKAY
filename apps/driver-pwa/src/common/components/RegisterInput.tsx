@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 
 export interface RegisterInputProps {
@@ -40,12 +40,21 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
   rows = 3,
 }) => {
   const [focused, setFocused] = useState(false);
+  const inputId = useId();
+  const helpId = `${inputId}-help`;
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const isFloating = focused || Boolean(value && value.length > 0);
+
+  // The whole box is the tap target, not just the line of text inside it.
+  const handleBoxClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (!readOnly && !(e.target as HTMLElement).closest('button, a, input, textarea, select')) inputRef.current?.focus();
+  };
 
   return (
     <Box sx={{ width: '100%' }}>
       <Box
         className={shake ? 'anim-shake' : ''}
+        onClick={handleBoxClick}
         data-error={error ? 'true' : undefined}
         sx={{
           width: '100%',
@@ -68,17 +77,17 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
         }}
       >
         <Typography
+          component="label"
+          htmlFor={inputId}
           sx={{
             position: 'absolute',
             left: '16px',
             right: endAdornment ? '48px' : '16px',
             top: isFloating ? '8px' : multiline ? '18px' : '50%',
             transform: isFloating ? 'translateY(0)' : multiline ? 'none' : 'translateY(-50%)',
-            fontSize: isFloating ? '9.5px' : '14px',
-            fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : isFloating ? '#64748B' : '#94A3B8',
-            letterSpacing: isFloating ? '0.5px' : '0px',
-            textTransform: isFloating ? 'uppercase' : 'none',
+            fontSize: isFloating ? '12px' : '16px',
+            fontWeight: isFloating ? 600 : 400,
+            color: error ? '#DC2626' : focused ? '#C2410C' : '#64748B',
             userSelect: 'none',
             pointerEvents: 'none',
             whiteSpace: isFloating ? 'normal' : 'nowrap',
@@ -92,7 +101,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
         >
           {label}
           {required && (
-            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 800 }}>
+            <Box component="span" sx={{ color: '#DC2626', ml: '3px', fontWeight: 700 }}>
               *
             </Box>
           )}
@@ -109,6 +118,13 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
         >
           {multiline ? (
             <textarea
+              id={inputId}
+              ref={(el) => {
+                inputRef.current = el;
+              }}
+              aria-invalid={error || undefined}
+              aria-required={required || undefined}
+              aria-describedby={helperText ? helpId : undefined}
               rows={rows}
               value={value}
               onChange={(e) => onChange(e.target.value)}
@@ -128,7 +144,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
                 border: 'none',
                 outline: 'none',
                 background: 'transparent',
-                fontSize: '14px',
+                fontSize: '16px',
                 fontWeight: 600,
                 color: '#0F172A',
                 fontFamily: 'inherit',
@@ -139,6 +155,13 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
             />
           ) : (
             <input
+              id={inputId}
+              ref={(el) => {
+                inputRef.current = el;
+              }}
+              aria-invalid={error || undefined}
+              aria-required={required || undefined}
+              aria-describedby={helperText ? helpId : undefined}
               type={type}
               value={value}
               onChange={(e) => onChange(e.target.value)}
@@ -158,7 +181,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
                 border: 'none',
                 outline: 'none',
                 background: 'transparent',
-                fontSize: '14px',
+                fontSize: '16px',
                 fontWeight: 600,
                 color: '#0F172A',
                 fontFamily: 'inherit',
@@ -186,8 +209,10 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
 
       {helperText && (
         <Typography
+          id={helpId}
+          role={error ? 'alert' : undefined}
           sx={{
-            fontSize: '11.5px',
+            fontSize: '12px',
             color: error ? '#DC2626' : '#64748B',
             fontWeight: error ? 600 : 400,
             mt: '4px',

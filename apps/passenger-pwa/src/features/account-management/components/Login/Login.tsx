@@ -15,7 +15,7 @@ import SakayToast from "../../../../common/components/SakayToast";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { supabase } from "../../../../services/supabaseClient";
-import { describeRestriction } from "@sakay/shared";
+import { describeRestriction, activateWithKeyboard, extendTapArea } from "@sakay/shared";
 import { getOwnAccountRestriction, getPhoneLookupCandidates, rotatePassengerSession } from "../../../../services/passengerApiService";
 
 const Login: React.FC = () => {
@@ -229,6 +229,7 @@ const Login: React.FC = () => {
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={handleBack}
           sx={{
             backgroundColor: "#FFFFFF",
@@ -257,6 +258,7 @@ const Login: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           padding: "24px 24px calc(var(--safe-area-bottom) + 24px) 24px",
           display: "flex",
           flexDirection: "column",
@@ -270,7 +272,7 @@ const Login: React.FC = () => {
               component="h2"
               sx={{
                 fontSize: "26px",
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "#0F172A",
                 lineHeight: 1.3,
               }}
@@ -304,7 +306,7 @@ const Login: React.FC = () => {
           >
             {/* Mobile Number with SakayPhoneInput */}
             <SakayPhoneInput
-              label={language === "tl" ? "NUMERO NG TELEPONO" : "MOBILE NUMBER"}
+              label={language === "tl" ? "Numero ng telepono" : "Mobile number"}
               value={phone}
               onChange={(fullVal) => setPhone(fullVal)}
               onFocus={() => setPhoneTouched(true)}
@@ -322,17 +324,18 @@ const Login: React.FC = () => {
 
             {/* Password Input with RegisterInput */}
             <RegisterInput
-              label="PASSWORD"
+              label="Password"
               required
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(val) => setPassword(val)}
               endAdornment={
                 <IconButton
+                  aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")}
                   onClick={() => setShowPassword(!showPassword)}
                   edge="end"
                   size="small"
-                  sx={{ color: "#64748B" }}
+                  sx={{ ...extendTapArea(8), color: "#64748B" }}
                 >
                   {showPassword ? (
                     <VisibilityOffOutlinedIcon fontSize="small" />
@@ -346,10 +349,13 @@ const Login: React.FC = () => {
             {/* Forgot Password Link */}
             <Box sx={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
               <Typography
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
                 onClick={() => navigate("/forgot-password")}
-                sx={{
+                sx={{ ...extendTapArea(12),
                   fontSize: "14px",
-                  color: "#FF6B00",
+                  color: "#C2410C",
                   fontWeight: 600,
                   cursor: "pointer",
                   "&:hover": {
@@ -390,9 +396,12 @@ const Login: React.FC = () => {
             {t.dontHaveAccount}
             <Box
               component="span"
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateWithKeyboard}
               onClick={() => navigate("/register")}
-              sx={{
-                color: "#FF6B00",
+              sx={{ ...extendTapArea(12),
+                color: "#C2410C",
                 fontWeight: 700,
                 cursor: "pointer",
                 marginLeft: "6px",

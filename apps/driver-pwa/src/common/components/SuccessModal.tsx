@@ -67,7 +67,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ open, title, message
         <Typography
           sx={{
             fontSize: "20px",
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#0F172A",
             lineHeight: 1.3,
           }}

@@ -24,7 +24,7 @@ import SuccessModal from '../../../common/components/SuccessModal';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { SIGNED_URL_TTL, ownedObjectPath, signedStorageUrl } from '@sakay/shared';
+import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { fetchDriverProfile, formatPhoneToE164 } from '../../../services/driverApiService';
 
@@ -152,6 +152,12 @@ export const DriverProfileEditor: React.FC = () => {
     }
   };
 
+  // Save only means something once a field differs from what was loaded.
+  const isDirty =
+    fullName.trim() !== String(profile.name || '').trim() ||
+    email.trim() !== String(profile.email || '').trim() ||
+    phone.replace(/\D/g, '') !== initialPhone.replace(/\D/g, '');
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
@@ -177,7 +183,7 @@ export const DriverProfileEditor: React.FC = () => {
     try {
       const activeId = profile.id || localStorage.getItem('sakay_driver_id');
       if (activeId) {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('driver')
           .update({
             full_name: fullName.trim(),
@@ -186,6 +192,8 @@ export const DriverProfileEditor: React.FC = () => {
             profile_photo_url: profilePhotoPath || null,
           })
           .eq('driver_id', activeId);
+        // A refused update must not be reported as saved.
+        if (updateErr) throw new Error(updateErr.message);
       }
 
       // If mobile number was changed, trigger OTP verification
@@ -237,6 +245,7 @@ export const DriverProfileEditor: React.FC = () => {
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           p: 2.5,
           display: 'flex',
           flexDirection: 'column',
@@ -253,7 +262,7 @@ export const DriverProfileEditor: React.FC = () => {
                 height: '90px',
                 backgroundColor: '#FF6B00',
                 fontSize: '32px',
-                fontWeight: 800,
+                fontWeight: 700,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
                 border: '3px solid #FFF',
                 outline: '2px solid #E2E8F0',
@@ -262,9 +271,11 @@ export const DriverProfileEditor: React.FC = () => {
               {fullName ? fullName.charAt(0).toUpperCase() : 'D'}
             </Avatar>
             <IconButton
+              aria-label={language === "tl" ? "Palitan ang larawan" : "Change photo"}
               component="label"
               disabled={uploadingPhoto}
               sx={{
+                ...extendTapArea(7),
                 position: 'absolute',
                 bottom: 0,
                 right: 0,
@@ -287,7 +298,7 @@ export const DriverProfileEditor: React.FC = () => {
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1.5 }}>
             <VerifiedIcon sx={{ color: '#16A34A', fontSize: 16 }} />
-            <Typography sx={{ fontSize: '12.5px', color: '#16A34A', fontWeight: 700 }}>
+            <Typography sx={{ fontSize: '13px', color: '#16A34A', fontWeight: 700 }}>
               {isTagalog ? 'Akreditadong SAKAY Drayber' : 'Accredited SAKAY Driver'}
             </Typography>
           </Box>
@@ -305,9 +316,7 @@ export const DriverProfileEditor: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -328,18 +337,18 @@ export const DriverProfileEditor: React.FC = () => {
             }}
           >
             <RegisterInput
-              label={isTagalog ? 'BUONG PANGALAN' : 'FULL NAME'}
+              label={isTagalog ? 'Buong pangalan' : 'Full name'}
               value={fullName}
               onChange={(val) => setFullName(val)}
             />
 
             <Box>
               <SakayPhoneInput
-                label={isTagalog ? 'NUMERO NG TELEPONO' : 'MOBILE NUMBER'}
+                label={isTagalog ? 'Numero ng telepono' : 'Mobile number'}
                 value={phone}
                 onChange={(val) => setPhone(val)}
               />
-              <Typography sx={{ fontSize: '11px', color: '#64748B', mt: 0.5, ml: 1 }}>
+              <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5, ml: 1 }}>
                 {isTagalog
                   ? 'Ang pagpapalit ng numero ay nangangailangan ng OTP verification.'
                   : 'Changing your mobile number requires OTP verification.'}
@@ -347,7 +356,7 @@ export const DriverProfileEditor: React.FC = () => {
             </Box>
 
             <RegisterInput
-              label={isTagalog ? 'EMAIL ADDRESS' : 'EMAIL ADDRESS'}
+              label={isTagalog ? 'Email address' : 'Email address'}
               value={email}
               onChange={(val) => setEmail(val)}
             />
@@ -360,9 +369,7 @@ export const DriverProfileEditor: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -396,7 +403,7 @@ export const DriverProfileEditor: React.FC = () => {
                   backgroundColor: '#ECFDF5',
                   color: '#047857',
                   fontWeight: 700,
-                  fontSize: '11px',
+                  fontSize: '12px',
                 }}
               />
             </Box>
@@ -415,9 +422,9 @@ export const DriverProfileEditor: React.FC = () => {
                 borderRadius: '10px',
                 borderColor: '#CBD5E1',
                 color: '#334155',
-                fontSize: '12.5px',
+                fontSize: '13px',
                 fontWeight: 600,
-                py: 0.75,
+                minHeight: 44,
                 mt: 0.5,
                 '&:hover': { borderColor: '#FF6B00', color: '#FF6B00', backgroundColor: '#FFF8F0' },
               }}
@@ -433,9 +440,7 @@ export const DriverProfileEditor: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -469,7 +474,7 @@ export const DriverProfileEditor: React.FC = () => {
                   backgroundColor: '#ECFDF5',
                   color: '#047857',
                   fontWeight: 700,
-                  fontSize: '11px',
+                  fontSize: '12px',
                 }}
               />
             </Box>
@@ -488,9 +493,9 @@ export const DriverProfileEditor: React.FC = () => {
                 borderRadius: '10px',
                 borderColor: '#CBD5E1',
                 color: '#334155',
-                fontSize: '12.5px',
+                fontSize: '13px',
                 fontWeight: 600,
-                py: 0.75,
+                minHeight: 44,
                 mt: 0.5,
                 '&:hover': { borderColor: '#FF6B00', color: '#FF6B00', backgroundColor: '#FFF8F0' },
               }}
@@ -506,9 +511,7 @@ export const DriverProfileEditor: React.FC = () => {
             sx={{
               fontSize: '12px',
               fontWeight: 700,
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              color: '#64748B',
               mb: 1,
               px: 0.5,
             }}
@@ -542,12 +545,12 @@ export const DriverProfileEditor: React.FC = () => {
                   backgroundColor: '#ECFDF5',
                   color: '#047857',
                   fontWeight: 700,
-                  fontSize: '11px',
+                  fontSize: '12px',
                 }}
               />
             </Box>
 
-            <Typography sx={{ fontSize: '12.5px', color: '#64748B' }}>
+            <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
               Unit: Registered Public Transport Tricycle
             </Typography>
 
@@ -561,9 +564,9 @@ export const DriverProfileEditor: React.FC = () => {
                 borderRadius: '10px',
                 borderColor: '#CBD5E1',
                 color: '#334155',
-                fontSize: '12.5px',
+                fontSize: '13px',
                 fontWeight: 600,
-                py: 0.75,
+                minHeight: 44,
                 mt: 0.5,
                 '&:hover': { borderColor: '#FF6B00', color: '#FF6B00', backgroundColor: '#FFF8F0' },
               }}
@@ -575,7 +578,7 @@ export const DriverProfileEditor: React.FC = () => {
 
         {/* Save Changes Primary Button */}
         <Box sx={{ mt: 1, mb: 2 }}>
-          <PrimaryButton type="submit" loading={saving} fullWidth>
+          <PrimaryButton type="submit" loading={saving} disabled={!isDirty} fullWidth>
             {isTagalog ? 'I-save ang mga Pagbabago' : 'Save Changes'}
           </PrimaryButton>
         </Box>

@@ -20,7 +20,7 @@ import StarIcon from '@mui/icons-material/Star';
 
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { formatShortBookingId } from '@sakay/shared';
+import { formatShortBookingId, extendTapArea } from '@sakay/shared';
 
 interface DriverFeedbackModalProps {
   open: boolean;
@@ -196,10 +196,10 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
         slotProps={{ paper: { sx: { borderRadius: '24px' } } }}
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, pt: 2.5, pb: 1 }}>
-          <Typography sx={{ fontSize: '17px', fontWeight: 800, fontFamily: 'Poppins, sans-serif', color: '#0F172A' }}>
+          <Typography sx={{ fontSize: '17px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: '#0F172A' }}>
             {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton aria-label={language === "tl" ? "Isara" : "Close"} onClick={onClose} size="small" sx={extendTapArea(7)}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -221,17 +221,17 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                 width: 54,
                 height: 54,
                 backgroundColor: '#10B981',
-                fontWeight: 800,
+                fontWeight: 700,
                 fontSize: '20px',
                 margin: '0 auto 8px auto',
               }}
             >
               {passengerName.charAt(0)}
             </Avatar>
-            <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
               {passengerName}
             </Typography>
-            <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
               Booking: {formatShortBookingId(bookingId)}
             </Typography>
 
@@ -245,14 +245,14 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                 readOnly={alreadyRated}
                 onChange={(_, val) => !alreadyRated && setStars(val)}
                 size="large"
-                sx={{ color: '#FF6B00', fontSize: '34px' }}
+                sx={{ color: '#C2410C', fontSize: '34px' }}
               />
             </Box>
           </Paper>
 
           {/* Tag Selection */}
           <Box>
-            <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#0F172A', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Mga Positibong Katangian' : 'Passenger Compliments'}
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -268,7 +268,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                       fontSize: '12px',
                       fontWeight: isSelected ? 700 : 500,
                       backgroundColor: isSelected ? '#FFF8F0' : '#F1F5F9',
-                      color: isSelected ? '#FF6B00' : '#475569',
+                      color: isSelected ? '#C2410C' : '#475569',
                       border: isSelected ? '1px solid #FF6B00' : '1px solid transparent',
                       fontFamily: 'Poppins, sans-serif',
                     }}
@@ -280,7 +280,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
 
           {/* Comment / Remarks */}
           <Box>
-            <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: '#0F172A', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
+            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl' ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
             </Typography>
             <TextField
@@ -367,19 +367,20 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
         }}
       >
         <IconButton
+          aria-label={language === "tl" ? "Isara" : "Close"}
           size="small"
           onClick={() => {
             setThankYouOpen(false);
             onClose();
           }}
-          sx={{ position: 'absolute', top: 12, right: 12, color: '#64748B' }}
+          sx={{ ...extendTapArea(7), position: 'absolute', top: 12, right: 12, color: '#64748B' }}
         >
           <CloseIcon fontSize="small" />
         </IconButton>
 
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, pt: 2, pb: 2 }}>
           <CheckCircleIcon sx={{ fontSize: 56, color: '#10B981' }} />
-          <Typography sx={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+          <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl' ? 'Salamat sa Rating!' : 'Thank You for Rating!'}
           </Typography>
           <Typography sx={{ fontSize: '13px', color: '#64748B', fontFamily: 'Poppins, sans-serif', lineHeight: 1.5 }}>

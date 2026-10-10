@@ -16,7 +16,7 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import Rating from "@mui/material/Rating";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId, type FareBreakdown } from "@sakay/shared";
+import { formatShortBookingId, type FareBreakdown, activateWithKeyboard } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -150,6 +150,7 @@ export const TripDetailPage: React.FC = () => {
         sx={{
           flex: 1,
           overflowY: "auto",
+          "& > *": { flexShrink: 0 },
           p: 2,
           display: "flex",
           flexDirection: "column",
@@ -185,14 +186,17 @@ export const TripDetailPage: React.FC = () => {
             }}
           />
 
-          <Typography sx={{ fontSize: "12px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
             Booking ID
           </Typography>
           <Typography
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
             onClick={handleCopyTripId}
             sx={{
               fontSize: "14px",
-              fontWeight: 800,
+              fontWeight: 700,
               color: "#0F172A",
               fontFamily: "Poppins, sans-serif",
               mb: 0.5,
@@ -212,7 +216,7 @@ export const TripDetailPage: React.FC = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%", mb: 2 }}>
             <Box component="img" src={appIconImg} alt="SAKAY Tricycle" sx={{ width: 36, height: 36, objectFit: "contain" }} />
             <Box>
-              <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                 SAKAY Tricycle Service
               </Typography>
               <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
@@ -241,22 +245,22 @@ export const TripDetailPage: React.FC = () => {
             {/* Address Labels */}
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
               <Box>
-                <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  {language === "tl" ? "PINANGGALINGAN" : "PICKUP LOCATION"}
+                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif", }}>
+                  {language === "tl" ? "Pinanggalingan" : "Pickup location"}
                 </Typography>
-                <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>
                   {pickupAddress}
                 </Typography>
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  {language === "tl" ? "DESTINASYON" : "DROP-OFF LOCATION"}
+                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif", }}>
+                  {language === "tl" ? "Destinasyon" : "Drop-off location"}
                 </Typography>
-                <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>
                   {dropoffAddress}
                 </Typography>
-                <Typography sx={{ fontSize: "11.5px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" }}>
+                <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                   Calapan City, Oriental Mindoro
                 </Typography>
               </Box>
@@ -275,7 +279,7 @@ export const TripDetailPage: React.FC = () => {
               color: "#FFFFFF",
               borderRadius: "14px",
               height: "48px",
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: "15px",
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
@@ -301,7 +305,7 @@ export const TripDetailPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
           </Typography>
 
@@ -314,8 +318,8 @@ export const TripDetailPage: React.FC = () => {
             const money = (n: number) => `₱${n.toFixed(2)}`;
             const matched = fin.basis === "matched_estimate_pending_segments";
             const rowSx = { display: "flex", justifyContent: "space-between", alignItems: "center" } as const;
-            const labelSx = { fontSize: "13.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" } as const;
-            const noteSx = { fontSize: "11.5px", color: "#94A3B8", fontFamily: "Poppins, sans-serif" } as const;
+            const labelSx = { fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" } as const;
+            const noteSx = { fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" } as const;
             const valueSx = { fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" } as const;
             return (
               <>
@@ -387,25 +391,25 @@ export const TripDetailPage: React.FC = () => {
           <Divider sx={{ borderColor: "#F1F5F9", my: 0.5 }} />
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+            <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
               {language === "tl" ? "Kabuuan" : "Total Fare"}
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <AccountBalanceWalletIcon sx={{ color: "#FF6B00", fontSize: 20 }} />
-              <Typography sx={{ fontSize: "18px", fontWeight: 900, color: "#FF6B00", fontFamily: "Poppins, sans-serif" }}>
+              <Typography sx={{ fontSize: "18px", fontWeight: 700, color: "#C2410C", fontFamily: "Poppins, sans-serif" }}>
                 {price}
               </Typography>
             </Box>
           </Box>
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1, borderTop: "1px border-dashed #F1F5F9" }}>
-            <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+            <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
               {language === "tl" ? "Paraan ng Pagbayad" : "Pay Using"}
             </Typography>
             <Chip
               label="₱ Cash"
               size="small"
-              sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", height: "26px" }}
+              sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
             />
           </Box>
         </Paper>
@@ -424,14 +428,14 @@ export const TripDetailPage: React.FC = () => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", fontWeight: 800, fontSize: "16px" }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", fontWeight: 700, fontSize: "16px" }}>
               {driverName.charAt(0)}
             </Avatar>
             <Box>
-              <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+              <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                 {driverName}
               </Typography>
-              <Typography sx={{ fontSize: "11.5px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
+              <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
                 {driverPhone || (language === "tl" ? "Hindi na ibinabahagi ang numero pagkatapos ng biyahe" : "The number is not shared after the trip")}
               </Typography>
             </Box>
@@ -446,7 +450,7 @@ export const TripDetailPage: React.FC = () => {
               borderRadius: "999px",
               borderColor: "#FF6B00",
               color: "#FF6B00",
-              fontSize: "12.5px",
+              fontSize: "13px",
               fontWeight: 700,
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
@@ -472,28 +476,28 @@ export const TripDetailPage: React.FC = () => {
             gap: 2,
           }}
         >
-          <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
             {language === "tl" ? "Mga Rating at Feedback" : "Ratings & Feedback"}
           </Typography>
 
           {/* Rating Given to Driver */}
           <Box>
-            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px", mb: 1, fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "IYONG RATING SA DRAYBER" : "YOUR RATING TO DRIVER"}
+            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 1, fontFamily: "Poppins, sans-serif" }}>
+              {language === "tl" ? "Iyong rating sa drayber" : "Your rating to driver"}
             </Typography>
 
             {passengerRatingGiven ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Rating value={passengerRatingGiven.stars || 5} readOnly size="small" sx={{ color: "#FF6B00" }} />
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6B00" }}>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
                     {(passengerRatingGiven.stars || 5).toFixed(1)} / 5.0
                   </Typography>
                 </Box>
                 {passengerRatingGiven.tags && passengerRatingGiven.tags.length > 0 && (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
                     {passengerRatingGiven.tags.map((tag: string) => (
-                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "11px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
+                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "12px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
                     ))}
                   </Box>
                 )}
@@ -504,7 +508,7 @@ export const TripDetailPage: React.FC = () => {
                 )}
               </Box>
             ) : (
-              <Typography sx={{ fontSize: "12.5px", color: "#94A3B8", fontStyle: "italic" }}>
+              <Typography sx={{ fontSize: "13px", color: "#64748B", fontStyle: "italic" }}>
                 {language === "tl" ? "Wala pang nabibigay na rating sa drayber" : "No rating given to driver yet"}
               </Typography>
             )}
@@ -514,22 +518,22 @@ export const TripDetailPage: React.FC = () => {
 
           {/* Rating Received from Driver */}
           <Box>
-            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px", mb: 1, fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "RATING MULA SA DRAYBER" : "RATING FROM DRIVER"}
+            <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 1, fontFamily: "Poppins, sans-serif" }}>
+              {language === "tl" ? "Rating mula sa drayber" : "Rating from driver"}
             </Typography>
 
             {driverRatingReceived ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Rating value={driverRatingReceived.stars || 5} readOnly size="small" sx={{ color: "#FF6B00" }} />
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6B00" }}>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
                     {(driverRatingReceived.stars || 5).toFixed(1)} / 5.0
                   </Typography>
                 </Box>
                 {driverRatingReceived.tags && driverRatingReceived.tags.length > 0 && (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
                     {driverRatingReceived.tags.map((tag: string) => (
-                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "11px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
+                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "12px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
                     ))}
                   </Box>
                 )}
@@ -540,7 +544,7 @@ export const TripDetailPage: React.FC = () => {
                 )}
               </Box>
             ) : (
-              <Typography sx={{ fontSize: "12.5px", color: "#94A3B8", fontStyle: "italic" }}>
+              <Typography sx={{ fontSize: "13px", color: "#64748B", fontStyle: "italic" }}>
                 {language === "tl" ? "Wala pang naitatalang rating mula sa drayber" : "No rating received from driver yet"}
               </Typography>
             )}
