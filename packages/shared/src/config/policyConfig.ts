@@ -108,6 +108,19 @@ export const DRIVER_CANCEL_TRAVEL_THRESHOLD_METERS = 50;
 /** Rule 16.6: how long the passenger has to confirm the fare at the destination before the driver may end the trip [DB completion_confirm_timeout_seconds] */
 export const COMPLETION_CONFIRM_TIMEOUT_SECONDS = 120;
 
+/**
+ * Trip progress while the passenger is on board (a straight-line estimate toward the destination pin, see utils/tripProgress.ts). The driver
+ * may finish the trip once it reaches this percent: the destination pin can sit inside an establishment the tricycle cannot enter, so waiting
+ * for the last few metres kept a trip stuck at 95% [DB trip_finish_min_progress_pct]
+ */
+export const TRIP_FINISH_MIN_PROGRESS_PERCENT = 90;
+/** Within this many metres of the destination pin the progress reads its maximum [DB trip_progress_near_destination_m] */
+export const TRIP_PROGRESS_NEAR_DESTINATION_METERS = 80;
+/** While the trip is in progress the progress never reads more than this; 100% is only for a trip that has arrived [DB trip_progress_cap_pct] */
+export const TRIP_PROGRESS_CAP_PERCENT = 95;
+/** ...and never less than this once the passenger is on board [DB trip_progress_floor_pct] */
+export const TRIP_PROGRESS_FLOOR_PERCENT = 5;
+
 /** Rules 12.7 / 12.9: cancellations in the window that raise a review flag (no strike) [DB repeat_cancel_flag_count, repeat_cancel_window_hours] */
 export const REPEAT_CANCEL_FLAG_COUNT = 3;
 export const REPEAT_CANCEL_WINDOW_HOURS = 24;
@@ -369,6 +382,10 @@ export const POLICY_CONSTANTS = {
     PASSENGER_CANCEL_GRACE_SECONDS,
     DRIVER_CANCEL_TRAVEL_THRESHOLD_METERS,
     COMPLETION_CONFIRM_TIMEOUT_SECONDS,
+    TRIP_FINISH_MIN_PROGRESS_PERCENT,
+    TRIP_PROGRESS_NEAR_DESTINATION_METERS,
+    TRIP_PROGRESS_CAP_PERCENT,
+    TRIP_PROGRESS_FLOOR_PERCENT,
     REPEAT_CANCEL_FLAG_COUNT,
     REPEAT_CANCEL_WINDOW_HOURS,
     DISPATCH_DECLINE_FLAG_COUNT,

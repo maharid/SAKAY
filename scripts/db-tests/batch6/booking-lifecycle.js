@@ -39,6 +39,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const second = await attempt(() => s.bookAs('P1'));
   check('once a driver ACCEPTED, the passenger cannot book a second trip (this used to be allowed: the rule only counted "Assigned" and "Ongoing")', !second.ok && /idx_one_open_booking/.test(second.error), second);
   for (const st of ['In Transit', 'Driver Arrived', 'Arrived at Pickup', 'Trip Ongoing', 'Arrived at Destination']) {
+    if (st === 'Arrived at Destination') await s.reachDestination(b.booking_id);
     await driverSets('D1', b.booking_id, st);
     const r = await attempt(() => s.bookAs('P1'));
     check(`still one open booking while the status is "${st}"`, !r.ok && /idx_one_open_booking/.test(r.error), r.ok ? 'booking was allowed' : r.error);
@@ -95,6 +96,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
     pArr.ok && pArr.value.rows[0].booking_status === 'Arrived at Destination' && Math.abs(new Date(pArr.value.rows[0].arrived_at) - Date.now()) < 60000
     && pArr.value.rows[0].fare_locked_at !== null, pArr.ok ? pArr.value.rows[0].arrived_at : pArr.error);
   await internal(`UPDATE booking SET booking_status = 'Trip Ongoing', fare_locked_at = NULL, actual_fare = NULL, actual_distance_km = NULL WHERE booking_id='${b.booking_id}'`);
+  await s.reachDestination(b.booking_id);
   const t4 = await driverSets('D1', b.booking_id, 'Arrived at Destination');
   check('arriving at the destination locks the final fare', t4.ok && t4.value.rows[0].fare_locked_at !== null && t4.value.rows[0].actual_fare !== null, t4.ok ? t4.value.rows[0] : t4.error);
   const pc2 = await paxSets('P1', b.booking_id, 'Cancelled');
@@ -113,6 +115,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.online('D1', 300);
   b = await bookAndAccept('D1', 'P1');
   await walkToTrip('D1', b.booking_id);
+  await s.reachDestination(b.booking_id);
   await driverSets('D1', b.booking_id, 'Arrived at Destination');
   const confirm = await paxSets('P1', b.booking_id, 'Completed', `, trip_completed_at='2020-01-01T00:00:00Z'`);
   check('the passenger confirms at the destination: Completed, the time the server\'s', confirm.ok && confirm.value.rows[0].booking_status === 'Completed' && Math.abs(new Date(confirm.value.rows[0].trip_completed_at) - Date.now()) < 60000, confirm);

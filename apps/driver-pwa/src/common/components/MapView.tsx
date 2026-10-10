@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { getOSRMRoute } from "@sakay/shared";
+import { createLiveMarker, getOSRMRoute, type GlideFix, type GlideResult, type LiveMarker } from "@sakay/shared";
 
 export const DEFAULT_CALAPAN_CENTER = {
   latitude: 13.4117,
@@ -12,7 +12,8 @@ export const DEFAULT_CALAPAN_CENTER = {
 export interface MapViewProps {
   center?: { lat: number; lng: number };
   zoom?: number;
-  userLocation?: { lat: number; lng: number } | null;
+  /** The driver's own position: drawn as a marker that glides between fixes (`at` = when the fix was taken, to drop reordered ones) */
+  userLocation?: GlideFix | null;
   pickupLocation?: { lat: number; lng: number } | null;
   dropoffLocation?: { lat: number; lng: number } | null;
   routeCoordinates?: [number, number][];
@@ -47,6 +48,26 @@ export const MapView: React.FC<MapViewProps> = ({
   const lastFetchTimeRef = useRef<number>(0);
   const userInteractedRef = useRef<boolean>(false);
   const routeFittedKeyRef = useRef<string | null>(null);
+  // The driver's own marker lives in its own layer: the pins and the route are redrawn when they change, the marker is not.
+  const userMarkerRef = useRef<LiveMarker | null>(null);
+  const routeFramedRef = useRef(false);
+
+  /**
+   * Keeps the map on the driver as the marker glides: the map pans in a straight line over the same time, so the marker stays where it is on
+   * the screen and the map slides under it. A driver who has dragged or zoomed the map is left alone.
+   */
+  const followDriver = (target: { lat: number; lng: number }, result: GlideResult | null) => {
+    const map = mapInstanceRef.current;
+    if (!map || !result || result.status === "ignored" || userInteractedRef.current) return;
+    const at: [number, number] = [target.lat, target.lng];
+    if (result.status === "gliding") {
+      map.panTo(at, { animate: true, duration: result.durationMs / 1000, easeLinearity: 1, noMoveStart: true });
+    } else if (result.reason === "reduced-motion") {
+      map.panTo(at, { animate: false });
+    } else if (result.reason === "jump" || !routeFramedRef.current) {
+      map.panTo(at, { animate: true });
+    }
+  };
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -94,6 +115,27 @@ export const MapView: React.FC<MapViewProps> = ({
     const routeLayers = L.layerGroup().addTo(map);
     routeLayersRef.current = routeLayers;
 
+    // The driver's own marker: made once, then moved (never rebuilt)
+    const liveLayer = L.layerGroup().addTo(map);
+    userMarkerRef.current = createLiveMarker<L.Marker>({
+      create: (p) =>
+        L.marker([p.lat, p.lng], {
+          interactive: false,
+          zIndexOffset: 1000,
+          icon: L.divIcon({
+            className: "leaflet-user-marker",
+            html: `
+              <div class="leaflet-user-pulse">
+                <div class="pulse-ring"></div>
+                <div class="pulse-core"></div>
+              </div>
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+        }).addTo(liveLayer),
+    });
+
     mapInstanceRef.current = map;
 
     // Track user gesture interaction so GPS ticks do not override manual zoom or pan
@@ -112,12 +154,24 @@ export const MapView: React.FC<MapViewProps> = ({
 
     return () => {
       clearTimeout(resizeTimer);
+      // Stop the glide frames before the map goes away (nothing may draw on a removed map)
+      userMarkerRef.current?.destroy();
+      userMarkerRef.current = null;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
   }, [interactive]);
+
+  // The driver's marker: made at the first fix, then it glides to each newer one. The fixes themselves (what is sent to the database, and what
+  // routing, distance and trip progress use) are not changed.
+  useEffect(() => {
+    const controller = userMarkerRef.current;
+    if (!controller) return;
+    const result = controller.update(userLocation ?? null);
+    if (userLocation) followDriver(userLocation, result);
+  }, [userLocation?.lat, userLocation?.lng, userLocation?.at, interactive]);
 
   // Synchronize routeCoordinates prop or fetch road coordinates via OSRM
   useEffect(() => {
@@ -206,22 +260,7 @@ export const MapView: React.FC<MapViewProps> = ({
     markersLayer.clearLayers();
     routeLayers.clearLayers();
 
-    // 1. Driver Pulse Dot Marker (ALWAYS visible when userLocation is provided)
-    if (userLocation && typeof userLocation.lat === "number" && !isNaN(userLocation.lat)) {
-      const userDotIcon = L.divIcon({
-        className: "leaflet-user-marker",
-        html: `
-          <div class="leaflet-user-pulse">
-            <div class="pulse-ring"></div>
-            <div class="pulse-core"></div>
-          </div>
-        `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      });
-
-      L.marker([userLocation.lat, userLocation.lng], { icon: userDotIcon }).addTo(markersLayer);
-    }
+    // (The driver's own marker is a live marker, moved by its own effect above.)
 
     // 2. Pickup Pin Marker (Orange Circle)
     if (pickupLocation && pickupLocation.lat !== 0) {
@@ -282,6 +321,8 @@ export const MapView: React.FC<MapViewProps> = ({
         ? routeCoordinates
         : [];
 
+    routeFramedRef.current = activeRoutePoints.length >= 2;
+
     if (activeRoutePoints.length >= 2) {
       // 4a. Bottom white casing border for clean road contrast
       const routeCasing = L.polyline(activeRoutePoints, {
@@ -313,13 +354,10 @@ export const MapView: React.FC<MapViewProps> = ({
           padding: [60, 60],
           maxZoom: 16,
         });
-      } else if (!userInteractedRef.current && typeof userLocation?.lat === "number" && !isNaN(userLocation.lat) && typeof userLocation?.lng === "number" && !isNaN(userLocation.lng)) {
-        map.panTo([userLocation.lat, userLocation.lng], { animate: true });
       }
-    } else if (!userInteractedRef.current && typeof userLocation?.lat === "number" && !isNaN(userLocation.lat) && typeof userLocation?.lng === "number" && !isNaN(userLocation.lng)) {
-      map.panTo([userLocation.lat, userLocation.lng], { animate: true });
+      // (once the route is framed, the map follows the driver's marker as it glides)
     }
-  }, [userLocation, pickupLocation, dropoffLocation, roadCoords, routeCoordinates, recenterTrigger]);
+  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, roadCoords, routeCoordinates, recenterTrigger]);
 
   // Recenter trigger listener (explicit user click)
   useEffect(() => {

@@ -5,13 +5,16 @@ import { supabase } from './supabaseClient';
 // the phone draws the countdown and decides nothing.
 
 export interface ArrivalWait {
-  /** Seconds left when the database answered (0 once the time is up) */
+  /** Seconds left when the database answered, rounded UP (0 once the time is up). The countdown is drawn from deadlineMs, not from this. */
   secondsRemaining: number;
   /** 300, or 420 once the extension has been used */
   waitTotalSeconds: number;
   extended: boolean;
   /** "I'm Almost There" is still available (not used yet, and the first five minutes are still running) */
   canExtend: boolean;
+  /** The moment the wait ends and the database's own clock when it answered (ms since epoch, the SERVER's clock); null if it did not say */
+  deadlineMs: number | null;
+  serverNowMs: number | null;
 }
 
 interface ArrivalWaitRow {
@@ -21,22 +24,40 @@ interface ArrivalWaitRow {
   wait_total_seconds?: number;
   extended?: boolean;
   can_extend?: boolean;
+  deadline?: string | null;
+  server_time?: string | null;
   error?: string;
 }
+
+const parseMs = (value: unknown): number | null => {
+  const ms = typeof value === 'string' ? Date.parse(value) : NaN;
+  return Number.isFinite(ms) ? ms : null;
+};
 
 const toArrivalWait = (row: ArrivalWaitRow): ArrivalWait => ({
   secondsRemaining: Number(row.seconds_remaining ?? 0),
   waitTotalSeconds: Number(row.wait_total_seconds ?? 0),
   extended: Boolean(row.extended),
   canExtend: Boolean(row.can_extend),
+  deadlineMs: parseMs(row.deadline),
+  serverNowMs: parseMs(row.server_time),
 });
+
+/** What a reading of the waiting time found: the driver is waiting, the driver is not (no longer) waiting, or it could not be read (then keep what is shown). */
+export type ArrivalWaitReading = { state: 'waiting'; wait: ArrivalWait } | { state: 'idle' } | { state: 'unavailable' };
+
+export const readArrivalWait = async (bookingId: string): Promise<ArrivalWaitReading> => {
+  const { data, error } = await supabase.rpc('get_arrival_wait_status', { p_booking_id: bookingId });
+  const row = data as ArrivalWaitRow | null;
+  if (error || !row || row.success === false) return { state: 'unavailable' };
+  if (!row.waiting) return { state: 'idle' };
+  return { state: 'waiting', wait: toArrivalWait(row) };
+};
 
 /** The waiting time as the database sees it, or null when the driver has not arrived (or it could not be read). */
 export const getArrivalWait = async (bookingId: string): Promise<ArrivalWait | null> => {
-  const { data, error } = await supabase.rpc('get_arrival_wait_status', { p_booking_id: bookingId });
-  const row = data as ArrivalWaitRow | null;
-  if (error || !row || row.success === false || !row.waiting) return null;
-  return toArrivalWait(row);
+  const reading = await readArrivalWait(bookingId);
+  return reading.state === 'waiting' ? reading.wait : null;
 };
 
 /** "I'm Almost There": adds two minutes, once. The database refuses a second time and once the wait is over, and says why. */

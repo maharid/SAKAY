@@ -91,7 +91,10 @@ async function setup() {
   const finish = (bookingId) => internal(`UPDATE booking SET booking_status='Cancelled', cancelled_by='system' WHERE booking_id='${bookingId}' AND booking_status NOT IN ('Cancelled','Completed')`);
   const strikes = (subjectId) => q(`SELECT violation_code, status, points_active FROM strikes_ledger WHERE subject_id='${subjectId}' AND status <> 'VOIDED' ORDER BY issued_at`);
 
-  return { ...t, DRIVERS, PAX, AFF, north, online, moveTo, bookAs, offers, pendingOffer, booking, rpcAs, accept, decline, myOffer, statusOf, retry,
+  // The driver's app has published a fix at the destination (see arrivalFix in b5fixtures.js): what a real trip has before the driver may arrive.
+  const reachDestination = (bookingId) => t.arrivalFix(bookingId);
+
+  return { ...t, DRIVERS, PAX, AFF, north, online, moveTo, reachDestination, bookAs, offers, pendingOffer, booking, rpcAs, accept, decline, myOffer, statusOf, retry,
            driverCancel, sweep, rewind, expireOffer, cancelAs, finish, strikes, ID, attempt, check, summary, asUser, PICKUP };
 }
 

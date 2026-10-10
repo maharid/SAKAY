@@ -9,8 +9,9 @@ import {
   Typography,
 } from '@mui/material';
 import TimerIcon from '@mui/icons-material/Timer';
+import { formatCountdown, monotonicNow, useServerCountdown } from '@sakay/shared';
 
-import { getArrivalWait, reportPassengerNoShow, type ArrivalWait } from '../../../services/bookingClockService';
+import { readArrivalWait, reportPassengerNoShow, type ArrivalWait } from '../../../services/bookingClockService';
 
 interface ArrivalWaitPanelProps {
   bookingId: string;
@@ -21,40 +22,55 @@ interface ArrivalWaitPanelProps {
 }
 
 const POLL_MS = 3000;
-const clock = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 /**
  * Rule 10: the driver has arrived and the passenger has a fixed time to board. The database counts it (from the moment it recorded the
  * arrival, plus the passenger's one "I'm Almost There"); this panel draws the countdown and offers Passenger No-Show once the database says
  * both that the time is up and that the driver is really at the pickup.
+ *
+ * The countdown has ONE end time per deadline (ServerDeadlineClock in @sakay/shared), the same as on the passenger's screen: a late or overlapping
+ * answer cannot restart it, it never shows a negative value, and once ended it stays ended until the database names a later deadline.
  */
 const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language, onNoShowReported, onMessage }) => {
-  const [wait, setWait] = useState<(ArrivalWait & { endsAt: number }) | null>(null);
-  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [wait, setWait] = useState<ArrivalWait | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const countdown = useServerCountdown(bookingId, Boolean(bookingId));
+  const { beginRequest, apply } = countdown;
 
   useEffect(() => {
     if (!bookingId) return;
     let stopped = false;
     const read = async () => {
-      const answer = await getArrivalWait(bookingId);
-      if (!stopped) setWait(answer ? { ...answer, endsAt: Date.now() + answer.secondsRemaining * 1000 } : null);
+      const request = beginRequest();
+      const reading = await readArrivalWait(bookingId);
+      if (stopped || reading.state === 'unavailable') return; // a failed read changes nothing: the countdown keeps running from what is known
+      if (reading.state === 'idle') {
+        setWait(null);
+        return;
+      }
+      setWait(reading.wait);
+      apply({
+        sequence: request.sequence,
+        sentAt: request.sentAt,
+        receivedAt: monotonicNow(),
+        deadlineMs: reading.wait.deadlineMs,
+        serverNowMs: reading.wait.serverNowMs,
+        secondsRemaining: reading.wait.secondsRemaining,
+      });
     };
     read();
     const poll = setInterval(read, POLL_MS);
-    const tick = setInterval(() => setNowMs(Date.now()), 1000);
     return () => {
       stopped = true;
       clearInterval(poll);
-      clearInterval(tick);
     };
-  }, [bookingId]);
+  }, [bookingId, beginRequest, apply]);
 
-  if (!wait) return null;
+  if (!wait || !countdown.hasValue) return null;
 
-  const left = Math.max(0, Math.ceil((wait.endsAt - nowMs) / 1000));
-  const over = left === 0;
+  const left = countdown.remainingSeconds;
+  const over = countdown.expired;
 
   const confirmNoShow = async () => {
     setReporting(true);
@@ -83,11 +99,11 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <TimerIcon sx={{ color: over ? '#DC2626' : '#D97706', fontSize: 22 }} />
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>
-            {language === 'tl' ? 'ORAS NG PAGHIHINTAY SA PASAHERO' : "PASSENGER'S WAITING TIME"}
+          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+            {language === 'tl' ? 'Oras ng paghihintay sa pasahero' : "Passenger's waiting time"}
           </Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 900, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.1 }} aria-live="polite">
-            {over ? (language === 'tl' ? 'Tapos na ang oras' : 'Time is up') : clock(left)}
+          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 800, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
+            {over ? (language === 'tl' ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
           </Typography>
         </Box>
       </Box>
@@ -109,7 +125,7 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
         fullWidth
         disabled={!wait.canReportNoShow || reporting}
         onClick={() => setConfirmOpen(true)}
-        sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 800 }}
+        sx={{ minHeight: 48, borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
       >
         {language === 'tl' ? 'Hindi Sumakay ang Pasahero (No-Show)' : 'Passenger No-Show'}
       </Button>

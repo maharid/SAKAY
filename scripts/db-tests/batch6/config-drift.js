@@ -48,6 +48,10 @@ const PAIRS = {
   no_show_extension_seconds: ['NO_SHOW_EXTENSION_SECONDS', 1],
   no_show_radius_m: ['PICKUP_ZONE_RADIUS_METERS', 1],
   zone_max_accuracy_m: ['PICKUP_ZONE_MAX_ACCURACY_METERS', 1],
+  trip_finish_min_progress_pct: ['TRIP_FINISH_MIN_PROGRESS_PERCENT', 1],
+  trip_progress_near_destination_m: ['TRIP_PROGRESS_NEAR_DESTINATION_METERS', 1],
+  trip_progress_cap_pct: ['TRIP_PROGRESS_CAP_PERCENT', 1],
+  trip_progress_floor_pct: ['TRIP_PROGRESS_FLOOR_PERCENT', 1],
 };
 const DB_ONLY = ['sweep_batch_limit'];            // how many searches one sweep advances: an implementation detail, not a policy number
 
@@ -127,6 +131,16 @@ const DB_ONLY = ['sweep_batch_limit'];            // how many searches one sweep
   const unknownPhase = (await one(`SELECT public._booking_phase('Nonsense') v`)).v;
   const phases = await q(`SELECT s, public._booking_phase(s) p FROM unnest(ARRAY['Pending','Accepted','Driver Arrived','Trip Ongoing','Arrived at Destination','Completed','Cancelled','No Driver Found']) s`);
   check('every status of the booking lifecycle has a phase and a made-up one has none', unknownPhase === null && phases.every((r) => r.p !== null), phases);
+
+  // The Trip Details panel and the apps name the stage of a trip with the SAME phases as the database (bookingPhaseOf in utils/tripDetails.ts):
+  // the status -> phase table the apps use must equal public._booking_phase() for every status the database knows.
+  const detailsSrc = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'packages', 'shared', 'src', 'utils', 'tripDetails.ts'), 'utf8');
+  const tableMatch = detailsSrc.match(/export const BOOKING_PHASE_BY_STATUS[^=]*=\s*\{([\s\S]*?)\};/);
+  const tsPhases = tableMatch ? Object.fromEntries([...tableMatch[1].matchAll(/'([^']+)':\s*'([^']+)'/g)].map((x) => [x[1], x[2]])) : {};
+  const tsStatuses = Object.keys(tsPhases);
+  const dbPhases = await q(`SELECT s, public._booking_phase(s) p FROM unnest($1::text[]) s`, [tsStatuses]);
+  const wrong = dbPhases.filter((r) => r.p !== tsPhases[r.s]);
+  check(`the apps' status -> phase table (${tsStatuses.length} statuses) equals _booking_phase() for every one`, tsStatuses.length >= 16 && wrong.length === 0, wrong);
 
   process.exit(summary() ? 0 : 1);
 })().catch((e) => { console.error('ERROR', e); process.exit(1); });

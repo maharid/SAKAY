@@ -6,8 +6,11 @@ import type { DriverDelayReason } from '@sakay/shared';
 // guarded actions (report a delay, report a no-show). The phone keeps no clock that decides anything.
 
 export interface ArrivalWait {
-  /** Seconds left when the database answered (0 once the time is up) */
+  /** Seconds left when the database answered, rounded UP (0 once the time is up). The countdown is drawn from deadlineMs, not from this. */
   secondsRemaining: number;
+  /** The moment the wait ends and the database's own clock when it answered (ms since epoch, the SERVER's clock); null if it did not say */
+  deadlineMs: number | null;
+  serverNowMs: number | null;
   /** 300, or 420 once the passenger used "I'm Almost There" */
   waitTotalSeconds: number;
   extended: boolean;
@@ -25,20 +28,41 @@ interface ArrivalWaitRow {
   extended?: boolean;
   driver_in_zone?: boolean | null;
   can_report_no_show?: boolean;
+  deadline?: string | null;
+  server_time?: string | null;
 }
+
+const parseMs = (value: unknown): number | null => {
+  const ms = typeof value === 'string' ? Date.parse(value) : NaN;
+  return Number.isFinite(ms) ? ms : null;
+};
+
+/** What a reading of the waiting time found: the passenger is being waited for, the wait is not running (any more), or it could not be read (then keep what is shown). */
+export type ArrivalWaitReading = { state: 'waiting'; wait: ArrivalWait } | { state: 'idle' } | { state: 'unavailable' };
+
+export const readArrivalWait = async (bookingId: string): Promise<ArrivalWaitReading> => {
+  const { data, error } = await supabase.rpc('get_arrival_wait_status', { p_booking_id: bookingId });
+  const row = data as ArrivalWaitRow | null;
+  if (error || !row || row.success === false) return { state: 'unavailable' };
+  if (!row.waiting) return { state: 'idle' };
+  return {
+    state: 'waiting',
+    wait: {
+      secondsRemaining: Number(row.seconds_remaining ?? 0),
+      deadlineMs: parseMs(row.deadline),
+      serverNowMs: parseMs(row.server_time),
+      waitTotalSeconds: Number(row.wait_total_seconds ?? 0),
+      extended: Boolean(row.extended),
+      driverInZone: Boolean(row.driver_in_zone),
+      canReportNoShow: Boolean(row.can_report_no_show),
+    },
+  };
+};
 
 /** The passenger's waiting time as the database sees it, or null when the driver has not arrived yet (or it could not be read). */
 export const getArrivalWait = async (bookingId: string): Promise<ArrivalWait | null> => {
-  const { data, error } = await supabase.rpc('get_arrival_wait_status', { p_booking_id: bookingId });
-  const row = data as ArrivalWaitRow | null;
-  if (error || !row || row.success === false || !row.waiting) return null;
-  return {
-    secondsRemaining: Number(row.seconds_remaining ?? 0),
-    waitTotalSeconds: Number(row.wait_total_seconds ?? 0),
-    extended: Boolean(row.extended),
-    driverInZone: Boolean(row.driver_in_zone),
-    canReportNoShow: Boolean(row.can_report_no_show),
-  };
+  const reading = await readArrivalWait(bookingId);
+  return reading.state === 'waiting' ? reading.wait : null;
 };
 
 export interface ClockActionResult {

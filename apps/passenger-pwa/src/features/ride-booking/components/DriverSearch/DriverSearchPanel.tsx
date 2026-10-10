@@ -4,7 +4,8 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
 import LinearProgress from "@mui/material/LinearProgress";
-import SearchIcon from "@mui/icons-material/Search";
+import totoHeadImg from "@sakay/shared/src/assets/icons/toto-head.webp";
+import { TripDetailsPanel, type TripDetailsView } from "@sakay/shared";
 
 import type { Language } from "../../../../utils/LanguageContext";
 
@@ -20,6 +21,8 @@ interface DriverSearchPanelProps {
   startedAt?: number | null;
   /** Shown above the buttons, e.g. when a cancellation could not be saved */
   errorMessage?: string;
+  /** The booking's pickup, destination, ride type and estimate (buildTripDetails), so they stay in reach while a driver is being found */
+  details?: TripDetailsView | null;
   onCancel: () => void;
   onRetry: () => void;
 }
@@ -51,21 +54,20 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
   widening,
   startedAt,
   errorMessage,
+  details,
   onCancel,
   onRetry,
 }) => {
   const isTagalog = language === "tl";
   const elapsedSeconds = useSearchClock(startedAt);
 
-  const dragHandle = (
-    <Box sx={{ width: "40px", height: "4px", backgroundColor: "#E2E8F0", borderRadius: "2px", mb: 1 }} />
-  );
+  const tripDetails = details ? <TripDetailsPanel view={details} language={language} /> : null;
 
   if (outcome === "noDriver") {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 2, gap: 2 }}>
-        {dragHandle}
+      <Box sx={{ display: "flex", flexDirection: "column", py: 1, gap: 1.5 }}>
         <Box
+          role="alert"
           sx={{
             width: "100%",
             p: 2,
@@ -75,35 +77,37 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
             textAlign: "center",
           }}
         >
-          <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#991B1B", fontFamily: FONT }}>
+          <Typography sx={{ fontWeight: 700, fontSize: "16px", color: "#991B1B", fontFamily: FONT }}>
             {isTagalog ? "Walang available na drayber sa ngayon" : "No driver available right now"}
           </Typography>
-          <Typography sx={{ fontSize: "12.5px", color: "#B91C1C", mt: 0.5, fontFamily: FONT }}>
+          <Typography sx={{ fontSize: "13px", color: "#7F1D1D", mt: 0.5, fontFamily: FONT, lineHeight: 1.5 }}>
             {isTagalog
               ? "Maaaring offline o may biyahe ang mga drayber sa iyong lugar. Maaari kang mag-search muli o bumalik sa Home. Walang bayad o parusa."
               : "Nearby drivers may be offline or on trips. You can search again or go back home. There is no charge or penalty."}
           </Typography>
         </Box>
+        {tripDetails}
         {errorMessage && (
           <Alert severity="warning" sx={{ width: "100%", borderRadius: "12px", py: 0.5, fontFamily: FONT }}>
             {errorMessage}
           </Alert>
         )}
         <Box sx={{ display: "flex", gap: 1.5, width: "100%" }}>
+          {/* Retry is what most people want: the one filled button. Leaving is quieter (and not red: it is not destructive). */}
           <Button
             variant="outlined"
             fullWidth
             onClick={onCancel}
             sx={{
-              height: "50px",
+              minHeight: 52,
               borderRadius: "16px",
               textTransform: "none",
-              fontWeight: 700,
+              fontWeight: 600,
               fontSize: "15px",
               fontFamily: FONT,
-              color: "#EF4444",
-              borderColor: "#FCA5A5",
-              "&:hover": { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" },
+              color: "#334155",
+              borderColor: "#CBD5E1",
+              "&:hover": { backgroundColor: "#F1F5F9", borderColor: "#94A3B8" },
             }}
           >
             {isTagalog ? "Bumalik sa Home" : "Back to Home"}
@@ -113,7 +117,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
             fullWidth
             onClick={onRetry}
             sx={{
-              height: "50px",
+              minHeight: 52,
               borderRadius: "16px",
               backgroundColor: "#FF6B00",
               textTransform: "none",
@@ -132,12 +136,12 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 2, gap: 2 }}>
-      {dragHandle}
-
-      {/* Large Concentric Search Circle with Pulsing Animation */}
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "stretch", py: 1, gap: 1.5 }}>
+      {/* Toto, waiting with you (one gentle pulse; none for people who prefer less motion) */}
       <Box
+        aria-hidden
         sx={{
+          alignSelf: "center",
           width: 84,
           height: 84,
           borderRadius: "50%",
@@ -151,28 +155,19 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
             "50%": { transform: "scale(1.05)", opacity: 1 },
             "100%": { transform: "scale(0.96)", opacity: 0.9 },
           },
+          "@media (prefers-reduced-motion: reduce)": { animation: "none" },
         }}
       >
-        <Box
-          sx={{
-            width: 60,
-            height: 60,
-            borderRadius: "50%",
-            backgroundColor: "#FF6B00",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <SearchIcon sx={{ color: "#FFFFFF", fontSize: 32 }} />
+        <Box sx={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: "#FF6B00", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Box component="img" src={totoHeadImg} alt="" sx={{ width: 40, height: 40, objectFit: "contain" }} />
         </Box>
       </Box>
 
-      <Box sx={{ textAlign: "center", mt: 1 }}>
-        <Typography sx={{ fontSize: "17px", fontWeight: 800, color: "#0F172A", fontFamily: FONT }}>
+      <Box sx={{ textAlign: "center" }} role="status" aria-live="polite">
+        <Typography sx={{ fontSize: "17px", fontWeight: 700, color: "#0F172A", fontFamily: FONT }}>
           {isTagalog ? "Naghahanap ng Drayber malapit sayo..." : "Finding a driver near you..."}
         </Typography>
-        <Typography sx={{ fontSize: "13px", color: "#64748B", mt: 0.5, fontFamily: FONT }}>
+        <Typography sx={{ fontSize: "13px", color: "#475569", mt: 0.5, fontFamily: FONT, lineHeight: 1.5 }}>
           {widening
             ? isTagalog
               ? "Walang malapit na tumanggap pa. Pinalalawak namin ang paghahanap."
@@ -181,21 +176,22 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
             ? "Sinusuri ang pinakamalapit na terminal ng TODA."
             : "Checking the nearest TODA terminal."}
         </Typography>
-        <Typography sx={{ fontSize: "12px", color: "#94A3B8", mt: 0.5, fontFamily: FONT }}>
+        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.5, fontFamily: FONT }}>
           {isTagalog ? "Naghahanap na sa loob ng" : "Searching for"} {formatElapsed(elapsedSeconds)}
         </Typography>
       </Box>
 
-      <Box sx={{ width: "100%", px: 1, mt: 1 }}>
-        <LinearProgress
-          sx={{
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: "#E5E7EB",
-            "& .MuiLinearProgress-bar": { backgroundColor: "#FF6B00", borderRadius: 3 },
-          }}
-        />
-      </Box>
+      <LinearProgress
+        aria-label={isTagalog ? "Naghahanap ng drayber" : "Finding a driver"}
+        sx={{
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: "#E5E7EB",
+          "& .MuiLinearProgress-bar": { backgroundColor: "#FF6B00", borderRadius: 3 },
+        }}
+      />
+
+      {tripDetails}
 
       {errorMessage && (
         <Alert severity="warning" sx={{ width: "100%", borderRadius: "12px", py: 0.5, fontFamily: FONT }}>
@@ -203,29 +199,29 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
         </Alert>
       )}
 
-      <Button
-        fullWidth
-        onClick={onCancel}
-        sx={{
-          mt: 2,
-          height: "50px",
-          borderRadius: "16px",
-          backgroundColor: "#FEE2E2",
-          border: "1px solid #FCA5A5",
-          color: "#EF4444",
-          fontWeight: 700,
-          fontSize: "15px",
-          textTransform: "none",
-          fontFamily: FONT,
-          boxShadow: "none",
-          "&:hover": { backgroundColor: "#FECACA", boxShadow: "none" },
-        }}
-      >
-        {isTagalog ? "Ikansel ang Booking" : "Cancel Booking"}
-      </Button>
-      <Typography sx={{ fontSize: "11.5px", color: "#94A3B8", fontFamily: FONT, textAlign: "center" }}>
-        {isTagalog ? "Libre ang pagkansela bago may tumanggap na drayber." : "Free to cancel until a driver accepts."}
-      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75 }}>
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={onCancel}
+          sx={{
+            minHeight: 52,
+            borderRadius: "16px",
+            borderColor: "#FCA5A5",
+            color: "#B91C1C",
+            fontWeight: 700,
+            fontSize: "15px",
+            textTransform: "none",
+            fontFamily: FONT,
+            "&:hover": { backgroundColor: "#FEF2F2", borderColor: "#F87171" },
+          }}
+        >
+          {isTagalog ? "Ikansel ang Booking" : "Cancel Booking"}
+        </Button>
+        <Typography sx={{ fontSize: "12px", color: "#475569", fontFamily: FONT, textAlign: "center" }}>
+          {isTagalog ? "Libre ang pagkansela bago may tumanggap na drayber." : "Free to cancel until a driver accepts."}
+        </Typography>
+      </Box>
     </Box>
   );
 };
