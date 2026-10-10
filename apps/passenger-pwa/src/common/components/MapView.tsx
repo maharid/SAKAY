@@ -3,15 +3,17 @@ import Box from "@mui/material/Box";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import appIcon from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
+import { createLiveMarker, type GeoPoint, type GlideFix, type GlideResult, type LiveMarker } from "@sakay/shared";
 import { DEFAULT_CALAPAN_CENTER, getOSRMRoute } from "../../services/locationService";
 
 export interface MapViewProps {
   center?: { lat: number; lng: number };
   zoom?: number;
-  userLocation?: { lat: number; lng: number } | null;
+  /** The person's own position, and the driver's: drawn as markers that glide between fixes (`at` = when the sender took the fix, to drop reordered ones) */
+  userLocation?: GlideFix | null;
   pickupLocation?: { lat: number; lng: number } | null;
   dropoffLocation?: { lat: number; lng: number } | null;
-  driverLocation?: { lat: number; lng: number } | null;
+  driverLocation?: GlideFix | null;
   routeCoordinates?: [number, number][];
   recenterTrigger?: number;
   height?: string;
@@ -19,6 +21,33 @@ export interface MapViewProps {
   interactive?: boolean;
   onCenterChange?: (center: { lat: number; lng: number }) => void;
   onMapClick?: (coords: { lat: number; lng: number }) => void;
+}
+
+interface FollowContext {
+  kind: "driver" | "user";
+  /** The person has dragged or zoomed the map: leave it alone */
+  interacted: boolean;
+  /** What frames the map, in the order it has always followed: a route, then the driver, then the pickup, then the person */
+  route: boolean;
+  driver: boolean;
+  pickup: boolean;
+}
+
+/**
+ * Keeps the map on a live marker as it moves. While the marker glides the map pans in a straight line over the same time, so the marker stays
+ * where it is on the screen and the map slides under it.
+ */
+function followLiveMarker(map: L.Map | null, target: GeoPoint, result: GlideResult | null, ctx: FollowContext): void {
+  if (!map || !result || result.status === "ignored" || ctx.interacted) return;
+  if (ctx.kind === "user" && (ctx.route || ctx.driver || ctx.pickup)) return;
+  const at: [number, number] = [target.lat, target.lng];
+  if (result.status === "gliding") {
+    map.panTo(at, { animate: true, duration: result.durationMs / 1000, easeLinearity: 1, noMoveStart: true });
+  } else if (result.reason === "reduced-motion") {
+    map.panTo(at, { animate: false });
+  } else if (result.reason === "jump" || !ctx.route) {
+    map.panTo(at, { animate: true });
+  }
 }
 
 /**
@@ -53,6 +82,12 @@ export const MapView: React.FC<MapViewProps> = ({
   const lastFetchTimeRef = useRef<number>(0);
   const userInteractedRef = useRef<boolean>(false);
   const routeFittedKeyRef = useRef<string | null>(null);
+  // The live markers (the person and the driver) live in their own layer: the pins and the route are redrawn when they change, these are not.
+  const liveLayerRef = useRef<L.LayerGroup | null>(null);
+  const userMarkerRef = useRef<LiveMarker | null>(null);
+  const driverMarkerRef = useRef<LiveMarker | null>(null);
+  // Whether a route is framing the map (set when the route is drawn; read when a live marker moves)
+  const routeFramedRef = useRef(false);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -102,6 +137,54 @@ export const MapView: React.FC<MapViewProps> = ({
     const routeLayers = L.layerGroup().addTo(map);
     routeLayersRef.current = routeLayers;
 
+    // Live markers: made once, then moved (never rebuilt)
+    const liveLayer = L.layerGroup().addTo(map);
+    liveLayerRef.current = liveLayer;
+    userMarkerRef.current = createLiveMarker<L.Marker>({
+      create: (p) =>
+        L.marker([p.lat, p.lng], {
+          interactive: false,
+          icon: L.divIcon({
+            className: "leaflet-user-marker",
+            html: `
+              <div class="leaflet-gmaps-pickup-container">
+                <div class="gmaps-pickup-radar-wave"></div>
+                <div class="gmaps-pickup-radar-wave wave-delayed"></div>
+                <div class="gmaps-pickup-aura"></div>
+                <div class="gmaps-pickup-core-dot"></div>
+              </div>
+            `,
+            iconSize: [48, 48],
+            iconAnchor: [24, 24],
+          }),
+        }).addTo(liveLayer),
+    });
+    driverMarkerRef.current = createLiveMarker<L.Marker>({
+      create: (p) =>
+        L.marker([p.lat, p.lng], {
+          interactive: false,
+          zIndexOffset: 1000,
+          icon: L.divIcon({
+            className: "leaflet-driver-marker",
+            html: `
+              <div style="
+                width: 38px;
+                height: 38px;
+                background-color: #FF6B00;
+                border: 3px solid #FFFFFF;
+                border-radius: 50%;
+                box-shadow: 0 4px 14px rgba(255, 107, 0, 0.6);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              "><img src="${appIcon}" style="width: 22px; height: 22px; object-fit: contain;" alt="" /></div>
+            `,
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
+          }),
+        }).addTo(liveLayer),
+    });
+
     mapInstanceRef.current = map;
 
     // Flag user interaction so GPS ticks do not override manual zoom or pan
@@ -146,6 +229,12 @@ export const MapView: React.FC<MapViewProps> = ({
 
     return () => {
       clearTimeout(resizeTimer);
+      // Stop the glide frames before the map goes away (nothing may draw on a removed map)
+      userMarkerRef.current?.destroy();
+      driverMarkerRef.current?.destroy();
+      userMarkerRef.current = null;
+      driverMarkerRef.current = null;
+      liveLayerRef.current = null;
       if (markersLayerRef.current) {
         markersLayerRef.current.clearLayers();
         markersLayerRef.current = null;
@@ -160,6 +249,42 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     };
   }, [interactive]);
+
+  // The driver's tricycle: made at the first fix, then it glides to each newer one. The fixes themselves are not changed.
+  // The dependencies are the position's numbers, not the object: a parent that rebuilds the object every render must not restart the glide.
+  useEffect(() => {
+    const controller = driverMarkerRef.current;
+    if (!controller) return;
+    const result = controller.update(driverLocation ?? null);
+    if (driverLocation) {
+      followLiveMarker(mapInstanceRef.current, driverLocation, result, {
+        kind: "driver",
+        interacted: userInteractedRef.current,
+        route: routeFramedRef.current,
+        driver: true,
+        pickup: Boolean(pickupLocation && pickupLocation.lat !== 0),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverLocation?.lat, driverLocation?.lng, driverLocation?.at, interactive]);
+
+  // The person's own position (shown while there is not yet both a pickup and a destination, as before)
+  const showUserDot = Boolean(userLocation) && (!pickupLocation || !dropoffLocation);
+  useEffect(() => {
+    const controller = userMarkerRef.current;
+    if (!controller) return;
+    const result = controller.update(showUserDot && userLocation ? userLocation : null);
+    if (showUserDot && userLocation) {
+      followLiveMarker(mapInstanceRef.current, userLocation, result, {
+        kind: "user",
+        interacted: userInteractedRef.current,
+        route: routeFramedRef.current,
+        driver: Boolean(driverLocation),
+        pickup: Boolean(pickupLocation && pickupLocation.lat !== 0),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocation?.lat, userLocation?.lng, userLocation?.at, showUserDot, interactive]);
 
   // Synchronize roadCoordinates prop or fetch road coordinates via OSRM
   useEffect(() => {
@@ -250,24 +375,7 @@ export const MapView: React.FC<MapViewProps> = ({
     markersLayer.clearLayers();
     routeLayers.clearLayers();
 
-    // 1. User Location Pulse Dot Marker (if userLocation exists and no active pickup/dropoff route)
-    if (userLocation && (!pickupLocation || !dropoffLocation)) {
-      const userDotIcon = L.divIcon({
-        className: "leaflet-user-marker",
-        html: `
-          <div class="leaflet-gmaps-pickup-container">
-            <div class="gmaps-pickup-radar-wave"></div>
-            <div class="gmaps-pickup-radar-wave wave-delayed"></div>
-            <div class="gmaps-pickup-aura"></div>
-            <div class="gmaps-pickup-core-dot"></div>
-          </div>
-        `,
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
-      });
-
-      L.marker([userLocation.lat, userLocation.lng], { icon: userDotIcon }).addTo(markersLayer);
-    }
+    // (The person's position and the driver's tricycle are live markers, moved by their own effects above.)
 
     // 2. Pickup Marker: Google Maps Style Glowing & Moving Circle
     if (pickupLocation && pickupLocation.lat !== 0) {
@@ -320,30 +428,6 @@ export const MapView: React.FC<MapViewProps> = ({
       L.marker([dropoffLocation.lat, dropoffLocation.lng], { icon: dropoffIcon }).addTo(markersLayer);
     }
 
-    // 4. Driver Tricycle Marker (Live GPS Position)
-    if (driverLocation && typeof driverLocation.lat === "number" && !isNaN(driverLocation.lat)) {
-      const driverIcon = L.divIcon({
-        className: "leaflet-driver-marker",
-        html: `
-          <div style="
-            width: 38px;
-            height: 38px;
-            background-color: #FF6B00;
-            border: 3px solid #FFFFFF;
-            border-radius: 50%;
-            box-shadow: 0 4px 14px rgba(255, 107, 0, 0.6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          "><img src="${appIcon}" style="width: 22px; height: 22px; object-fit: contain;" alt="Tricycle" /></div>
-        `,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-      });
-
-      L.marker([driverLocation.lat, driverLocation.lng], { icon: driverIcon }).addTo(markersLayer);
-    }
-
     // 5. Draw Road-Based Route Polyline (Google Maps style) & Fit Bounds (No straight-line fallback)
     const activeRoutePoints: [number, number][] =
       roadCoords && roadCoords.length >= 2
@@ -351,6 +435,8 @@ export const MapView: React.FC<MapViewProps> = ({
         : routeCoordinates && routeCoordinates.length >= 2
         ? routeCoordinates
         : [];
+
+    routeFramedRef.current = activeRoutePoints.length >= 2;
 
     if (activeRoutePoints.length >= 2) {
       // 5a. Bottom casing: clean white glow border providing crisp road separation
@@ -383,19 +469,17 @@ export const MapView: React.FC<MapViewProps> = ({
           padding: [65, 65],
           maxZoom: 16,
         });
-      } else if (!userInteractedRef.current && driverLocation && driverLocation.lat !== 0) {
-        map.panTo([driverLocation.lat, driverLocation.lng], { animate: true });
       }
+      // (once the route is framed, the map follows the live markers as they glide)
     } else if (!userInteractedRef.current) {
-      if (driverLocation && driverLocation.lat !== 0) {
-        map.panTo([driverLocation.lat, driverLocation.lng], { animate: true });
-      } else if (pickupLocation && pickupLocation.lat !== 0) {
+      // No route to frame: the driver, then the pickup, then the person, as before. The live markers follow themselves; the pickup is centred here.
+      if (!(driverLocation && driverLocation.lat !== 0) && pickupLocation && pickupLocation.lat !== 0) {
         map.panTo([pickupLocation.lat, pickupLocation.lng], { animate: true });
-      } else if (userLocation && userLocation.lat !== 0) {
-        map.panTo([userLocation.lat, userLocation.lng], { animate: true });
       }
     }
-  }, [userLocation, pickupLocation, dropoffLocation, driverLocation, roadCoords, routeCoordinates, recenterTrigger]);
+    // The pins and the route are redrawn only when they change (the live markers have their own effects), so the dependencies are their numbers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, roadCoords, routeCoordinates, recenterTrigger]);
 
   // Recenter trigger listener (explicit user click)
   useEffect(() => {

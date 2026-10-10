@@ -78,12 +78,27 @@ async function setup() {
   const STEPS = ['Accepted', 'In Transit', 'Driver Arrived', 'Trip Ongoing', 'Arrived at Destination'];
   const writeStatus = (uid, bookingId, status) =>
     as(uid, (tx) => tx.query(`UPDATE public.booking SET booking_status = $2 WHERE booking_id = $1 RETURNING *`, [bookingId, status])).then((r) => r.rows[0]);
+  // Since 20261017000001 the database lets the driver arrive only once the trip's recorded fixes reach 90% progress. A real trip has them (the
+  // heartbeat logs each published fix), so before the driver arrives this gives the trip one published fix AT the destination - unless the test
+  // already recorded a track that gets there. Its accuracy (90 m) is worse than the 50 m the fare track accepts, so the fare suites that mean
+  // "no usable GPS track" still mean it, and better than the 100 m a heartbeat needs to publish, so the finish gate counts it.
+  const arrivalFix = async (bookingId) => {
+    const have = (await one(`SELECT public._trip_progress_pct($1::uuid) AS p`, [bookingId])).p;
+    if (have !== null && have >= 90) return;
+    await db.query(
+      `INSERT INTO public.gps_log (booking_id, driver_id, latitude, longitude, accuracy, recorded_at)
+       SELECT b.booking_id, b.driver_id, b.dropoff_latitude, b.dropoff_longitude, 90, clock_timestamp()
+       FROM public.booking b WHERE b.booking_id = $1 AND b.driver_id IS NOT NULL`,
+      [bookingId]
+    );
+  };
   const setStatus = async (uid, bookingId, status) => {
     const to = STEPS.indexOf(status);
     if (to > 1) {
       const from = STEPS.indexOf((await one(`SELECT booking_status FROM public.booking WHERE booking_id = $1`, [bookingId])).booking_status);
       for (let i = Math.max(from, 0) + 1; i < to; i++) await writeStatus(uid, bookingId, STEPS[i]);
     }
+    if (status === 'Arrived at Destination') await arrivalFix(bookingId);
     return writeStatus(uid, bookingId, status);
   };
 
@@ -97,7 +112,7 @@ async function setup() {
       [bookingId, driverId, PICKUP.lat, stepDeg, PICKUP.lng, lngDeg, accuracy, startAt, n, skip]
     );
 
-  return { ...base, q, one, anon, num, fare, allocate, quote, book, getBooking, assign, setStatus, logTrack, PICKUP, DROPOFF, ID, attempt, check, summary, asUser };
+  return { ...base, q, one, anon, num, fare, allocate, quote, book, getBooking, assign, setStatus, arrivalFix, logTrack, PICKUP, DROPOFF, ID, attempt, check, summary, asUser };
 }
 
 module.exports = { setup, ID, attempt, check, summary, asUser, PICKUP, DROPOFF };

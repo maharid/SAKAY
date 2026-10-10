@@ -76,6 +76,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   check('D1 still has the open booking during the trip', (await s.presence(D1.uid)).open_booking === true);
 
   console.log('\nS8 the driver arrives at the destination: the database locks the final fare');
+  await s.reachDestination(b.booking_id);     // the driver's app has published a fix at the destination (what a real trip has)
   const arr = await driverSets('D1', b.booking_id, `booking_status='Arrived at Destination'`);
   check('the final fare comes back in the same update and equals the confirmed fare (no GPS track, estimate used)', arr.ok && Number(arr.value.rows[0].actual_fare) === Number(qt.solo_fare), arr);
   const arrRow = await s.booking(b.booking_id);

@@ -152,8 +152,9 @@ const { setup, check, summary } = require('../b5fixtures');
   check('an anonymous caller cannot read the tracks at all (they used to be public)', !an.ok && /permission denied/.test(an.error), err(an));
 
   const arrivedB = await setStatus(ID.D_AUTH, Bk.booking_id, 'Arrived at Destination');
+  const loggedAtArrival = (await logged()).length;   // the 2 fixes above, plus the one the fixture publishes at the destination so that the driver may arrive
   await rpc(ID.D_AUTH, 'driver_heartbeat', [13.4140, 121.1809, 12]);
-  check('once the fare is locked the heartbeat stops logging for that booking', (await logged()).length === 2 && arrivedB.fare_locked_at !== null);
+  check('once the fare is locked the heartbeat stops logging for that booking', (await logged()).length === loggedAtArrival && loggedAtArrival >= 2 && arrivedB.fare_locked_at !== null);
   await done(Bk.booking_id);
   await rpc(ID.D_AUTH, 'driver_go_offline', []);
 

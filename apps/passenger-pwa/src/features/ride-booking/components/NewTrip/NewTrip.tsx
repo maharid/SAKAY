@@ -30,6 +30,7 @@ import {
   componentsFor,
   parseFareError,
   describeFareError,
+  buildTripDetails,
   type FareQuote,
 } from "@sakay/shared";
 
@@ -683,6 +684,15 @@ const NewTrip: React.FC = () => {
             widening={searchStatus?.phase === "widening"}
             startedAt={searchStatus?.startedAt}
             errorMessage={searchError}
+            details={buildTripDetails({
+              role: "passenger",
+              status: searchOutcome === "noDriver" ? "No Driver Found" : "Searching Driver",
+              pickupAddress: pickup.address,
+              dropoffAddress: dropoff.address,
+              isSharedTrip: tripType === "Shared",
+              passengerCount: passengers,
+              estimatedFare,
+            })}
             onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
             onRetry={handleRetrySearch}
           />
