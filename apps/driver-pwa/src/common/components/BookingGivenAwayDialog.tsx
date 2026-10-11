@@ -32,7 +32,7 @@ const BookingGivenAwayDialog: React.FC<BookingGivenAwayDialogProps> = ({ open, l
         fullWidth
         variant="contained"
         onClick={onClose}
-        sx={{ height: 46, borderRadius: '14px', backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '14px', textTransform: 'none', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#E66000' } }}
+        sx={{ height: 46, borderRadius: '14px', backgroundColor: '#FF6600', fontWeight: 700, fontSize: '14px', textTransform: 'none', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#E65C00' } }}
       >
         {language === 'tl' ? 'OK (Bumalik sa Home)' : 'OK (Return Home)'}
       </Button>

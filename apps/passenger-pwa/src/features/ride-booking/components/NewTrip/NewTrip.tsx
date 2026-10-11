@@ -758,7 +758,7 @@ const NewTrip: React.FC = () => {
                     width: "20px",
                     height: "20px",
                     borderRadius: "50%",
-                    border: "2px solid #FF6B00",
+                    border: "2px solid #FF6600",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -770,7 +770,7 @@ const NewTrip: React.FC = () => {
                       width: "10px",
                       height: "10px",
                       borderRadius: "50%",
-                      backgroundColor: "#FF6B00",
+                      backgroundColor: "#FF6600",
                     }}
                   />
                 </Box>
@@ -810,13 +810,13 @@ const NewTrip: React.FC = () => {
                   aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang pickup" : "Use current location as pickup"}
                   sx={{
                     ...extendTapArea(6),
-                    backgroundColor: "rgba(255, 107, 0, 0.12)",
-                    color: "#FF6B00",
+                    backgroundColor: "rgba(255, 102, 0, 0.12)",
+                    color: "#FF6600",
                     width: "32px",
                     height: "32px",
                     borderRadius: "10px",
                     flexShrink: 0,
-                    "&:hover": { backgroundColor: "rgba(255, 107, 0, 0.22)" },
+                    "&:hover": { backgroundColor: "rgba(255, 102, 0, 0.22)" },
                   }}
                 >
                   <MyLocationIcon sx={{ fontSize: "16px" }} />
@@ -1148,7 +1148,7 @@ const NewTrip: React.FC = () => {
             variant="contained"
             onClick={handleSaveNotes}
             sx={{
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               borderRadius: "12px",
               fontWeight: 700,
@@ -1156,7 +1156,7 @@ const NewTrip: React.FC = () => {
               textTransform: "none",
               boxShadow: "none",
               fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             }}
           >
             {language === "tl" ? "I-save ang Tala" : "Save Note"}
@@ -1285,7 +1285,7 @@ const NewTrip: React.FC = () => {
                 <Chip
                   label="₱ Cash"
                   size="small"
-                  sx={{ backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
+                  sx={{ backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
                 />
               </Box>
             </Box>

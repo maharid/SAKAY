@@ -73,12 +73,12 @@ const SakayMtopInput: React.FC<SakayMtopInputProps> = ({
           border: error
             ? '1.5px solid #DC2626'
             : focused
-            ? '1.5px solid #FF6B00'
+            ? '1.5px solid #FF6600'
             : '1.5px solid transparent',
           boxShadow: error
             ? '0 0 0 3px rgba(220, 38, 38, 0.12)'
             : focused
-            ? '0 0 0 3px rgba(255, 107, 0, 0.12)'
+            ? '0 0 0 3px rgba(255, 102, 0, 0.12)'
             : 'none',
           px: 2,
           position: 'relative',
@@ -152,7 +152,7 @@ const SakayMtopInput: React.FC<SakayMtopInputProps> = ({
                   e.stopPropagation();
                   onOpenCalendar?.(e.currentTarget.parentElement || e.currentTarget);
                 }}
-                sx={{ p: 0.25, ml: 0.5, color: '#64748B', '&:hover': { color: '#FF6B00' } }}
+                sx={{ p: 0.25, ml: 0.5, color: '#64748B', '&:hover': { color: '#FF6600' } }}
               >
                 <CalendarTodayIcon sx={{ fontSize: 18 }} />
               </IconButton>
@@ -377,7 +377,7 @@ export const DriverConfirmMtopInfo: React.FC = () => {
               flex: 1,
               height: '44px',
               borderRadius: '12px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               color: '#1A1A1A',
               fontWeight: 700,
               fontSize: '14px',

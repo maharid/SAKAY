@@ -24,7 +24,7 @@ body {
 }
 
 ::selection {
-  background: rgba(255, 107, 26, 0.18);
+  background: rgba(255, 102, 0, 0.18);
 }
 
 ::-webkit-scrollbar {
@@ -81,7 +81,7 @@ body {
   background: #FFFFFF;
   border: 2px solid var(--sakay-orange);
   border-radius: 50%;
-  box-shadow: 0 10px 22px rgba(255, 107, 26, 0.18);
+  box-shadow: 0 10px 22px rgba(255, 102, 0, 0.18);
   width: 32px;
   height: 32px;
   color: var(--sakay-orange);

@@ -216,15 +216,15 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
                       width: "38px",
                       height: "38px",
                       borderRadius: "12px",
-                      backgroundColor: isSelected ? "#FF6B00" : "#FFFFFF",
+                      backgroundColor: isSelected ? "#FF6600" : "#FFFFFF",
                       color: isSelected ? "#1A1A1A" : "#64748B",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      border: isSelected ? "1.5px solid #FF6B00" : "1px solid #CBD5E1",
+                      border: isSelected ? "1.5px solid #FF6600" : "1px solid #CBD5E1",
                       transition: "all 0.15s ease",
                       "&:hover": {
-                        backgroundColor: isSelected ? "#E66000" : "#F1F5F9",
+                        backgroundColor: isSelected ? "#E65C00" : "#F1F5F9",
                       },
                     }}
                   >
@@ -305,7 +305,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
           <Button
             fullWidth
             variant="outlined"
-            startIcon={<MapOutlinedIcon sx={{ color: "#FF6B00" }} />}
+            startIcon={<MapOutlinedIcon sx={{ color: "#FF6600" }} />}
             onClick={() => {
               setMapPickerOpen(true);
             }}
@@ -318,7 +318,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
               fontWeight: 600,
               py: "8px",
               fontFamily: "Poppins, sans-serif",
-              "&:hover": { borderColor: "#FF6B00", backgroundColor: "#FFF7ED" },
+              "&:hover": { borderColor: "#FF6600", backgroundColor: "#FFF7ED" },
             }}
           >
             {language === "tl" ? "Pumili sa Mapa" : "Select on Map"}
@@ -333,14 +333,14 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
             variant="contained"
             disabled={!placeName.trim() || !(placeAddress.trim() || addressSearchQuery.trim())}
             sx={{
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               borderRadius: "12px",
               fontWeight: 700,
               textTransform: "none",
               boxShadow: "none",
               fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             }}
           >
             {language === "tl" ? "I-save" : "Save"}

@@ -435,7 +435,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                   background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
                   fontSize: '28px',
                   fontWeight: 700,
-                  boxShadow: '0 10px 24px rgba(255, 107, 26, 0.22)',
+                  boxShadow: '0 10px 24px rgba(255, 102, 0, 0.22)',
                 }}
               >
                 {!logoImage && (profile.acronym ? profile.acronym.charAt(0) : 'T')}
@@ -707,7 +707,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                     flexShrink: 0,
                     boxShadow: 'none',
                     '&:hover': {
-                      backgroundColor: '#E66000',
+                      backgroundColor: '#E65C00',
                       boxShadow: 'none',
                     },
                   }}
@@ -814,7 +814,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                       borderColor: 'var(--sakay-orange-border)',
                       backgroundColor: 'var(--sakay-orange-soft)',
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 107, 26, 0.16)',
+                        backgroundColor: 'rgba(255, 102, 0, 0.16)',
                         borderColor: 'var(--sakay-orange)',
                       },
                     }}
@@ -945,7 +945,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                       borderColor: 'var(--sakay-orange-border)',
                       backgroundColor: 'var(--sakay-orange-soft)',
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 107, 26, 0.16)',
+                        backgroundColor: 'rgba(255, 102, 0, 0.16)',
                         borderColor: 'var(--sakay-orange)',
                       },
                     }}
@@ -1076,7 +1076,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                       borderColor: 'var(--sakay-orange-border)',
                       backgroundColor: 'var(--sakay-orange-soft)',
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 107, 26, 0.16)',
+                        backgroundColor: 'rgba(255, 102, 0, 0.16)',
                         borderColor: 'var(--sakay-orange)',
                       },
                     }}
@@ -1407,13 +1407,13 @@ export const TodaAccountManagementPage: React.FC = () => {
                   ? '2px solid var(--sakay-orange)'
                   : '2px dashed var(--sakay-orange-border)',
                 backgroundColor: isDraggingModalZone
-                  ? 'rgba(255, 107, 26, 0.16)'
+                  ? 'rgba(255, 102, 0, 0.16)'
                   : 'var(--sakay-orange-soft)',
-                boxShadow: isDraggingModalZone ? '0 0 0 4px rgba(255, 107, 26, 0.2)' : 'none',
+                boxShadow: isDraggingModalZone ? '0 0 0 4px rgba(255, 102, 0, 0.2)' : 'none',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 107, 26, 0.12)',
+                  backgroundColor: 'rgba(255, 102, 0, 0.12)',
                   borderColor: 'var(--sakay-orange)',
                 },
                 '& > *': {

@@ -93,7 +93,7 @@ export const TodaAuditLogsPage: React.FC = () => {
       case 'Membership':
         return { bg: 'rgba(234, 67, 53, 0.12)', color: '#D93025', border: 'rgba(234, 67, 53, 0.3)' };
       case 'Incident':
-        return { bg: 'rgba(255, 107, 26, 0.12)', color: 'var(--sakay-orange)', border: 'rgba(255, 107, 26, 0.3)' };
+        return { bg: 'rgba(255, 102, 0, 0.12)', color: 'var(--sakay-orange)', border: 'rgba(255, 102, 0, 0.3)' };
       case 'Announcement':
         return { bg: 'rgba(46, 125, 50, 0.12)', color: '#2E7D32', border: 'rgba(46, 125, 50, 0.3)' };
       case 'Account':

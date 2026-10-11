@@ -202,7 +202,7 @@ export const DriverPrepareDocuments: React.FC = () => {
             borderRadius: '20px',
             border: '1.5px solid #FFEDE1',
             backgroundColor: '#FFFFFF',
-            boxShadow: '0 4px 20px rgba(255, 107, 0, 0.04)',
+            boxShadow: '0 4px 20px rgba(255, 102, 0, 0.04)',
             mb: 3,
           }}
         >
@@ -223,7 +223,7 @@ export const DriverPrepareDocuments: React.FC = () => {
                       mt: 0.25,
                     }}
                   >
-                    <CheckIcon sx={{ color: '#FF6B00', fontSize: 14, stroke: '#FF6B00', strokeWidth: 0.5 }} />
+                    <CheckIcon sx={{ color: '#FF6600', fontSize: 14, stroke: '#FF6600', strokeWidth: 0.5 }} />
                   </Box>
                   <Box sx={{ flex: 1 }}>
                     <Typography
@@ -290,9 +290,9 @@ export const DriverPrepareDocuments: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: '#FF6B00',
+            backgroundColor: '#FF6600',
             boxShadow: 'none',
-            '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
           }}
         >
           {t.continue}

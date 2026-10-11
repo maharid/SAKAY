@@ -219,7 +219,7 @@ export const DriverScanFace: React.FC = () => {
       if (ctx) {
         ctx.fillStyle = '#1E293B';
         ctx.fillRect(0, 0, 640, 640);
-        ctx.fillStyle = '#FF6B00';
+        ctx.fillStyle = '#FF6600';
         ctx.beginPath();
         ctx.arc(320, 320, 160, 0, Math.PI * 2);
         ctx.fill();
@@ -417,10 +417,10 @@ export const DriverScanFace: React.FC = () => {
           }}
         >
           {/* Outer Corner Accent Brackets */}
-          <Box sx={{ position: 'absolute', top: -14, left: -14, width: 28, height: 28, borderTop: '4px solid #FF6B00', borderLeft: '4px solid #FF6B00', borderTopLeftRadius: '12px' }} />
-          <Box sx={{ position: 'absolute', top: -14, right: -14, width: 28, height: 28, borderTop: '4px solid #FF6B00', borderRight: '4px solid #FF6B00', borderTopRightRadius: '12px' }} />
-          <Box sx={{ position: 'absolute', bottom: -14, left: -14, width: 28, height: 28, borderBottom: '4px solid #FF6B00', borderLeft: '4px solid #FF6B00', borderBottomLeftRadius: '12px' }} />
-          <Box sx={{ position: 'absolute', bottom: -14, right: -14, width: 28, height: 28, borderBottom: '4px solid #FF6B00', borderRight: '4px solid #FF6B00', borderBottomRightRadius: '12px' }} />
+          <Box sx={{ position: 'absolute', top: -14, left: -14, width: 28, height: 28, borderTop: '4px solid #FF6600', borderLeft: '4px solid #FF6600', borderTopLeftRadius: '12px' }} />
+          <Box sx={{ position: 'absolute', top: -14, right: -14, width: 28, height: 28, borderTop: '4px solid #FF6600', borderRight: '4px solid #FF6600', borderTopRightRadius: '12px' }} />
+          <Box sx={{ position: 'absolute', bottom: -14, left: -14, width: 28, height: 28, borderBottom: '4px solid #FF6600', borderLeft: '4px solid #FF6600', borderBottomLeftRadius: '12px' }} />
+          <Box sx={{ position: 'absolute', bottom: -14, right: -14, width: 28, height: 28, borderBottom: '4px solid #FF6600', borderRight: '4px solid #FF6600', borderBottomRightRadius: '12px' }} />
 
           {/* Glowing Circular Frame */}
           <Box
@@ -428,9 +428,9 @@ export const DriverScanFace: React.FC = () => {
               width: '100%',
               height: '100%',
               borderRadius: '50%',
-              border: faceDetected ? '3.5px solid #FF6B00' : '3.5px dashed #64748B',
+              border: faceDetected ? '3.5px solid #FF6600' : '3.5px dashed #64748B',
               boxShadow: faceDetected
-                ? '0 0 24px rgba(255, 107, 0, 0.45), inset 0 0 24px rgba(255, 107, 0, 0.2)'
+                ? '0 0 24px rgba(255, 102, 0, 0.45), inset 0 0 24px rgba(255, 102, 0, 0.2)'
                 : 'none',
               overflow: 'hidden',
               position: 'relative',
@@ -483,7 +483,7 @@ export const DriverScanFace: React.FC = () => {
         >
           <Typography
             sx={{
-              color: '#FF6B00',
+              color: '#FF6600',
               fontWeight: 700,
               fontSize: '14px',
               mb: 1.25,
@@ -586,12 +586,12 @@ export const DriverScanFace: React.FC = () => {
             aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
             onClick={handleToggleTorch}
             sx={{
-              color: torchOn ? '#FF6B00' : '#FFFFFF',
+              color: torchOn ? '#FF6600' : '#FFFFFF',
               backgroundColor: 'rgba(255, 255, 255, 0.12)',
               width: 50,
               height: 50,
               borderRadius: '50%',
-              border: torchOn ? '1.5px solid #FF6B00' : '1px solid rgba(255,255,255,0.2)',
+              border: torchOn ? '1.5px solid #FF6600' : '1px solid rgba(255,255,255,0.2)',
               '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
             }}
           >
@@ -618,7 +618,7 @@ export const DriverScanFace: React.FC = () => {
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
-                backgroundColor: '#FF6B00',
+                backgroundColor: '#FF6600',
               }}
             />
           </IconButton>

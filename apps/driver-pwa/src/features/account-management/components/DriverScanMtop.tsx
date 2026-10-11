@@ -415,8 +415,8 @@ export const DriverScanMtop: React.FC = () => {
                 left: '-3px',
                 width: '32px',
                 height: '32px',
-                borderTop: '4.5px solid #FF6B00',
-                borderLeft: '4.5px solid #FF6B00',
+                borderTop: '4.5px solid #FF6600',
+                borderLeft: '4.5px solid #FF6600',
                 borderTopLeftRadius: '14px',
               }}
             />
@@ -428,8 +428,8 @@ export const DriverScanMtop: React.FC = () => {
                 right: '-3px',
                 width: '32px',
                 height: '32px',
-                borderTop: '4.5px solid #FF6B00',
-                borderRight: '4.5px solid #FF6B00',
+                borderTop: '4.5px solid #FF6600',
+                borderRight: '4.5px solid #FF6600',
                 borderTopRightRadius: '14px',
               }}
             />
@@ -441,8 +441,8 @@ export const DriverScanMtop: React.FC = () => {
                 left: '-3px',
                 width: '32px',
                 height: '32px',
-                borderBottom: '4.5px solid #FF6B00',
-                borderLeft: '4.5px solid #FF6B00',
+                borderBottom: '4.5px solid #FF6600',
+                borderLeft: '4.5px solid #FF6600',
                 borderBottomLeftRadius: '14px',
               }}
             />
@@ -454,8 +454,8 @@ export const DriverScanMtop: React.FC = () => {
                 right: '-3px',
                 width: '32px',
                 height: '32px',
-                borderBottom: '4.5px solid #FF6B00',
-                borderRight: '4.5px solid #FF6B00',
+                borderBottom: '4.5px solid #FF6600',
+                borderRight: '4.5px solid #FF6600',
                 borderBottomRightRadius: '14px',
               }}
             />
@@ -470,7 +470,7 @@ export const DriverScanMtop: React.FC = () => {
                 left: focusPoint.x - 28,
                 width: 56,
                 height: 56,
-                border: '2.5px solid #FF6B00',
+                border: '2.5px solid #FF6600',
                 borderRadius: '10px',
                 pointerEvents: 'none',
                 animation: 'pulseFocus 0.8s ease-out',
@@ -490,11 +490,11 @@ export const DriverScanMtop: React.FC = () => {
             <Alert
               severity="warning"
               sx={{
-                backgroundColor: 'rgba(255, 107, 0, 0.15)',
+                backgroundColor: 'rgba(255, 102, 0, 0.15)',
                 color: '#FFFFFF',
                 borderRadius: '12px',
-                border: '1px solid rgba(255, 107, 0, 0.3)',
-                '& .MuiAlert-icon': { color: '#FF6B00' },
+                border: '1px solid rgba(255, 102, 0, 0.3)',
+                '& .MuiAlert-icon': { color: '#FF6600' },
               }}
             >
               {cameraError}
@@ -564,12 +564,12 @@ export const DriverScanMtop: React.FC = () => {
           aria-label={language === "tl" ? "I-on o i-off ang flashlight" : "Toggle flashlight"}
           onClick={handleToggleTorch}
           sx={{
-            color: torchOn ? '#FF6B00' : '#FFFFFF',
+            color: torchOn ? '#FF6600' : '#FFFFFF',
             backgroundColor: 'rgba(255, 255, 255, 0.12)',
             width: 50,
             height: 50,
             borderRadius: '50%',
-            border: torchOn ? '1.5px solid #FF6B00' : '1px solid rgba(255,255,255,0.2)',
+            border: torchOn ? '1.5px solid #FF6600' : '1px solid rgba(255,255,255,0.2)',
             '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
           }}
         >
@@ -597,7 +597,7 @@ export const DriverScanMtop: React.FC = () => {
               width: '100%',
               height: '100%',
               borderRadius: '50%',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
             }}
           />
         </IconButton>

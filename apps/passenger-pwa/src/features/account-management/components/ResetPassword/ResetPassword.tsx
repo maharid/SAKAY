@@ -210,7 +210,7 @@ const ResetPassword: React.FC = () => {
                   borderRadius: "14px",
                   "& fieldset": { borderColor: "#F1F5F9" },
                   "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
+                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
                 },
               },
             }}
@@ -250,7 +250,7 @@ const ResetPassword: React.FC = () => {
                   borderRadius: "14px",
                   "& fieldset": { borderColor: "#F1F5F9" },
                   "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6B00" },
+                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
                 },
               },
             }}

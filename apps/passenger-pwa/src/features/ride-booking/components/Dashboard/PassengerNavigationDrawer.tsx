@@ -106,7 +106,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
           onKeyDown={activateWithKeyboard}
           onClick={handleProfileClick}
           sx={{
-            background: "linear-gradient(135deg, #FF6B00 0%, #FF8533 100%)",
+            background: "linear-gradient(135deg, #FF6600 0%, #FF8533 100%)",
             padding: "calc(var(--safe-area-top) + 20px) 20px 20px 20px",
             display: "flex",
             alignItems: "center",
@@ -123,7 +123,7 @@ const PassengerNavigationDrawer: React.FC<PassengerNavigationDrawerProps> = ({
               width: "52px",
               height: "52px",
               backgroundColor: "#FFFFFF",
-              color: "#FF6B00",
+              color: "#FF6600",
               fontWeight: 700,
               fontSize: "19px",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",

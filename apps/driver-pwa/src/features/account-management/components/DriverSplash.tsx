@@ -113,7 +113,7 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
               width: idx === activeIdx ? "24px" : "8px",
               height: "8px",
               borderRadius: "4px",
-              backgroundColor: idx === activeIdx ? "#FF6B00" : "#CBD5E1",
+              backgroundColor: idx === activeIdx ? "#FF6600" : "#CBD5E1",
               transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           />
@@ -445,7 +445,7 @@ export const DriverSplash: React.FC<DriverSplashProps> = ({ initialStep }) => {
               ml: "4px",
               transition: "color 0.2s",
               "&:hover": {
-                color: "#E66000",
+                color: "#E65C00",
                 textDecoration: "underline",
               },
             }}

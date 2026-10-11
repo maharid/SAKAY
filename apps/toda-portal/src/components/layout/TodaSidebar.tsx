@@ -305,7 +305,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                         ? 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)'
                         : 'transparent',
                       color: isActive ? '#FFFFFF' : item.disabled ? 'var(--mac-text-muted)' : 'var(--mac-text-primary)',
-                      boxShadow: isActive ? '0 10px 24px rgba(255, 107, 26, 0.22)' : 'none',
+                      boxShadow: isActive ? '0 10px 24px rgba(255, 102, 0, 0.22)' : 'none',
                       transition: 'all 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
                       overflow: 'hidden',
                       opacity: item.disabled ? 0.5 : 1,
@@ -446,7 +446,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
               background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
               fontSize: '14px',
               fontWeight: 700,
-              boxShadow: '0 10px 18px rgba(255, 107, 26, 0.18)',
+              boxShadow: '0 10px 18px rgba(255, 102, 0, 0.18)',
               flexShrink: 0,
               transition: 'transform 0.2s ease',
             }}
@@ -508,7 +508,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                 background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
                 fontSize: '24px',
                 fontWeight: 700,
-                boxShadow: '0 10px 24px rgba(255, 107, 26, 0.22)',
+                boxShadow: '0 10px 24px rgba(255, 102, 0, 0.22)',
               }}
             >
               T

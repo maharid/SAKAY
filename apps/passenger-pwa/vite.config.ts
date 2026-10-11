@@ -32,7 +32,7 @@ export default defineConfig({
         name: 'SAKAY',
         short_name: 'SAKAY',
         description: 'Smart Tricycle Transportation Management System',
-        theme_color: '#FF6B00',
+        theme_color: '#FF6600',
         background_color: '#FFFFFF',
         display: 'standalone',
         orientation: 'portrait',

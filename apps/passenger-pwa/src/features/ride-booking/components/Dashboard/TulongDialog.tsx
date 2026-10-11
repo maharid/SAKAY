@@ -61,7 +61,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <SupportAgentIcon sx={{ color: "#FF6B00", fontSize: 22 }} />
+          <SupportAgentIcon sx={{ color: "#FF6600", fontSize: 22 }} />
           <span>{language === "tl" ? "Tulong at Suporta" : "Help & Support"}</span>
         </Box>
         <IconButton aria-label={language === "tl" ? "Isara" : "Close"} size="small" onClick={onClose} sx={{ ...extendTapArea(7), color: "#64748B" }}>
@@ -111,7 +111,7 @@ const TulongDialog: React.FC<TulongDialogProps> = ({ open, onClose }) => {
               flexShrink: 0,
             }}
           >
-            <PhoneIcon sx={{ color: "#FF6B00", fontSize: "20px" }} />
+            <PhoneIcon sx={{ color: "#FF6600", fontSize: "20px" }} />
           </Box>
           <Box>
             <Typography

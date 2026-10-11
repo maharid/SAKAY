@@ -303,5 +303,5 @@ The following structural items are flagged for review and cleanup before major d
     *   *Recommendation*: Standardize asset filenames to lowercase kebab-case (e.g., `passenger-auth-signup-1.png`).
 
 6.  **Color Design Token Duplication**:
-    *   Color variables (like `#FF6B00`, `#1F1F1F`) are declared in global CSS properties in `variables.css` (`--primary-color`, etc.) and duplicated in the TypeScript config for the MUI theme in `theme.ts` (`primary.main: '#FF6B00'`).
+    *   Color variables (like `#FF6600`, `#1F1F1F`) are declared in global CSS properties in `variables.css` (`--primary-color`, etc.) and duplicated in the TypeScript config for the MUI theme in `theme.ts` (`primary.main: '#FF6600'`).
     *   *Recommendation*: Import the CSS variables directly in JavaScript/TypeScript using standard CSS variable access (`var(--primary-color)`) or let MUI themes dynamically inject custom properties into CSS to enforce a single source of truth.

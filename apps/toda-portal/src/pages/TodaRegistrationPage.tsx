@@ -800,7 +800,7 @@ export const TodaRegistrationPage: React.FC = () => {
                       onClick={(e) => setInfoAnchorEl(e.currentTarget)}
                       size="small"
                       sx={{
-                        color: '#FF6B00',
+                        color: '#FF6600',
                         backgroundColor: '#FFF2E9',
                         '&:hover': { backgroundColor: '#FFE4D1' },
                       }}
@@ -825,7 +825,7 @@ export const TodaRegistrationPage: React.FC = () => {
                       py: 1.25,
                       maxWidth: 290,
                       borderRadius: '10px',
-                      boxShadow: '0 8px 24px rgba(255, 107, 26, 0.16)',
+                      boxShadow: '0 8px 24px rgba(255, 102, 0, 0.16)',
                       border: '1px solid var(--sakay-orange-border)',
                       backgroundColor: '#FFF2E9',
                       color: '#1D1D1F',
@@ -872,7 +872,7 @@ export const TodaRegistrationPage: React.FC = () => {
                       label={
                         <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <span>OPERATING BARANGAY</span>
-                          <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>*</Box>
+                          <Box component="span" sx={{ color: '#FF6600', fontWeight: 800 }}>*</Box>
                         </Box>
                       }
                       placeholder="Type or select barangay..."
@@ -887,9 +887,9 @@ export const TodaRegistrationPage: React.FC = () => {
                           fontSize: '15px',
                           fontWeight: 600,
                           border: `1.5px solid ${hasAttemptedSubmit && !barangay ? '#DC2626' : '#E2E8F0'}`,
-                          '&:hover fieldset': { borderColor: '#FF6B00' },
-                          '&.Mui-focused fieldset': { borderColor: '#FF6B00', borderWidth: '1.5px' },
-                          '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)', backgroundColor: '#FFFFFF' },
+                          '&:hover fieldset': { borderColor: '#FF6600' },
+                          '&.Mui-focused fieldset': { borderColor: '#FF6600', borderWidth: '1.5px' },
+                          '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)', backgroundColor: '#FFFFFF' },
                         },
                         '& .MuiInputLabel-root': {
                           fontSize: '14.5px',
@@ -898,7 +898,7 @@ export const TodaRegistrationPage: React.FC = () => {
                           '&.Mui-focused, &.MuiInputLabel-shrink': {
                             fontSize: '9.5px',
                             fontWeight: 700,
-                            color: '#FF6B00',
+                            color: '#FF6600',
                             transform: 'translate(14px, 8px) scale(1)',
                             background: 'transparent',
                             padding: 0,
@@ -923,12 +923,12 @@ export const TodaRegistrationPage: React.FC = () => {
                           fontWeight: 500,
                           '&[aria-selected="true"]': {
                             backgroundColor: '#FFF5EF !important',
-                            color: '#FF6B00',
+                            color: '#FF6600',
                             fontWeight: 700,
                           },
                           '&:hover': {
                             backgroundColor: '#FFF2E9',
-                            color: '#FF6B00',
+                            color: '#FF6600',
                           },
                         },
                       },
@@ -959,7 +959,7 @@ export const TodaRegistrationPage: React.FC = () => {
                           setCalendarAnchorEl(e.currentTarget);
                           setCalendarOpen(true);
                         }}
-                        sx={{ color: '#FF6B00' }}
+                        sx={{ color: '#FF6600' }}
                       >
                         <CalendarTodayIcon sx={{ fontSize: 18 }} />
                       </IconButton>
@@ -1020,14 +1020,14 @@ export const TodaRegistrationPage: React.FC = () => {
                       sx={{
                         height: 38,
                         borderRadius: '10px',
-                        backgroundColor: '#FF6B00',
+                        backgroundColor: '#FF6600',
                         color: '#FFFFFF',
                         textTransform: 'none',
                         fontWeight: 600,
                         fontSize: '12.5px',
                         px: 1.75,
                         whiteSpace: 'nowrap',
-                        boxShadow: '0 2px 8px rgba(255, 107, 0, 0.25)',
+                        boxShadow: '0 2px 8px rgba(255, 102, 0, 0.25)',
                         '&:hover': {
                           backgroundColor: '#E05D00',
                         },
@@ -1175,11 +1175,11 @@ export const TodaRegistrationPage: React.FC = () => {
                       ? '#EF4444'
                       : (clearanceDoc.url ? '#22C55E' : 'var(--mac-border-color)'),
                     backgroundColor: activeDragTarget === 'clearance'
-                      ? 'rgba(255, 107, 26, 0.12)'
+                      ? 'rgba(255, 102, 0, 0.12)'
                       : hasAttemptedSubmit && !clearanceDoc.url
                       ? '#FEF2F2'
                       : (clearanceDoc.url ? '#F0FDF4' : '#FAFAFC'),
-                    boxShadow: activeDragTarget === 'clearance' ? '0 0 0 3px rgba(255, 107, 26, 0.15)' : 'none',
+                    boxShadow: activeDragTarget === 'clearance' ? '0 0 0 3px rgba(255, 102, 0, 0.15)' : 'none',
                     display: 'flex',
                     flexDirection: { xs: 'column', sm: 'row' },
                     alignItems: { xs: 'flex-start', sm: 'center' },
@@ -1198,7 +1198,7 @@ export const TodaRegistrationPage: React.FC = () => {
                         <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           Barangay Clearance
                         </Typography>
-                        <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>*</Box>
+                        <Box component="span" sx={{ color: '#FF6600', fontWeight: 800 }}>*</Box>
                       </Box>
                       {activeDragTarget === 'clearance' ? (
                         <Typography sx={{ fontSize: '12px', color: 'var(--sakay-orange)', fontWeight: 700 }}>
@@ -1287,14 +1287,14 @@ export const TodaRegistrationPage: React.FC = () => {
                         onClick={() => clearanceInputRef.current?.click()}
                         sx={{
                           textTransform: 'none',
-                          backgroundColor: '#FF6B00',
+                          backgroundColor: '#FF6600',
                           color: '#FFFFFF',
                           fontWeight: 600,
                           fontSize: '13px',
                           borderRadius: '10px',
                           px: 2,
                           py: 0.75,
-                          boxShadow: '0 2px 8px rgba(255, 107, 0, 0.22)',
+                          boxShadow: '0 2px 8px rgba(255, 102, 0, 0.22)',
                           '&:hover': {
                             backgroundColor: '#E05D00',
                           },
@@ -1358,11 +1358,11 @@ export const TodaRegistrationPage: React.FC = () => {
                       ? '#EF4444'
                       : (rosterDoc.url ? '#22C55E' : 'var(--mac-border-color)'),
                     backgroundColor: activeDragTarget === 'roster'
-                      ? 'rgba(255, 107, 26, 0.12)'
+                      ? 'rgba(255, 102, 0, 0.12)'
                       : hasAttemptedSubmit && !rosterDoc.url
                       ? '#FEF2F2'
                       : (rosterDoc.url ? '#F0FDF4' : '#FAFAFC'),
-                    boxShadow: activeDragTarget === 'roster' ? '0 0 0 3px rgba(255, 107, 26, 0.15)' : 'none',
+                    boxShadow: activeDragTarget === 'roster' ? '0 0 0 3px rgba(255, 102, 0, 0.15)' : 'none',
                     display: 'flex',
                     flexDirection: { xs: 'column', sm: 'row' },
                     alignItems: { xs: 'flex-start', sm: 'center' },
@@ -1381,7 +1381,7 @@ export const TodaRegistrationPage: React.FC = () => {
                         <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           Driver Roster
                         </Typography>
-                        <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>*</Box>
+                        <Box component="span" sx={{ color: '#FF6600', fontWeight: 800 }}>*</Box>
                       </Box>
                       {activeDragTarget === 'roster' ? (
                         <Typography sx={{ fontSize: '12px', color: 'var(--sakay-orange)', fontWeight: 700 }}>
@@ -1470,14 +1470,14 @@ export const TodaRegistrationPage: React.FC = () => {
                         onClick={() => rosterInputRef.current?.click()}
                         sx={{
                           textTransform: 'none',
-                          backgroundColor: '#FF6B00',
+                          backgroundColor: '#FF6600',
                           color: '#FFFFFF',
                           fontWeight: 600,
                           fontSize: '13px',
                           borderRadius: '10px',
                           px: 2,
                           py: 0.75,
-                          boxShadow: '0 2px 8px rgba(255, 107, 0, 0.22)',
+                          boxShadow: '0 2px 8px rgba(255, 102, 0, 0.22)',
                           '&:hover': {
                             backgroundColor: '#E05D00',
                           },
@@ -1541,11 +1541,11 @@ export const TodaRegistrationPage: React.FC = () => {
                       ? '#EF4444'
                       : (bylawsDoc.url ? '#22C55E' : 'var(--mac-border-color)'),
                     backgroundColor: activeDragTarget === 'bylaws'
-                      ? 'rgba(255, 107, 26, 0.12)'
+                      ? 'rgba(255, 102, 0, 0.12)'
                       : hasAttemptedSubmit && !bylawsDoc.url
                       ? '#FEF2F2'
                       : (bylawsDoc.url ? '#F0FDF4' : '#FAFAFC'),
-                    boxShadow: activeDragTarget === 'bylaws' ? '0 0 0 3px rgba(255, 107, 26, 0.15)' : 'none',
+                    boxShadow: activeDragTarget === 'bylaws' ? '0 0 0 3px rgba(255, 102, 0, 0.15)' : 'none',
                     display: 'flex',
                     flexDirection: { xs: 'column', sm: 'row' },
                     alignItems: { xs: 'flex-start', sm: 'center' },
@@ -1564,7 +1564,7 @@ export const TodaRegistrationPage: React.FC = () => {
                         <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           Internal Bylaws
                         </Typography>
-                        <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>*</Box>
+                        <Box component="span" sx={{ color: '#FF6600', fontWeight: 800 }}>*</Box>
                       </Box>
                       {activeDragTarget === 'bylaws' ? (
                         <Typography sx={{ fontSize: '12px', color: 'var(--sakay-orange)', fontWeight: 700 }}>
@@ -1653,14 +1653,14 @@ export const TodaRegistrationPage: React.FC = () => {
                         onClick={() => bylawsInputRef.current?.click()}
                         sx={{
                           textTransform: 'none',
-                          backgroundColor: '#FF6B00',
+                          backgroundColor: '#FF6600',
                           color: '#FFFFFF',
                           fontWeight: 600,
                           fontSize: '13px',
                           borderRadius: '10px',
                           px: 2,
                           py: 0.75,
-                          boxShadow: '0 2px 8px rgba(255, 107, 0, 0.22)',
+                          boxShadow: '0 2px 8px rgba(255, 102, 0, 0.22)',
                           '&:hover': {
                             backgroundColor: '#E05D00',
                           },

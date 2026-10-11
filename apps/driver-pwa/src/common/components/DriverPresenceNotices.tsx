@@ -125,7 +125,7 @@ export const DriverPresenceNotices: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleSwitchOffline}
-            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6B00', '&:hover': { backgroundColor: '#E05300' } }}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6600', '&:hover': { backgroundColor: '#E05300' } }}
           >
             {lang === 'tl' ? 'Mag-Offline' : 'Switch to Offline'}
           </Button>
@@ -154,7 +154,7 @@ export const DriverPresenceNotices: React.FC = () => {
           <Button
             variant="contained"
             onClick={dismissBackgroundNotice}
-            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6B00', '&:hover': { backgroundColor: '#E05300' } }}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6600', '&:hover': { backgroundColor: '#E05300' } }}
           >
             {lang === 'tl' ? 'Sige' : 'OK'}
           </Button>
@@ -176,7 +176,7 @@ export const DriverPresenceNotices: React.FC = () => {
           <Button
             variant="contained"
             onClick={dismissOfflineNotice}
-            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6B00', '&:hover': { backgroundColor: '#E05300' } }}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', backgroundColor: '#FF6600', '&:hover': { backgroundColor: '#E05300' } }}
           >
             {lang === 'tl' ? 'Sige' : 'OK'}
           </Button>

@@ -88,7 +88,7 @@ const AppFeedbackPage: React.FC = () => {
             onChange={(_, newValue) => setRating(newValue)}
             sx={{
               my: 1.5,
-              color: "#FF6B00",
+              color: "#FF6600",
               "& .MuiRating-icon": {
                 fontSize: "44px",
                 mx: 0.5,
@@ -141,7 +141,7 @@ const AppFeedbackPage: React.FC = () => {
             fullWidth
             variant="contained"
             sx={{
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               borderRadius: "14px",
               height: "52px",
@@ -150,7 +150,7 @@ const AppFeedbackPage: React.FC = () => {
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
               boxShadow: "none",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             }}
           >
             {language === "tl" ? "Isumite ang Rating" : "Submit Rating"}
@@ -190,14 +190,14 @@ const AppFeedbackPage: React.FC = () => {
               navigate(-1);
             }}
             sx={{
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               borderRadius: "12px",
               px: 4,
               fontWeight: 700,
               textTransform: "none",
               boxShadow: "none",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             }}
           >
             {language === "tl" ? "Bumalik" : "Done"}

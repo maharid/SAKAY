@@ -394,10 +394,10 @@ export const DriverVerifyOtp: React.FC = () => {
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '16px',
                   height: '58px',
-                  border: digit ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                  border: digit ? '1.5px solid #FF6600' : '1px solid #E2E8F0',
                   '&.Mui-focused': {
-                    borderColor: '#FF6B00',
-                    boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)',
+                    borderColor: '#FF6600',
+                    boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
                   },
                   '& fieldset': { border: 'none' },
                 },
@@ -417,7 +417,7 @@ export const DriverVerifyOtp: React.FC = () => {
             height: '48px',
             borderRadius: '14px',
             backgroundColor: resendTimer > 0 ? '#F8FAFC' : '#FFFFFF',
-            border: resendTimer > 0 ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
+            border: resendTimer > 0 ? '1.5px solid #E2E8F0' : '1.5px solid #FF6600',
             color: resendTimer > 0 ? '#64748B' : '#C2410C',
             boxShadow: 'none',
             display: 'flex',
@@ -431,13 +431,13 @@ export const DriverVerifyOtp: React.FC = () => {
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': resendTimer > 0 ? {} : {
-              backgroundColor: 'rgba(255, 107, 0, 0.06)',
-              borderColor: '#E66000',
-              color: '#E66000',
+              backgroundColor: 'rgba(255, 102, 0, 0.06)',
+              borderColor: '#E65C00',
+              color: '#E65C00',
               transform: 'translateY(-1px)',
             },
             '&:active': resendTimer > 0 ? {} : {
-              backgroundColor: 'rgba(255, 107, 0, 0.12)',
+              backgroundColor: 'rgba(255, 102, 0, 0.12)',
               transform: 'translateY(0)',
             },
           }}
@@ -483,9 +483,9 @@ export const DriverVerifyOtp: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: '#FF6B00',
+            backgroundColor: '#FF6600',
             boxShadow: 'none',
-            '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
             mb: 2,
           }}
         >

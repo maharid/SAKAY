@@ -164,7 +164,7 @@ const LocationPermission: React.FC = () => {
             {/* Live feedback alert during permission request or denial */}
             {requesting && (
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "12px" }}>
-                <CircularProgress size={16} sx={{ color: "#FF6B00" }} />
+                <CircularProgress size={16} sx={{ color: "#FF6600" }} />
                 <Typography sx={{ fontSize: "12px", color: "#C2410C", fontWeight: 600 }}>
                   {language === 'tl' ? 'Humihingi ng pahintulot sa browser...' : 'Requesting browser permission...'}
                 </Typography>

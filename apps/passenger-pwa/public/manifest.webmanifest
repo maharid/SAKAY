@@ -2,7 +2,7 @@
   "name": "SAKAY",
   "short_name": "SAKAY",
   "description": "A smart tricycle transportation management system for Calapan City.",
-  "theme_color": "#FF6B00",
+  "theme_color": "#FF6600",
   "background_color": "#FFFFFF",
   "display": "standalone",
   "orientation": "portrait",

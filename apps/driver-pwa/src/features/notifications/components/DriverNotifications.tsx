@@ -6,6 +6,7 @@ import {
   Button,
   Divider,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
@@ -156,18 +157,21 @@ export const DriverNotifications: React.FC = () => {
   const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'trips':
-        return <LocalTaxiIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <LocalTaxiIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       case 'promos':
-        return <LocalOfferOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <LocalOfferOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       case 'advisories':
-        return <CampaignOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <CampaignOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       default:
-        return <NotificationsOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <NotificationsOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
     }
   };
 
+  const [showingTranslation, setShowingTranslation] = useState(false);
+  const [translationNotice, setTranslationNotice] = useState<string | null>(null);
+
   if (selectedNotif) {
-    const title = isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn;
+    const isAdvisory = selectedNotif.category === 'advisories';
     const time = getRelativeTime(selectedNotif.createdAt, selectedNotif.timeTl, selectedNotif.timeEn, language);
 
     const detailedBodyTl = selectedNotif.id === 'dn2'
@@ -178,7 +182,48 @@ export const DriverNotifications: React.FC = () => {
       ? `Drive safely and keep your driver license and MTOP permit updated.\n\nFrom TODA Administration:\n1. Always wear proper attire and safety equipment.\n2. Ensure your tricycle is clean, safe, and comfortable for passengers.\n3. Follow Calapan City traffic regulations and adhere strictly to authorized fare matrix.`
       : selectedNotif.bodyEn;
 
-    const body = isTagalog ? detailedBodyTl : detailedBodyEn;
+    // Preserve original text authored by administrator
+    const originalTitle = selectedNotif.titleTl || selectedNotif.titleEn;
+    const originalBody = detailedBodyTl || detailedBodyEn;
+
+    const translatedTitle = isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn;
+    const translatedBody = isTagalog ? detailedBodyTl : detailedBodyEn;
+
+    const hasDistinctTranslation = Boolean(
+      (selectedNotif.titleEn && selectedNotif.titleTl && selectedNotif.titleEn !== selectedNotif.titleTl) ||
+      (selectedNotif.bodyEn && selectedNotif.bodyTl && selectedNotif.bodyEn !== selectedNotif.bodyTl) ||
+      (selectedNotif.id === 'dn2')
+    );
+
+    const displayTitle = showingTranslation ? translatedTitle : originalTitle;
+    const displayBody = showingTranslation ? translatedBody : originalBody;
+
+    const handleToggleTranslation = () => {
+      setTranslationNotice(null);
+      if (showingTranslation) {
+        setShowingTranslation(false);
+        return;
+      }
+
+      // Check if translation API is configured
+      const apiUrl = (import.meta as any).env?.VITE_TRANSLATION_API_URL;
+      const apiKey = (import.meta as any).env?.VITE_TRANSLATION_API_KEY;
+
+      if (apiUrl || apiKey) {
+        // External service configured
+        setShowingTranslation(true);
+      } else if (hasDistinctTranslation) {
+        // Pre-configured bilingual notice available
+        setShowingTranslation(true);
+      } else {
+        // Service not configured: Report missing dependency clearly without faking translation
+        setTranslationNotice(
+          isTagalog
+            ? 'Hindi pa nakakonekta ang panlabas na serbisyo ng pagsasalin (Translation service is not configured).'
+            : 'External translation service is not configured.'
+        );
+      }
+    };
 
     return (
       <Box
@@ -192,35 +237,83 @@ export const DriverNotifications: React.FC = () => {
       >
         <PageHeader
           title={isTagalog ? 'Detalye ng Abiso' : 'Notice Details'}
-          onBack={() => setSelectedNotif(null)}
+          onBack={() => {
+            setSelectedNotif(null);
+            setShowingTranslation(false);
+            setTranslationNotice(null);
+          }}
         />
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
           {/* Header info */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                backgroundColor: '#FFF2E9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              {getCategoryIcon(selectedNotif.category)}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  backgroundColor: '#FFF2E9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {getCategoryIcon(selectedNotif.category)}
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#C2410C' }}>
+                  TODA Administrator
+                </Typography>
+                <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
+                  {time}
+                </Typography>
+              </Box>
             </Box>
-            <Box>
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#C2410C' }}>
-                TODA Administrator
-              </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
-                {time}
-              </Typography>
-            </Box>
+
+            {isAdvisory && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleToggleTranslation}
+                sx={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  borderRadius: '10px',
+                  borderColor: '#E2E8F0',
+                  color: '#C2410C',
+                  py: 0.5,
+                  px: 1.25,
+                  minHeight: 34,
+                  '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#FF6600' },
+                }}
+              >
+                {showingTranslation
+                  ? isTagalog
+                    ? 'Ipakita ang orihinal'
+                    : 'Show original'
+                  : isTagalog
+                  ? 'Isalin sa Tagalog'
+                  : 'Translate to English'}
+              </Button>
+            )}
           </Box>
+
+          {translationNotice && (
+            <Alert severity="info" sx={{ mb: 2, borderRadius: '12px', fontSize: '13px' }}>
+              {translationNotice}
+            </Alert>
+          )}
+
+          {showingTranslation && (
+            <Box sx={{ mb: 1.5, display: 'inline-block', px: 1, py: 0.25, borderRadius: '6px', backgroundColor: '#F1F5F9' }}>
+              <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
+                {isTagalog ? 'Pagsasalin sa Tagalog' : 'English Translation'}
+              </Typography>
+            </Box>
+          )}
 
           <Typography
             sx={{
@@ -231,7 +324,7 @@ export const DriverNotifications: React.FC = () => {
               mb: 2,
             }}
           >
-            {title}
+            {displayTitle}
           </Typography>
 
           <Divider sx={{ mb: 2.5, borderColor: '#F1F5F9' }} />
@@ -244,7 +337,7 @@ export const DriverNotifications: React.FC = () => {
               whiteSpace: 'pre-line',
             }}
           >
-            {body}
+            {displayBody}
           </Typography>
         </Box>
       </Box>
@@ -295,7 +388,7 @@ export const DriverNotifications: React.FC = () => {
                   borderRadius: '999px',
                   fontSize: '13px',
                   fontWeight: isSelected ? 700 : 500,
-                  backgroundColor: isSelected ? '#FF6B00' : '#F1F5F9',
+                  backgroundColor: isSelected ? '#FF6600' : '#F1F5F9',
                   color: isSelected ? '#1A1A1A' : '#64748B',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -304,7 +397,7 @@ export const DriverNotifications: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   '&:hover': {
-                    backgroundColor: isSelected ? '#E66000' : '#E2E8F0',
+                    backgroundColor: isSelected ? '#E65C00' : '#E2E8F0',
                   },
                 }}
               >
@@ -363,7 +456,7 @@ export const DriverNotifications: React.FC = () => {
         {/* Notification List Rows */}
         {loading ? (
           <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
-            <CircularProgress size={32} sx={{ color: '#FF6B00' }} />
+            <CircularProgress size={32} sx={{ color: '#FF6600' }} />
           </Box>
         ) : filteredNotifications.length === 0 ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>

@@ -85,9 +85,9 @@ export const DriverTricycleInstructions: React.FC = () => {
             {isTagalog ? 'Hakbang 3 ng 4' : 'Step 3 of 4'}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#FF6B00' }} />
-            <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#FF6B00' }} />
-            <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#FF6B00' }} />
+            <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#FF6600' }} />
+            <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#FF6600' }} />
+            <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#FF6600' }} />
             <Box sx={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: '#E2E8F0' }} />
           </Box>
         </Box>
@@ -171,9 +171,9 @@ export const DriverTricycleInstructions: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: '#FF6B00',
+            backgroundColor: '#FF6600',
             boxShadow: 'none',
-            '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
           }}
         >
           {isTagalog ? 'Kumuha ng Larawan' : 'Take Photo'}

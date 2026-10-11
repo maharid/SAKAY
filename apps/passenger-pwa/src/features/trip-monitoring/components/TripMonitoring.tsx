@@ -6,7 +6,6 @@ import {
   Paper,
   Button,
   IconButton,
-  ButtonBase,
   Avatar,
   Chip,
   Dialog,
@@ -41,7 +40,6 @@ import {
   calculateTripProgressPercent,
   fetchServerTripProgress,
   useInFlight,
-  useSheetHandle,
   formatPeso,
   QuickMessageDialog,
   MapControlButton,
@@ -179,12 +177,12 @@ const SlideToFinish: React.FC<{ onFinish: () => void; language: string; disabled
           width: '44px',
           height: '44px',
           borderRadius: '50%',
-          backgroundColor: disabled ? '#94A3B8' : '#FF6B00',
+          backgroundColor: disabled ? '#94A3B8' : '#FF6600',
           color: '#FFFFFF',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: disabled ? 'none' : '0 4px 12px rgba(255, 107, 0, 0.4)',
+          boxShadow: disabled ? 'none' : '0 4px 12px rgba(255, 102, 0, 0.4)',
           transition: isDragging.current ? 'none' : 'left 0.25s ease',
         }}
       >
@@ -274,10 +272,6 @@ export const TripMonitoring: React.FC = () => {
   // Rule 9.2: the database has not heard from the driver for 3 minutes (cleared the moment it does)
   const [driverUnreachable, setDriverUnreachable] = useState(false);
   const [extendingWait, setExtendingWait] = useState(false);
-
-  // The trip sheet: its handle (tap, drag, or the arrow keys) gives the sheet more or less room. Only the handle drags; the content scrolls.
-  const [isExpanded, setIsExpanded] = useState(false);
-  const sheetHandle = useSheetHandle(isExpanded, setIsExpanded);
   const maxProgressRef = useRef(5);
   // Asks the database for the booking's state right now (the poll below, on demand): set by the effect that owns the poll.
   const pollNowRef = useRef<(() => Promise<void>) | null>(null);
@@ -372,6 +366,13 @@ export const TripMonitoring: React.FC = () => {
 
       const channel = supabase.channel(`booking_sync_${activeBookingId}`);
       await channel.send({
+        type: 'broadcast',
+        event: 'payment_confirmed',
+        payload: { bookingId: activeBookingId, payment_confirmed: true },
+      });
+
+      const tripChannel = supabase.channel(`passenger_trip_${activeBookingId}`);
+      await tripChannel.send({
         type: 'broadcast',
         event: 'payment_confirmed',
         payload: { bookingId: activeBookingId, payment_confirmed: true },
@@ -620,6 +621,10 @@ export const TripMonitoring: React.FC = () => {
           }
 
           setBooking((prev) => {
+            const isPaidLocally = localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
+            if (isPaidLocally && (d.booking_status === 'Arrived at Destination' || prev?.booking_status === 'Completed')) {
+              return prev; // Never let stale polling revert a completed payment
+            }
             if (prev?.booking_status === d.booking_status) return prev; // No change
             
             const mappedStatus = mapBookingStatus(d.booking_status);
@@ -678,6 +683,10 @@ export const TripMonitoring: React.FC = () => {
 
             setBooking((prev) => {
               const mappedStatus = mapBookingStatus(row.booking_status);
+              const isPaidLocally = localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
+              if (isPaidLocally && (mappedStatus === 'Arrived at Destination' || prev?.booking_status === 'Completed')) {
+                return prev;
+              }
 
               const merged: BookingRecord = {
                 ...(prev || ({} as any)),
@@ -1080,7 +1089,7 @@ export const TripMonitoring: React.FC = () => {
 
       </Box>
 
-      {/* 3. Driver & Trip Details (draggable bottom sheet): the content scrolls, the action stays pinned at the bottom */}
+      {/* 3. Driver & Trip Details (bottom card): ordinary scrollable card, no drag handle or collapsibility */}
       <Paper
         elevation={8}
         sx={{
@@ -1090,27 +1099,13 @@ export const TripMonitoring: React.FC = () => {
           flexDirection: 'column',
           zIndex: 20,
           width: '100%',
-          maxHeight: isExpanded ? '85vh' : '52vh',
-          transform: sheetHandle.dragY !== 0 ? `translateY(${sheetHandle.dragY}px)` : 'none',
-          transition: sheetHandle.dragging ? 'none' : 'max-height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.2s ease',
-          '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+          maxHeight: 'calc(100% - 176px)',
+          '@media (max-height: 640px)': { maxHeight: 'calc(100% - 140px)' },
           boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
+          pt: 2.5,
         }}
       >
-        {/* The handle: tap it, or drag it, to give the sheet more or less room */}
-        <ButtonBase
-          {...sheetHandle.handleProps}
-          aria-label={
-            isExpanded
-              ? (language === 'tl' ? 'Paliitin ang panel ng biyahe' : 'Make the trip panel smaller')
-              : (language === 'tl' ? 'Palakihin ang panel ng biyahe' : 'Make the trip panel bigger')
-          }
-          sx={{ width: '100%', minHeight: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', cursor: 'grab' }}
-        >
-          <Box sx={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1' }} />
-        </ButtonBase>
-
         <Box className="hide-scrollbar" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: '20px', pb: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {driverUnreachable && (
             <Alert severity="warning" sx={{ borderRadius: '14px', fontSize: '13px', fontWeight: 600 }}>
@@ -1139,7 +1134,7 @@ export const TripMonitoring: React.FC = () => {
             /* Driver identity */
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-                <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '20px' }}>
+                <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6600', fontWeight: 700, fontSize: '20px' }}>
                   {driverName.charAt(0)}
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
@@ -1201,7 +1196,7 @@ export const TripMonitoring: React.FC = () => {
                 variant="determinate"
                 value={tripProgress}
                 aria-label={language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
-                sx={{ height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', '& .MuiLinearProgress-bar': { backgroundColor: '#FF6B00', borderRadius: 4 } }}
+                sx={{ height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', '& .MuiLinearProgress-bar': { backgroundColor: '#FF6600', borderRadius: 4 } }}
               />
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.75 }}>
                 <Typography sx={{ fontSize: '12px', color: '#475569' }}>
@@ -1252,7 +1247,7 @@ export const TripMonitoring: React.FC = () => {
                   fullWidth
                   onClick={handleRetrySearch}
                   disabled={retryFlight.busy}
-                  sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6B00', color: '#1A1A1A', opacity: 0.75 }, backgroundColor: '#FF6B00', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E55F00', boxShadow: 'none' } }}
+                  sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#1A1A1A', opacity: 0.75 }, backgroundColor: '#FF6600', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' } }}
                 >
                   {language === 'tl' ? 'Subukan Muli' : 'Retry Search'}
                 </Button>
@@ -1262,7 +1257,7 @@ export const TripMonitoring: React.FC = () => {
                 variant="contained"
                 fullWidth
                 onClick={handlePassengerPaid}
-                disabled={paidFlight.busy}
+                disabled={paidFlight.busy || localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true'}
                 sx={{
                   minHeight: 52,
                   borderRadius: '16px',
@@ -1277,6 +1272,8 @@ export const TripMonitoring: React.FC = () => {
               >
                 {paidFlight.busy
                   ? (language === 'tl' ? 'Kinukumpirma...' : 'Confirming...')
+                  : localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true'
+                  ? (language === 'tl' ? 'Nabayaran na • Naghihintay ng kumpirmasyon' : 'Paid • Waiting for confirmation')
                   : (language === 'tl' ? 'Nabayaran ko na' : 'I Paid')}
               </Button>
             ) : status === 'Trip Ongoing' ? (
@@ -1343,7 +1340,7 @@ export const TripMonitoring: React.FC = () => {
             variant="contained"
             fullWidth
             onClick={() => setLeaveConfirmModalOpen(false)}
-            sx={{ borderRadius: '12px', backgroundColor: '#FF6B00', fontWeight: 700, height: '44px', textTransform: 'none', '&:hover': { backgroundColor: '#E05000' } }}
+            sx={{ borderRadius: '12px', backgroundColor: '#FF6600', fontWeight: 700, height: '44px', textTransform: 'none', '&:hover': { backgroundColor: '#E05000' } }}
           >
             {language === 'tl' ? 'Manatili sa Tracking' : 'Stay on Tracking'}
           </Button>
@@ -1638,13 +1635,13 @@ export const TripMonitoring: React.FC = () => {
             sx={{
               height: 46,
               borderRadius: '14px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
-              boxShadow: '0 4px 14px rgba(255, 107, 0, 0.25)',
-              '&:hover': { backgroundColor: '#E66000' },
+              boxShadow: '0 4px 14px rgba(255, 102, 0, 0.25)',
+              '&:hover': { backgroundColor: '#E65C00' },
             }}
           >
             {language === 'tl' ? 'OK (Mag-book Ulit)' : 'OK (Book Another Ride)'}

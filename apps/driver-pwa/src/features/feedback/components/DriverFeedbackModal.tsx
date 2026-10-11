@@ -269,7 +269,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                       fontWeight: isSelected ? 700 : 500,
                       backgroundColor: isSelected ? '#FFF8F0' : '#F1F5F9',
                       color: isSelected ? '#C2410C' : '#475569',
-                      border: isSelected ? '1px solid #FF6B00' : '1px solid transparent',
+                      border: isSelected ? '1px solid #FF6600' : '1px solid transparent',
                       fontFamily: 'Poppins, sans-serif',
                     }}
                   />
@@ -323,7 +323,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
               sx={{
                 borderRadius: '14px',
                 height: '46px',
-                backgroundColor: '#FF6B00',
+                backgroundColor: '#FF6600',
                 color: '#1A1A1A',
                 fontWeight: 700,
                 fontSize: '14px',

@@ -145,7 +145,7 @@ export const AnnouncementManagementPage: React.FC = () => {
   const getRoleBadgeStyle = (role: AnnouncementRecord['target_role']) => {
     switch (role) {
       case 'All':
-        return { bg: 'rgba(255, 107, 26, 0.12)', color: 'var(--sakay-orange)' };
+        return { bg: 'rgba(255, 102, 0, 0.12)', color: 'var(--sakay-orange)' };
       case 'Passenger':
         return { bg: 'rgba(26, 115, 232, 0.12)', color: '#1A73E8' };
       case 'Driver':

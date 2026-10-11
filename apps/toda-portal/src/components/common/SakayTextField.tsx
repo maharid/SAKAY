@@ -69,9 +69,9 @@ export const SakayTextField: React.FC<SakayTextFieldProps> = ({
           borderRadius: '16px',
           backgroundColor: disabled ? '#F8FAFC' : focused ? '#FFFFFF' : '#F1F3F5',
           border: `1.5px solid ${
-            error ? '#DC2626' : focused ? '#FF6B00' : '#E2E8F0'
+            error ? '#DC2626' : focused ? '#FF6600' : '#E2E8F0'
           }`,
-          boxShadow: focused ? '0 0 0 3px rgba(255, 107, 0, 0.12)' : 'none',
+          boxShadow: focused ? '0 0 0 3px rgba(255, 102, 0, 0.12)' : 'none',
           px: 2,
           position: 'relative',
           display: 'flex',
@@ -92,7 +92,7 @@ export const SakayTextField: React.FC<SakayTextFieldProps> = ({
             transform: isFloating ? 'translateY(0)' : 'translateY(-50%)',
             fontSize: isFloating ? '9.5px' : '14.5px',
             fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : isFloating ? '#64748B' : '#94A3B8',
+            color: error ? '#DC2626' : focused ? '#FF6600' : isFloating ? '#64748B' : '#94A3B8',
             letterSpacing: isFloating ? '0.5px' : '0px',
             textTransform: isFloating ? 'uppercase' : 'none',
             userSelect: 'none',
@@ -109,7 +109,7 @@ export const SakayTextField: React.FC<SakayTextFieldProps> = ({
         >
           <span>{cleanLabel}</span>
           {required && (
-            <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800, ml: '2px' }}>
+            <Box component="span" sx={{ color: '#FF6600', fontWeight: 800, ml: '2px' }}>
               *
             </Box>
           )}

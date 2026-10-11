@@ -107,7 +107,7 @@ export const DriverSettingsPage: React.FC = () => {
             <List disablePadding>
               <ListItem disablePadding>
                 <ListItemButton onClick={() => navigate('/driver/profile')} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: '#FF6B00' }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: '#FF6600' }}>
                     <PersonOutlinedIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
@@ -123,8 +123,8 @@ export const DriverSettingsPage: React.FC = () => {
               <Divider sx={{ borderColor: '#F8FAFC' }} />
 
               <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate('/driver/forgot-password')} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: '#FF6B00' }}>
+                <ListItemButton onClick={() => navigate('/driver/change-password')} sx={{ py: 1.5, px: 2 }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: '#FF6600' }}>
                     <LockOutlinedIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
@@ -167,7 +167,7 @@ export const DriverSettingsPage: React.FC = () => {
             <List disablePadding>
               <ListItem sx={{ py: 1.5, px: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: '#FF6B00' }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: '#FF6600' }}>
                     <TranslateIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
@@ -201,7 +201,7 @@ export const DriverSettingsPage: React.FC = () => {
                       py: 1,
                       minHeight: 44,
                       borderRadius: '9px',
-                      backgroundColor: language === 'tl' ? '#FF6B00' : 'transparent',
+                      backgroundColor: language === 'tl' ? '#FF6600' : 'transparent',
                       color: language === 'tl' ? '#1A1A1A' : '#64748B',
                       display: 'flex',
                       alignItems: 'center',
@@ -233,7 +233,7 @@ export const DriverSettingsPage: React.FC = () => {
                       py: 1,
                       minHeight: 44,
                       borderRadius: '9px',
-                      backgroundColor: language === 'en' ? '#FF6B00' : 'transparent',
+                      backgroundColor: language === 'en' ? '#FF6600' : 'transparent',
                       color: language === 'en' ? '#1A1A1A' : '#64748B',
                       display: 'flex',
                       alignItems: 'center',
@@ -392,7 +392,7 @@ export const DriverSettingsPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <InfoOutlinedIcon sx={{ color: '#FF6B00', fontSize: 22 }} />
+          <InfoOutlinedIcon sx={{ color: '#FF6600', fontSize: 22 }} />
           <Box sx={{ flex: 1 }}>
             <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
               SAKAY Driver PWA v1.2.0

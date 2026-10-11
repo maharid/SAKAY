@@ -9,6 +9,7 @@ import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useLanguage } from "../../../utils/LanguageContext";
 import Logo from "../../../common/components/Logo";
+import appIconToto from '@sakay/shared/src/assets/icons/app-icon-toto.webp';
 import { activateWithKeyboard } from '@sakay/shared';
 
 export const AccountSelection: React.FC = () => {
@@ -137,7 +138,7 @@ export const AccountSelection: React.FC = () => {
               justifyContent: "center",
               flexShrink: 0,
               backgroundColor: "#FFEBE0",
-              color: "#FF6B00",
+              color: "#FF6600",
             }}
           >
             <PersonIcon sx={{ fontSize: 24 }} />
@@ -202,10 +203,19 @@ export const AccountSelection: React.FC = () => {
               justifyContent: "center",
               flexShrink: 0,
               backgroundColor: "#FFEBE0",
-              color: "#FF6B00",
+              overflow: "hidden",
             }}
           >
-            <SportsMotorsportsIcon sx={{ fontSize: 24 }} />
+            <Box
+              component="img"
+              src={appIconToto}
+              alt="Driver"
+              sx={{
+                width: "34px",
+                height: "34px",
+                objectFit: "contain",
+              }}
+            />
           </Box>
 
           <Box sx={{ marginLeft: "16px", flexGrow: 1, paddingRight: "12px" }}>

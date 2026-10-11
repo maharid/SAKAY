@@ -80,7 +80,7 @@ function hsvToHex(h: number, s: number, v: number): string {
 }
 
 const PRESET_SWATCHES = [
-  { name: 'SAKAY Orange', hex: '#FF6B00' },
+  { name: 'SAKAY Orange', hex: '#FF6600' },
   { name: 'Municipal Blue', hex: '#2563EB' },
   { name: 'City Emerald', hex: '#059669' },
   { name: 'Royal Violet', hex: '#7C3AED' },
@@ -95,7 +95,7 @@ const DEFAULT_SAVED_SWATCHES = [
   '#7C3AED', // Royal Violet
   '#C026D3', // Magenta
   '#E11D48', // Crimson
-  '#FF6B00', // SAKAY Orange
+  '#FF6600', // SAKAY Orange
   '#7F56D9', // Purple
 ];
 

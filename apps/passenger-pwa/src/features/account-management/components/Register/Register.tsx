@@ -612,7 +612,7 @@ export const Register: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6B00' : '#E2E8F0',
+            backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6600' : '#E2E8F0',
             color: (isAllRequiredFilled && !submitted) ? '#1A1A1A' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
@@ -620,7 +620,7 @@ export const Register: React.FC = () => {
               color: '#64748B',
             },
             '&:hover': {
-              backgroundColor: (isAllRequiredFilled && !submitted) ? '#E66000' : '#E2E8F0',
+              backgroundColor: (isAllRequiredFilled && !submitted) ? '#E65C00' : '#E2E8F0',
               boxShadow: 'none',
             },
           }}

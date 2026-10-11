@@ -243,7 +243,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
             textTransform: 'none',
             backgroundColor: 'var(--sakay-orange)',
             color: '#FFFFFF',
-            boxShadow: '0 8px 18px rgba(255, 107, 26, 0.24)',
+            boxShadow: '0 8px 18px rgba(255, 102, 0, 0.24)',
             whiteSpace: 'nowrap',
             '&:hover': {
               backgroundColor: 'var(--sakay-orange-hover)',

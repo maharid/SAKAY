@@ -3,9 +3,9 @@ import { createTheme } from '@mui/material/styles';
 export const theme = createTheme({
   palette: {
     primary: {
-      main: '#FF6B00',
+      main: '#FF6600',
       light: '#FF8533',
-      dark: '#E66000',
+      dark: '#E65C00',
       contrastText: '#1A1A1A', // white on the brand orange is 2.9:1; near-black is 6.3:1 (WCAG AA needs 4.5:1)
     },
     secondary: {

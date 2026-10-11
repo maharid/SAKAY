@@ -144,13 +144,13 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'trips':
-        return <LocalTaxiIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <LocalTaxiIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       case 'promos':
-        return <LocalOfferOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <LocalOfferOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       case 'advisories':
-        return <CampaignOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <CampaignOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       default:
-        return <NotificationsOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />;
+        return <NotificationsOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
     }
   };
 
@@ -243,7 +243,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                   fontWeight: isSelected ? TYPOGRAPHY_TOKENS.fontWeight.bold : TYPOGRAPHY_TOKENS.fontWeight.medium,
                   fontFamily: "Poppins, sans-serif",
-                  backgroundColor: isSelected ? "#FF6B00" : "#F1F5F9",
+                  backgroundColor: isSelected ? "#FF6600" : "#F1F5F9",
                   color: isSelected ? "#1A1A1A" : "#64748B",
                   cursor: "pointer",
                   whiteSpace: "nowrap",
@@ -252,7 +252,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   display: "flex",
                   alignItems: "center",
                   "&:hover": {
-                    backgroundColor: isSelected ? "#E66000" : "#E2E8F0",
+                    backgroundColor: isSelected ? "#E65C00" : "#E2E8F0",
                   },
                 }}
               >

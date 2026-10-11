@@ -309,7 +309,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
                         ? 'linear-gradient(135deg, var(--sakay-orange) 0%, var(--sakay-orange) 100%)'
                         : 'transparent',
                       color: isActive ? '#FFFFFF' : 'var(--mac-text-primary)',
-                      boxShadow: isActive ? '0 10px 24px rgba(255, 107, 26, 0.22)' : 'none',
+                      boxShadow: isActive ? '0 10px 24px rgba(255, 102, 0, 0.22)' : 'none',
                       transition: 'all 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
                       overflow: 'hidden',
                       '&:hover': {

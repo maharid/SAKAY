@@ -86,7 +86,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
         },
         '&:hover': {
           boxShadow: 'var(--mac-shadow-hover)',
-          borderColor: 'rgba(255, 107, 26, 0.18)',
+          borderColor: 'rgba(255, 102, 0, 0.18)',
           transform: 'translateY(-3px)',
           '& .chevron-icon': {
             transform: 'translateX(4px)',

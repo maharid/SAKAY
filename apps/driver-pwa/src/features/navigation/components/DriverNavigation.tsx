@@ -293,7 +293,7 @@ export const DriverNavigation: React.FC = () => {
           <ArrowBackIcon sx={{ fontSize: 18 }} />
         </IconButton>
 
-        <Box sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#FF6B00', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(255, 107, 0, 0.4)' }}>
+        <Box sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(255, 102, 0, 0.4)' }}>
           <NavigationIcon sx={{ fontSize: 22, transform: 'rotate(0deg)' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
@@ -329,7 +329,7 @@ export const DriverNavigation: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6B00', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
@@ -346,7 +346,7 @@ export const DriverNavigation: React.FC = () => {
             <IconButton aria-label={language === "tl" ? "Tawagan ang pasahero" : "Call passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#ECFDF5', color: '#10B981', '&:hover': { backgroundColor: '#D1FAE5' } }}>
               <PhoneIcon fontSize="small" />
             </IconButton>
-            <IconButton aria-label={language === "tl" ? "Magpadala ng mensahe sa pasahero" : "Message passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#FFF8F0', color: '#FF6B00', '&:hover': { backgroundColor: '#FFE8D6' } }}>
+            <IconButton aria-label={language === "tl" ? "Magpadala ng mensahe sa pasahero" : "Message passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#FFF8F0', color: '#FF6600', '&:hover': { backgroundColor: '#FFE8D6' } }}>
               <MessageIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -382,12 +382,12 @@ export const DriverNavigation: React.FC = () => {
           sx={{
             height: 50,
             borderRadius: '14px',
-            '&.Mui-disabled': { backgroundColor: '#FF6B00', color: '#1A1A1A', opacity: 0.75 },
-            backgroundColor: '#FF6B00',
+            '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#1A1A1A', opacity: 0.75 },
+            backgroundColor: '#FF6600',
             fontWeight: 700,
             fontSize: '15px',
             textTransform: 'none',
-            '&:hover': { backgroundColor: '#E66000' },
+            '&:hover': { backgroundColor: '#E65C00' },
           }}
         >
           {arriveFlight.busy
@@ -441,10 +441,10 @@ export const DriverNavigation: React.FC = () => {
             sx={{
               height: 46,
               borderRadius: '12px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               fontWeight: 700,
               textTransform: 'none',
-              '&:hover': { backgroundColor: '#E66000' },
+              '&:hover': { backgroundColor: '#E65C00' },
             }}
           >
             {language === 'tl' ? 'Manatili sa Navigasyon' : 'Stay in Navigation'}

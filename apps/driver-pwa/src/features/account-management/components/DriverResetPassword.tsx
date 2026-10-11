@@ -7,6 +7,7 @@ import {
   InputAdornment,
   IconButton,
   LinearProgress,
+  Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -18,21 +19,54 @@ import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
+import SuccessModal from '../../../common/components/SuccessModal';
+import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { extendTapArea } from '@sakay/shared';
 
 export const DriverResetPassword: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+
+  useEffect(() => {
+    // Validate that the user arrived via a valid recovery session or token
+    const verifyRecoverySession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        const hasRecoveryToken = hash.includes('type=recovery') || hash.includes('access_token') || search.includes('code=');
+
+        if (session || hasRecoveryToken) {
+          setSessionValid(true);
+        } else {
+          setSessionValid(false);
+          setErrorMessage(
+            language === 'tl'
+              ? 'Walang aktibong recovery session o nag-expire na ang reset link. Mangyaring humiling muli ng link.'
+              : 'No active recovery session found or the reset link has expired. Please request a new link.'
+          );
+        }
+      } catch (err) {
+        console.warn('Session check error:', err);
+        setSessionValid(true);
+      }
+    };
+
+    verifyRecoverySession();
+  }, [language]);
 
   // Password Criteria Validation (matching TODA registration)
   const hasMinLength = newPassword.length >= 8;
@@ -83,16 +117,55 @@ export const DriverResetPassword: React.FC = () => {
     }
   }, [newPassword, confirmPassword]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
-    if (!isPasswordValid || newPassword !== confirmPassword) return;
+    setErrorMessage(null);
+
+    if (!isPasswordValid) {
+      setErrorMessage(
+        language === 'tl'
+          ? 'Pakitiyak na natutugunan ng password ang lahat ng pamantayan.'
+          : 'Please make sure your password meets all criteria.'
+      );
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage(
+        language === 'tl'
+          ? 'Hindi magkatugma ang kumpirmasyon ng password.'
+          : 'Passwords do not match.'
+      );
+      return;
+    }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
-      navigate('/driver/login', { replace: true });
-    }, 600);
+      setSuccessModalOpen(true);
+      setTimeout(() => {
+        navigate('/driver/login', { replace: true });
+      }, 1600);
+    } catch (err: any) {
+      setErrorMessage(
+        err?.message ||
+          (language === 'tl'
+            ? 'Nagkaroon ng problema sa pag-update ng password.'
+            : 'An unexpected error occurred while updating password.')
+      );
+      setLoading(false);
+    }
   };
 
   const showPasswordIcon = !passwordFocused && !newPassword;
@@ -179,6 +252,12 @@ export const DriverResetPassword: React.FC = () => {
           </Typography>
         </Box>
 
+        {errorMessage && (
+          <Alert severity={sessionValid === false ? "warning" : "error"} sx={{ mb: 2.5, borderRadius: '12px' }}>
+            {errorMessage}
+          </Alert>
+        )}
+
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* New Password */}
           <TextField
@@ -228,7 +307,7 @@ export const DriverResetPassword: React.FC = () => {
                   height: '56px',
                   '& fieldset': { borderColor: '#E2E8F0' },
                   '&:hover fieldset': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6B00' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
                 },
               },
             }}
@@ -353,7 +432,7 @@ export const DriverResetPassword: React.FC = () => {
                   height: '56px',
                   '& fieldset': { borderColor: '#E2E8F0' },
                   '&:hover fieldset': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6B00' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
                 },
               },
             }}
@@ -372,9 +451,9 @@ export const DriverResetPassword: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: '#FF6B00',
+            backgroundColor: '#FF6600',
             boxShadow: 'none',
-            '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
             mt: 2,
             mb: 1,
           }}
@@ -382,6 +461,16 @@ export const DriverResetPassword: React.FC = () => {
           {t.saveAndLogin}
         </PrimaryButton>
       </Box>
+
+      <SuccessModal
+        open={successModalOpen}
+        title={language === 'tl' ? 'Matagumpay na Na-reset ang Password!' : 'Password Reset Successful!'}
+        message={
+          language === 'tl'
+            ? 'Maaari ka nang mag-login gamit ang iyong bagong password.'
+            : 'You can now log in using your new password.'
+        }
+      />
     </Box>
   );
 };

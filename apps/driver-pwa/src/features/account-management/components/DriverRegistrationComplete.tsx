@@ -28,7 +28,7 @@ export const DriverRegistrationComplete: React.FC = () => {
     canvas.width = canvas.parentElement?.clientWidth || 360;
     canvas.height = canvas.parentElement?.clientHeight || 640;
 
-    const colors = ['#FF6B00', '#10B981', '#3B82F6', '#F59E0B', '#EC4899'];
+    const colors = ['#FF6600', '#10B981', '#3B82F6', '#F59E0B', '#EC4899'];
     const particles = Array.from({ length: 45 }, () => ({
       x: canvas.width * 0.5,
       y: canvas.height * 0.45,

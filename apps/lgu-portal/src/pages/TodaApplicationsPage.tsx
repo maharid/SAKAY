@@ -397,7 +397,7 @@ export const TodaApplicationsPage: React.FC = () => {
                         <Chip
                           label={app.acronym}
                           size="small"
-                          sx={{ fontSize: '12px', fontWeight: 600, backgroundColor: 'rgba(255, 107, 26, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
+                          sx={{ fontSize: '12px', fontWeight: 600, backgroundColor: 'rgba(255, 102, 0, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
                         />
                       )}
                       {app.isOverdue5Days && (
@@ -650,7 +650,7 @@ export const TodaApplicationsPage: React.FC = () => {
                           backgroundColor: 'var(--sakay-orange-soft)',
                           borderRadius: '8px',
                           '&:hover': {
-                            backgroundColor: 'rgba(255, 107, 26, 0.16)',
+                            backgroundColor: 'rgba(255, 102, 0, 0.16)',
                             borderColor: 'var(--sakay-orange)',
                           },
                         }}

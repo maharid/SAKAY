@@ -110,8 +110,8 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
           height: '62px',
           borderRadius: '16px',
           backgroundColor: focused ? '#FFFFFF' : '#F1F3F5',
-          border: `1.5px solid ${error ? '#DC2626' : focused ? '#FF6B00' : '#E2E8F0'}`,
-          boxShadow: focused ? '0 0 0 3px rgba(255, 107, 0, 0.12)' : 'none',
+          border: `1.5px solid ${error ? '#DC2626' : focused ? '#FF6600' : '#E2E8F0'}`,
+          boxShadow: focused ? '0 0 0 3px rgba(255, 102, 0, 0.12)' : 'none',
           px: 2,
           position: 'relative',
           display: 'flex',
@@ -130,7 +130,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
             transform: 'translateY(0)',
             fontSize: '9.5px',
             fontWeight: 700,
-            color: error ? '#DC2626' : focused ? '#FF6B00' : '#64748B',
+            color: error ? '#DC2626' : focused ? '#FF6600' : '#64748B',
             letterSpacing: '0.5px',
             textTransform: 'uppercase',
             userSelect: 'none',
@@ -145,7 +145,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
         >
           {label}
           {required && (
-            <Box component="span" sx={{ color: '#FF6B00', fontWeight: 800 }}>
+            <Box component="span" sx={{ color: '#FF6600', fontWeight: 800 }}>
               *
             </Box>
           )}

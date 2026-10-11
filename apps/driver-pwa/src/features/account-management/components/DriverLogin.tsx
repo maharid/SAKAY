@@ -419,7 +419,7 @@ export const DriverLogin: React.FC = () => {
                   color: '#C2410C',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  '&:hover': { textDecoration: 'underline', color: '#E66000' },
+                  '&:hover': { textDecoration: 'underline', color: '#E65C00' },
                 }}
               >
                 {t.forgotPassword}
@@ -463,7 +463,7 @@ export const DriverLogin: React.FC = () => {
                 cursor: 'pointer',
                 marginLeft: '6px',
                 transition: 'color 0.2s',
-                '&:hover': { color: '#E66000', textDecoration: 'underline' },
+                '&:hover': { color: '#E65C00', textDecoration: 'underline' },
               }}
             >
               {t.registerLink || 'Mag-register'}

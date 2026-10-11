@@ -40,15 +40,11 @@ interface HomeBottomSheetProps {
 
 /** Until the sheet has been measured; the real height follows its content (a longer greeting in Filipino, a larger system font) */
 const DEFAULT_SHEET_HEIGHT = 240;
-/** How much of the sheet stays visible when it is collapsed: the handle and the greeting */
-const MIN_SHEET_HEIGHT = 72;
 
 const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   firstName,
   onStartNewTrip,
   onSelectPlaceTrip,
-  isCollapsed = false,
-  onToggleCollapse,
   onHeightChange,
   onDragStateChange,
 }) => {
@@ -115,13 +111,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Gesture tracking states for continuous bottom-sheet dragging
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [dragOffsetY, setDragOffsetY] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const dragStartTimeRef = useRef<number>(0);
-
-  // The sheet is as tall as its content, so nothing in it is ever clipped; the collapse distance follows that height.
+  // The sheet is as tall as its content; ordinary scrolling when taller than max height.
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const [sheetHeight, setSheetHeight] = useState<number>(DEFAULT_SHEET_HEIGHT);
   useEffect(() => {
@@ -134,58 +124,18 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Current translation and visible height, clamped between the collapsed and the full height
-  const maxTranslate = Math.max(0, sheetHeight - MIN_SHEET_HEIGHT);
-  const rawTranslate = isCollapsed ? maxTranslate + dragOffsetY : dragOffsetY;
-  const targetTranslate = Math.max(0, Math.min(maxTranslate, rawTranslate));
-  const currentVisibleHeight = sheetHeight - targetTranslate;
-
-  // Emit height changes & drag state to parent for real-time location button alignment
+  // Emit height changes to parent for real-time location button alignment
   useEffect(() => {
     if (onHeightChange) {
-      onHeightChange(currentVisibleHeight);
+      onHeightChange(sheetHeight);
     }
-  }, [currentVisibleHeight, onHeightChange]);
+  }, [sheetHeight, onHeightChange]);
 
   useEffect(() => {
     if (onDragStateChange) {
-      onDragStateChange(isDragging);
+      onDragStateChange(false);
     }
-  }, [isDragging, onDragStateChange]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartY(e.touches[0].clientY);
-    dragStartTimeRef.current = Date.now();
-    setIsDragging(true);
-    setDragOffsetY(0);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY === null) return;
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - touchStartY;
-    setDragOffsetY(deltaY);
-  };
-
-  const handleTouchEnd = () => {
-    if (touchStartY === null) return;
-    const dragDuration = Date.now() - dragStartTimeRef.current;
-    const isFlick = dragDuration < 250 && Math.abs(dragOffsetY) > 20;
-
-    if (!isCollapsed) {
-      if (dragOffsetY > 40 || (isFlick && dragOffsetY > 0)) {
-        if (onToggleCollapse) onToggleCollapse();
-      }
-    } else {
-      if (dragOffsetY < -40 || (isFlick && dragOffsetY < 0)) {
-        if (onToggleCollapse) onToggleCollapse();
-      }
-    }
-
-    setTouchStartY(null);
-    setDragOffsetY(0);
-    setIsDragging(false);
-  };
+  }, [onDragStateChange]);
 
   // Open Unified Modal for Adding a Place
   const handleOpenAddModal = () => {
@@ -235,6 +185,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
       <Paper
         ref={sheetRef}
         elevation={4}
+        className="hide-scrollbar"
         sx={{
           position: "absolute",
           bottom: 0,
@@ -243,78 +194,24 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
           backgroundColor: "#F4FBF7",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
-          padding: "10px 16px calc(var(--safe-area-bottom) + 12px) 16px",
+          padding: "16px 16px calc(var(--safe-area-bottom) + 12px) 16px",
           zIndex: 10,
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
-          overflow: "hidden",
-          transform: `translateY(${targetTranslate}px)`,
-          transition: isDragging ? "none" : "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
-          willChange: "transform",
+          gap: "12px",
+          maxHeight: "calc(100% - 120px)",
+          overflowY: "auto",
         }}
       >
-        {/* Drag handle bar - moves together with sheet */}
+        {/* Personalized Greeting Text */}
         <Box
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          role="button"
-          tabIndex={0}
-          aria-expanded={!isCollapsed}
-          aria-label={isCollapsed ? (language === "tl" ? "Buksan ang panel" : "Expand panel") : (language === "tl" ? "Itupi ang panel" : "Collapse panel")}
-          onKeyDown={activateWithKeyboard}
-          onClick={() => {
-            if (Math.abs(dragOffsetY) < 5 && onToggleCollapse) {
-              onToggleCollapse();
-            }
-          }}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "grab",
-            py: 0.75,
-            minHeight: 28,
-            width: "100%",
-            userSelect: "none",
-            touchAction: "none",
-            "&:active": { cursor: "grabbing" },
-          }}
-        >
-          <Box
-            sx={{
-              width: "48px",
-              height: "5px",
-              backgroundColor: "#CBD5E1",
-              borderRadius: "3px",
-            }}
-          />
-        </Box>
-
-        {/* Personalized Greeting Text - moves together with sheet and accepts tap/drag */}
-        <Box
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          role={isCollapsed ? "button" : undefined}
-          tabIndex={isCollapsed ? 0 : undefined}
-          aria-label={isCollapsed ? (language === "tl" ? "Buksan ang panel" : "Expand panel") : undefined}
-          onKeyDown={isCollapsed ? activateWithKeyboard : undefined}
-          onClick={() => {
-            if (isCollapsed && Math.abs(dragOffsetY) < 5 && onToggleCollapse) {
-              onToggleCollapse();
-            }
-          }}
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             px: '4px',
-            cursor: isCollapsed ? 'pointer' : 'grab',
             userSelect: 'none',
-            touchAction: 'none',
           }}
         >
           <Typography
@@ -342,9 +239,6 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
             overflowX: "auto",
             paddingBottom: "4px",
             width: "100%",
-            opacity: isCollapsed ? 0.4 : 1,
-            transition: "opacity 0.2s ease",
-            pointerEvents: isCollapsed ? "none" : "auto",
           }}
         >
             {/* Card 1: Bagong Trip (Primary New Trip Action) */}
@@ -376,11 +270,11 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                   width: "40px",
                   height: "40px",
                   borderRadius: "12px",
-                  backgroundColor: "#FF6B00",
+                  backgroundColor: "#FF6600",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "0 4px 10px rgba(255, 107, 0, 0.25)",
+                  boxShadow: "0 4px 10px rgba(255, 102, 0, 0.25)",
                 }}
               >
                 <LocationOnIcon sx={{ color: "#FFFFFF", fontSize: "22px" }} />
@@ -558,7 +452,7 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
                     letterSpacing: "-0.2px",
                   }}
                 >
-                  {language === "tl" ? "Magdagdag" : "Add Place"}
+                  {language === "tl" ? "Magdagdag ng Naka-save na Lugar" : "Add Saved Place"}
                 </Typography>
                 <Typography
                   sx={{

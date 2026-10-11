@@ -94,7 +94,7 @@ select:focus-visible {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background-color: rgba(255, 107, 0, 0.35);
+  background-color: rgba(255, 102, 0, 0.35);
   animation: userPulseAnimation 2s infinite ease-out;
 }
 
@@ -105,7 +105,7 @@ select:focus-visible {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background-color: #FF6B00;
+  background-color: #FF6600;
   border: 2.5px solid #FFFFFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }

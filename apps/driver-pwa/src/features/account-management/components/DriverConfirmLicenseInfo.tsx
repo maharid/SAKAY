@@ -194,12 +194,12 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
           border: error
             ? '1.5px solid #DC2626'
             : focused
-            ? '1.5px solid #FF6B00'
+            ? '1.5px solid #FF6600'
             : '1.5px solid transparent',
           boxShadow: error
             ? '0 0 0 3px rgba(220, 38, 38, 0.12)'
             : focused
-            ? '0 0 0 3px rgba(255, 107, 0, 0.12)'
+            ? '0 0 0 3px rgba(255, 102, 0, 0.12)'
             : 'none',
           px: 2,
           py: multiline ? 1.5 : 0,
@@ -324,7 +324,7 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
                     <Typography sx={{ fontSize: '14px', fontWeight: isChecked ? 700 : 600, color: isChecked ? '#C2410C' : '#0F172A' }}>
                       {code}
                     </Typography>
-                    {isChecked && <CheckIcon sx={{ fontSize: 18, color: '#FF6B00' }} />}
+                    {isChecked && <CheckIcon sx={{ fontSize: 18, color: '#FF6600' }} />}
                   </MenuItem>
                 );
               })}
@@ -361,7 +361,7 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
                   e.stopPropagation();
                   onOpenCalendar?.(e.currentTarget.parentElement || e.currentTarget);
                 }}
-                sx={{ p: 0.25, ml: 0.5, color: '#64748B', '&:hover': { color: '#FF6B00' } }}
+                sx={{ p: 0.25, ml: 0.5, color: '#64748B', '&:hover': { color: '#FF6600' } }}
               >
                 <CalendarTodayIcon sx={{ fontSize: 18 }} />
               </IconButton>
@@ -666,7 +666,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
               flex: 1,
               height: '44px',
               borderRadius: '12px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               color: '#1A1A1A',
               fontWeight: 700,
               fontSize: '14px',
@@ -891,7 +891,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: isFormValid ? '#FF6B00' : '#E2E8F0',
+            backgroundColor: isFormValid ? '#FF6600' : '#E2E8F0',
             color: isFormValid ? '#1A1A1A' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
@@ -899,7 +899,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
               color: '#64748B',
             },
             '&:hover': {
-              backgroundColor: isFormValid ? '#E66000' : '#E2E8F0',
+              backgroundColor: isFormValid ? '#E65C00' : '#E2E8F0',
               boxShadow: 'none',
             },
           }}
