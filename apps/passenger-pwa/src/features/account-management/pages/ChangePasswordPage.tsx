@@ -191,6 +191,21 @@ const ChangePasswordPage: React.FC = () => {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             slotProps={{
+              inputLabel: {
+                sx: {
+                  color: '#64748B',
+                  fontSize: '15px',
+                  transform: 'translate(16px, 18px) scale(1)',
+                  transformOrigin: 'top left',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(16px, 8px) scale(0.75)',
+                    fontWeight: 600,
+                  },
+                  '&.Mui-focused': {
+                    color: '#FF6600',
+                  },
+                },
+              },
               input: {
                 endAdornment: (
                   <InputAdornment position="end">
@@ -205,12 +220,29 @@ const ChangePasswordPage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 ),
+                notched: false,
                 sx: {
+                  height: '58px',
                   borderRadius: '14px',
                   backgroundColor: '#F8FAFC',
-                  '& fieldset': { borderColor: '#E2E8F0' },
-                  '&:hover fieldset': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#E2E8F0',
+                    borderWidth: '1.5px',
+                    '& legend': { display: 'none' },
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#CBD5E1' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#FF6600', borderWidth: '1.5px' },
+                  '&.Mui-focused': {
+                    boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    pt: '20px',
+                    pb: '4px',
+                    px: '16px',
+                    fontSize: '15px',
+                    fontWeight: 500,
+                    color: '#0F172A',
+                  },
                 },
               },
             }}
@@ -239,6 +271,21 @@ const ChangePasswordPage: React.FC = () => {
             error={confirmPassword.length > 0 && newPassword !== confirmPassword}
             helperText={confirmPassword.length > 0 && newPassword !== confirmPassword ? (isTagalog ? 'Hindi magkatugma ang password.' : 'Passwords do not match.') : ''}
             slotProps={{
+              inputLabel: {
+                sx: {
+                  color: '#64748B',
+                  fontSize: '15px',
+                  transform: 'translate(16px, 18px) scale(1)',
+                  transformOrigin: 'top left',
+                  '&.MuiInputLabel-shrink': {
+                    transform: 'translate(16px, 8px) scale(0.75)',
+                    fontWeight: 600,
+                  },
+                  '&.Mui-focused': {
+                    color: '#FF6600',
+                  },
+                },
+              },
               input: {
                 endAdornment: (
                   <InputAdornment position="end">
@@ -253,12 +300,29 @@ const ChangePasswordPage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 ),
+                notched: false,
                 sx: {
+                  height: '58px',
                   borderRadius: '14px',
                   backgroundColor: '#F8FAFC',
-                  '& fieldset': { borderColor: '#E2E8F0' },
-                  '&:hover fieldset': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#E2E8F0',
+                    borderWidth: '1.5px',
+                    '& legend': { display: 'none' },
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#CBD5E1' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#FF6600', borderWidth: '1.5px' },
+                  '&.Mui-focused': {
+                    boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    pt: '20px',
+                    pb: '4px',
+                    px: '16px',
+                    fontSize: '15px',
+                    fontWeight: 500,
+                    color: '#0F172A',
+                  },
                 },
               },
             }}
