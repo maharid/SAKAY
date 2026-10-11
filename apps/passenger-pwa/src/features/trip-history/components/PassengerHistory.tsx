@@ -129,115 +129,16 @@ const PassengerHistory: React.FC = () => {
               "&:hover": { borderColor: "#CBD5E1" },
             }}
           >
-            {/* Upper Details Row */}
+            {/* Upper Header Row: Mode Chip & Time on Left, Price on Right */}
             <Box
               sx={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "16px",
+                alignItems: "center",
+                gap: 1.5,
               }}
             >
-              {/* Left Timeline & Locations */}
-              <Box sx={{ display: "flex", gap: "12px", flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    paddingTop: "4px",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "10px",
-                      height: "10px",
-                      borderRadius: "50%",
-                      border: "2px solid #64748B",
-                      backgroundColor: "#FFFFFF",
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      width: "1.5px",
-                      height: "26px",
-                      backgroundColor: "#CBD5E1",
-                      margin: "2px 0",
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      width: "10px",
-                      height: "10px",
-                      borderRadius: "50%",
-                      backgroundColor: "#FF6600",
-                    }}
-                  />
-                </Box>
-
-                <Box sx={{ flexGrow: 1, minWidth: 0, overflow: "hidden" }}>
-                  <Box sx={{ marginBottom: "10px" }}>
-                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl" ? "Pickup" : "Pickup"}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "14px",
-                        fontWeight: 700,
-                        color: "#0F172A",
-                        fontFamily: "Poppins, sans-serif",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {trip.pickup}
-                    </Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl" ? "Destinasyon" : "Drop-off"}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "14px",
-                        fontWeight: 700,
-                        color: "#0F172A",
-                        fontFamily: "Poppins, sans-serif",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {trip.dropoff}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Right Price, Mode & Distance */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  gap: "4px",
-                  flexShrink: 0,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: "18px",
-                    fontWeight: 700,
-                    color: "#C2410C",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {trip.price}
-                </Typography>
-
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", minWidth: 0 }}>
                 <Chip
                   label={trip.type === "Share" ? (language === "tl" ? "Shared Trip" : "Shared Trip") : (language === "tl" ? "Solo Trip" : "Solo Trip")}
                   size="small"
@@ -246,35 +147,124 @@ const PassengerHistory: React.FC = () => {
                     color: trip.type === "Share" ? "#1E8E3E" : "#C2410C",
                     fontSize: "12px",
                     fontWeight: 700,
-                    height: "22px",
+                    height: "24px",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 />
-
                 <Typography
                   sx={{
                     fontSize: "12px",
                     color: "#64748B",
                     fontWeight: 500,
-                    marginTop: "2px",
                     fontFamily: "Poppins, sans-serif",
                   }}
                 >
-                  {trip.time} {trip.distanceKm ? `• ${trip.distanceKm.toFixed(1)} km` : ''}
+                  {trip.time} {trip.distanceKm ? `• ${trip.distanceKm.toFixed(1)} km` : ""}
                 </Typography>
+              </Box>
+
+              <Typography
+                sx={{
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: "#C2410C",
+                  fontFamily: "Poppins, sans-serif",
+                  fontVariantNumeric: "tabular-nums",
+                  flexShrink: 0,
+                }}
+              >
+                {trip.price}
+              </Typography>
+            </Box>
+
+            {/* Route Section: Vertical timeline with natural wrapping without truncation */}
+            <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  paddingTop: "6px",
+                  flexShrink: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "50%",
+                    border: "2px solid #64748B",
+                    backgroundColor: "#FFFFFF",
+                  }}
+                />
+                <Box
+                  sx={{
+                    width: "1.5px",
+                    minHeight: "28px",
+                    flexGrow: 1,
+                    backgroundColor: "#CBD5E1",
+                    my: 0.5,
+                  }}
+                />
+                <Box
+                  sx={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "50%",
+                    backgroundColor: "#FF6600",
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ flexGrow: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.25 }}>
+                <Box>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Pickup
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#0F172A",
+                      fontFamily: "Poppins, sans-serif",
+                      lineHeight: 1.35,
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {trip.pickup}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {language === "tl" ? "Destinasyon" : "Drop-off"}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#0F172A",
+                      fontFamily: "Poppins, sans-serif",
+                      lineHeight: 1.35,
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {trip.dropoff}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
 
             {/* Bottom Buttons Row */}
-            <Box sx={{ display: "flex", gap: "10px" }} onClick={(e) => e.stopPropagation()}>
+            <Box sx={{ display: "flex", gap: "10px", pt: 0.5 }} onClick={(e) => e.stopPropagation()}>
               <Button
                 variant="contained"
                 onClick={() => handleRebook(trip)}
-                endIcon={<ArrowForwardIcon />}
+                endIcon={<ArrowForwardIcon sx={{ color: "#FFFFFF" }} />}
                 sx={{
                   flexGrow: 1,
-                  backgroundColor: "#FF5B00",
-                  color: "#1A1A1A",
+                  backgroundColor: "#FF6600",
+                  color: "#FFFFFF",
                   borderRadius: "14px",
                   fontWeight: 700,
                   fontSize: "13px",
@@ -282,7 +272,7 @@ const PassengerHistory: React.FC = () => {
                   height: "42px",
                   boxShadow: "none",
                   fontFamily: "Poppins, sans-serif",
-                  "&:hover": { backgroundColor: "#E05000" },
+                  "&:hover": { backgroundColor: "#E65C00" },
                 }}
               >
                 {language === "tl" ? "Muling Mag-book" : "Rebook"}

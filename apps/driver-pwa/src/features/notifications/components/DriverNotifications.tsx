@@ -393,7 +393,7 @@ export const DriverNotifications: React.FC = () => {
                   fontSize: '13px',
                   fontWeight: isSelected ? 700 : 500,
                   backgroundColor: isSelected ? '#FF6600' : '#F1F5F9',
-                  color: isSelected ? '#FFFFFF' : '#64748B',
+                  color: isSelected ? '#1A1A1A' : '#64748B',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.18s ease',

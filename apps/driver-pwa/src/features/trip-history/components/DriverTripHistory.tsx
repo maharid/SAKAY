@@ -183,37 +183,9 @@ export const DriverTripHistory: React.FC = () => {
                 '&:hover': { borderColor: '#CBD5E1' },
               }}
             >
-              {/* Same card as the passenger's: the places on the left, what the trip was (fare, kind, time, distance) on the right */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 1.5, flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: '4px', flexShrink: 0 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #64748B', backgroundColor: '#FFFFFF' }} />
-                    <Box sx={{ width: '1.5px', height: '26px', backgroundColor: '#CBD5E1', my: '2px' }} />
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#FF6600' }} />
-                  </Box>
-
-                  <Box sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <Box sx={{ mb: '10px' }}>
-                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>Pickup</Typography>
-                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {trip.pickupLocation}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
-                        {language === 'tl' ? 'Destinasyon' : 'Drop-off'}
-                      </Typography>
-                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {trip.dropoffLocation}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#C2410C', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                    {formatPeso(trip.fareAmount)}
-                  </Typography>
+              {/* 1. Header Row: Mode Chip & Time on Left, Fare on Right */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', minWidth: 0 }}>
                   <Chip
                     label={trip.tripMode === 'Shared Ride' ? 'Shared Trip' : 'Solo Trip'}
                     size="small"
@@ -222,13 +194,46 @@ export const DriverTripHistory: React.FC = () => {
                       fontWeight: 700,
                       backgroundColor: trip.tripMode === 'Shared Ride' ? '#E6F4EA' : '#FFF5EB',
                       color: trip.tripMode === 'Shared Ride' ? '#1E8E3E' : '#C2410C',
-                      height: '22px',
+                      height: '24px',
                       fontFamily: 'Poppins, sans-serif',
                     }}
                   />
-                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, mt: '2px', fontFamily: 'Poppins, sans-serif', textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
                     {trip.time} {trip.distanceKm > 0 ? `• ${trip.distanceKm.toFixed(1)} km` : ''}
                   </Typography>
+                </Box>
+
+                <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#C2410C', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {formatPeso(trip.fareAmount)}
+                </Typography>
+              </Box>
+
+              {/* 2. Route Section: Vertical timeline with natural wrapping without truncation */}
+              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: '6px', flexShrink: 0 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #64748B', backgroundColor: '#FFFFFF' }} />
+                  <Box sx={{ width: '1.5px', minHeight: '28px', flexGrow: 1, backgroundColor: '#CBD5E1', my: 0.5 }} />
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#FF6600' }} />
+                </Box>
+
+                <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Pickup
+                    </Typography>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.35, wordBreak: 'break-word' }}>
+                      {trip.pickupLocation}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {language === 'tl' ? 'Destinasyon' : 'Drop-off'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.35, wordBreak: 'break-word' }}>
+                      {trip.dropoffLocation}
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
 
