@@ -15,6 +15,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 
 import { useLanguage } from '../../utils/LanguageContext';
 import { supabase } from '../../services/supabaseClient';
+import { fetchDriverNotifications } from '../../services/driverApiService';
 import { DriverSessionProvider } from '../../contexts/DriverSessionContext';
 import { DriverIncomingRequestModal } from '../components/DriverIncomingRequestModal';
 import DriverPresenceNotices from '../components/DriverPresenceNotices';
@@ -111,25 +112,49 @@ export const DriverMobileAppShell: React.FC = () => {
     '/driver/active-trip'
   ].includes(currentPath);
 
-  const [hasUnread, setHasUnread] = React.useState<boolean>(true);
+  // The red dot means there IS something unread: a notice the database holds for this driver that this phone has not opened yet. With
+  // nothing to read there is no dot (it used to be on until two sample notices had been opened).
+  const [serverUnreadIds, setServerUnreadIds] = React.useState<string[]>([]);
+  const [hasUnread, setHasUnread] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (!localStorage.getItem('sakay_driver_id')) {
+      setServerUnreadIds([]);
+      return;
+    }
+    let stopped = false;
+    const load = () => {
+      fetchDriverNotifications()
+        .then((items) => {
+          if (!stopped) setServerUnreadIds((items || []).filter((n) => n.read !== true).map((n) => String(n.id)));
+        })
+        .catch(() => {});
+    };
+    load();
+    const refresh = setInterval(load, 60000);
+    return () => {
+      stopped = true;
+      clearInterval(refresh);
+    };
+  }, [location.pathname]);
 
   React.useEffect(() => {
     const checkUnread = () => {
+      let localReadIds: string[] = [];
       try {
         const stored = localStorage.getItem('sakay_driver_read_notifications');
-        const localReadIds: string[] = stored ? JSON.parse(stored) : [];
-        const defaultIds = ['dn1', 'dn2'];
-        const unreadExists = defaultIds.some((id) => !localReadIds.includes(id));
-        setHasUnread(unreadExists);
+        localReadIds = stored ? JSON.parse(stored) : [];
       } catch {
-        setHasUnread(true);
+        // storage unavailable: nothing is known to be read
       }
+      const unreadExists = serverUnreadIds.some((id) => !localReadIds.includes(id));
+      setHasUnread((prev) => (prev === unreadExists ? prev : unreadExists));
     };
 
     checkUnread();
     const interval = setInterval(checkUnread, 1000);
     return () => clearInterval(interval);
-  }, [location.pathname]);
+  }, [serverUnreadIds, location.pathname]);
 
   const tabs: NavTabItem[] = [
     {

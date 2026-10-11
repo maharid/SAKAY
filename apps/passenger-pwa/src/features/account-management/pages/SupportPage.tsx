@@ -139,7 +139,7 @@ const SupportPage: React.FC = () => {
             startIcon={<PhoneIcon />}
             sx={{
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "12px",
               height: "44px",
               fontSize: "14px",

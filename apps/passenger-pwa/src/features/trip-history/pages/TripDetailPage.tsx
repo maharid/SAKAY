@@ -11,12 +11,11 @@ import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import HeadsetMicOutlinedIcon from "@mui/icons-material/HeadsetMicOutlined";
 import PlaceIcon from "@mui/icons-material/Place";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
 import Rating from "@mui/material/Rating";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId, type FareBreakdown, activateWithKeyboard } from "@sakay/shared";
+import { formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -276,7 +275,7 @@ export const TripDetailPage: React.FC = () => {
             onClick={handleRebook}
             sx={{
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "14px",
               height: "48px",
               fontWeight: 700,
@@ -306,7 +305,7 @@ export const TripDetailPage: React.FC = () => {
           }}
         >
           <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Kalkulasyon ng Pamasahe" : "Fare Breakdown"}
+            {language === "tl" ? "Kalkulasyon ng pamasahe" : "Fare breakdown"}
           </Typography>
 
           {(() => {
@@ -315,60 +314,36 @@ export const TripDetailPage: React.FC = () => {
             const fb = stateTrip?.fareBreakdown as FareBreakdown | null | undefined;
             const fin = fb?.final;
             if (!fb || !fin) return null;
-            const money = (n: number) => `₱${n.toFixed(2)}`;
+            const money = formatPeso;
             const matched = fin.basis === "matched_estimate_pending_segments";
-            const rowSx = { display: "flex", justifyContent: "space-between", alignItems: "center" } as const;
-            const labelSx = { fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" } as const;
             const noteSx = { fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" } as const;
-            const valueSx = { fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" } as const;
             return (
               <>
-                <Box sx={rowSx}>
-                  <Typography sx={labelSx}>{language === "tl" ? "Distansyang Siningil" : "Distance Billed"}</Typography>
-                  <Typography sx={valueSx}>{fin.billed_distance_km.toFixed(1)} km</Typography>
-                </Box>
+                <FareLine label={language === "tl" ? "Distansyang siningil" : "Distance billed"} amount={`${fin.billed_distance_km.toFixed(1)}\u00A0km`} />
 
-                <Box sx={rowSx}>
-                  <Box>
-                    <Typography sx={labelSx}>
-                      {language === "tl"
-                        ? `Unang ${fb.rule.base_distance_km.toFixed(1)} km (Base Fare)`
-                        : `Base Fare (First ${fb.rule.base_distance_km.toFixed(1)} km)`}
-                    </Typography>
-                    <Typography sx={noteSx}>
-                      {matched
-                        ? language === "tl" ? "Hati mo sa buong tricycle" : "Your share of the whole tricycle"
-                        : `${money(fb.rule.base_fare)} × ${fin.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`}
-                    </Typography>
-                  </Box>
-                  <Typography sx={valueSx}>{money(fin.components.base)}</Typography>
-                </Box>
+                <FareLine
+                  label={
+                    language === "tl"
+                      ? `Unang ${fb.rule.base_distance_km.toFixed(1)} km (base fare)`
+                      : `Base fare (first ${fb.rule.base_distance_km.toFixed(1)} km)`
+                  }
+                  detail={
+                    matched
+                      ? language === "tl" ? "Hati mo sa buong tricycle" : "Your share of the whole tricycle"
+                      : `${money(fb.rule.base_fare)} × ${fin.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`
+                  }
+                  amount={money(fin.components.base)}
+                />
 
-                <Box sx={rowSx}>
-                  <Box>
-                    <Typography sx={labelSx}>
-                      {language === "tl"
-                        ? `Dagdag na Distansya (${fin.excess_km.toFixed(1)} km)`
-                        : `Distance Charge (${fin.excess_km.toFixed(1)} km)`}
-                    </Typography>
-                    {!matched && fin.excess_km > 0 && (
-                      <Typography sx={noteSx}>
-                        {fin.excess_km.toFixed(1)} km × {money(fb.rule.succeeding_rate)} × {fin.seat_capacity}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Typography sx={valueSx}>{money(fin.components.distance)}</Typography>
-                </Box>
-
-                {fin.components.adjustment !== 0 && (
-                  <Box sx={rowSx}>
-                    <Typography sx={labelSx}>{language === "tl" ? "Pag-round sa pinakamalapit na piso" : "Rounded to the nearest peso"}</Typography>
-                    <Typography sx={valueSx}>
-                      {fin.components.adjustment > 0 ? "+" : "−"}
-                      {money(Math.abs(fin.components.adjustment))}
-                    </Typography>
-                  </Box>
-                )}
+                <FareLine
+                  label={
+                    language === "tl"
+                      ? `Dagdag na distansya (${fin.excess_km.toFixed(1)} km)`
+                      : `Distance charge (${fin.excess_km.toFixed(1)} km)`
+                  }
+                  detail={!matched && fin.excess_km > 0 ? `${fin.excess_km.toFixed(1)} km × ${money(fb.rule.succeeding_rate)} × ${fin.seat_capacity}` : undefined}
+                  amount={money(fin.components.distance)}
+                />
 
                 {fin.basis === "unmatched_solo" && (
                   <Typography sx={noteSx}>
@@ -390,26 +365,22 @@ export const TripDetailPage: React.FC = () => {
 
           <Divider sx={{ borderColor: "#F1F5F9", my: 0.5 }} />
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Kabuuan" : "Total Fare"}
+          <FareLine emphasis="total" label={language === "tl" ? "Kabuuan" : "Total fare"} amount={price} />
+          {/* The database charges whole pesos (Rule 6.1.2): when the lines above differ from the total, say why in one quiet line */}
+          {(stateTrip?.fareBreakdown as FareBreakdown | null | undefined)?.final?.components.adjustment ? (
+            <Typography sx={{ fontSize: "12px", lineHeight: 1.4, color: "#64748B", fontFamily: "Poppins, sans-serif", textAlign: "right" }}>
+              {language === "tl" ? "Buong piso ang singil ayon sa fare rule ng LGU." : "Charged in whole pesos under the LGU fare rule."}
             </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <AccountBalanceWalletIcon sx={{ color: "#FF6B00", fontSize: 20 }} />
-              <Typography sx={{ fontSize: "18px", fontWeight: 700, color: "#C2410C", fontFamily: "Poppins, sans-serif" }}>
-                {price}
-              </Typography>
-            </Box>
-          </Box>
+          ) : null}
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1, borderTop: "1px border-dashed #F1F5F9" }}>
             <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Paraan ng Pagbayad" : "Pay Using"}
+              {language === "tl" ? "Paraan ng pagbayad" : "Pay using"}
             </Typography>
             <Chip
               label="₱ Cash"
               size="small"
-              sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
+              sx={{ backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
             />
           </Box>
         </Paper>
@@ -428,7 +399,7 @@ export const TripDetailPage: React.FC = () => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", fontWeight: 700, fontSize: "16px" }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "16px" }}>
               {driverName.charAt(0)}
             </Avatar>
             <Box>

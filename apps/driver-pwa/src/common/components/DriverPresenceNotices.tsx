@@ -1,6 +1,5 @@
 import React from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
-import BatterySaverIcon from '@mui/icons-material/BatterySaver';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import ScreenLockPortraitIcon from '@mui/icons-material/ScreenLockPortrait';
 import { DRIVER_AUTO_OFFLINE_AFTER_UNANSWERED } from '@sakay/shared';
 
@@ -8,28 +7,21 @@ import { useLanguage } from '../../utils/LanguageContext';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
 import type { PresenceEndReason } from '../../services/driverPresenceService';
 
-/** Persistent reminder while Online (Rule 17.6) with the battery-saver note (Rule 17.8). Shown on the Home screen. */
+/** Persistent reminder while Online (Rule 17.6). Shown on the Home screen. */
 export const DriverForegroundReminder: React.FC = () => {
   const { language } = useLanguage();
+  // One short line (Rule 17.6). The battery-saver detail was a second paragraph nobody could act on.
   return (
     <Alert
       severity="info"
       icon={<ScreenLockPortraitIcon fontSize="small" />}
-      sx={{ borderRadius: '12px', fontSize: '12px', alignItems: 'center', py: 0.5 }}
+      sx={{ borderRadius: '12px', fontSize: '12px', alignItems: 'center', py: 0.25 }}
     >
-      <Typography sx={{ fontSize: '12px', fontWeight: 700, lineHeight: 1.35 }}>
+      <Typography sx={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.35 }}>
         {language === 'tl'
-          ? 'Panatilihing bukas ang SAKAY at hindi naka-lock ang screen habang Online.'
-          : 'Keep SAKAY open and the screen unlocked while you are Online.'}
+          ? 'Panatilihing bukas ang SAKAY at naka-on ang screen habang Online.'
+          : 'Keep SAKAY open and the screen on while Online.'}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
-        <BatterySaverIcon sx={{ fontSize: 13, color: '#64748B' }} />
-        <Typography sx={{ fontSize: '12px', color: '#475569', lineHeight: 1.3 }}>
-          {language === 'tl'
-            ? 'Kung bumagal ang update ng lokasyon dahil sa battery saver, tatanggapin ito ng app.'
-            : 'If battery saver slows location updates, the app accepts that.'}
-        </Typography>
-      </Box>
     </Alert>
   );
 };

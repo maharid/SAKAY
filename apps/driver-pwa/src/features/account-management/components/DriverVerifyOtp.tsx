@@ -14,6 +14,7 @@ import PrimaryButton from '../../../common/components/PrimaryButton';
 import SakayToast from '../../../common/components/SakayToast';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { sendDriverOtp, verifyDriverOtp, formatPhoneToE164, getPhoneLookupCandidates } from '../../../services/driverApiService';
+import { supabase } from '../../../services/supabaseClient';
 
 const formatDisplayPhone = (raw: string = ''): string => {
   const digits = raw.replace(/\D/g, '');
@@ -34,7 +35,13 @@ export const DriverVerifyOtp: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, language } = useLanguage();
-  const state = location.state as { phone?: string; driverName?: string } | undefined;
+  // A phone CHANGE comes from the profile editor (isPhoneChange): the driver is already registered and signed in, so a verified code ends
+  // back on the profile, never on the registration terms. The editor has already saved the new number (the server only sends and checks a
+  // code for the number the driver's record holds), so backing out must put the old one back.
+  const state = location.state as { phone?: string; driverName?: string; isPhoneChange?: boolean; oldPhone?: string; returnTo?: string } | undefined;
+  const isPhoneChange = Boolean(state?.isPhoneChange);
+  const returnTo = state?.returnTo || '/driver/profile';
+  const [restoring, setRestoring] = useState(false);
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -103,9 +110,18 @@ export const DriverVerifyOtp: React.FC = () => {
         const e164Phone = formatPhoneToE164(targetPhone);
         try {
           localStorage.setItem('sakay_driver_phone', e164Phone);
+          if (isPhoneChange) {
+            // The saved copy of the profile follows the number the server has just verified
+            const saved = localStorage.getItem('sakay_driver_profile');
+            if (saved) localStorage.setItem('sakay_driver_profile', JSON.stringify({ ...JSON.parse(saved), phone: e164Phone }));
+          }
         } catch {}
 
         setLoading(false);
+        if (isPhoneChange) {
+          navigate(returnTo, { replace: true, state: { phoneUpdated: true } });
+          return;
+        }
         navigate('/driver/terms-of-service', {
           replace: true,
           state: {
@@ -119,7 +135,7 @@ export const DriverVerifyOtp: React.FC = () => {
         setToastError(language === 'tl' ? 'Hindi makumpleto ang verification.' : 'Verification service unavailable. Please check your connection.');
       }
     },
-    [loading, navigate, state, language, targetPhone]
+    [loading, navigate, state, language, targetPhone, isPhoneChange, returnTo]
   );
 
   const handleIncomingSmsOtp = useCallback(
@@ -189,6 +205,28 @@ export const DriverVerifyOtp: React.FC = () => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
+  };
+
+  // Leaving a phone change without the code: the number on the driver's record goes back to the old one. Only when the database has
+  // accepted that is the driver told so; if it could not be restored, the driver stays here and is told why.
+  const cancelPhoneChange = async () => {
+    if (restoring) return;
+    const driverId = localStorage.getItem('sakay_driver_id');
+    const oldPhone = state?.oldPhone;
+    if (driverId && oldPhone) {
+      setRestoring(true);
+      const { error: restoreErr } = await supabase.from('driver').update({ contact_number: oldPhone }).eq('driver_id', driverId);
+      setRestoring(false);
+      if (restoreErr) {
+        setToastError(
+          language === 'tl'
+            ? 'Hindi naibalik ang dating numero. Pakisubukang muli.'
+            : 'We could not put your old number back. Please try again.'
+        );
+        return;
+      }
+    }
+    navigate(returnTo, { replace: true });
   };
 
   const handleResend = async () => {
@@ -266,6 +304,10 @@ export const DriverVerifyOtp: React.FC = () => {
         <IconButton
           aria-label={language === "tl" ? "Bumalik" : "Back"}
           onClick={() => {
+            if (isPhoneChange) {
+              cancelPhoneChange();
+              return;
+            }
             if (window.history.length > 1) navigate(-1);
             else navigate('/driver/register');
           }}
@@ -303,7 +345,7 @@ export const DriverVerifyOtp: React.FC = () => {
         <Box sx={{ width: '100%', textAlign: 'left', mb: 3, mt: 1 }}>
           <Typography
             sx={{
-              fontSize: '26px',
+              fontSize: '24px',
               fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
@@ -413,6 +455,23 @@ export const DriverVerifyOtp: React.FC = () => {
         </Box>
 
         <Box sx={{ flexGrow: 1 }} />
+
+        {isPhoneChange && (
+          <Typography
+            role="button"
+            tabIndex={0}
+            onClick={cancelPhoneChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                cancelPhoneChange();
+              }
+            }}
+            sx={{ fontSize: '14px', fontWeight: 600, color: '#475569', textDecoration: 'underline', cursor: 'pointer', py: 1.25, mb: 0.5 }}
+          >
+            {restoring ? (language === 'tl' ? 'Ibinabalik...' : 'Restoring...') : language === 'tl' ? 'Panatilihin ang dating numero' : 'Keep my old number'}
+          </Typography>
+        )}
 
         <PrimaryButton
           fullWidth

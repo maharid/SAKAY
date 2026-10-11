@@ -16,6 +16,11 @@ export interface DispatchStatus {
   searchSeconds: number;
   /** Seconds since the live search began (only while widening) */
   wideningSeconds: number | null;
+  /**
+   * How far the database is looking for a driver right now, in metres (null when the search is not running, or when the database does not
+   * report it). The map draws exactly this and nothing else.
+   */
+  radiusM: number | null;
   /** Why the search ended: accepted | cancelled | no_driver_found | accepted_drivers_cancelled */
   endedReason: string | null;
   driverAssigned: boolean;
@@ -30,6 +35,7 @@ interface DispatchStatusRow {
   cycle?: number;
   search_seconds?: number;
   widening_seconds?: number | null;
+  radius_m?: number | null;
   ended_reason?: string | null;
   driver_assigned?: boolean;
   accepted_driver_cancel_count?: number;
@@ -46,6 +52,7 @@ export const getDispatchStatus = async (bookingId: string): Promise<DispatchStat
     cycle: row.cycle ?? 1,
     searchSeconds: Number(row.search_seconds ?? 0),
     wideningSeconds: row.widening_seconds === null || row.widening_seconds === undefined ? null : Number(row.widening_seconds),
+    radiusM: row.radius_m === null || row.radius_m === undefined ? null : Number(row.radius_m),
     endedReason: row.ended_reason ?? null,
     driverAssigned: Boolean(row.driver_assigned),
     acceptedDriverCancelCount: Number(row.accepted_driver_cancel_count ?? 0),

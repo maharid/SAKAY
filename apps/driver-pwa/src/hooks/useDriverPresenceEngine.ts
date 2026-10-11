@@ -6,6 +6,7 @@ import {
   LOCATION_MAX_AGE_MS,
   LOCATION_MAX_ACCURACY_METERS,
   getCurrentDevicePosition,
+  needsFreshFix,
   watchDevicePosition,
 } from '@sakay/shared';
 import type { LocationCoords } from '@sakay/shared';
@@ -308,10 +309,31 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
     let stopped = false;
     let inFlight = false;
 
+    // A watcher only reports CHANGES, so a driver waiting at the pickup can go minutes without a new position, and the one the server holds then
+    // goes stale (older than the limit the server accepts) although nobody moved: the no-show, which needs a fresh position at the pickup, would
+    // never open. So when the last fix is too old, ask the phone for a new one now (the next beat publishes it).
+    let refreshing = false;
+    const refreshFix = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const coords = await getCurrentDevicePosition();
+        if (!stopped) {
+          fixRef.current = coords;
+          setFix(coords);
+        }
+      } catch {
+        // no position right now: the heartbeat still counts as presence, and the next beat tries again
+      } finally {
+        refreshing = false;
+      }
+    };
+
     const beat = async () => {
       if (stopped || inFlight) return;
       inFlight = true;
       try {
+        if (needsFreshFix(fixRef.current, LOCATION_MAX_AGE_MS)) void refreshFix();
         const res = await sendHeartbeat(toFix(fixRef.current));
         if (stopped) return;
         if (res.error_code === 'ERR_SESSION_SUPERSEDED') handleSuperseded();

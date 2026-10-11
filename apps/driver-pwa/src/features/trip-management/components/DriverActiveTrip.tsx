@@ -21,8 +21,9 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
 import PersonIcon from '@mui/icons-material/Person';
+import PlaceIcon from '@mui/icons-material/Place';
 
-import MapView from '../../../common/components/MapView';
+import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
@@ -36,6 +37,11 @@ import {
   fetchServerTripProgress,
   formatDistance,
   isTripFinishable,
+  MapControlButton,
+  MapControlStack,
+  useMeasuredSize,
+  useSafeAreaInsets,
+  useStaleSignal,
   type DriverCancelReason,
 } from '@sakay/shared';
 import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
@@ -49,7 +55,7 @@ import ArrivalWaitPanel from './ArrivalWaitPanel';
 
 export const DriverActiveTrip: React.FC = () => {
   const { language } = useLanguage();
-  const { profile, refreshPresence } = useDriverSession();
+  const { profile, refreshPresence, liveFix } = useDriverSession();
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || '';
@@ -95,7 +101,33 @@ export const DriverActiveTrip: React.FC = () => {
   // The driver's own position (the map glides the marker to each new fix; the position itself is untouched). Same values, same object: no redraw.
   const driverLat = profile.currentLat || booking?.pickup_latitude || 13.4117;
   const driverLng = profile.currentLng || booking?.pickup_longitude || 121.1803;
-  const driverLocation = useMemo(() => ({ lat: driverLat, lng: driverLng }), [driverLat, driverLng]);
+  // The direction and speed the phone reported for THIS position (never for an older one): they only turn the marker's arrow and bring the map in close
+  const fixIsCurrent = liveFix !== null && liveFix.latitude === profile.currentLat && liveFix.longitude === profile.currentLng;
+  const driverHeading = fixIsCurrent ? liveFix.heading ?? null : null;
+  const driverSpeed = fixIsCurrent ? liveFix.speed ?? null : null;
+  const driverLocation = useMemo(
+    () => ({ lat: driverLat, lng: driverLng, heading: driverHeading, speed: driverSpeed }),
+    [driverLat, driverLng, driverHeading, driverSpeed]
+  );
+  // The map: its camera controls, what covers it (so the camera frames what is really visible), and whether the position is still refreshing
+  const mapRef = useRef<MapViewHandle>(null);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('auto');
+  const driverFixStale = useStaleSignal(liveFix, 30_000);
+  const safeArea = useSafeAreaInsets();
+  const [topPanelRef, topPanel] = useMeasuredSize<HTMLDivElement>();
+  const [bottomPanelRef, bottomPanel] = useMeasuredSize<HTMLDivElement>();
+  const mapInsets = useMemo(
+    () => ({
+      top: safeArea.top + 72 + topPanel.height + 12,
+      right: 64,
+      bottom: bottomPanel.height + 12,
+      left: 16,
+    }),
+    [safeArea.top, topPanel.height, bottomPanel.height]
+  );
+  // The latest position, for the broadcast below: the channel must not be rebuilt on every GPS fix
+  const broadcastRef = useRef({ lat: profile.currentLat, lng: profile.currentLng, heading: driverHeading, speed: driverSpeed });
+  broadcastRef.current = { lat: profile.currentLat, lng: profile.currentLng, heading: driverHeading, speed: driverSpeed };
 
   // Fetch live booking & passenger details
   useEffect(() => {
@@ -232,27 +264,25 @@ export const DriverActiveTrip: React.FC = () => {
   useEffect(() => {
     const channel = bookingId ? supabase.channel(`passenger_trip_${bookingId}`) : null;
 
+    // The position is read from the ref at the moment of sending: the channel is made once for the booking, not rebuilt on every GPS fix.
+    // `heading` / `speed` are what the phone reported (null when it did not): the passenger's marker uses them for its arrow, nothing else.
+    const sendPosition = () => {
+      const here = broadcastRef.current;
+      if (!channel || !here.lat || !here.lng) return;
+      channel.send({
+        type: 'broadcast',
+        event: 'driver_location',
+        payload: { lat: here.lat, lng: here.lng, at: Date.now(), heading: here.heading, speed: here.speed },
+      });
+    };
+
     if (channel) {
       channel.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED' && profile.currentLat && profile.currentLng) {
-          channel.send({
-            type: 'broadcast',
-            event: 'driver_location',
-            payload: { lat: profile.currentLat, lng: profile.currentLng, at: Date.now() },
-          });
-        }
+        if (status === 'SUBSCRIBED') sendPosition();
       });
     }
 
-    const broadcastInterval = setInterval(() => {
-      if (channel && profile.currentLat && profile.currentLng) {
-        channel.send({
-          type: 'broadcast',
-          event: 'driver_location',
-          payload: { lat: profile.currentLat, lng: profile.currentLng, at: Date.now() },
-        });
-      }
-    }, 2000);
+    const broadcastInterval = setInterval(sendPosition, 2000);
 
     return () => {
       clearInterval(broadcastInterval);
@@ -260,7 +290,7 @@ export const DriverActiveTrip: React.FC = () => {
         supabase.removeChannel(channel);
       }
     };
-  }, [bookingId, profile.currentLat, profile.currentLng, profile.id, booking?.driver_id]);
+  }, [bookingId]);
 
   // Moves the booking one step (the database decides whether the step is allowed, and stamps the time). Returns the booking as the database now has it.
   const moveBooking = async (status: string): Promise<{ ok: boolean; actualFare: number | null }> => {
@@ -407,7 +437,12 @@ export const DriverActiveTrip: React.FC = () => {
     booking?.booking_status === 'Accepted' ||
     booking?.booking_status === 'Driver Assigned' ||
     booking?.booking_status === 'In Transit' ||
+    booking?.booking_status === 'Driver Arrived' ||
     booking?.booking_status === 'Arrived at Pickup';
+  // The driver is AT the pickup (waiting for the passenger to board): nothing left to travel to it, so no distance or progress bar
+  const atPickup = booking?.booking_status === 'Driver Arrived' || booking?.booking_status === 'Arrived at Pickup';
+  // Where the driver is going right now: the pickup until the passenger boards, the destination after
+  const targetAddress = isPreTrip ? booking?.pickup_address : booking?.dropoff_address;
 
   const getStageTitle = () => {
     if (waitingForPayment) return language === 'tl' ? 'Naghihintay ng kumpirmasyon' : 'Waiting for confirmation';
@@ -432,7 +467,7 @@ export const DriverActiveTrip: React.FC = () => {
     minHeight: 52,
     borderRadius: '16px',
     backgroundColor: '#FF6B00',
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     fontWeight: 700,
     fontSize: '16px',
     textTransform: 'none',
@@ -458,10 +493,42 @@ export const DriverActiveTrip: React.FC = () => {
     >
       {/* 1. Leaflet OpenStreetMap Surface */}
       <MapView
+        ref={mapRef}
         pickupLocation={{ lat: pickupLat, lng: pickupLng }}
         dropoffLocation={!isPreTrip ? { lat: dropoffLat, lng: dropoffLng } : undefined}
         userLocation={driverLocation}
+        userStale={driverFixStale}
+        insets={mapInsets}
+        stageKey={booking?.booking_status ?? 'loading'}
+        closeUpWhileMoving
+        onCameraModeChange={setCameraMode}
       />
+
+      {/* Map controls: where I am, and the whole trip. Each really moves the camera; dragging the map lets go of either. They sit just above
+          the action panel, and the passenger panel above is kept clear of them. */}
+      <MapControlStack bottom={bottomPanel.height + 16} label={tl ? 'Mga kontrol ng mapa' : 'Map controls'}>
+        <MapControlButton
+          icon="my-location"
+          label={tl ? 'I-center sa aking lokasyon' : 'Center on my location'}
+          pressed={cameraMode === 'driver'}
+          unavailableReason={!liveFix ? (tl ? 'Hinihintay pa ang GPS. Ipinapakita ang huling alam na lokasyon.' : 'Waiting for GPS. Showing your last known location.') : undefined}
+          onClick={() => {
+            if (!mapRef.current?.centerOnDriver()) {
+              setToastMessage(tl ? 'Wala pang nakuhang lokasyon mo. Tiyaking naka-on ang Location.' : 'Your location is not available yet. Make sure Location is turned on.');
+            }
+          }}
+        />
+        <MapControlButton
+          icon="route"
+          label={tl ? 'Ipakita ang buong ruta' : 'Show the whole route'}
+          pressed={cameraMode === 'route'}
+          onClick={() => {
+            if (!mapRef.current?.fitRoute()) {
+              setToastMessage(tl ? 'Wala pang ruta na maipapakita.' : 'There is no route to show yet.');
+            }
+          }}
+        />
+      </MapControlStack>
 
       {/* 2. Where the trip is: one line */}
       <Paper
@@ -487,13 +554,15 @@ export const DriverActiveTrip: React.FC = () => {
 
       {/* 3. The passenger, the progress, and the trip details (collapsed until asked for) */}
       <Paper
+        ref={topPanelRef}
         elevation={6}
         sx={{
           position: 'absolute',
           top: 'calc(var(--safe-area-top) + 72px)',
           left: 16,
           right: 16,
-          maxHeight: 'calc(100% - var(--safe-area-top) - 72px - 210px)',
+          // never reaches down into the action panel or the map controls above it
+          maxHeight: `calc(100% - var(--safe-area-top) - 72px - ${Math.max(210, bottomPanel.height + 120)}px)`,
           overflowY: 'auto',
           p: 2,
           backgroundColor: 'rgba(255, 255, 255, 0.97)',
@@ -506,11 +575,11 @@ export const DriverActiveTrip: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6B00', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography noWrap sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
                 {passengerName}
               </Typography>
               <Typography sx={{ fontSize: '12px', color: '#475569', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -541,32 +610,49 @@ export const DriverActiveTrip: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Progress: the distance to the pickup before the passenger boards, the share of the trip after */}
-        <Box sx={{ mt: 1.5, pt: 1.25, borderTop: '1px solid #F1F5F9' }}>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
-              {isPreTrip ? (tl ? 'Layo sa pickup' : 'Distance to pickup') : tl ? 'Progreso papunta sa destinasyon' : 'Progress to destination'}
-            </Typography>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-              {isPreTrip
-                ? formatDistance(pickupDistKm)
-                : isArrived || paymentConfirmed
-                ? '100%'
-                : `${computedProgress}% · ${formatDistance(dropoffDistKm)} ${tl ? 'pa' : 'left'}`}
-            </Typography>
+        {/* Where to: the pickup until the passenger boards, the destination after (the address is always in view, at every stage) */}
+        {targetAddress && (
+          <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <PlaceIcon aria-hidden sx={{ fontSize: 20, mt: '2px', color: isPreTrip ? '#C2410C' : '#B91C1C', flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
+                {isPreTrip ? 'Pickup' : tl ? 'Destinasyon' : 'Destination'}
+              </Typography>
+              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>
+                {targetAddress}
+              </Typography>
+            </Box>
           </Box>
-          <LinearProgress
-            variant="determinate"
-            aria-label={isPreTrip ? (tl ? 'Layo sa pickup' : 'Distance to pickup') : tl ? 'Progreso ng biyahe' : 'Trip progress'}
-            value={isPreTrip ? Math.min(100, Math.max(10, 100 - pickupDistKm * 20)) : computedProgress}
-            sx={{
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: '#E2E8F0',
-              '& .MuiLinearProgress-bar': { backgroundColor: '#FF6B00', borderRadius: 3 },
-            }}
-          />
-        </Box>
+        )}
+
+        {/* How far: the distance to the pickup on the way there, the share of the trip once the passenger is aboard (nothing at the pickup itself) */}
+        {!atPickup && (
+          <Box sx={{ mt: 1.25 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1.5, mb: 0.5 }}>
+              <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif', minWidth: 0 }}>
+                {isPreTrip ? (tl ? 'Layo' : 'Distance') : tl ? 'Progreso' : 'Progress'}
+              </Typography>
+              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                {isPreTrip
+                  ? formatDistance(pickupDistKm)
+                  : isArrived || paymentConfirmed
+                  ? '100%'
+                  : `${computedProgress}% · ${formatDistance(dropoffDistKm)} ${tl ? 'pa' : 'left'}`}
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              aria-label={isPreTrip ? (tl ? 'Layo sa pickup' : 'Distance to pickup') : tl ? 'Progreso ng biyahe' : 'Trip progress'}
+              value={isPreTrip ? Math.min(100, Math.max(10, 100 - pickupDistKm * 20)) : computedProgress}
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: '#E2E8F0',
+                '& .MuiLinearProgress-bar': { backgroundColor: '#FF6B00', borderRadius: 3 },
+              }}
+            />
+          </Box>
+        )}
 
         <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px solid #F1F5F9' }}>
           <TripDetailsPanel view={tripDetails} language={language} variant="plain" />
@@ -575,6 +661,7 @@ export const DriverActiveTrip: React.FC = () => {
 
       {/* 4. The action for this stage, and the way out */}
       <Paper
+        ref={bottomPanelRef}
         elevation={8}
         sx={{
           position: 'absolute',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -41,6 +41,9 @@ import {
   parseRestrictionError,
   type AccountRestriction,
   activateWithKeyboard,
+  useMeasuredSize,
+  useSafeAreaInsets,
+  useStaleSignal,
 } from '@sakay/shared';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
@@ -49,10 +52,41 @@ export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, sessionMissing } = useDriverSession();
+  const { profile, setProfile, liveFix, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, sessionMissing } = useDriverSession();
+
+  // The map: what covers it (the driver card along the top, the bottom sheet and the recenter button above it), the direction the phone reports
+  // for the current position, and whether that position is still refreshing
+  const safeArea = useSafeAreaInsets();
+  const [headerCardRef, headerCard] = useMeasuredSize<HTMLDivElement>();
+  const fixIsCurrent = liveFix !== null && liveFix.latitude === profile.currentLat && liveFix.longitude === profile.currentLng;
+  const driverHeading = fixIsCurrent ? liveFix.heading ?? null : null;
+  const driverSpeed = fixIsCurrent ? liveFix.speed ?? null : null;
+  const driverFixStale = useStaleSignal(liveFix, 30_000);
+  const driverMapLocation = useMemo(
+    () => ({ lat: profile.currentLat, lng: profile.currentLng, heading: driverHeading, speed: driverSpeed }),
+    [profile.currentLat, profile.currentLng, driverHeading, driverSpeed]
+  );
 
   // Going Online / Offline is a request to the database; this screen only shows its answer.
   const [togglingOnline, setTogglingOnline] = useState(false);
+
+  // The bottom sheet grows and shrinks with its content (alerts, reminders), so the floating button above it follows the sheet's real height.
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const [sheetHeight, setSheetHeight] = useState(240);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const update = () => setSheetHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  // Covered along the top by the driver card, along the bottom by the sheet and the recenter button sitting on it
+  const mapInsets = useMemo(
+    () => ({ top: safeArea.top + 12 + headerCard.height + 12, right: 24, bottom: sheetHeight + 64, left: 24 }),
+    [safeArea.top, headerCard.height, sheetHeight]
+  );
   const [presenceMessage, setPresenceMessage] = useState<string | null>(null);
 
   const [toastOpen, setToastOpen] = useState(false);
@@ -471,9 +505,14 @@ export const DriverAvailabilityHome: React.FC = () => {
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#E3ECEF', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <MapView
-        userLocation={{ lat: profile.currentLat, lng: profile.currentLng }}
+        userLocation={driverMapLocation}
+        userStale={driverFixStale}
+        insets={mapInsets}
         recenterTrigger={recenterTrigger}
       />
+
+      {/* The database's reason when Online was refused (a GPS failure, an expired paper...): a short message that goes away by itself, never a block inside the card (never a guess) */}
+      <SakayToast message={presenceMessage} severity="warning" autoHideDuration={6000} onClose={() => setPresenceMessage(null)} />
 
       <SakayToast
         open={toastOpen}
@@ -491,6 +530,7 @@ export const DriverAvailabilityHome: React.FC = () => {
       />
 
       <Paper
+        ref={headerCardRef}
         elevation={4}
         sx={{
           position: 'absolute',
@@ -743,7 +783,7 @@ export const DriverAvailabilityHome: React.FC = () => {
         aria-label="Recenter map"
         sx={{
           position: 'absolute',
-          bottom: '220px',
+          bottom: `${sheetHeight + 16}px`,
           right: '16px',
           backgroundColor: '#FFFFFF',
           width: '44px',
@@ -763,7 +803,9 @@ export const DriverAvailabilityHome: React.FC = () => {
       </IconButton>
 
       <Paper
+        ref={sheetRef}
         elevation={8}
+        className="hide-scrollbar"
         sx={{
           position: 'absolute',
           bottom: 0,
@@ -776,22 +818,15 @@ export const DriverAvailabilityHome: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
+          // Never taller than the screen less the header: long content scrolls inside the sheet instead of running off the top.
+          maxHeight: 'calc(100% - 190px)',
+          overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           zIndex: 20,
           borderTop: '1px solid #E2E8F0',
           boxShadow: '0 -6px 24px rgba(0, 0, 0, 0.06)',
         }}
       >
-        <Box
-          sx={{
-            width: 36,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: '#CBD5E1',
-            alignSelf: 'center',
-            mb: 0.5,
-          }}
-        />
-
         {/* No Supabase session (demo login): the database refuses every presence request */}
         {sessionMissing && (
           <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
@@ -803,13 +838,6 @@ export const DriverAvailabilityHome: React.FC = () => {
 
         {/* Rule 17.6: persistent reminder while Online */}
         {isOnline && <DriverForegroundReminder />}
-
-        {/* The database's reason when Online was refused (never a guess) */}
-        {presenceMessage && (
-          <Alert severity="warning" onClose={() => setPresenceMessage(null)} sx={{ borderRadius: '12px', fontSize: '12px', py: 0.25 }}>
-            {presenceMessage}
-          </Alert>
-        )}
 
         {/* Only the real blocker is shown: suspension and documents have their own banners above */}
         {!isOnline && isDriverVerifiedInDb && !accountRestriction?.restricted && !documentsBlock && affiliations.length > 0 && selectableAffiliations.length === 0 && (
@@ -879,8 +907,8 @@ export const DriverAvailabilityHome: React.FC = () => {
             {/* Rules 3.10 / 29.18: the verified unit is fixed; substituting needs TODA and LGU approval */}
             <Typography sx={{ fontSize: '12px', color: '#64748B', mt: '2px', fontFamily: 'Poppins, sans-serif' }}>
               {language === 'tl'
-                ? 'Naka-lock ang beripikadong unit. Makipag-ugnayan sa TODA at LGU para magpalit.'
-                : 'Your verified unit is locked. Ask your TODA and the LGU to change it.'}
+                ? 'Naka-lock. TODA at LGU lang ang makakapagpalit.'
+                : 'Locked. Only your TODA and the LGU can change it.'}
             </Typography>
           </Box>
         </Box>

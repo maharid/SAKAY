@@ -274,7 +274,7 @@ const PassengerHistory: React.FC = () => {
                 sx={{
                   flexGrow: 1,
                   backgroundColor: "#FF5B00",
-                  color: "#FFFFFF",
+                  color: "#1A1A1A",
                   borderRadius: "14px",
                   fontWeight: 700,
                   fontSize: "13px",
@@ -366,7 +366,7 @@ const PassengerHistory: React.FC = () => {
               sx={{
                 mt: 3,
                 backgroundColor: "#FF6B00",
-                color: "#FFFFFF",
+                color: "#1A1A1A",
                 borderRadius: "14px",
                 fontWeight: 700,
                 textTransform: "none",

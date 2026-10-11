@@ -176,8 +176,19 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
             ? "Sinusuri ang pinakamalapit na terminal ng TODA."
             : "Checking the nearest TODA terminal."}
         </Typography>
-        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.5, fontFamily: FONT }}>
-          {isTagalog ? "Naghahanap na sa loob ng" : "Searching for"} {formatElapsed(elapsedSeconds)}
+      </Box>
+
+      {/* How long this search has been running: the one number to watch, large and steady (digits do not jiggle as they change) */}
+      <Box sx={{ textAlign: "center" }}>
+        <Typography
+          role="timer"
+          aria-live="off"
+          sx={{ fontSize: "32px", fontWeight: 700, lineHeight: 1.1, color: "#0F172A", fontFamily: FONT, fontVariantNumeric: "tabular-nums" }}
+        >
+          {formatElapsed(elapsedSeconds)}
+        </Typography>
+        <Typography sx={{ fontSize: "12px", color: "#475569", fontFamily: FONT, mt: 0.25 }}>
+          {isTagalog ? "Tagal ng paghahanap" : "Time spent searching"}
         </Typography>
       </Box>
 

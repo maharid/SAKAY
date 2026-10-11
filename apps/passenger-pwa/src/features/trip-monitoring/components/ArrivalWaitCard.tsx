@@ -49,16 +49,21 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
         gap: 1,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-        <TimerIcon aria-hidden sx={{ color: over ? '#B91C1C' : '#B45309', fontSize: 26, flexShrink: 0 }} />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-            {tl ? 'Naghihintay ang iyong drayber' : 'Your driver is waiting for you'}
-          </Typography>
-          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 700, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
-            {over ? (tl ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
-          </Typography>
-        </Box>
+      {/* The label has the whole width to itself; below it the time (the thing to read) and, once, the button, wrapping under the time on a narrow phone */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <TimerIcon aria-hidden sx={{ color: over ? '#B91C1C' : '#B45309', fontSize: 20, flexShrink: 0 }} />
+        <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', lineHeight: 1.3 }}>
+          {tl ? 'Naghihintay ang iyong drayber' : 'Your driver is waiting for you'}
+        </Typography>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 1.5, rowGap: 1 }}>
+        <Typography
+          role="timer"
+          aria-live="off"
+          sx={{ fontSize: over ? '20px' : '30px', fontWeight: 700, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {over ? (tl ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
+        </Typography>
         {!wait.extended && wait.canExtend && !over && (
           <Button
             variant="contained"
@@ -66,13 +71,14 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
             onClick={onExtend}
             sx={{
               flexShrink: 0,
-              minHeight: 48,
+              minHeight: 44,
               px: 2,
-              borderRadius: '14px',
+              borderRadius: '12px',
               backgroundColor: '#FF6B00',
-              color: '#FFFFFF',
+              color: '#1A1A1A',
               fontWeight: 700,
               fontSize: '14px',
+              lineHeight: 1.2,
               textTransform: 'none',
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
@@ -81,9 +87,9 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
             {extending ? (
               <CircularProgress size={20} color="inherit" aria-label={tl ? 'Idinadagdag' : 'Adding time'} />
             ) : tl ? (
-              'Papunta Na Ako'
+              `+${extraMinutes} minuto pa`
             ) : (
-              "I'm Almost There"
+              `I'm Almost There (+${extraMinutes} min)`
             )}
           </Button>
         )}

@@ -1,10 +1,29 @@
-import React, { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import appIcon from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { createLiveMarker, type GeoPoint, type GlideFix, type GlideResult, type LiveMarker } from "@sakay/shared";
+import {
+  applyMarkerState,
+  continuousRotation,
+  createLiveMarker,
+  createMapCamera,
+  DRIVER_MARKER_SIZE,
+  driverMarkerHtml,
+  passengerMarkerHtml,
+  PASSENGER_MARKER_SIZE,
+  resolveHeading,
+  tweenRadius,
+  type CameraMap,
+  type CameraMode,
+  type GeoPoint,
+  type GlideFix,
+  type LiveMarker,
+  type MapCamera,
+  type MapInsets,
+} from "@sakay/shared";
 import { DEFAULT_CALAPAN_CENTER, getOSRMRoute } from "../../services/locationService";
+
+export type { CameraMode };
 
 export interface MapViewProps {
   center?: { lat: number; lng: number };
@@ -21,73 +40,153 @@ export interface MapViewProps {
   interactive?: boolean;
   onCenterChange?: (center: { lat: number; lng: number }) => void;
   onMapClick?: (coords: { lat: number; lng: number }) => void;
+  /** What covers the map (a bottom sheet, a header), in pixels: the camera frames and centres inside what is left, not behind it */
+  insets?: Partial<MapInsets>;
+  /** The area the database is searching for a driver, in metres, drawn around the pickup. Nothing is drawn without a real radius. */
+  searchRadiusMeters?: number | null;
+  /** What the trip is doing now (its stage): a change re-frames the map, unless the person is exploring it */
+  stageKey?: string;
+  /** Show the person's own (blue) marker even while a route is drawn: the trip screens */
+  showUserMarker?: boolean;
+  /** A position that has not been refreshed lately is drawn dimmer */
+  userStale?: boolean;
+  driverStale?: boolean;
+  /** Told when the camera starts or stops following someone, so a control can show that it is "on" */
+  onCameraModeChange?: (mode: CameraMode) => void;
 }
 
-interface FollowContext {
-  kind: "driver" | "user";
-  /** The person has dragged or zoomed the map: leave it alone */
-  interacted: boolean;
-  /** What frames the map, in the order it has always followed: a route, then the driver, then the pickup, then the person */
-  route: boolean;
-  driver: boolean;
-  pickup: boolean;
+/** What a screen can ask the map to do (from its own buttons). Each returns false when it could not (no such position yet). */
+export interface MapViewHandle {
+  centerOnUser: () => boolean;
+  centerOnDriver: () => boolean;
+  fitRoute: () => boolean;
+  fitSearchArea: () => boolean;
 }
 
-/**
- * Keeps the map on a live marker as it moves. While the marker glides the map pans in a straight line over the same time, so the marker stays
- * where it is on the screen and the map slides under it.
- */
-function followLiveMarker(map: L.Map | null, target: GeoPoint, result: GlideResult | null, ctx: FollowContext): void {
-  if (!map || !result || result.status === "ignored" || ctx.interacted) return;
-  if (ctx.kind === "user" && (ctx.route || ctx.driver || ctx.pickup)) return;
-  const at: [number, number] = [target.lat, target.lng];
-  if (result.status === "gliding") {
-    map.panTo(at, { animate: true, duration: result.durationMs / 1000, easeLinearity: 1, noMoveStart: true });
-  } else if (result.reason === "reduced-motion") {
-    map.panTo(at, { animate: false });
-  } else if (result.reason === "jump" || !ctx.route) {
-    map.panTo(at, { animate: true });
+const hasPoint = (p: { lat: number; lng: number } | null | undefined): p is { lat: number; lng: number } =>
+  Boolean(p) && Number.isFinite(p!.lat) && Number.isFinite(p!.lng) && !(p!.lat === 0 && p!.lng === 0);
+
+/** The four extremes of a circle on the map (and its centre), for fitting the camera to it */
+function circleExtent(center: GeoPoint, radiusMeters: number): GeoPoint[] {
+  const dLat = radiusMeters / 111_320;
+  const dLng = radiusMeters / (111_320 * Math.max(0.2, Math.cos((center.lat * Math.PI) / 180)));
+  return [
+    { lat: center.lat + dLat, lng: center.lng },
+    { lat: center.lat - dLat, lng: center.lng },
+    { lat: center.lat, lng: center.lng + dLng },
+    { lat: center.lat, lng: center.lng - dLng },
+  ];
+}
+
+const reducedMotion = (): boolean => {
+  try {
+    return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
   }
-}
+};
 
 /**
  * MapView - Leaflet OpenStreetMap Map Component (matching LGU & TODA portals)
- * Pure, clean map canvas with Google Maps-style road-based route polyline.
+ * Road-based route, the two live markers (passenger: blue person; driver: orange tricycle with a direction arrow), the driver-search area,
+ * and a camera that works from the part of the map that is actually visible.
  */
-export const MapView: React.FC<MapViewProps> = ({
-  center = { lat: DEFAULT_CALAPAN_CENTER.latitude, lng: DEFAULT_CALAPAN_CENTER.longitude },
-  zoom = 15,
-  userLocation,
-  pickupLocation,
-  dropoffLocation,
-  driverLocation,
-  routeCoordinates,
-  recenterTrigger = 0,
-  height = "100%",
-  width = "100%",
-  interactive = true,
-  onCenterChange,
-  onMapClick,
-}) => {
+export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
+  {
+    center = { lat: DEFAULT_CALAPAN_CENTER.latitude, lng: DEFAULT_CALAPAN_CENTER.longitude },
+    zoom = 15,
+    userLocation,
+    pickupLocation,
+    dropoffLocation,
+    driverLocation,
+    routeCoordinates,
+    recenterTrigger = 0,
+    height = "100%",
+    width = "100%",
+    interactive = true,
+    onCenterChange,
+    onMapClick,
+    insets,
+    searchRadiusMeters,
+    stageKey,
+    showUserMarker = false,
+    userStale = false,
+    driverStale = false,
+    onCameraModeChange,
+  },
+  ref
+) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const cameraRef = useRef<MapCamera | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayersRef = useRef<L.LayerGroup | null>(null);
   const onCenterChangeRef = useRef(onCenterChange);
   onCenterChangeRef.current = onCenterChange;
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+  const onModeRef = useRef(onCameraModeChange);
+  onModeRef.current = onCameraModeChange;
   const [roadCoords, setRoadCoords] = useState<[number, number][]>(routeCoordinates || []);
   const lastFetchRef = useRef<{ startLat: number; startLng: number; endLat: number; endLng: number } | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
-  const userInteractedRef = useRef<boolean>(false);
-  const routeFittedKeyRef = useRef<string | null>(null);
+  const lastUserInputRef = useRef<number>(-Infinity); // no touch yet (0 would count the first 1.2 s after the page loaded as one)
+  const insetsRef = useRef<Partial<MapInsets> | undefined>(insets);
+  insetsRef.current = insets;
   // The live markers (the person and the driver) live in their own layer: the pins and the route are redrawn when they change, these are not.
   const liveLayerRef = useRef<L.LayerGroup | null>(null);
   const userMarkerRef = useRef<LiveMarker | null>(null);
   const driverMarkerRef = useRef<LiveMarker | null>(null);
-  // Whether a route is framing the map (set when the route is drawn; read when a live marker moves)
-  const routeFramedRef = useRef(false);
+  const userElementRef = useRef<L.Marker | null>(null);
+  const driverElementRef = useRef<L.Marker | null>(null);
+  // The driver's arrow: where the vehicle was, which way it was last known to point, and the angle currently drawn
+  const driverPrevRef = useRef<GeoPoint | null>(null);
+  const driverHeadingRef = useRef<number | null>(null);
+  const driverRotationRef = useRef<number | null>(null);
+  // The search circle and the radius it currently shows (it grows to a new radius, it does not jump)
+  const searchLayerRef = useRef<L.Circle | null>(null);
+  const searchShownRef = useRef<number | null>(null);
+  const searchFrameRef = useRef<number | null>(null);
+  // What the latest props say, for the handle and the camera's callbacks
+  const latest = useRef({ userLocation, driverLocation, pickupLocation, dropoffLocation, searchRadiusMeters, showUserMarker });
+  latest.current = { userLocation, driverLocation, pickupLocation, dropoffLocation, searchRadiusMeters, showUserMarker };
+  const routePointsRef = useRef<[number, number][]>([]);
+
+  /** The points that make "the whole trip": the route and the pins the trip is about */
+  const tripPoints = (): GeoPoint[] => {
+    const pts: GeoPoint[] = routePointsRef.current.map(([lat, lng]) => ({ lat, lng }));
+    const { pickupLocation: pk, dropoffLocation: dr, driverLocation: dv } = latest.current;
+    if (hasPoint(pk)) pts.push(pk);
+    if (hasPoint(dr)) pts.push(dr);
+    if (hasPoint(dv)) pts.push(dv);
+    return pts;
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      centerOnUser: () => {
+        const u = latest.current.userLocation;
+        return hasPoint(u) ? Boolean(cameraRef.current?.centerOn(u, { explicit: true, follow: "user" })) : false;
+      },
+      centerOnDriver: () => {
+        const d = latest.current.driverLocation;
+        return hasPoint(d) ? Boolean(cameraRef.current?.centerOn(d, { explicit: true, follow: "driver" })) : false;
+      },
+      fitRoute: () => {
+        // The road route when there is one; without it (offline, the routing service is down) the pins and the driver are still framed
+        const pts = tripPoints();
+        if (pts.length < 2) return false;
+        return Boolean(cameraRef.current?.fit({ points: pts, explicit: true, kind: "route" }));
+      },
+      fitSearchArea: () => {
+        const { pickupLocation: pk, searchRadiusMeters: r } = latest.current;
+        if (!hasPoint(pk) || !r) return false;
+        return Boolean(cameraRef.current?.fit({ points: [pk, ...circleExtent(pk, r)], explicit: true, kind: "search", maxZoom: 17 }));
+      },
+    }),
+    []
+  );
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -129,6 +228,11 @@ export const MapView: React.FC<MapViewProps> = ({
       subdomains: ["a", "b", "c"],
     }).addTo(map);
 
+    // The search area sits BELOW the route line and every marker, and never takes a tap
+    const searchPane = map.createPane("searchRadiusPane");
+    searchPane.style.zIndex = "350";
+    searchPane.style.pointerEvents = "none";
+
     // Create a LayerGroup for markers
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
@@ -141,58 +245,66 @@ export const MapView: React.FC<MapViewProps> = ({
     const liveLayer = L.layerGroup().addTo(map);
     liveLayerRef.current = liveLayer;
     userMarkerRef.current = createLiveMarker<L.Marker>({
-      create: (p) =>
-        L.marker([p.lat, p.lng], {
+      create: (p) => {
+        const marker = L.marker([p.lat, p.lng], {
           interactive: false,
+          zIndexOffset: 900,
           icon: L.divIcon({
             className: "leaflet-user-marker",
-            html: `
-              <div class="leaflet-gmaps-pickup-container">
-                <div class="gmaps-pickup-radar-wave"></div>
-                <div class="gmaps-pickup-radar-wave wave-delayed"></div>
-                <div class="gmaps-pickup-aura"></div>
-                <div class="gmaps-pickup-core-dot"></div>
-              </div>
-            `,
-            iconSize: [48, 48],
-            iconAnchor: [24, 24],
+            html: passengerMarkerHtml(),
+            iconSize: [PASSENGER_MARKER_SIZE, PASSENGER_MARKER_SIZE],
+            iconAnchor: [PASSENGER_MARKER_SIZE / 2, PASSENGER_MARKER_SIZE / 2],
           }),
-        }).addTo(liveLayer),
+        }).addTo(liveLayer);
+        userElementRef.current = marker;
+        return marker;
+      },
     });
     driverMarkerRef.current = createLiveMarker<L.Marker>({
-      create: (p) =>
-        L.marker([p.lat, p.lng], {
+      create: (p) => {
+        const marker = L.marker([p.lat, p.lng], {
           interactive: false,
           zIndexOffset: 1000,
           icon: L.divIcon({
             className: "leaflet-driver-marker",
-            html: `
-              <div style="
-                width: 38px;
-                height: 38px;
-                background-color: #FF6B00;
-                border: 3px solid #FFFFFF;
-                border-radius: 50%;
-                box-shadow: 0 4px 14px rgba(255, 107, 0, 0.6);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-              "><img src="${appIcon}" style="width: 22px; height: 22px; object-fit: contain;" alt="" /></div>
-            `,
-            iconSize: [38, 38],
-            iconAnchor: [19, 19],
+            html: driverMarkerHtml(),
+            iconSize: [DRIVER_MARKER_SIZE, DRIVER_MARKER_SIZE],
+            iconAnchor: [DRIVER_MARKER_SIZE / 2, DRIVER_MARKER_SIZE / 2],
           }),
-        }).addTo(liveLayer),
+        }).addTo(liveLayer);
+        driverElementRef.current = marker;
+        return marker;
+      },
     });
 
     mapInstanceRef.current = map;
 
-    // Flag user interaction so GPS ticks do not override manual zoom or pan
-    map.on("dragstart", () => {
-      userInteractedRef.current = true;
+    // The camera: framing and following that work from the visible area (see packages/shared/src/utils/mapCamera.ts)
+    const camera = createMapCamera(map as unknown as CameraMap, {
+      followZoom: 16,
+      onModeChange: (m) => onModeRef.current?.(m),
+      autoFollow: () => {
+        const l = latest.current;
+        if (hasPoint(l.driverLocation)) return "driver";
+        // nothing else on the map: the person's own dot is what the map follows
+        return hasPoint(l.userLocation) && !hasPoint(l.pickupLocation) && routePointsRef.current.length < 2 ? "user" : null;
+      },
     });
+    cameraRef.current = camera;
+    camera.setInsets(insetsRef.current ?? {});
+
+    // Only a person's own drag / pinch / wheel hands the map over to them. (Leaflet's `zoomstart` also fires for the camera's own zooms, so
+    // a recent touch, click or wheel is what tells the two apart.)
+    const container = map.getContainer();
+    const markInput = () => {
+      lastUserInputRef.current = performance.now();
+    };
+    container.addEventListener("pointerdown", markInput, { passive: true });
+    container.addEventListener("touchstart", markInput, { passive: true });
+    container.addEventListener("wheel", markInput, { passive: true });
+    map.on("dragstart", () => camera.userMoved());
     map.on("zoomstart", () => {
-      userInteractedRef.current = true;
+      if (performance.now() - lastUserInputRef.current < 1200) camera.userMoved();
     });
 
     // Report map center changes when movement completes or pauses for silky smooth dragging
@@ -203,10 +315,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     };
 
-    // Tap anywhere on map to immediately move pin to tapped location
+    // The location pickers: a tap moves the pin to the tapped place. A map nobody asked to listen to does not move when tapped.
     const handleMapClick = (e: L.LeafletMouseEvent) => {
+      if (!onCenterChangeRef.current && !onMapClickRef.current) return;
+      camera.userMoved();
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.panTo([e.latlng.lat, e.latlng.lng], { animate: true });
+        mapInstanceRef.current.panTo([e.latlng.lat, e.latlng.lng], { animate: !reducedMotion() });
         if (onCenterChangeRef.current) {
           onCenterChangeRef.current({ lat: e.latlng.lat, lng: e.latlng.lng });
         }
@@ -219,6 +333,12 @@ export const MapView: React.FC<MapViewProps> = ({
     map.on("moveend", handleMoveEnd);
     map.on("click", handleMapClick);
 
+    // The container's size changed (rotation, window, the keyboard): the map re-measures itself and keeps what was framed in view
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => camera.resized());
+      resizeObserver.observe(container);
+    }
 
     // Invalidate size after container settles
     const resizeTimer = setTimeout(() => {
@@ -229,11 +349,23 @@ export const MapView: React.FC<MapViewProps> = ({
 
     return () => {
       clearTimeout(resizeTimer);
+      resizeObserver?.disconnect();
+      container.removeEventListener("pointerdown", markInput);
+      container.removeEventListener("touchstart", markInput);
+      container.removeEventListener("wheel", markInput);
+      camera.destroy();
+      cameraRef.current = null;
+      if (searchFrameRef.current !== null) cancelAnimationFrame(searchFrameRef.current);
+      searchFrameRef.current = null;
+      searchLayerRef.current = null;
+      searchShownRef.current = null;
       // Stop the glide frames before the map goes away (nothing may draw on a removed map)
       userMarkerRef.current?.destroy();
       driverMarkerRef.current?.destroy();
       userMarkerRef.current = null;
       driverMarkerRef.current = null;
+      userElementRef.current = null;
+      driverElementRef.current = null;
       liveLayerRef.current = null;
       if (markersLayerRef.current) {
         markersLayerRef.current.clearLayers();
@@ -250,41 +382,70 @@ export const MapView: React.FC<MapViewProps> = ({
     };
   }, [interactive]);
 
+  // What covers the map changed (a sheet opened or closed, a panel appeared): the camera re-frames inside what is left
+  useEffect(() => {
+    cameraRef.current?.setInsets(insets ?? {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insets?.top, insets?.right, insets?.bottom, insets?.left]);
+
+  // The trip moved to another stage
+  useEffect(() => {
+    if (stageKey === undefined) return;
+    cameraRef.current?.stageChanged(stageKey);
+  }, [stageKey]);
+
   // The driver's tricycle: made at the first fix, then it glides to each newer one. The fixes themselves are not changed.
   // The dependencies are the position's numbers, not the object: a parent that rebuilds the object every render must not restart the glide.
   useEffect(() => {
     const controller = driverMarkerRef.current;
     if (!controller) return;
     const result = controller.update(driverLocation ?? null);
-    if (driverLocation) {
-      followLiveMarker(mapInstanceRef.current, driverLocation, result, {
-        kind: "driver",
-        interacted: userInteractedRef.current,
-        route: routeFramedRef.current,
-        driver: true,
-        pickup: Boolean(pickupLocation && pickupLocation.lat !== 0),
-      });
+    if (!driverLocation) {
+      driverElementRef.current = null;
+      driverPrevRef.current = null;
+      driverHeadingRef.current = null;
+      driverRotationRef.current = null;
+      return;
     }
+    // Which way it points: the device's own heading, else the direction it actually moved, else the last known one; none when unknown
+    if (result && result.status !== "ignored") {
+      const heading = resolveHeading({
+        reported: driverLocation.heading,
+        speedMps: driverLocation.speed,
+        previous: driverPrevRef.current,
+        current: driverLocation,
+        lastHeading: driverHeadingRef.current,
+      });
+      driverPrevRef.current = { lat: driverLocation.lat, lng: driverLocation.lng };
+      driverHeadingRef.current = heading.heading;
+      if (heading.heading === null) {
+        driverRotationRef.current = null;
+        applyMarkerState(driverElementRef.current?.getElement(), { rotation: null });
+      } else {
+        driverRotationRef.current = continuousRotation(driverRotationRef.current, heading.heading);
+        applyMarkerState(driverElementRef.current?.getElement(), { rotation: driverRotationRef.current });
+      }
+    }
+    cameraRef.current?.followMarker("driver", driverLocation, result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driverLocation?.lat, driverLocation?.lng, driverLocation?.at, interactive]);
+  }, [driverLocation?.lat, driverLocation?.lng, driverLocation?.at, driverLocation?.heading, interactive]);
 
-  // The person's own position (shown while there is not yet both a pickup and a destination, as before)
-  const showUserDot = Boolean(userLocation) && (!pickupLocation || !dropoffLocation);
+  // The person's own position (shown while there is not yet both a pickup and a destination, or always on the trip screens)
+  const showUserDot = Boolean(userLocation) && (showUserMarker || !pickupLocation || !dropoffLocation);
   useEffect(() => {
     const controller = userMarkerRef.current;
     if (!controller) return;
     const result = controller.update(showUserDot && userLocation ? userLocation : null);
-    if (showUserDot && userLocation) {
-      followLiveMarker(mapInstanceRef.current, userLocation, result, {
-        kind: "user",
-        interacted: userInteractedRef.current,
-        route: routeFramedRef.current,
-        driver: Boolean(driverLocation),
-        pickup: Boolean(pickupLocation && pickupLocation.lat !== 0),
-      });
-    }
+    if (!showUserDot) userElementRef.current = null;
+    if (showUserDot && userLocation) cameraRef.current?.followMarker("user", userLocation, result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation?.lat, userLocation?.lng, userLocation?.at, showUserDot, interactive]);
+
+  // A position that has stopped refreshing is drawn dimmer, so nobody takes it for live
+  useEffect(() => {
+    applyMarkerState(driverElementRef.current?.getElement(), { stale: driverStale });
+    applyMarkerState(userElementRef.current?.getElement(), { stale: userStale });
+  }, [driverStale, userStale, driverLocation?.lat, driverLocation?.lng, userLocation?.lat, userLocation?.lng, showUserDot]);
 
   // Synchronize roadCoordinates prop or fetch road coordinates via OSRM
   useEffect(() => {
@@ -298,7 +459,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
     if (dropoffLocation && dropoffLocation.lat !== 0) {
       // Ongoing trip: route from driver to destination (or pickup if driver not ready)
-      startPoint = driverLocation && driverLocation.lat !== 0 ? driverLocation : (pickupLocation && pickupLocation.lat !== 0 ? pickupLocation : userLocation);
+      startPoint = driverLocation && driverLocation.lat !== 0 ? driverLocation : (pickupLocation && pickupLocation.lat !== 0 ? pickupLocation : userLocation ?? null);
       endPoint = dropoffLocation;
     } else if (pickupLocation && pickupLocation.lat !== 0 && driverLocation && driverLocation.lat !== 0) {
       // Pre-trip: driver heading to passenger pickup point
@@ -365,7 +526,8 @@ export const MapView: React.FC<MapViewProps> = ({
     routeCoordinates,
   ]);
 
-  // Handle Updates: Markers, Road Route Polyline, Panning
+  // The pins and the road route. The camera fits the whole trip into the VISIBLE area once per destination (and again when the stage changes).
+  const searchActive = Boolean(searchRadiusMeters) && hasPoint(pickupLocation);
   useEffect(() => {
     const map = mapInstanceRef.current;
     const markersLayer = markersLayerRef.current;
@@ -436,7 +598,7 @@ export const MapView: React.FC<MapViewProps> = ({
         ? routeCoordinates
         : [];
 
-    routeFramedRef.current = activeRoutePoints.length >= 2;
+    routePointsRef.current = activeRoutePoints;
 
     if (activeRoutePoints.length >= 2) {
       // 5a. Bottom casing: clean white glow border providing crisp road separation
@@ -460,53 +622,107 @@ export const MapView: React.FC<MapViewProps> = ({
       routeLayers.addLayer(routeCasing);
       routeLayers.addLayer(routeLine);
 
-      // Fit map bounds to show the entire road journey ONLY ONCE when route first loads or destination changes!
-      const endPointKey = `${activeRoutePoints[activeRoutePoints.length - 1][0]}_${activeRoutePoints[activeRoutePoints.length - 1][1]}`;
-      if (!userInteractedRef.current && routeFittedKeyRef.current !== endPointKey) {
-        routeFittedKeyRef.current = endPointKey;
-        const bounds = L.latLngBounds(activeRoutePoints);
-        map.fitBounds(bounds, {
-          padding: [65, 65],
-          maxZoom: 16,
-        });
+      // Fit the whole road journey into the visible area ONLY ONCE when the route first loads or the destination changes. While a driver
+      // search is running the search area is what is framed instead.
+      if (!searchActive) {
+        const last = activeRoutePoints[activeRoutePoints.length - 1];
+        cameraRef.current?.fit({ points: tripPoints(), key: `route:${last[0]}_${last[1]}`, kind: "route" });
       }
-      // (once the route is framed, the map follows the live markers as they glide)
-    } else if (!userInteractedRef.current) {
+    } else if (!(driverLocation && driverLocation.lat !== 0) && pickupLocation && pickupLocation.lat !== 0 && !searchActive) {
       // No route to frame: the driver, then the pickup, then the person, as before. The live markers follow themselves; the pickup is centred here.
-      if (!(driverLocation && driverLocation.lat !== 0) && pickupLocation && pickupLocation.lat !== 0) {
-        map.panTo([pickupLocation.lat, pickupLocation.lng], { animate: true });
+      if (cameraRef.current && cameraRef.current.mode() !== "free") {
+        cameraRef.current.centerOn(pickupLocation, { minZoom: 0 });
       }
     }
     // The pins and the route are redrawn only when they change (the live markers have their own effects), so the dependencies are their numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, roadCoords, routeCoordinates, recenterTrigger]);
+  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, roadCoords, routeCoordinates, searchActive, stageKey]);
 
-  // Recenter trigger listener (explicit user click)
+  // The driver-search area: a dashed light-orange circle around the pickup, at the radius the DATABASE reports. When the search widens the
+  // circle grows to the new radius over a moment (or at once for a person who prefers reduced motion), and the camera frames it.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    userInteractedRef.current = false;
-
-    const activeRoutePoints: [number, number][] =
-      roadCoords && roadCoords.length >= 2
-        ? roadCoords
-        : routeCoordinates && routeCoordinates.length >= 2
-        ? routeCoordinates
-        : [];
-
-    if (activeRoutePoints.length >= 2) {
-      const bounds = L.latLngBounds(activeRoutePoints);
-      map.fitBounds(bounds, { padding: [65, 65], maxZoom: 16 });
-    } else if (driverLocation && driverLocation.lat !== 0) {
-      map.flyTo([driverLocation.lat, driverLocation.lng], zoom, { duration: 0.8 });
-    } else if (pickupLocation && pickupLocation.lat !== 0) {
-      map.flyTo([pickupLocation.lat, pickupLocation.lng], zoom, { duration: 0.8 });
-    } else if (userLocation && userLocation.lat !== 0) {
-      map.flyTo([userLocation.lat, userLocation.lng], zoom, { duration: 0.8 });
-    } else if (center) {
-      map.flyTo([center.lat, center.lng], zoom, { duration: 0.8 });
+    const stopTween = () => {
+      if (searchFrameRef.current !== null) cancelAnimationFrame(searchFrameRef.current);
+      searchFrameRef.current = null;
+    };
+    if (!searchRadiusMeters || !hasPoint(pickupLocation)) {
+      stopTween();
+      if (searchLayerRef.current) {
+        searchLayerRef.current.remove();
+        searchLayerRef.current = null;
+      }
+      searchShownRef.current = null;
+      return;
     }
-  }, [recenterTrigger, zoom]);
+    const target = searchRadiusMeters;
+    const centerLatLng: [number, number] = [pickupLocation.lat, pickupLocation.lng];
+    if (!searchLayerRef.current) {
+      searchLayerRef.current = L.circle(centerLatLng, {
+        pane: "searchRadiusPane",
+        radius: target,
+        color: "#FB923C",
+        weight: 1.75,
+        opacity: 0.9,
+        dashArray: "6 8",
+        fillColor: "#FDBA74",
+        fillOpacity: 0.1,
+        interactive: false,
+        className: "sakay-search-radius",
+      }).addTo(map);
+      searchShownRef.current = target;
+    } else {
+      searchLayerRef.current.setLatLng(centerLatLng);
+      const from = searchShownRef.current ?? target;
+      stopTween();
+      if (reducedMotion() || from === target) {
+        searchLayerRef.current.setRadius(target);
+        searchShownRef.current = target;
+      } else {
+        const started = performance.now();
+        const DURATION_MS = 700;
+        const step = (now: number) => {
+          const layer = searchLayerRef.current;
+          if (!layer) return;
+          const progress = (now - started) / DURATION_MS;
+          const radius = tweenRadius(from, target, progress);
+          layer.setRadius(radius);
+          searchShownRef.current = radius;
+          searchFrameRef.current = progress < 1 ? requestAnimationFrame(step) : null;
+        };
+        searchFrameRef.current = requestAnimationFrame(step);
+      }
+    }
+    // Frame the whole search area inside the visible map, once per radius (a widening search re-frames once, never in a loop)
+    cameraRef.current?.fit({ points: [pickupLocation, ...circleExtent(pickupLocation, target)], key: `search:${target}`, kind: "search", maxZoom: 17 });
+    return stopTween;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchRadiusMeters, pickupLocation?.lat, pickupLocation?.lng, interactive]);
+
+  // Recenter trigger listener (an explicit press elsewhere on the screen): takes the camera back, then frames the route, or centres on the
+  // driver, the pickup or the person, whichever there is, inside the visible area
+  const seenRecenterRef = useRef(recenterTrigger);
+  useEffect(() => {
+    // Only a CHANGE of the trigger is a press (mounting, and React re-running the effect in development, are not)
+    if (seenRecenterRef.current === recenterTrigger) return;
+    seenRecenterRef.current = recenterTrigger;
+    const camera = cameraRef.current;
+    if (!camera) return;
+    camera.release();
+    if (routePointsRef.current.length >= 2) {
+      camera.fit({ points: tripPoints(), explicit: true, kind: "route" });
+    } else if (hasPoint(driverLocation)) {
+      camera.centerOn(driverLocation, { explicit: true, follow: "driver", minZoom: zoom });
+    } else if (hasPoint(pickupLocation)) {
+      camera.centerOn(pickupLocation, { minZoom: zoom });
+    } else if (hasPoint(userLocation)) {
+      camera.centerOn(userLocation, { explicit: true, follow: "user", minZoom: zoom });
+    } else if (center) {
+      camera.centerOn(center, { minZoom: zoom });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recenterTrigger]);
 
   return (
     <Box
@@ -537,6 +753,6 @@ export const MapView: React.FC<MapViewProps> = ({
       />
     </Box>
   );
-};
+});
 
 export default MapView;

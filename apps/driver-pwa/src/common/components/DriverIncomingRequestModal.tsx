@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../utils/LanguageContext';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
-import { DISPATCH_DECLINE_REASONS, TYPOGRAPHY_TOKENS, formatDistance, type DispatchDeclineReason } from '@sakay/shared';
+import { DISPATCH_DECLINE_REASONS, TYPOGRAPHY_TOKENS, formatDistance, type DispatchDeclineReason, formatPeso } from '@sakay/shared';
 
 // Rule 7.9: the reasons a driver may give for declining. The database accepts exactly these (the drift test checks the list).
 const DECLINE_LABELS: Record<DispatchDeclineReason, { tl: string; en: string }> = {
@@ -146,7 +146,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
           <Chip
             label={language === 'tl' ? `Bagong Booking Request (${countdown}s)` : `New Booking Request (${countdown}s)`}
             color="warning"
-            sx={{ fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.caption }}
+            sx={{ fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, height: 'auto', py: 0.5, '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'center' } }}
           />
           <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 700, color: '#0F172A', mt: 1 }}>
             {incomingRequest.is_shared_trip
@@ -174,37 +174,37 @@ export const DriverIncomingRequestModal: React.FC = () => {
           <Box sx={{ p: '14px 16px', backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
               <LocationOnIcon sx={{ color: '#10B981', fontSize: 20 }} />
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>
                   {language === 'tl' ? 'Lokasyon ng pickup' : 'Pickup location'}
                 </Typography>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.pickup_address}</Typography>
+                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{incomingRequest.pickup_address}</Typography>
               </Box>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
               <LocationOnIcon sx={{ color: '#EF4444', fontSize: 20 }} />
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>
                   {language === 'tl' ? 'Destinasyon' : 'Destination'}
                 </Typography>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.dropoff_address}</Typography>
+                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{incomingRequest.dropoff_address}</Typography>
               </Box>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}>
-            <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 1 }}>
+            <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
                 {language === 'tl' ? 'Tinatayang Distansya' : 'Estimated Distance'}
               </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.section, fontWeight: 700, color: '#0F172A' }}>{incomingRequest.estimated_distance_km} km</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.section, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>{incomingRequest.estimated_distance_km}{'\u00A0'}km</Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
                 {language === 'tl' ? 'Pamasahe' : 'Fare'}
               </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 700, color: '#C2410C' }}>₱{incomingRequest.estimated_fare.toFixed(2)}</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 700, color: '#C2410C', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{formatPeso(incomingRequest.estimated_fare)}</Typography>
             </Box>
           </Box>
 

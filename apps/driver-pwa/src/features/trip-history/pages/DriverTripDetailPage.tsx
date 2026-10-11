@@ -12,12 +12,12 @@ import Rating from "@mui/material/Rating";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import PlaceIcon from "@mui/icons-material/Place";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import StarIcon from "@mui/icons-material/Star";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId, activateWithKeyboard } from "@sakay/shared";
+import { formatShortBookingId, activateWithKeyboard, FareLine, formatPeso } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -273,7 +273,7 @@ export const DriverTripDetailPage: React.FC = () => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", fontWeight: 700, fontSize: "16px" }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "16px" }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
@@ -314,12 +314,12 @@ export const DriverTripDetailPage: React.FC = () => {
           }}
         >
           <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Kabuuan ng Kita sa Biyahe" : "Trip Earnings Breakdown"}
+            {language === "tl" ? "Kita sa biyahe" : "Trip earnings"}
           </Typography>
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography sx={{ fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Uri ng Biyahe" : "Trip Mode"}
+              {language === "tl" ? "Uri ng biyahe" : "Trip mode"}
             </Typography>
             <Chip
               label={tripMode}
@@ -328,37 +328,20 @@ export const DriverTripDetailPage: React.FC = () => {
             />
           </Box>
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Distansya" : "Distance"}
-            </Typography>
-            <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              {distanceKm.toFixed(1)} km
-            </Typography>
-          </Box>
+          <FareLine label={language === "tl" ? "Distansya" : "Distance"} amount={`${distanceKm.toFixed(1)}\u00A0km`} />
 
           <Divider sx={{ borderColor: "#F1F5F9", my: 0.5 }} />
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Kabuuang Nakolekta (Gross)" : "Gross Fare Collected"}
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <AccountBalanceWalletIcon sx={{ color: "#10B981", fontSize: 20 }} />
-              <Typography sx={{ fontSize: "18px", fontWeight: 700, color: "#10B981", fontFamily: "Poppins, sans-serif" }}>
-                ₱{fareAmount.toFixed(2)}
-              </Typography>
-            </Box>
-          </Box>
+          <FareLine emphasis="total" label={language === "tl" ? "Kabuuang nakolekta (gross)" : "Gross fare collected"} amount={formatPeso(fareAmount)} />
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1, borderTop: "1px border-dashed #F1F5F9" }}>
             <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Paraan ng Pagbayad" : "Payment Method"}
+              {language === "tl" ? "Paraan ng pagbayad" : "Payment method"}
             </Typography>
             <Chip
               label="₱ Cash"
               size="small"
-              sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
+              sx={{ backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
             />
           </Box>
         </Paper>
@@ -466,6 +449,17 @@ export const DriverTripDetailPage: React.FC = () => {
             )}
           </Box>
         </Paper>
+
+        {/* A problem on this trip (filed through the same pipeline as the passenger's reports) */}
+        <Button
+          variant="outlined"
+          fullWidth
+          startIcon={<ReportProblemIcon />}
+          onClick={() => navigate('/driver/report-incident', { state: { bookingId: rawTripId, from: location.pathname } })}
+          sx={{ minHeight: 48, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
+        >
+          {language === 'tl' ? 'Mag-ulat ng problema sa biyaheng ito' : 'Report a problem with this trip'}
+        </Button>
       </Box>
 
       {/* Copy Toast */}

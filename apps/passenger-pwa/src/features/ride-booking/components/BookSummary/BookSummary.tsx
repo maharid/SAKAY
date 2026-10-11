@@ -369,7 +369,7 @@ const BookSummary: React.FC = () => {
                     fontWeight: 700,
                     textTransform: "none",
                     backgroundColor: tripType === "Solo" ? "#FF6B00" : "#F1F5F9",
-                    color: tripType === "Solo" ? "#FFFFFF" : "#64748B",
+                    color: tripType === "Solo" ? "#1A1A1A" : "#64748B",
                     "&:hover": { backgroundColor: tripType === "Solo" ? "#E66000" : "#E2E8F0" },
                   }}
                 >
@@ -487,7 +487,7 @@ const BookSummary: React.FC = () => {
                 <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#C2410C" }}>
                   ₱
                 </Typography>
-                <Typography sx={{ fontSize: "32px", fontWeight: 700, color: "#FFFFFF", lineHeight: 1 }}>
+                <Typography sx={{ fontSize: "28px", whiteSpace: "nowrap", fontWeight: 700, color: "#FFFFFF", lineHeight: 1 }}>
                   {fare !== null ? fare.toFixed(2) : "—"}
                 </Typography>
               </Box>
@@ -544,7 +544,7 @@ const BookSummary: React.FC = () => {
               fontWeight: 700,
               fontSize: "1rem",
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               "&:hover": {
                 backgroundColor: "#E66000",
                 boxShadow: "none",
@@ -586,7 +586,7 @@ const BookSummary: React.FC = () => {
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 99999,
-            color: "#FFFFFF",
+            color: "#1A1A1A",
             fontWeight: 700,
             backgroundColor: "#FF6B00",
             padding: "10px 24px",

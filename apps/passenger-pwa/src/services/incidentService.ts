@@ -11,11 +11,10 @@
  */
 
 import { supabase } from './supabaseClient';
-import { INCIDENT_EVIDENCE_BUCKET, signIncidentEvidence, ownedObjectPath } from '@sakay/shared';
+import { signIncidentEvidence, uploadIncidentEvidence, INCIDENT_EVIDENCE_MAX_BYTES } from '@sakay/shared';
 import type { IncidentEvidenceFile } from '@sakay/shared';
 
-/** The photo limit the screen applies. The database separately refuses more than 3 files or a file outside the reporter's folder. */
-export const INCIDENT_EVIDENCE_MAX_BYTES = 5 * 1024 * 1024;
+export { INCIDENT_EVIDENCE_MAX_BYTES };
 
 export type IncidentReportStatus = 'Submitted' | 'Under Investigation (LGU & TODA)' | 'Resolved' | 'Cancelled';
 
@@ -115,21 +114,8 @@ export async function submitIncidentReport(input: {
   description: string;
   file?: File | null;
 }): Promise<{ incidentId: string }> {
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
-  if (!uid) throw new Error('Hindi ka naka-login. (You are not signed in.)');
-
   const evidencePaths: string[] = [];
-  if (input.file) {
-    if (!input.file.type.startsWith('image/')) throw new Error('Larawan lamang ang tinatanggap. (Only image files are accepted.)');
-    if (input.file.size > INCIDENT_EVIDENCE_MAX_BYTES) throw new Error('Masyadong malaki ang larawan (hanggang 5 MB). (The photo is too large: 5 MB at most.)');
-    const path = ownedObjectPath(uid, `${Date.now()}-${input.file.name}`);
-    const { error: upErr } = await supabase.storage
-      .from(INCIDENT_EVIDENCE_BUCKET)
-      .upload(path, input.file, { contentType: input.file.type, upsert: false });
-    if (upErr) throw new Error(`Hindi na-upload ang larawan. (The photo could not be uploaded: ${upErr.message})`);
-    evidencePaths.push(path);
-  }
+  if (input.file) evidencePaths.push(await uploadIncidentEvidence(supabase, input.file));
 
   const { data, error } = await supabase
     .from('incident_report')

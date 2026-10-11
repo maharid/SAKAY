@@ -667,7 +667,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
               height: '44px',
               borderRadius: '12px',
               backgroundColor: '#FF6B00',
-              color: '#FFFFFF',
+              color: '#1A1A1A',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
@@ -725,7 +725,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
       >
         <Typography
           sx={{
-            fontSize: '26px',
+            fontSize: '24px',
             fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,
@@ -892,7 +892,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
             fontSize: '16px',
             fontWeight: 700,
             backgroundColor: isFormValid ? '#FF6B00' : '#E2E8F0',
-            color: isFormValid ? '#FFFFFF' : '#64748B',
+            color: isFormValid ? '#1A1A1A' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',

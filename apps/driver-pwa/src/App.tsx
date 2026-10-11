@@ -40,6 +40,7 @@ import { DriverStatusMonitor } from './features/account-management/components/Dr
 import { DriverProfileEditor } from './features/account-management/components/DriverProfileEditor';
 import { DriverSettingsPage } from './features/account-management/pages/DriverSettingsPage';
 import { DriverSupportPage } from './features/account-management/pages/DriverSupportPage';
+import { DriverIncidentReporting } from './features/incident-reporting/components/DriverIncidentReporting';
 import { DriverAppFeedbackPage } from './features/account-management/pages/DriverAppFeedbackPage';
 import { DriverAvailabilityHome } from './features/availability/components/DriverAvailabilityHome';
 import { DriverNavigation } from './features/navigation/components/DriverNavigation';
@@ -146,6 +147,7 @@ export const App: React.FC = () => {
             <Route path="/settings" element={<DriverSettingsPage />} />
             <Route path="/driver/support" element={<DriverSupportPage />} />
             <Route path="/support" element={<DriverSupportPage />} />
+            <Route path="/driver/report-incident" element={<DriverIncidentReporting />} />
             <Route path="/driver/rate-app" element={<DriverAppFeedbackPage />} />
             <Route path="/rate-app" element={<DriverAppFeedbackPage />} />
 

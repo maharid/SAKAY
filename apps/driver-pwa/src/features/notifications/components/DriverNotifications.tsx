@@ -103,7 +103,7 @@ export const DriverNotifications: React.FC = () => {
             createdAt: d.time ? undefined : new Date().toISOString(),
             timeTl: d.time,
             timeEn: d.time,
-            isRead: !d.unread,
+            isRead: d.read === true,
             category: d.category === 'TODA Announcement' || d.category === 'TODA Reminder' ? 'advisories' : 'promos',
           }));
           setFetchedNotifs(mapped);
@@ -296,7 +296,7 @@ export const DriverNotifications: React.FC = () => {
                   fontSize: '13px',
                   fontWeight: isSelected ? 700 : 500,
                   backgroundColor: isSelected ? '#FF6B00' : '#F1F5F9',
-                  color: isSelected ? '#FFFFFF' : '#64748B',
+                  color: isSelected ? '#1A1A1A' : '#64748B',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.18s ease',
@@ -451,9 +451,15 @@ export const DriverNotifications: React.FC = () => {
                         sx={{
                           fontSize: '13px',
                           fontWeight: 400,
-                          color: '#64748B',
+                          color: '#475569',
                           lineHeight: 1.35,
                           mb: 0.25,
+                          // a short preview: two lines; the whole notice opens when tapped
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {body}

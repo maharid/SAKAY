@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -18,7 +18,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-import MapView from '../../../common/components/MapView';
+import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -27,11 +27,20 @@ import SakayToast from '../../../common/components/SakayToast';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
-import { calculateDistanceKm, formatDistance, useInFlight } from '@sakay/shared';
+import {
+  calculateDistanceKm,
+  formatDistance,
+  useInFlight,
+  MapControlButton,
+  MapControlStack,
+  useMeasuredSize,
+  useSafeAreaInsets,
+  useStaleSignal,
+} from '@sakay/shared';
 
 export const DriverNavigation: React.FC = () => {
   const { language } = useLanguage();
-  const { profile, setProfile } = useDriverSession();
+  const { profile, setProfile, liveFix } = useDriverSession();
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const navigate = useNavigate();
@@ -39,10 +48,38 @@ export const DriverNavigation: React.FC = () => {
   const bookingId = (location.state as { bookingId?: string })?.bookingId || '';
 
   const [booking, setBooking] = useState<any>(null);
-  const driverLocation = {
-    lat: profile.currentLat || 13.4117,
-    lng: profile.currentLng || 121.1803,
-  };
+  // The direction and speed the phone reported for THIS position (never for an older one): they only turn the marker's arrow and bring the map in close
+  const fixIsCurrent = liveFix !== null && liveFix.latitude === profile.currentLat && liveFix.longitude === profile.currentLng;
+  const driverHeading = fixIsCurrent ? liveFix.heading ?? null : null;
+  const driverSpeed = fixIsCurrent ? liveFix.speed ?? null : null;
+  const driverLocation = useMemo(
+    () => ({
+      lat: profile.currentLat || 13.4117,
+      lng: profile.currentLng || 121.1803,
+      heading: driverHeading,
+      speed: driverSpeed,
+    }),
+    [profile.currentLat, profile.currentLng, driverHeading, driverSpeed]
+  );
+  // The latest heading and speed, for the broadcast below (the position itself is read from profileRef): the channel is not rebuilt per fix
+  const motionRef = useRef({ heading: driverHeading, speed: driverSpeed });
+  motionRef.current = { heading: driverHeading, speed: driverSpeed };
+  // The map: its camera controls, what covers it (so the camera frames what is really visible), and whether the position is still refreshing
+  const mapRef = useRef<MapViewHandle>(null);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('auto');
+  const driverFixStale = useStaleSignal(liveFix, 30_000);
+  const safeArea = useSafeAreaInsets();
+  const [bannerRef, banner] = useMeasuredSize<HTMLDivElement>();
+  const [bottomCardRef, bottomCard] = useMeasuredSize<HTMLDivElement>();
+  const mapInsets = useMemo(
+    () => ({
+      top: safeArea.top + 12 + banner.height + 12,
+      right: 64,
+      bottom: bottomCard.height + 12,
+      left: 16,
+    }),
+    [safeArea.top, banner.height, bottomCard.height]
+  );
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -108,32 +145,25 @@ export const DriverNavigation: React.FC = () => {
     // Watch real-time GPS position and broadcast to passenger
     const channel = bookingId ? supabase.channel(`passenger_trip_${bookingId}`) : null;
 
+    // `heading` / `speed` are what the phone reported (null when it did not): the passenger's marker uses them for its arrow, nothing else.
+    const sendPosition = () => {
+      const cur = profileRef.current;
+      if (!channel || !cur.currentLat || !cur.currentLng) return;
+      channel.send({
+        type: 'broadcast',
+        event: 'driver_location',
+        payload: { lat: cur.currentLat, lng: cur.currentLng, at: Date.now(), heading: motionRef.current.heading, speed: motionRef.current.speed },
+      });
+    };
+
     if (channel) {
       channel.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') {
-          const cur = profileRef.current;
-          if (cur.currentLat && cur.currentLng) {
-            channel.send({
-              type: 'broadcast',
-              event: 'driver_location',
-              payload: { lat: cur.currentLat, lng: cur.currentLng },
-            });
-          }
-        }
+        if (status === 'SUBSCRIBED') sendPosition();
       });
     }
 
     // Broadcast Driver Location whenever it changes from the central context
-    const broadcastInterval = setInterval(() => {
-       const cur = profileRef.current;
-       if (channel && cur.currentLat && cur.currentLng) {
-         channel.send({
-           type: 'broadcast',
-           event: 'driver_location',
-           payload: { lat: cur.currentLat, lng: cur.currentLng },
-         });
-       }
-    }, 2000);
+    const broadcastInterval = setInterval(sendPosition, 2000);
 
     return () => {
       clearInterval(broadcastInterval);
@@ -185,17 +215,49 @@ export const DriverNavigation: React.FC = () => {
 
       <BookingGivenAwayDialog open={clocks.bookingGone} language={language} onClose={() => navigate('/driver/home', { replace: true })} />
 
-      {/* 1. Leaflet OpenStreetMap Surface with Driver and Pickup markers */}
+      {/* 1. Leaflet OpenStreetMap Surface with the driver (tricycle, pointing the way it travels) and the passenger at the pickup */}
       <MapView
+        ref={mapRef}
         userLocation={driverLocation}
+        userStale={driverFixStale}
         pickupLocation={{
           lat: pickupLat,
           lng: pickupLng,
         }}
+        insets={mapInsets}
+        stageKey="to-pickup"
+        closeUpWhileMoving
+        onCameraModeChange={setCameraMode}
       />
 
-      {/* 2. Top Floating Turn-by-Turn Instruction Banner */}
+      {/* Map controls: where I am, and the whole route to the pickup. Each really moves the camera; dragging the map lets go of either. */}
+      <MapControlStack bottom={bottomCard.height + 16} label={language === 'tl' ? 'Mga kontrol ng mapa' : 'Map controls'}>
+        <MapControlButton
+          icon="my-location"
+          label={language === 'tl' ? 'I-center sa aking lokasyon' : 'Center on my location'}
+          pressed={cameraMode === 'driver'}
+          unavailableReason={!liveFix ? (language === 'tl' ? 'Hinihintay pa ang GPS. Ipinapakita ang huling alam na lokasyon.' : 'Waiting for GPS. Showing your last known location.') : undefined}
+          onClick={() => {
+            if (!mapRef.current?.centerOnDriver()) {
+              setToastMessage(language === 'tl' ? 'Wala pang nakuhang lokasyon mo. Tiyaking naka-on ang Location.' : 'Your location is not available yet. Make sure Location is turned on.');
+            }
+          }}
+        />
+        <MapControlButton
+          icon="route"
+          label={language === 'tl' ? 'Ipakita ang buong ruta' : 'Show the whole route'}
+          pressed={cameraMode === 'route'}
+          onClick={() => {
+            if (!mapRef.current?.fitRoute()) {
+              setToastMessage(language === 'tl' ? 'Wala pang ruta na maipapakita.' : 'There is no route to show yet.');
+            }
+          }}
+        />
+      </MapControlStack>
+
+      {/* 2. Top Floating Banner: where the driver is heading. (The road route is drawn on the map; there are no spoken or turn-by-turn directions.) */}
       <Paper
+        ref={bannerRef}
         elevation={6}
         sx={{
           position: 'absolute',
@@ -246,6 +308,7 @@ export const DriverNavigation: React.FC = () => {
 
       {/* 3. Bottom Route Summary Card */}
       <Paper
+        ref={bottomCardRef}
         elevation={8}
         sx={{
           position: 'absolute',
@@ -266,7 +329,7 @@ export const DriverNavigation: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6B00', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6B00', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
@@ -319,7 +382,7 @@ export const DriverNavigation: React.FC = () => {
           sx={{
             height: 50,
             borderRadius: '14px',
-            '&.Mui-disabled': { backgroundColor: '#FF6B00', color: '#FFFFFF', opacity: 0.75 },
+            '&.Mui-disabled': { backgroundColor: '#FF6B00', color: '#1A1A1A', opacity: 0.75 },
             backgroundColor: '#FF6B00',
             fontWeight: 700,
             fontSize: '15px',

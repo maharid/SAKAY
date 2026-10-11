@@ -244,7 +244,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   fontWeight: isSelected ? TYPOGRAPHY_TOKENS.fontWeight.bold : TYPOGRAPHY_TOKENS.fontWeight.medium,
                   fontFamily: "Poppins, sans-serif",
                   backgroundColor: isSelected ? "#FF6B00" : "#F1F5F9",
-                  color: isSelected ? "#FFFFFF" : "#64748B",
+                  color: isSelected ? "#1A1A1A" : "#64748B",
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   transition: "all 0.18s ease",

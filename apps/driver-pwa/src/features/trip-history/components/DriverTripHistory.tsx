@@ -5,19 +5,17 @@ import {
   Typography,
   Paper,
   Chip,
-  Divider,
   Button,
   CircularProgress,
 } from '@mui/material';
-import PlaceIcon from '@mui/icons-material/Place';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
 import StarIcon from '@mui/icons-material/Star';
 
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { formatShortBookingId, activateWithKeyboard } from '@sakay/shared';
+import { formatShortBookingId, activateWithKeyboard, formatPeso } from '@sakay/shared';
+import { supabase } from '../../../services/supabaseClient';
 import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackModal';
 
 export interface TripRecord {
@@ -42,6 +40,8 @@ export const DriverTripHistory: React.FC = () => {
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [selectedTripToRate, setSelectedTripToRate] = useState<TripRecord | null>(null);
   const [givenRatings, setGivenRatings] = useState<any[]>([]);
+  // Ratings the database already holds for these trips (this phone's own list is lost with its storage; the database is not)
+  const [dbRatedStars, setDbRatedStars] = useState<Record<string, number>>({});
 
   const loadGivenRatings = () => {
     try {
@@ -71,6 +71,17 @@ export const DriverTripHistory: React.FC = () => {
           time: b.time || '',
         }));
         setTrips(mapped);
+        const ids = mapped.map((t) => t.id).filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+        if (ids.length === 0) return;
+        Promise.resolve(supabase.from('rating').select('booking_id, stars').eq('rater_role', 'Driver').in('booking_id', ids))
+          .then(({ data: rated }) => {
+            const map: Record<string, number> = {};
+            (rated || []).forEach((r: { booking_id: string; stars: number | null }) => {
+              map[r.booking_id] = Number(r.stars) || 0;
+            });
+            setDbRatedStars(map);
+          })
+          .catch(() => {});
       })
       .catch((err) => console.warn('[DriverTripHistory] Fetch error:', err))
       .finally(() => setLoading(false));
@@ -147,6 +158,8 @@ export const DriverTripHistory: React.FC = () => {
           const savedRating = givenRatings.find(
             (r: any) => r.bookingId === trip.id || r.bookingId === trip.bookingCode || r.id === trip.id
           );
+          // Rated once, for good: this phone's own record or the database's. The action disappears; only the result stays.
+          const ratedStars: number | null = savedRating ? Number(savedRating.stars) || 5 : trip.id in dbRatedStars ? dbRatedStars[trip.id] : null;
 
           return (
             <Paper
@@ -158,123 +171,78 @@ export const DriverTripHistory: React.FC = () => {
               onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
               sx={{
                 p: 2,
-                borderRadius: '16px',
-                border: '1px solid #E2E8F0',
+                borderRadius: '20px',
+                border: '1px solid #F1F5F9',
                 backgroundColor: '#FFFFFF',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 1.5,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                '&:hover': {
-                  borderColor: '#CBD5E1',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
-                },
+                '&:hover': { borderColor: '#CBD5E1' },
               }}
             >
-              {/* Top Row: Passenger Name, Booking Code, Fare */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-                    {trip.bookingCode}
-                  </Typography>
-                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
-                    • {trip.passengerName}
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#C2410C', fontFamily: 'Poppins, sans-serif' }}>
-                  ₱{trip.fareAmount.toFixed(2)}
-                </Typography>
-              </Box>
-
-              <Divider sx={{ my: 0.2, borderColor: '#F1F5F9' }} />
-
-              {/* Middle Row: Route Timeline matching Passenger PWA structure */}
+              {/* Same card as the passenger's: the places on the left, what the trip was (fare, kind, time, distance) on the right */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-                {/* Left Timeline & Locations */}
-                <Box sx={{ display: 'flex', gap: 1.25, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 0.5, flexShrink: 0 }}>
-                    <RadioButtonUncheckedIcon sx={{ color: '#FF6B00', fontSize: 15, stroke: '#FF6B00', strokeWidth: 1.5 }} />
-                    <Box sx={{ width: '1.5px', height: '24px', backgroundColor: '#CBD5E1', my: '2px' }} />
-                    <PlaceIcon sx={{ color: '#FF6B00', fontSize: 16 }} />
+                <Box sx={{ display: 'flex', gap: 1.5, flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: '4px', flexShrink: 0 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #64748B', backgroundColor: '#FFFFFF' }} />
+                    <Box sx={{ width: '1.5px', height: '26px', backgroundColor: '#CBD5E1', my: '2px' }} />
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#FF6B00' }} />
                   </Box>
 
-                  <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <Box sx={{ mb: 1 }}>
-                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
-                        {language === 'tl' ? 'Pickup' : 'Pickup'}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          color: '#0F172A',
-                          fontFamily: 'Poppins, sans-serif',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
+                  <Box sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <Box sx={{ mb: '10px' }}>
+                      <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>Pickup</Typography>
+                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {trip.pickupLocation}
                       </Typography>
                     </Box>
-
                     <Box>
                       <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
                         {language === 'tl' ? 'Destinasyon' : 'Drop-off'}
                       </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          color: '#0F172A',
-                          fontFamily: 'Poppins, sans-serif',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
+                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {trip.dropoffLocation}
                       </Typography>
                     </Box>
                   </Box>
                 </Box>
 
-                {/* Right Trip Mode Chip & Time/Distance */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#C2410C', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {formatPeso(trip.fareAmount)}
+                  </Typography>
                   <Chip
-                    label={trip.tripMode}
+                    label={trip.tripMode === 'Shared Ride' ? 'Shared Trip' : 'Solo Trip'}
                     size="small"
                     sx={{
                       fontSize: '12px',
                       fontWeight: 700,
-                      backgroundColor: trip.tripMode === 'Shared Ride' ? '#E6F4EA' : '#FFF8F0',
+                      backgroundColor: trip.tripMode === 'Shared Ride' ? '#E6F4EA' : '#FFF5EB',
                       color: trip.tripMode === 'Shared Ride' ? '#1E8E3E' : '#C2410C',
                       height: '22px',
                       fontFamily: 'Poppins, sans-serif',
                     }}
                   />
-                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
+                  <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500, mt: '2px', fontFamily: 'Poppins, sans-serif', textAlign: 'right' }}>
                     {trip.time} {trip.distanceKm > 0 ? `• ${trip.distanceKm.toFixed(1)} km` : ''}
                   </Typography>
                 </Box>
               </Box>
 
-              {/* Action Row: Rating */}
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', pt: 0.5 }}>
-                {savedRating ? (
+              {/* Who it was, and the one action left on a trip: rating the passenger (gone once it is done) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 1.25, borderTop: '1px solid #F1F5F9' }}>
+                <Typography noWrap sx={{ fontSize: '12px', color: '#475569', fontFamily: 'Poppins, sans-serif', minWidth: 0 }}>
+                  {trip.bookingCode} • {trip.passengerName}
+                </Typography>
+                {ratedStars !== null ? (
                   <Chip
-                    icon={<StarIcon sx={{ fontSize: '13px !important', color: '#FF6B00 !important' }} />}
-                    label={`${language === 'tl' ? 'Na-rate:' : 'Rated:'} ${(savedRating.stars || 5).toFixed(1)} ★`}
+                    icon={<StarIcon sx={{ fontSize: '14px !important', color: '#C2410C !important' }} />}
+                    label={`${language === 'tl' ? 'Na-rate' : 'Rated'} ${ratedStars.toFixed(1)}`}
                     size="small"
-                    sx={{
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      backgroundColor: '#FFF8F0',
-                      color: '#FF6B00',
-                      height: '24px',
-                      fontFamily: 'Poppins, sans-serif',
-                    }}
+                    sx={{ flexShrink: 0, fontSize: '12px', fontWeight: 700, backgroundColor: '#FFF8F0', color: '#C2410C', height: '28px', fontFamily: 'Poppins, sans-serif' }}
                   />
                 ) : (
                   <Button
@@ -282,13 +250,14 @@ export const DriverTripHistory: React.FC = () => {
                     startIcon={<StarIcon sx={{ fontSize: 14 }} />}
                     onClick={(e) => handleOpenRateModal(trip, e)}
                     sx={{
+                      flexShrink: 0,
+                      minHeight: 40,
                       fontSize: '12px',
                       fontWeight: 700,
-                      color: '#FF6B00',
+                      color: '#C2410C',
                       textTransform: 'none',
-                      py: 0.5,
-                      px: 1.2,
-                      borderRadius: '8px',
+                      px: 1.5,
+                      borderRadius: '10px',
                       backgroundColor: '#FFF8F0',
                       fontFamily: 'Poppins, sans-serif',
                       '&:hover': { backgroundColor: '#FFE4D6' },
