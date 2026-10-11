@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PhoneIcon from '@mui/icons-material/Phone';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 
@@ -143,7 +144,7 @@ export const DriverSupportPage: React.FC = () => {
             startIcon={<PhoneIcon />}
             sx={{
               backgroundColor: '#FF6B00',
-              color: '#FFFFFF',
+              color: '#1A1A1A',
               borderRadius: '12px',
               height: '44px',
               fontSize: '14px',
@@ -156,6 +157,17 @@ export const DriverSupportPage: React.FC = () => {
             {isTagalog ? 'Tumawag Ngayon: 0917-123-4567' : 'Call Hotline: 0917-123-4567'}
           </Button>
         </Paper>
+
+        {/* Report a problem with a trip (to the TODA and the LGU) */}
+        <Button
+          variant="outlined"
+          fullWidth
+          startIcon={<ReportProblemIcon />}
+          onClick={() => navigate('/driver/report-incident', { state: { from: '/driver/support' } })}
+          sx={{ minHeight: 48, borderRadius: '14px', textTransform: 'none', fontWeight: 700, color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
+        >
+          {isTagalog ? 'Mag-ulat ng insidente sa biyahe' : 'Report an incident on a trip'}
+        </Button>
 
         {/* Separator before FAQs */}
         <Divider sx={{ my: 1, borderColor: '#E2E8F0' }} />

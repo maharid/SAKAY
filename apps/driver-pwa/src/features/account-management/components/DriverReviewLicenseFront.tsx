@@ -129,7 +129,7 @@ export const DriverReviewLicenseFront: React.FC = () => {
         {/* Title */}
         <Typography
           sx={{
-            fontSize: '26px',
+            fontSize: '24px',
             fontWeight: 700,
             color: '#0F172A',
             lineHeight: 1.2,

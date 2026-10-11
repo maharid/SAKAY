@@ -356,7 +356,7 @@ export const Register: React.FC = () => {
         <Box sx={{ mb: 3.5, mt: 1 }}>
           <Typography
             sx={{
-              fontSize: '26px',
+              fontSize: '24px',
               fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,
@@ -613,7 +613,7 @@ export const Register: React.FC = () => {
             fontSize: '16px',
             fontWeight: 700,
             backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6B00' : '#E2E8F0',
-            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#64748B',
+            color: (isAllRequiredFilled && !submitted) ? '#1A1A1A' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',

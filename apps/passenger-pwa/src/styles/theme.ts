@@ -6,7 +6,7 @@ const theme = createTheme({
       main: '#FF6B00',
       light: '#FF8533',
       dark: '#D65A00',
-      contrastText: '#FFFFFF',
+      contrastText: '#1A1A1A', // white on the brand orange is 2.9:1; near-black is 6.3:1 (WCAG AA needs 4.5:1)
     },
     secondary: {
       main: '#1F1F1F',

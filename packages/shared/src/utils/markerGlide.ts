@@ -25,6 +25,10 @@ export interface GeoPoint {
 export interface GlideFix extends GeoPoint {
   /** When the SENDER took the fix (ms, any monotone clock of that one sender). Used only to drop fixes that arrive out of order. */
   at?: number;
+  /** Direction of travel the SENDER's device reported, degrees clockwise from north (null / absent when it did not). The glide itself ignores it; the marker's arrow uses it. */
+  heading?: number | null;
+  /** Speed the sender's device reported, m/s (null / absent when it did not) */
+  speed?: number | null;
 }
 
 export type GlideResult =

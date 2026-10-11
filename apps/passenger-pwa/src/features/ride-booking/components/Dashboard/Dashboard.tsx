@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -11,7 +11,7 @@ import Alert from "@mui/material/Alert";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import { supabase } from "../../../../services/supabaseClient";
-import { SIGNED_URL_TTL, signedStorageUrl } from "@sakay/shared";
+import { SIGNED_URL_TTL, signedStorageUrl, useSafeAreaInsets } from "@sakay/shared";
 import MapView from "../../../../common/components/MapView";
 import HomeHeader from "./HomeHeader";
 import HomeBottomSheet from "./HomeBottomSheet";
@@ -261,6 +261,13 @@ const Dashboard: React.FC = () => {
   const [isCardCollapsed, setIsCardCollapsed] = useState(false);
   const [sheetHeight, setSheetHeight] = useState<number>(220);
   const [isDraggingSheet, setIsDraggingSheet] = useState<boolean>(false);
+  // What covers the map: the header (and the active-trip pill under it) along the top, the sheet and the Recenter button above it along the
+  // bottom. The camera centres on the passenger inside what is left, and re-frames when the sheet opens or closes.
+  const safeArea = useSafeAreaInsets();
+  const mapInsets = useMemo(
+    () => ({ top: safeArea.top + (isTripInProgress ? 140 : 76), right: 24, bottom: safeArea.bottom + sheetHeight + 64, left: 24 }),
+    [safeArea.top, safeArea.bottom, sheetHeight, isTripInProgress]
+  );
   const [homeAddress, setHomeAddress] = useState<string>(() => {
     return localStorage.getItem("sakay_passenger_home_address") || "";
   });
@@ -331,6 +338,7 @@ const Dashboard: React.FC = () => {
       <MapView
         userLocation={userLocation}
         recenterTrigger={recenterTrigger}
+        insets={mapInsets}
       />
 
       {/* 2. Floating Header Controls respecting safe-area-inset-top */}

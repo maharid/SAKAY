@@ -268,12 +268,12 @@ export const DateCalendarPopover: React.FC<DateCalendarPopoverProps> = ({
                   fontSize: '13px',
                   fontWeight: isSelected ? 700 : 600,
                   backgroundColor: isSelected ? '#FF6B00' : 'transparent',
-                  color: isSelected ? '#FFFFFF' : '#0F172A',
+                  color: isSelected ? '#1A1A1A' : '#0F172A',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   '&:hover': {
                     backgroundColor: isSelected ? '#FF6B00' : '#FFF0E6',
-                    color: isSelected ? '#FFFFFF' : '#C2410C',
+                    color: isSelected ? '#1A1A1A' : '#C2410C',
                   },
                 }}
               >

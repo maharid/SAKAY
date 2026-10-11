@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { supabase } from '../services/supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
-import { DRIVER_OFFER_TIMEOUT_SECONDS, getCachedDevicePosition, type DispatchDeclineReason } from '@sakay/shared';
+import { DRIVER_OFFER_TIMEOUT_SECONDS, getCachedDevicePosition, type DispatchDeclineReason, type LocationCoords } from '@sakay/shared';
 import type { DriverProfile } from '../mockData/driverMockData';
 import { useDriverPresenceEngine } from '../hooks/useDriverPresenceEngine';
 import type { PresenceOutcome, PresenceView } from '../hooks/useDriverPresenceEngine';
@@ -46,6 +46,12 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 interface DriverSessionContextType {
   profile: DriverProfile;
   setProfile: React.Dispatch<React.SetStateAction<DriverProfile>>;
+  /**
+   * The driver's latest device position exactly as the phone reported it (with heading and speed when it has them), or null before the first
+   * one. A NEW object arrives with every fix, even at a standstill, so it also tells a screen whether the position is still being refreshed.
+   * Display only: it is not stored and not sent anywhere from here (the heartbeat is the only publisher to the database).
+   */
+  liveFix: LocationCoords | null;
   incomingRequest: BookingRecord | null;
   setIncomingRequest: React.Dispatch<React.SetStateAction<BookingRecord | null>>;
   currentAttemptId: string | null;
@@ -341,6 +347,7 @@ export const DriverSessionProvider: React.FC<{
       value={{
         profile: exposedProfile,
         setProfile,
+        liveFix: fix,
         incomingRequest,
         setIncomingRequest,
         currentAttemptId,

@@ -34,6 +34,7 @@ import {
 } from "../../../../services/locationService";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import MapLocationPicker from "../Dashboard/MapLocationPicker";
+import PlaceLeading from "./PlaceLeading";
 import { useServiceArea } from "../../hooks/useServiceArea";
 import { isOutsideServiceArea, outsideServiceAreaMessage, type TripEnd } from "../../../../services/serviceAreaService";
 
@@ -668,39 +669,7 @@ const SetPlace: React.FC = () => {
                   }}
                 >
                   {/* Left Pin Icon in grey circle + Distance label */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "2px",
-                      minWidth: "40px",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "50%",
-                        backgroundColor: "#F1F5F9",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <LocationOnOutlinedIcon sx={{ color: "#64748B", fontSize: "20px" }} />
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontSize: "12px",
-                        fontWeight: 500,
-                        color: "#64748B",
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      {place.distance}
-                    </Typography>
-                  </Box>
+                  <PlaceLeading icon={<LocationOnOutlinedIcon sx={{ color: "#64748B", fontSize: "20px" }} />} distance={place.distance} />
 
                   {/* Center Title with query highlight & Subtitle Address */}
                   <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
@@ -800,39 +769,7 @@ const SetPlace: React.FC = () => {
                           "&:hover": { backgroundColor: "#F8FAFC" },
                         }}
                       >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "2px",
-                            minWidth: "40px",
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "50%",
-                              backgroundColor: "#F1F5F9",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <HistoryIcon sx={{ color: "#64748B", fontSize: "20px" }} />
-                          </Box>
-                          <Typography
-                            sx={{
-                              fontSize: "12px",
-                              fontWeight: 500,
-                              color: "#64748B",
-                              fontFamily: "Poppins, sans-serif",
-                            }}
-                          >
-                            {distLabel}
-                          </Typography>
-                        </Box>
+                        <PlaceLeading icon={<HistoryIcon sx={{ color: "#64748B", fontSize: "20px" }} />} distance={distLabel} />
 
                         <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
                           <Typography
@@ -914,39 +851,7 @@ const SetPlace: React.FC = () => {
                       "&:hover": { backgroundColor: "#F8FAFC" },
                     }}
                   >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "2px",
-                        minWidth: "40px",
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "50%",
-                          backgroundColor: "#F1F5F9",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <LocationOnOutlinedIcon sx={{ color: "#64748B", fontSize: "20px" }} />
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          color: "#64748B",
-                          fontFamily: "Poppins, sans-serif",
-                        }}
-                      >
-                        {distLabel}
-                      </Typography>
-                    </Box>
+                    <PlaceLeading icon={<LocationOnOutlinedIcon sx={{ color: "#64748B", fontSize: "20px" }} />} distance={distLabel} />
 
                     <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
                       <Typography

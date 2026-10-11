@@ -38,9 +38,10 @@ interface HomeBottomSheetProps {
   onDragStateChange?: (isDragging: boolean) => void;
 }
 
-const MAX_SHEET_HEIGHT = 220;
+/** Until the sheet has been measured; the real height follows its content (a longer greeting in Filipino, a larger system font) */
+const DEFAULT_SHEET_HEIGHT = 240;
+/** How much of the sheet stays visible when it is collapsed: the handle and the greeting */
 const MIN_SHEET_HEIGHT = 72;
-const MAX_TRANSLATE = MAX_SHEET_HEIGHT - MIN_SHEET_HEIGHT; // 148px
 
 const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   firstName,
@@ -120,10 +121,24 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStartTimeRef = useRef<number>(0);
 
-  // Calculate current translation and visible height strictly clamped between MIN_SHEET_HEIGHT and MAX_SHEET_HEIGHT
-  const rawTranslate = isCollapsed ? MAX_TRANSLATE + dragOffsetY : dragOffsetY;
-  const targetTranslate = Math.max(0, Math.min(MAX_TRANSLATE, rawTranslate));
-  const currentVisibleHeight = MAX_SHEET_HEIGHT - targetTranslate;
+  // The sheet is as tall as its content, so nothing in it is ever clipped; the collapse distance follows that height.
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const [sheetHeight, setSheetHeight] = useState<number>(DEFAULT_SHEET_HEIGHT);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const update = () => setSheetHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Current translation and visible height, clamped between the collapsed and the full height
+  const maxTranslate = Math.max(0, sheetHeight - MIN_SHEET_HEIGHT);
+  const rawTranslate = isCollapsed ? maxTranslate + dragOffsetY : dragOffsetY;
+  const targetTranslate = Math.max(0, Math.min(maxTranslate, rawTranslate));
+  const currentVisibleHeight = sheetHeight - targetTranslate;
 
   // Emit height changes & drag state to parent for real-time location button alignment
   useEffect(() => {
@@ -218,13 +233,13 @@ const HomeBottomSheet: React.FC<HomeBottomSheetProps> = ({
     <>
       {/* ANCHORED BOTTOM SHEET (Bottom edge remains anchored to bottom of viewport: bottom: 0) */}
       <Paper
+        ref={sheetRef}
         elevation={4}
         sx={{
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          height: `${MAX_SHEET_HEIGHT}px`,
           backgroundColor: "#F4FBF7",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",

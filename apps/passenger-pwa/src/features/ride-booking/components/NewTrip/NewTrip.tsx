@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -8,9 +8,6 @@ import IconButton from "@mui/material/IconButton";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import MessageIcon from "@mui/icons-material/Message";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import Alert from "@mui/material/Alert";
@@ -19,7 +16,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
-import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import totoHeadImg from "@sakay/shared/src/assets/icons/toto-head.webp";
@@ -35,10 +31,15 @@ import {
   extendTapArea,
   useInFlight,
   type FareQuote,
+  FareLine,
+  formatPeso,
+  searchRadiusFromStatus,
+  useSafeAreaInsets,
 } from "@sakay/shared";
 
 import MapView from "../../../../common/components/MapView";
-import SharedFareNotice from "../../../../common/components/SharedFareNotice";
+import SharedFareNotice, { SharedAcknowledgement } from "../../../../common/components/SharedFareNotice";
+import BookingOptions from "./BookingOptions";
 import PassengerCancelModal from "../../../../common/components/PassengerCancelModal";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import HomeHeader from "../Dashboard/HomeHeader";
@@ -201,6 +202,16 @@ const NewTrip: React.FC = () => {
   const { status: searchStatus, refresh: refreshSearch } = useDispatchStatus(activeBooking?.booking_id);
   const searchOutcome: DriverSearchOutcome = searchStatus?.bookingStatus === "No Driver Found" ? "noDriver" : "searching";
   const searching = isSearching && searchStatus?.bookingStatus !== "Cancelled";
+  // How far the database is looking right now (null once the search ended, or when it does not say): the map draws exactly this, nothing invented
+  const searchRadiusMeters = searching ? searchRadiusFromStatus(searchStatus) : null;
+
+  // What covers the map: the header buttons along the top, and the booking sheet (plus the Back / Recenter buttons that sit on top of it) along
+  // the bottom. The camera frames and centres inside what is left; the sheet's height is measured, so it follows it growing or shrinking.
+  const safeArea = useSafeAreaInsets();
+  const mapInsets = useMemo(
+    () => ({ top: safeArea.top + 76, right: 24, bottom: safeArea.bottom + bottomSheetHeight + 64, left: 24 }),
+    [safeArea.top, safeArea.bottom, bottomSheetHeight]
+  );
 
   // Always query real device location on mount so passenger actual location is pinned
   useEffect(() => {
@@ -593,6 +604,9 @@ const NewTrip: React.FC = () => {
         dropoffLocation={dropoff.lat && !dropoffOutside ? dropoff : undefined}
         routeCoordinates={routeCoordinates}
         recenterTrigger={recenterTrigger}
+        insets={mapInsets}
+        searchRadiusMeters={searchRadiusMeters}
+        stageKey={searching ? "searching" : "booking"}
       />
 
       {/* 2. Top Header Controls matching BOOK - SOLO.png (Menu, Bell, Tulong) */}
@@ -674,671 +688,392 @@ const NewTrip: React.FC = () => {
           backgroundColor: "#FFFFFF",
           borderTopLeftRadius: "28px",
           borderTopRightRadius: "28px",
-          padding: "16px 20px calc(var(--safe-area-bottom) + 20px) 20px",
+          padding: 0,
           zIndex: 10,
           boxShadow: "0 -10px 30px rgba(15, 23, 42, 0.08)",
           display: "flex",
           flexDirection: "column",
           gap: "16px",
+          // Never taller than the screen less the header and floating buttons: the map stays in view, the body scrolls.
+          maxHeight: "calc(100% - 176px)",
+          "@media (max-height: 640px)": { maxHeight: "calc(100% - 150px)" },
+          overflow: "hidden",
         }}
       >
         {searching ? (
           /* ====================================================================
              TIER 1 - SOLO.png SEARCHING STATE (and its No Driver Found outcome)
              ==================================================================== */
-          <DriverSearchPanel
-            language={language}
-            outcome={searchOutcome}
-            widening={searchStatus?.phase === "widening"}
-            startedAt={searchStatus?.startedAt}
-            errorMessage={searchError}
-            details={buildTripDetails({
-              role: "passenger",
-              status: searchOutcome === "noDriver" ? "No Driver Found" : "Searching Driver",
-              pickupAddress: pickup.address,
-              dropoffAddress: dropoff.address,
-              isSharedTrip: tripType === "Shared",
-              passengerCount: passengers,
-              estimatedFare,
-            })}
-            onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
-            onRetry={handleRetrySearch}
-          />
+          <Box sx={{ p: "16px 20px calc(var(--safe-area-bottom) + 20px) 20px", overflowY: "auto" }}>
+            <DriverSearchPanel
+              language={language}
+              outcome={searchOutcome}
+              widening={searchStatus?.phase === "widening"}
+              startedAt={searchStatus?.startedAt}
+              errorMessage={searchError}
+              details={buildTripDetails({
+                role: "passenger",
+                status: searchOutcome === "noDriver" ? "No Driver Found" : "Searching Driver",
+                pickupAddress: pickup.address,
+                dropoffAddress: dropoff.address,
+                isSharedTrip: tripType === "Shared",
+                passengerCount: passengers,
+                estimatedFare,
+              })}
+              onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
+              onRetry={handleRetrySearch}
+            />
+          </Box>
         ) : (
           /* ====================================================================
              BOOK - SOLO.png NORMAL BOOKING STATE
              ==================================================================== */
           <>
-            {/* Drag Handle Bar */}
+            {/* The scrolling body: the sheet never grows past the screen, so the map stays visible and long content scrolls inside it */}
             <Box
-              sx={{
-                width: "40px",
-                height: "4px",
-                backgroundColor: "#CBD5E1",
-                borderRadius: "2px",
-                margin: "0 auto 2px auto",
-              }}
-            />
-
-            {/* Outside the service area: no route, no fare, no booking */}
-            {outsideEnd && (
-              <Alert severity="error" sx={{ borderRadius: "12px", py: 0.5, fontWeight: 600 }}>
-                {outsideServiceAreaMessage(language, outsideEnd)}
-              </Alert>
-            )}
-
-            {/* Validation Error Alert */}
-            {validationError && (
-              <Alert severity="warning" sx={{ borderRadius: "12px", py: 0.5 }}>
-                {validationError}
-              </Alert>
-            )}
-
-            {/* 1. PICKUP Card (Soft Beige/Cream #FAF2EA) */}
-            <Box
-              role="button"
-              tabIndex={0}
-              onKeyDown={activateWithKeyboard}
-              onClick={() => handleOpenSetPlace("pickup")}
-              sx={{
-                backgroundColor: "#FAF2EA",
-                borderRadius: "16px",
-                padding: "10px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "14px",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                "&:hover": { backgroundColor: "#F5EBE1" },
-              }}
+              className="scroll-cue hide-scrollbar"
+              sx={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", px: "20px", pt: "16px", pb: "12px", display: "flex", flexDirection: "column", gap: "12px" }}
             >
-              {/* Orange Radio Circle Indicator */}
+              {/* 1. PICKUP Card (Soft Beige/Cream #FAF2EA) */}
               <Box
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
+                onClick={() => handleOpenSetPlace("pickup")}
                 sx={{
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "50%",
-                  border: "2px solid #FF6B00",
+                  backgroundColor: "#FAF2EA",
+                  borderRadius: "16px",
+                  padding: "10px 16px",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  gap: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  "&:hover": { backgroundColor: "#F5EBE1" },
                 }}
               >
+                {/* Orange Radio Circle Indicator */}
                 <Box
                   sx={{
-                    width: "10px",
-                    height: "10px",
+                    width: "20px",
+                    height: "20px",
                     borderRadius: "50%",
-                    backgroundColor: "#FF6B00",
-                  }}
-                />
-              </Box>
-
-              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                <Typography
-                  sx={{
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: "#64748B",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  Pickup
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "#0F172A",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {pickup.address ||
-                    (language === "tl" ? "Pumili ng pickup location" : "Choose pickup location")}
-                </Typography>
-              </Box>
-
-              {/* Quick 1-Tap Current Location Button */}
-              <IconButton
-                size="small"
-                onClick={(e) => handleSetCurrentLocationFor("pickup", e)}
-                title={language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon" : "Use current location"}
-                aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang pickup" : "Use current location as pickup"}
-                sx={{
-                  ...extendTapArea(6),
-                  backgroundColor: "rgba(255, 107, 0, 0.12)",
-                  color: "#FF6B00",
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "10px",
-                  flexShrink: 0,
-                  "&:hover": { backgroundColor: "rgba(255, 107, 0, 0.22)" },
-                }}
-              >
-                <MyLocationIcon sx={{ fontSize: "16px" }} />
-              </IconButton>
-            </Box>
-
-            {/* 2. DESTINASYON Card (Soft Mint #F2F8F4) */}
-            <Box
-              onClick={() => handleOpenSetPlace("dropoff")}
-              role="button"
-              tabIndex={0}
-              onKeyDown={activateWithKeyboard}
-              aria-label={language === "tl" ? "Piliin ang destinasyon" : "Choose destination"}
-              sx={{
-                backgroundColor: "#F2F8F4",
-                borderRadius: "16px",
-                padding: "10px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "14px",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                "&:hover": { backgroundColor: "#E6F3EA" },
-              }}
-            >
-              {/* High-Contrast Standalone Red Destination Location Pin */}
-              <LocationOnIcon sx={{ color: "#EF4444", fontSize: "24px", flexShrink: 0 }} />
-
-              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                <Typography
-                  sx={{
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: "#64748B",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {language === "tl" ? "Destinasyon" : "Destination"}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "13px",
-                    fontWeight: dropoff.address ? 600 : 400,
-                    color: dropoff.address ? "#0F172A" : "#64748B",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {dropoff.address ||
-                    (language === "tl" ? "Saan pupunta?" : "Where to go?")}
-                </Typography>
-              </Box>
-
-              {dropoff.address ? (
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDropoff({ address: "", lat: 0, lng: 0 });
-                    sessionStorage.removeItem("trip_dropoff");
-                    setRouteCoordinates([]);
-                  }}
-                  title={language === "tl" ? "Burahin ang destinasyon" : "Clear destination"}
-                  aria-label={language === "tl" ? "Burahin ang destinasyon" : "Clear destination"}
-                  sx={{
-                    ...extendTapArea(6),
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    color: "#EF4444",
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "10px",
-                    flexShrink: 0,
-                    "&:hover": { backgroundColor: "rgba(239, 68, 68, 0.2)" },
-                  }}
-                >
-                  <CloseIcon sx={{ fontSize: "16px" }} />
-                </IconButton>
-              ) : (
-                /* Quick 1-Tap Current Location Button for Dropoff */
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleSetCurrentLocationFor("dropoff", e)}
-                  title={language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon para sa Destinasyon" : "Use current location for destination"}
-                  aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang destinasyon" : "Use current location as destination"}
-                  sx={{
-                    ...extendTapArea(6),
-                    backgroundColor: "rgba(15, 23, 42, 0.08)",
-                    color: "#0F172A",
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "10px",
-                    flexShrink: 0,
-                    "&:hover": { backgroundColor: "rgba(15, 23, 42, 0.16)" },
-                  }}
-                >
-                  <MyLocationIcon sx={{ fontSize: "16px" }} />
-                </IconButton>
-              )}
-            </Box>
-
-            {/* 3. Consolidated Controls Row: TRIP TYPE | PASSENGERS | NOTES */}
-            <Box
-              sx={{
-                width: "100%",
-                backgroundColor: "#FFFFFF",
-                border: "1px solid #E2E8F0",
-                borderRadius: "16px",
-                p: "10px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "8px",
-                // Small phones: trip type and passengers share a row, notes take their own row, so nothing wraps or clips.
-                "@media (max-width:359.95px)": {
-                  flexWrap: "wrap",
-                  rowGap: "10px",
-                  "& > :nth-child(1), & > :nth-child(3)": { flex: "1 1 calc(50% - 12px)" },
-                  "& > :nth-child(4)": { display: "none" },
-                  "& > :nth-child(5)": { flex: "1 1 100%" },
-                },
-              }}
-            >
-              {/* --- Section A: TRIP TYPE --- */}
-              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography
-                    sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                      fontWeight: 700,
-                      color: "#64748B",
-                      whiteSpace: "nowrap",
-                      fontFamily: "Poppins, sans-serif",
-                    }}
-                  >
-                    {language === "tl" ? "Uri ng biyahe" : "Trip type"}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => setTripTypeInfoOpen(true)}
-                    title={language === "tl" ? "Impormasyon sa Uri ng Biyahe" : "Trip Type Info"}
-                    aria-label={language === "tl" ? "Impormasyon sa uri ng biyahe" : "About trip types"}
-                    sx={{ p: 0, color: "#64748B", "&:hover": { color: "#64748B" }, ...extendTapArea(16) }}
-                  >
-                    <InfoOutlinedIcon sx={{ fontSize: 13 }} />
-                  </IconButton>
-                </Box>
-
-                {/* Segmented Pill [ Solo | Share ] */}
-                <Box
-                  role="radiogroup"
-                  aria-label={language === "tl" ? "Uri ng biyahe" : "Trip type"}
-                  sx={{
-                    backgroundColor: "#F1F5F9",
-                    borderRadius: "10px",
-                    p: "2px",
-                    display: "flex",
-                    height: "40px",
-                  }}
-                >
-                  <Box
-                    onClick={() => setTripType("Solo")}
-                    role="radio"
-                    aria-checked={tripType === "Solo"}
-                    tabIndex={0}
-                    onKeyDown={activateWithKeyboard}
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "8px",
-                      backgroundColor: tripType === "Solo" ? "#FFFFFF" : "transparent",
-                      boxShadow: tripType === "Solo" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
-                        fontWeight: tripType === "Solo" ? 700 : 500,
-                        color: tripType === "Solo" ? "#0F172A" : "#64748B",
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      {language === "tl" ? "Solo" : "Solo"}
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    onClick={() => {
-                      setTripType("Shared");
-                      if (passengers > 2) setPassengers(2);
-                    }}
-                    role="radio"
-                    aria-checked={tripType === "Shared"}
-                    tabIndex={0}
-                    onKeyDown={activateWithKeyboard}
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "8px",
-                      backgroundColor: tripType === "Shared" ? "#FFFFFF" : "transparent",
-                      boxShadow: tripType === "Shared" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
-                        fontWeight: tripType === "Shared" ? 700 : 500,
-                        color: tripType === "Shared" ? "#0F172A" : "#64748B",
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      {language === "tl" ? "Share" : "Share"}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Vertical Separator 1 */}
-              <Box
-                sx={{
-                  width: "1px",
-                  height: "44px",
-                  backgroundColor: "#E2E8F0",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* --- Section B: PASSENGERS --- */}
-              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography
-                    sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                      fontWeight: 700,
-                      color: "#64748B",
-                      whiteSpace: "nowrap",
-                      fontFamily: "Poppins, sans-serif",
-                    }}
-                  >
-                    {language === "tl" ? "Pasahero" : "Passengers"}
-                  </Typography>
-                </Box>
-
-                {/* Counter [- 1 +] */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    backgroundColor: "#F1F5F9",
-                    borderRadius: "10px",
-                    px: 0,
-                    height: "40px",
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    disabled={passengers <= 1}
-                    onClick={() => setPassengers((prev) => Math.max(1, prev - 1))}
-                    aria-label={language === "tl" ? "Bawasan ang pasahero" : "Fewer passengers"}
-                    sx={{ width: 40, height: 40, p: 0, color: "#0F172A", ...extendTapArea(2) }}
-                  >
-                    <RemoveIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-
-                  <Typography
-                    aria-live="polite"
-                    sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
-                      fontWeight: 700,
-                      color: "#0F172A",
-                      fontFamily: "Poppins, sans-serif",
-                    }}
-                  >
-                    {passengers}
-                  </Typography>
-
-                  <IconButton
-                    size="small"
-                    disabled={tripType === "Shared" ? passengers >= 2 : passengers >= 4}
-                    onClick={() => {
-                      const max = tripType === "Shared" ? 2 : 4;
-                      if (passengers < max) {
-                        setPassengers((prev) => prev + 1);
-                      }
-                    }}
-                    aria-label={language === "tl" ? "Dagdagan ang pasahero" : "More passengers"}
-                    sx={{ width: 40, height: 40, p: 0, color: "#0F172A", ...extendTapArea(2) }}
-                  >
-                    <AddIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </Box>
-              </Box>
-
-              {/* Vertical Separator 2 */}
-              <Box
-                sx={{
-                  width: "1px",
-                  height: "44px",
-                  backgroundColor: "#E2E8F0",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* --- Section C: NOTES --- */}
-              <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography
-                    sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                      fontWeight: 700,
-                      color: "#64748B",
-                      whiteSpace: "nowrap",
-                      fontFamily: "Poppins, sans-serif",
-                    }}
-                  >
-                    {language === "tl" ? "Tala" : "Notes"}
-                  </Typography>
-                </Box>
-
-                {/* Notes Button Pill */}
-                <Box
-                  onClick={() => {
-                    setTempNoteText(noteText);
-                    setNotesDialogOpen(true);
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={activateWithKeyboard}
-                  aria-label={language === "tl" ? "Magdagdag o baguhin ang tala para sa driver" : "Add or edit a note for the driver"}
-                  sx={{
-                    backgroundColor: "#F1F5F9",
-                    borderRadius: "10px",
-                    px: "6px",
-                    height: "40px",
+                    border: "2px solid #FF6B00",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "4px",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    "&:hover": { backgroundColor: "#E2E8F0" },
+                    flexShrink: 0,
                   }}
                 >
-                  <MessageIcon sx={{ fontSize: 14, color: noteText ? "#C2410C" : "#64748B" }} />
+                  <Box
+                    sx={{
+                      width: "10px",
+                      height: "10px",
+                      borderRadius: "50%",
+                      backgroundColor: "#FF6B00",
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "#64748B",
+                      fontFamily: "Poppins, sans-serif",
+                    }}
+                  >
+                    Pickup
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "13px",
                       fontWeight: 600,
-                      color: noteText ? "#C2410C" : "#64748B",
+                      color: "#0F172A",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {noteText
-                      ? language === "tl"
-                        ? "May tala"
-                        : "Has note"
-                      : language === "tl"
-                      ? "Idagdag"
-                      : "Add"}
+                    {pickup.address ||
+                      (language === "tl" ? "Pumili ng pickup location" : "Choose pickup location")}
                   </Typography>
                 </Box>
+
+                {/* Quick 1-Tap Current Location Button */}
+                <IconButton
+                  size="small"
+                  onClick={(e) => handleSetCurrentLocationFor("pickup", e)}
+                  title={language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon" : "Use current location"}
+                  aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang pickup" : "Use current location as pickup"}
+                  sx={{
+                    ...extendTapArea(6),
+                    backgroundColor: "rgba(255, 107, 0, 0.12)",
+                    color: "#FF6B00",
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "10px",
+                    flexShrink: 0,
+                    "&:hover": { backgroundColor: "rgba(255, 107, 0, 0.22)" },
+                  }}
+                >
+                  <MyLocationIcon sx={{ fontSize: "16px" }} />
+                </IconButton>
               </Box>
-            </Box>
 
-            {/* Rule 6.5: both fares, the cutoff and the acknowledgement, shown before Book is tapped */}
-            {tripType === "Shared" && quote && (
-              <SharedFareNotice
-                language={language}
-                matchedEstimate={quote.shared_matched_estimate}
-                maxUnmatchedFare={quote.max_unmatched_fare}
-                partnerAssumptionPassengers={quote.partner_assumption_passengers}
-              />
-            )}
-
-            {/* Shared Trip Disclaimer & Agreement (Combined Integrated Card) */}
-            {tripType === "Shared" && (
-              <Paper
-                elevation={0}
+              {/* 2. DESTINASYON Card (Soft Mint #F2F8F4) */}
+              <Box
+                onClick={() => handleOpenSetPlace("dropoff")}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateWithKeyboard}
+                aria-label={language === "tl" ? "Piliin ang destinasyon" : "Choose destination"}
                 sx={{
-                  p: 1.5,
-                  borderRadius: "14px",
-                  backgroundColor: "#EFF6FF",
-                  border: "1px solid #BFDBFE",
+                  backgroundColor: "#F2F8F4",
+                  borderRadius: "16px",
+                  padding: "10px 16px",
                   display: "flex",
-                  alignItems: "flex-start",
-                  gap: 1.25,
+                  alignItems: "center",
+                  gap: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  "&:hover": { backgroundColor: "#E6F3EA" },
                 }}
               >
-                <Checkbox
-                  checked={sharedDisclaimerAgreed}
-                  onChange={(e) => setSharedDisclaimerAgreed(e.target.checked)}
-                  size="small"
-                  sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" }, p: 0, mt: 0.25 }}
-                />
-                <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#1E40AF", display: "flex", alignItems: "center", mb: 0.25, fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl" ? "Paunawa sa Shared Trip" : "Shared Trip Notice"}
-                  </Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#1E3A8A", lineHeight: 1.45, fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl"
-                      ? "Naiintindihan ko na ang aking pamasahe ay mahahati kapag may na-match na kasabay, ngunit babayaran ko ang buong Solo fare kung walang mahanap na kapares."
-                      : "I understand that my fare will be shared if matched with another commuter, but I will pay the full Solo fare if no shared match is found."}
-                  </Typography>
-                </Box>
-              </Paper>
-            )}
+                {/* High-Contrast Standalone Red Destination Location Pin */}
+                <LocationOnIcon sx={{ color: "#EF4444", fontSize: "24px", flexShrink: 0 }} />
 
-            {/* 4. ESTIMATED FARE Section */}
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-                pt: "12px",
-                pb: "4px",
-                borderTop: "1px solid #F1F5F9",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <Typography
-                      sx={{
-                        fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
-                        fontWeight: 700,
-                        color: "#64748B",
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      {language === "tl" ? "Tinatayang pamasahe" : "Estimated fare"}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => setTariffInfoOpen(true)}
-                      title={language === "tl" ? "Taripa at Detalye ng Pamasahe" : "Tariff & Fare Details"}
-                      aria-label={language === "tl" ? "Taripa at detalye ng pamasahe" : "Tariff and fare details"}
-                      sx={{ p: 0, color: "#64748B", "&:hover": { color: "#64748B" }, ...extendTapArea(16) }}
-                    >
-                      <InfoOutlinedIcon sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Box>
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
+                      fontSize: "12px",
+                      fontWeight: 700,
                       color: "#64748B",
-                      mt: "1px",
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    {language === "tl" ? "Bayad sa Cash" : "Cash Payment"}
+                    {language === "tl" ? "Destinasyon" : "Destination"}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "13px",
+                      fontWeight: dropoff.address ? 600 : 400,
+                      color: dropoff.address ? "#0F172A" : "#64748B",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      overflowWrap: "anywhere",
+                      lineHeight: 1.3,
+                      fontFamily: "Poppins, sans-serif",
+                    }}
+                  >
+                    {dropoff.address ||
+                      (language === "tl" ? "Saan pupunta?" : "Where to go?")}
                   </Typography>
                 </Box>
 
-                <Typography
-                  sx={{
-                    fontSize: TYPOGRAPHY_TOKENS.fontSize.display,
-                    fontWeight: 700,
-                    color: "#0F172A",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {estimatedFare !== null ? `₱${estimatedFare.toFixed(2)}` : routeStatus === "loading" || (routeStatus === "ready" && !fareNotice) ? "…" : "—"}
-                </Typography>
+                {dropoff.address ? (
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDropoff({ address: "", lat: 0, lng: 0 });
+                      sessionStorage.removeItem("trip_dropoff");
+                      setRouteCoordinates([]);
+                    }}
+                    title={language === "tl" ? "Burahin ang destinasyon" : "Clear destination"}
+                    aria-label={language === "tl" ? "Burahin ang destinasyon" : "Clear destination"}
+                    sx={{
+                      ...extendTapArea(6),
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      color: "#EF4444",
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "10px",
+                      flexShrink: 0,
+                      "&:hover": { backgroundColor: "rgba(239, 68, 68, 0.2)" },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: "16px" }} />
+                  </IconButton>
+                ) : (
+                  /* Quick 1-Tap Current Location Button for Dropoff */
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleSetCurrentLocationFor("dropoff", e)}
+                    title={language === "tl" ? "Gamitin ang Kasalukuyang Lokasyon para sa Destinasyon" : "Use current location for destination"}
+                    aria-label={language === "tl" ? "Gamitin ang kasalukuyang lokasyon bilang destinasyon" : "Use current location as destination"}
+                    sx={{
+                      ...extendTapArea(6),
+                      backgroundColor: "rgba(15, 23, 42, 0.08)",
+                      color: "#0F172A",
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "10px",
+                      flexShrink: 0,
+                      "&:hover": { backgroundColor: "rgba(15, 23, 42, 0.16)" },
+                    }}
+                  >
+                    <MyLocationIcon sx={{ fontSize: "16px" }} />
+                  </IconButton>
+                )}
               </Box>
 
-              {(routeStatus === "error" || fareNotice) && (
-                <Alert
-                  severity="warning"
-                  sx={{ borderRadius: "12px", fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, fontFamily: "Poppins, sans-serif" }}
-                  action={
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => {
-                        setFareNotice("");
-                        if (routeStatus === "error") setRouteRetry((n) => n + 1);
-                        else setQuoteRetry((n) => n + 1);
-                      }}
-                      sx={{ textTransform: "none", fontWeight: 700 }}
-                    >
-                      {language === "tl" ? "Subukan muli" : "Retry"}
-                    </Button>
-                  }
-                >
-                  {routeStatus === "error" ? routeErrorText : fareNotice}
-                </Alert>
+              {/* Trip type, passengers and the driver note */}
+              <BookingOptions
+                language={language}
+                tripType={tripType}
+                passengers={passengers}
+                maxPassengers={tripType === "Shared" ? 2 : 4}
+                note={noteText}
+                onTripTypeChange={(next) => {
+                  setTripType(next);
+                  if (next === "Shared" && passengers > 2) setPassengers(2);
+                }}
+                onPassengersChange={setPassengers}
+                onOpenNote={() => {
+                  setTempNoteText(noteText);
+                  setNotesDialogOpen(true);
+                }}
+                onOpenTripTypeInfo={() => setTripTypeInfoOpen(true)}
+              />
+
+              {/* Rule 6.5: both fares, the cutoff and the acknowledgement, shown before Book is tapped */}
+              {tripType === "Shared" && quote && (
+                <SharedFareNotice
+                  language={language}
+                  matchedEstimate={quote.shared_matched_estimate}
+                  maxUnmatchedFare={quote.max_unmatched_fare}
+                  partnerAssumptionPassengers={quote.partner_assumption_passengers}
+                />
               )}
+
             </Box>
 
-            {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
-            <Box sx={{ width: "100%", mt: "6px" }}>
-              {/* Primary Mag-book ng Biyahe Button */}
-              <PrimaryButton
-                fullWidth
-                onClick={handleBookTrip}
-                loading={bookingSubmitting}
-                loadingLabel={language === "tl" ? "Inihahanda..." : "Preparing..."}
-                disabled={
-                  outsideEnd !== null ||
-                  !dropoff.address ||
-                  dropoff.lat === 0 ||
-                  !pickup.lat ||
-                  pickup.lat === 0 ||
-                  estimatedFare === null ||
-                  (tripType === "Shared" && !sharedDisclaimerAgreed)
-                }
+            {/* The footer stays in view: why Book is unavailable, the fare, and the Book button */}
+            <Box sx={{ flexShrink: 0, px: "20px", pt: "12px", pb: "calc(var(--safe-area-bottom) + 16px)", borderTop: "1px solid #F1F5F9", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {/* Outside the service area: no route, no fare, no booking */}
+              {outsideEnd && (
+                <Alert severity="error" sx={{ borderRadius: "12px", py: 0.5, fontWeight: 600 }}>
+                  {outsideServiceAreaMessage(language, outsideEnd)}
+                </Alert>
+              )}
+
+              {/* Validation Error Alert */}
+              {validationError && (
+                <Alert severity="warning" sx={{ borderRadius: "12px", py: 0.5 }}>
+                  {validationError}
+                </Alert>
+              )}
+
+              {/* Shared only: the one tick Book waits for, next to the button it unlocks */}
+              {tripType === "Shared" && quote && (
+                <SharedAcknowledgement
+                  language={language}
+                  checked={sharedDisclaimerAgreed}
+                  onChange={setSharedDisclaimerAgreed}
+                />
+              )}
+              {/* 4. ESTIMATED FARE Section */}
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                }}
               >
-                {language === "tl" ? "Mag-book ng Biyahe" : "Book Ride"}
-              </PrimaryButton>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Typography
+                        sx={{
+                          fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
+                          fontWeight: 700,
+                          color: "#64748B",
+                          fontFamily: "Poppins, sans-serif",
+                        }}
+                      >
+                        {language === "tl" ? "Tinatayang pamasahe" : "Estimated fare"}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => setTariffInfoOpen(true)}
+                        title={language === "tl" ? "Taripa at Detalye ng Pamasahe" : "Tariff & Fare Details"}
+                        aria-label={language === "tl" ? "Taripa at detalye ng pamasahe" : "Tariff and fare details"}
+                        sx={{ p: 0, color: "#64748B", "&:hover": { color: "#64748B" }, ...extendTapArea(16) }}
+                      >
+                        <InfoOutlinedIcon sx={{ fontSize: 13 }} />
+                      </IconButton>
+                    </Box>
+                    <Typography
+                      sx={{ fontSize: "12px", lineHeight: 1.3, color: "#64748B", fontFamily: "Poppins, sans-serif" }}
+                    >
+                      {language === "tl" ? "Bayad sa cash" : "Cash payment"}
+                    </Typography>
+                  </Box>
+
+                  <Typography
+                    sx={{
+                      fontSize: "20px",
+                      fontWeight: 700,
+                      color: "#0F172A",
+                      fontFamily: "Poppins, sans-serif",
+                      whiteSpace: "nowrap",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {estimatedFare !== null ? `₱${estimatedFare.toFixed(2)}` : routeStatus === "loading" || (routeStatus === "ready" && !fareNotice) ? "…" : "—"}
+                  </Typography>
+                </Box>
+
+                {(routeStatus === "error" || fareNotice) && (
+                  <Alert
+                    severity="warning"
+                    sx={{ borderRadius: "12px", fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, fontFamily: "Poppins, sans-serif" }}
+                    action={
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => {
+                          setFareNotice("");
+                          if (routeStatus === "error") setRouteRetry((n) => n + 1);
+                          else setQuoteRetry((n) => n + 1);
+                        }}
+                        sx={{ textTransform: "none", fontWeight: 700 }}
+                      >
+                        {language === "tl" ? "Subukan muli" : "Retry"}
+                      </Button>
+                    }
+                  >
+                    {routeStatus === "error" ? routeErrorText : fareNotice}
+                  </Alert>
+                )}
+              </Box>
+
+              {/* 5. Bottom Action Row: Mag-book ng Biyahe */}
+              <Box sx={{ width: "100%", mt: "6px" }}>
+                {/* Primary Mag-book ng Biyahe Button */}
+                <PrimaryButton
+                  fullWidth
+                  onClick={handleBookTrip}
+                  loading={bookingSubmitting}
+                  loadingLabel={language === "tl" ? "Inihahanda..." : "Preparing..."}
+                  disabled={
+                    outsideEnd !== null ||
+                    !dropoff.address ||
+                    dropoff.lat === 0 ||
+                    !pickup.lat ||
+                    pickup.lat === 0 ||
+                    estimatedFare === null ||
+                    (tripType === "Shared" && !sharedDisclaimerAgreed)
+                  }
+                >
+                  {language === "tl" ? "Mag-book ng Biyahe" : "Book Ride"}
+                </PrimaryButton>
+              </Box>
             </Box>
           </>
         )}
@@ -1414,7 +1149,7 @@ const NewTrip: React.FC = () => {
             onClick={handleSaveNotes}
             sx={{
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "12px",
               fontWeight: 700,
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
@@ -1482,7 +1217,7 @@ const NewTrip: React.FC = () => {
           const comps = componentsFor(quote, tripType);
           const displayedTotal = estimatedFareFor(quote, tripType);
           const rule = quote.rule;
-          const money = (n: number) => `₱${n.toFixed(2)}`;
+          const money = formatPeso;
           const shareSeats = Math.min(passengers + quote.partner_assumption_passengers, quote.seat_capacity);
 
           return (
@@ -1498,80 +1233,48 @@ const NewTrip: React.FC = () => {
                   gap: 1.25,
                 }}
               >
-                {/* Distance Row */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl" ? "Kabuuang Distansya" : "Total Distance"}
-                  </Typography>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    {quote.distance_km.toFixed(1)} km
-                  </Typography>
-                </Box>
+                <FareLine label={language === "tl" ? "Kabuuang distansya" : "Total distance"} amount={`${quote.distance_km.toFixed(1)}\u00A0km`} />
 
-                {/* Base Fare Row */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Box>
-                    <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl"
-                        ? `Unang ${rule.base_distance_km.toFixed(1)} km (Base Fare)`
-                        : `Base Fare (First ${rule.base_distance_km.toFixed(1)} km)`}
-                    </Typography>
-                    <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                      {tripType === "Solo"
-                        ? `${money(rule.base_fare)} × ${quote.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`
-                        : language === "tl"
-                        ? `Hati mo sa buong tricycle (${passengers} sa ${shareSeats} upuan)`
-                        : `Your share of the whole tricycle (${passengers} of ${shareSeats} seats)`}
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    {money(comps.base)}
-                  </Typography>
-                </Box>
+                <FareLine
+                  label={
+                    language === "tl"
+                      ? `Unang ${rule.base_distance_km.toFixed(1)} km (base fare)`
+                      : `Base fare (first ${rule.base_distance_km.toFixed(1)} km)`
+                  }
+                  detail={
+                    tripType === "Solo"
+                      ? `${money(rule.base_fare)} × ${quote.seat_capacity} ${language === "tl" ? "upuan (Solo)" : "seats (Solo)"}`
+                      : language === "tl"
+                      ? `Hati mo sa buong tricycle (${passengers} sa ${shareSeats} upuan)`
+                      : `Your share of the whole tricycle (${passengers} of ${shareSeats} seats)`
+                  }
+                  amount={money(comps.base)}
+                />
 
-                {/* Distance Charge Row */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Box>
-                    <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl"
-                        ? `Dagdag na Distansya (${quote.excess_km.toFixed(1)} km)`
-                        : `Distance Charge (${quote.excess_km.toFixed(1)} km)`}
-                    </Typography>
-                    {tripType === "Solo" && quote.excess_km > 0 && (
-                      <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                        {quote.excess_km.toFixed(1)} km × {money(rule.succeeding_rate)} × {quote.seat_capacity}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    {money(comps.distance)}
-                  </Typography>
-                </Box>
-
-                {/* Rounding to the nearest peso / the minimum fare, only when it changes the total */}
-                {comps.adjustment !== 0 && (
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                      {language === "tl" ? "Pag-round sa pinakamalapit na piso" : "Rounded to the nearest peso"}
-                    </Typography>
-                    <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                      {comps.adjustment > 0 ? "+" : "−"}
-                      {money(Math.abs(comps.adjustment))}
-                    </Typography>
-                  </Box>
-                )}
+                <FareLine
+                  label={
+                    language === "tl"
+                      ? `Dagdag na distansya (${quote.excess_km.toFixed(1)} km)`
+                      : `Distance charge (${quote.excess_km.toFixed(1)} km)`
+                  }
+                  detail={
+                    tripType === "Solo" && quote.excess_km > 0
+                      ? `${quote.excess_km.toFixed(1)} km × ${money(rule.succeeding_rate)} × ${quote.seat_capacity}`
+                      : undefined
+                  }
+                  amount={money(comps.distance)}
+                />
 
                 <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed", my: 0.5 }} />
 
-                {/* Total Fare Row */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                    {language === "tl" ? "Kabuuan" : "Total Fare"}
+                <FareLine emphasis="total" label={language === "tl" ? "Kabuuan" : "Total fare"} amount={money(displayedTotal)} />
+
+                {/* The database charges whole pesos (Rule 6.1.2), so the lines above can differ from the total by a few centavos. One quiet line says so, only when it is true. */}
+                {comps.adjustment !== 0 && (
+                  <Typography sx={{ fontSize: "12px", lineHeight: 1.4, color: "#64748B", fontFamily: "Poppins, sans-serif", textAlign: "right" }}>
+                    {language === "tl" ? "Buong piso ang singil ayon sa fare rule ng LGU." : "Charged in whole pesos under the LGU fare rule."}
                   </Typography>
-                  <Typography sx={{ fontSize: "17px", fontWeight: 700, color: "#C2410C", fontFamily: "Poppins, sans-serif" }}>
-                    {money(displayedTotal)}
-                  </Typography>
-                </Box>
+                )}
               </Box>
 
               {/* Payment Method Badge */}
@@ -1582,7 +1285,7 @@ const NewTrip: React.FC = () => {
                 <Chip
                   label="₱ Cash"
                   size="small"
-                  sx={{ backgroundColor: "#FF6B00", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
+                  sx={{ backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
                 />
               </Box>
             </Box>

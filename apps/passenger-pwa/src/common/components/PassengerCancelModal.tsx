@@ -294,7 +294,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
             height: "48px",
             borderRadius: "14px",
             backgroundColor: "#FF6B00",
-            color: "#FFFFFF",
+            color: "#1A1A1A",
             fontWeight: 700,
             fontSize: "15px",
             textTransform: "none",
@@ -310,7 +310,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
             },
             "&.Mui-disabled": {
               backgroundColor: "#FFB380",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
             },
           }}
         >

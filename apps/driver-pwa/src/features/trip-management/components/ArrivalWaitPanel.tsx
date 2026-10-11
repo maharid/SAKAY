@@ -115,8 +115,8 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
       {over && !wait.canReportNoShow && (
         <Typography sx={{ fontSize: '12px', color: '#B91C1C', fontWeight: 600 }}>
           {language === 'tl'
-            ? 'Para maiulat ang no-show, dapat nasa pickup point ka at malinaw ang GPS.'
-            : 'To report a no-show you must be at the pickup point with a clear GPS signal.'}
+            ? 'Para maiulat ito, dapat nasa pickup point ka at malinaw ang GPS.'
+            : 'To report it, be at the pickup point with a clear GPS signal.'}
         </Typography>
       )}
       <Button
@@ -125,9 +125,9 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
         fullWidth
         disabled={!wait.canReportNoShow || reporting}
         onClick={() => setConfirmOpen(true)}
-        sx={{ minHeight: 48, borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
+        sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '14px', lineHeight: 1.25 }}
       >
-        {language === 'tl' ? 'Hindi Sumakay ang Pasahero (No-Show)' : 'Passenger No-Show'}
+        {language === 'tl' ? 'Hindi sumakay ang pasahero' : 'Passenger did not board'}
       </Button>
 
       <Dialog open={confirmOpen} onClose={() => !reporting && setConfirmOpen(false)} slotProps={{ paper: { sx: { borderRadius: '20px', p: 1 } } }}>

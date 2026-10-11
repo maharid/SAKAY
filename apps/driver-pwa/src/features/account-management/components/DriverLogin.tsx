@@ -336,7 +336,7 @@ export const DriverLogin: React.FC = () => {
             <Typography
               component="h2"
               sx={{
-                fontSize: '26px',
+                fontSize: '24px',
                 fontWeight: 700,
                 color: '#0F172A',
                 lineHeight: 1.3,

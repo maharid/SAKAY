@@ -165,7 +165,7 @@ export const DriverEarnings: React.FC = () => {
             <Chip label="Live Total" size="small" sx={{ backgroundColor: 'rgba(255, 107, 0, 0.2)', color: '#FF8533', fontWeight: 700, fontSize: '12px' }} />
           </Box>
 
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
+          <Typography sx={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
             ₱{todayTotal.toFixed(2)}
           </Typography>
           <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>

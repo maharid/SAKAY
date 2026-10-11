@@ -203,13 +203,14 @@ export const calculateDistanceKm = (
 export const calculateHaversineKm = calculateDistanceKm;
 
 /**
- * Formats distance into a human-friendly string (e.g. "450 m" or "2.3 km")
+ * Formats distance into a human-friendly string (e.g. "450 m" or "2.3 km"). The number and its unit are joined with a no-break space
+ * so a label never wraps into "2.3" on one line and "km" on the next.
  */
 export const formatDistance = (km: number): string => {
   if (km < 1) {
-    return `${Math.round(km * 1000)} m`;
+    return `${Math.round(km * 1000)}\u00A0m`;
   }
-  return `${km.toFixed(1)} km`;
+  return `${km.toFixed(1)}\u00A0km`;
 };
 
 // Recent Destination Interface and Local Storage Helpers

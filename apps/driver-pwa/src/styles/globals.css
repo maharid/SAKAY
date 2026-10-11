@@ -128,3 +128,14 @@ select:focus-visible {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* A soft shadow on the edge of a scrolling area that has more content past it (and only then): it tells the person the area scrolls.
+   The two white "cover" layers scroll with the content (background-attachment: local), so the shadow shows only while content lies beyond. */
+.scroll-cue {
+  background:
+    linear-gradient(#FFFFFF 30%, rgba(255, 255, 255, 0)) top / 100% 24px no-repeat local,
+    linear-gradient(rgba(255, 255, 255, 0), #FFFFFF 70%) bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) bottom / 100% 8px no-repeat scroll;
+  overscroll-behavior: contain;
+}

@@ -41,7 +41,7 @@ const EnRouteNotices: React.FC<EnRouteNoticesProps> = ({ bookingId, language, st
       variant="outlined"
       disabled={sending !== null}
       onClick={() => report(reason)}
-      sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, fontSize: '12px', borderColor: '#CBD5E1', color: '#475569', flex: 1 }}
+      sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, borderColor: '#CBD5E1', color: '#475569', flex: 1 }}
     >
       {label}
     </Button>

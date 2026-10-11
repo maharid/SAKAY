@@ -324,7 +324,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                 borderRadius: '14px',
                 height: '46px',
                 backgroundColor: '#FF6B00',
-                color: '#FFFFFF',
+                color: '#1A1A1A',
                 fontWeight: 700,
                 fontSize: '14px',
                 textTransform: 'none',

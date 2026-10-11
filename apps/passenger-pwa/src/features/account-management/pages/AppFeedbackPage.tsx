@@ -142,7 +142,7 @@ const AppFeedbackPage: React.FC = () => {
             variant="contained"
             sx={{
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "14px",
               height: "52px",
               fontSize: "15px",
@@ -191,7 +191,7 @@ const AppFeedbackPage: React.FC = () => {
             }}
             sx={{
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "12px",
               px: 4,
               fontWeight: 700,

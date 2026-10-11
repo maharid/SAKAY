@@ -358,7 +358,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             onClick={handleConfirm}
             sx={{
               backgroundColor: "#FF6B00",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "14px",
               height: "44px",
               fontSize: "14px",

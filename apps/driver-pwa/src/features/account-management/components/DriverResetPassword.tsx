@@ -157,7 +157,7 @@ export const DriverResetPassword: React.FC = () => {
         <Box sx={{ mb: 3.5, mt: 1 }}>
           <Typography
             sx={{
-              fontSize: '26px',
+              fontSize: '24px',
               fontWeight: 700,
               color: '#0F172A',
               lineHeight: 1.2,

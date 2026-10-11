@@ -280,7 +280,7 @@ export const DriverProfileEditor: React.FC = () => {
                 bottom: 0,
                 right: 0,
                 backgroundColor: '#FF6B00',
-                color: '#FFFFFF',
+                color: '#1A1A1A',
                 '&:hover': { backgroundColor: '#E05300' },
                 width: '30px',
                 height: '30px',

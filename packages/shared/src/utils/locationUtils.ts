@@ -23,13 +23,14 @@ export const calculateHaversineKm = calculateDistanceKm;
 export const getDistanceKm = calculateDistanceKm;
 
 /**
- * Formats distance into a human-friendly string (e.g. "450 m" or "2.3 km")
+ * Formats distance into a human-friendly string (e.g. "450 m" or "2.3 km"). The number and its unit are joined with a no-break space
+ * so a label never wraps into "2.3" on one line and "km" on the next.
  */
 export const formatDistance = (km: number): string => {
   if (km < 1) {
-    return `${Math.round(km * 1000)} m`;
+    return `${Math.round(km * 1000)}\u00A0m`;
   }
-  return `${km.toFixed(1)} km`;
+  return `${km.toFixed(1)}\u00A0km`;
 };
 
 export interface RouteResult {
@@ -100,7 +101,35 @@ export interface LocationCoords {
   longitude: number;
   accuracy?: number;
   timestamp?: number;
+  /** Direction of travel in degrees clockwise from north, only while the device is moving (null / absent otherwise) */
+  heading?: number | null;
+  /** Speed in metres per second, when the device knows it */
+  speed?: number | null;
 }
+
+/** The numeric fields of a browser position as LocationCoords. Heading and speed are NaN or null at a standstill: they become null, never a number. */
+export const coordsFromPosition = (position: GeolocationPosition): LocationCoords => {
+  const num = (v: number | null | undefined): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracy: position.coords.accuracy,
+    timestamp: position.timestamp,
+    heading: num(position.coords.heading),
+    speed: num(position.coords.speed),
+  };
+};
+
+/**
+ * Does the app need to ask the phone for a NEW position? True when there is none, or the last one is older than `maxAgeMs`.
+ * A location watcher reports CHANGES: a phone that is standing still (a driver waiting at the pickup) can go minutes without one, so the last
+ * fix ages past the limit the server accepts and the position the server holds goes stale although nobody moved.
+ */
+export const needsFreshFix = (coords: LocationCoords | null, maxAgeMs: number, now: number = Date.now()): boolean => {
+  if (!coords) return true;
+  if (typeof coords.timestamp !== "number") return false;
+  return now - coords.timestamp > maxAgeMs;
+};
 
 /**
  * Retrieves cached device position from localStorage if available
@@ -134,12 +163,7 @@ export const getCurrentDevicePosition = (): Promise<LocationCoords> => {
     }
 
     const saveSuccess = (position: GeolocationPosition) => {
-      const coords: LocationCoords = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        timestamp: position.timestamp,
-      };
+      const coords: LocationCoords = coordsFromPosition(position);
 
       try {
         localStorage.setItem("user_lat", coords.latitude.toString());
@@ -204,12 +228,7 @@ export const watchDevicePosition = (
 
   return navigator.geolocation.watchPosition(
     (pos) => {
-      const coords: LocationCoords = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        timestamp: pos.timestamp,
-      };
+      const coords: LocationCoords = coordsFromPosition(pos);
       try {
         localStorage.setItem("user_lat", coords.latitude.toString());
         localStorage.setItem("user_lng", coords.longitude.toString());
