@@ -36,7 +36,7 @@ const PrimaryButton: React.FC<PrimaryButtonProps> = ({
         textTransform: 'none',
         borderRadius: '16px',
         backgroundColor: '#FF6600',
-        color: '#1A1A1A',
+        color: '#FFFFFF',
         boxShadow: 'none',
         transition: 'background-color 0.15s ease-in-out, transform 0.1s ease-in-out',
         '&:hover': {
@@ -50,7 +50,7 @@ const PrimaryButton: React.FC<PrimaryButtonProps> = ({
         },
         // loading keeps the orange fill (work is happening); only a button that cannot be pressed for a reason goes quiet grey
         '&.Mui-disabled': loading
-          ? { backgroundColor: '#FF6600', color: '#1A1A1A' }
+          ? { backgroundColor: '#FF6600', color: '#FFFFFF' }
           : { backgroundColor: '#E2E8F0', color: '#64748B' },
         ...sx,
       }}

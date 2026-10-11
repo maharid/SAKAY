@@ -274,7 +274,7 @@ export const DriverChangePasswordPage: React.FC = () => {
             height: '52px',
             borderRadius: '16px',
             backgroundColor: '#FF6600',
-            color: '#1A1A1A',
+            color: '#FFFFFF',
             fontWeight: 700,
             fontSize: '15px',
             textTransform: 'none',
@@ -285,7 +285,7 @@ export const DriverChangePasswordPage: React.FC = () => {
           }}
         >
           {loading ? (
-            <CircularProgress size={24} sx={{ color: '#1A1A1A' }} />
+            <CircularProgress size={24} sx={{ color: '#FFFFFF' }} />
           ) : isTagalog ? (
             'I-save ang Bagong Password'
           ) : (
