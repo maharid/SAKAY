@@ -27,6 +27,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
+import appIconToto from '@sakay/shared/src/assets/icons/app-icon-toto.webp';
 import { DriverForegroundReminder } from '../../../common/components/DriverPresenceNotices';
 import PauseBookingsControl from './PauseBookingsControl';
 import { supabase } from '../../../services/supabaseClient';
@@ -551,14 +552,22 @@ export const DriverAvailabilityHome: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar
+            src={appIconToto}
+            alt={firstName}
             sx={{
               width: 42,
               height: 42,
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FFEBE0',
               fontWeight: 700,
               fontSize: '17px',
               border: '2px solid #FFFFFF',
-              boxShadow: '0 2px 8px rgba(255, 107, 0, 0.3)',
+              boxShadow: '0 2px 8px rgba(255, 102, 0, 0.25)',
+              '& img': {
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                padding: '2px',
+              },
             }}
           >
             {initialLetter}
@@ -941,7 +950,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                     sx={{
                       p: 1.5,
                       borderRadius: '14px',
-                      border: option.isActive ? '2px solid #FF6B00' : '1px solid #E2E8F0',
+                      border: option.isActive ? '2px solid #FF6600' : '1px solid #E2E8F0',
                       backgroundColor: option.isActive ? '#FFF8F0' : '#FFFFFF',
                       cursor: locked ? 'default' : 'pointer',
                       opacity: option.isSelectable ? 1 : 0.6,
@@ -949,7 +958,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       transition: 'all 0.15s ease',
-                      '&:hover': { borderColor: locked ? undefined : '#FF6B00' },
+                      '&:hover': { borderColor: locked ? undefined : '#FF6600' },
                     }}
                   >
                     <Box>
@@ -964,7 +973,7 @@ export const DriverAvailabilityHome: React.FC = () => {
                       sx={{
                         color: '#CBD5E1',
                         p: 0.5,
-                        '&.Mui-checked': { color: '#FF6B00' },
+                        '&.Mui-checked': { color: '#FF6600' },
                       }}
                     />
                   </Box>
@@ -985,7 +994,7 @@ export const DriverAvailabilityHome: React.FC = () => {
             variant="contained"
             onClick={() => setTodaModalOpen(false)}
             sx={{
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               fontWeight: 700,
               borderRadius: '14px',
               height: '46px',
@@ -1094,7 +1103,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           }}
         >
           {isRequestingLocation ? (
-            <CircularProgress size={20} sx={{ color: '#FF6B00' }} />
+            <CircularProgress size={20} sx={{ color: '#FF6600' }} />
           ) : (
             language === 'tl' ? 'Habang Ginagamit ang App' : 'While Using the App'
           )}
@@ -1177,11 +1186,11 @@ export const DriverAvailabilityHome: React.FC = () => {
             onClick={handleRenewalSubmit}
             disabled={renewalSubmitting || (!renewalLicenseExpiry && !renewalMtopExpiry)}
             sx={{
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               textTransform: 'none',
               fontWeight: 700,
               borderRadius: '10px',
-              '&:hover': { backgroundColor: '#E66000' },
+              '&:hover': { backgroundColor: '#E65C00' },
             }}
           >
             {renewalSubmitting ? (language === 'tl' ? 'Isinusumite...' : 'Submitting...') : (language === 'tl' ? 'Isumite sa LGU' : 'Submit to LGU')}

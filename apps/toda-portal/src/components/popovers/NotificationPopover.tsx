@@ -66,7 +66,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                 sx={{
                   px: 2.5,
                   py: 1.8,
-                  backgroundColor: n.unread ? 'rgba(255, 107, 26, 0.04)' : 'transparent',
+                  backgroundColor: n.unread ? 'rgba(255, 102, 0, 0.04)' : 'transparent',
                   '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                 }}
               >

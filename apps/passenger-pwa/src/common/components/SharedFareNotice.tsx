@@ -1,11 +1,16 @@
-import React, { useId, useState } from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
+import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import Collapse from "@mui/material/Collapse";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import IconButton from "@mui/material/IconButton";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CloseIcon from "@mui/icons-material/Close";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { RIDE_SHARING_CUTOFF_PERCENT, formatPeso } from "@sakay/shared";
 
 interface SharedFareNoticeProps {
@@ -67,7 +72,6 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
   const c = PALETTE[tone];
   const tl = language === "tl";
   const [open, setOpen] = useState(false);
-  const detailsId = useId();
 
   const tiles: Array<{ key: string; caption: string; value: number; color: string }> = [
     { key: "matched", caption: tl ? "Kung may makapares" : "Matched estimate", value: matchedEstimate, color: c.matched },
@@ -130,24 +134,98 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
       <Typography sx={{ fontSize: "12px", color: c.text, fontFamily: FONT, lineHeight: 1.45 }}>{summary}</Typography>
 
       <ButtonBase
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={detailsId}
-        sx={{ alignSelf: "flex-start", minHeight: 40, gap: "4px", borderRadius: "8px", color: c.link, fontFamily: FONT, fontSize: "13px", fontWeight: 600, mt: "-6px", mb: "-4px", px: "2px" }}
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        sx={{
+          alignSelf: "flex-start",
+          minHeight: 36,
+          gap: "6px",
+          borderRadius: "8px",
+          color: c.link,
+          fontFamily: FONT,
+          fontSize: "13px",
+          fontWeight: 600,
+          mt: "-4px",
+          mb: "-2px",
+          px: "4px",
+          "&:hover": { textDecoration: "underline" },
+        }}
       >
-        {tl ? "Paano gumagana ang sharing" : "How sharing works"}
-        <ExpandMoreIcon aria-hidden sx={{ fontSize: 20, transition: "transform 0.2s ease", transform: open ? "rotate(180deg)" : "none" }} />
+        <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+        {tl ? "Paano gumagana ang sharing?" : "How sharing works"}
       </ButtonBase>
 
-      <Collapse in={open} unmountOnExit id={detailsId}>
-        <Box component="ul" sx={{ m: 0, pl: 2, display: "flex", flexDirection: "column", gap: "6px" }}>
-          {details.map((line) => (
-            <Typography key={line} component="li" sx={{ fontSize: "12px", color: c.text, lineHeight: 1.45, fontFamily: FONT }}>
-              {line}
-            </Typography>
-          ))}
+      {/* Compact Fare Breakdown Modal */}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "24px",
+              p: 2.5,
+              m: 2,
+              maxHeight: "85vh",
+            },
+          },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#0F172A", fontFamily: FONT }}>
+            {tl ? "Paano gumagana ang Shared Trip?" : "How Shared Trips Work"}
+          </Typography>
+          <IconButton size="small" onClick={() => setOpen(false)} aria-label={tl ? "Isara" : "Close"}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </Box>
-      </Collapse>
+
+        <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", my: 0.5 }}>
+            {tiles.map((tile) => (
+              <Box
+                key={tile.key}
+                sx={{ minWidth: 0, p: "10px", borderRadius: "12px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: "2px" }}
+              >
+                <Typography sx={{ fontSize: "11px", color: "#64748B", fontFamily: FONT, lineHeight: 1.3 }}>{tile.caption}</Typography>
+                <Typography sx={{ fontSize: "17px", fontWeight: 700, color: tile.color, fontFamily: FONT, lineHeight: 1.3 }}>
+                  {formatPeso(tile.value)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          <Box component="ul" sx={{ m: 0, pl: 2.5, display: "flex", flexDirection: "column", gap: "8px" }}>
+            {details.map((line, i) => (
+              <Typography key={i} component="li" sx={{ fontSize: "12px", color: "#334155", lineHeight: 1.5, fontFamily: FONT }}>
+                {line}
+              </Typography>
+            ))}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 0, pt: 2 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => setOpen(false)}
+            sx={{
+              borderRadius: "14px",
+              backgroundColor: "#FF6600",
+              color: "#1A1A1A",
+              fontWeight: 700,
+              fontSize: "14px",
+              height: "44px",
+              textTransform: "none",
+              boxShadow: "none",
+              "&:hover": { backgroundColor: "#E55C00", boxShadow: "none" },
+            }}
+          >
+            {tl ? "Naintindihan ko" : "Got it"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

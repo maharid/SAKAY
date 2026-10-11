@@ -101,7 +101,7 @@ const SavedPlacesPage: React.FC = () => {
   const renderPlaceIcon = (iconKey?: string) => {
     const item = ICON_OPTIONS.find((o) => o.key === iconKey) || ICON_OPTIONS[4];
     const IconComp = item.icon;
-    return <IconComp sx={{ fontSize: 22, color: "#FF6B00" }} />;
+    return <IconComp sx={{ fontSize: 22, color: "#FF6600" }} />;
   };
 
   return (
@@ -174,7 +174,7 @@ const SavedPlacesPage: React.FC = () => {
                 fontFamily: "Poppins, sans-serif",
               }}
             >
-              {language === "tl" ? "Magdagdag ng Lugar" : "Add Saved Location"}
+              {language === "tl" ? "Magdagdag ng Naka-save na Lugar" : "Add Saved Place"}
             </Typography>
             <Typography
               sx={{
@@ -299,15 +299,15 @@ const SavedPlacesPage: React.FC = () => {
                   startIcon={<NavigationIcon sx={{ fontSize: 16 }} />}
                   onClick={() => handleBookRideTo(place)}
                   sx={{
-                    borderColor: "#FF6B00",
-                    color: "#FF6B00",
+                    borderColor: "#FF6600",
+                    color: "#FF6600",
                     borderRadius: "10px",
                     textTransform: "none",
                     fontSize: "12px",
                     fontWeight: 700,
                     fontFamily: "Poppins, sans-serif",
                     py: 0.75,
-                    "&:hover": { borderColor: "#E66000", backgroundColor: "#FFF7ED" },
+                    "&:hover": { borderColor: "#E65C00", backgroundColor: "#FFF7ED" },
                   }}
                 >
                   {language === "tl" ? "Mag-book ng Biyahe Dito" : "Book Ride to Location"}

@@ -873,12 +873,12 @@ export const DriverStatusMonitor: React.FC = () => {
                 height: 76,
                 borderRadius: '50%',
                 backgroundColor: '#FFF8F0',
-                color: '#FF6B00',
+                color: '#FF6600',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 mb: 3,
-                boxShadow: '0 8px 24px rgba(255, 107, 0, 0.15)',
+                boxShadow: '0 8px 24px rgba(255, 102, 0, 0.15)',
               }}
             >
               <PendingActionsIcon sx={{ fontSize: 40 }} />
@@ -933,9 +933,9 @@ export const DriverStatusMonitor: React.FC = () => {
                     borderRadius: '14px',
                     fontSize: '15px',
                     fontWeight: 700,
-                    backgroundColor: '#FF6B00',
+                    backgroundColor: '#FF6600',
                     boxShadow: 'none',
-                    '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+                    '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
                   }}
                 >
                   {isTagalog ? 'Ipagpatuloy ang Pagpasa ng Dokumento' : 'Continue Document Submission'}
@@ -1031,7 +1031,7 @@ export const DriverStatusMonitor: React.FC = () => {
                 p: '14px 18px',
                 borderRadius: '16px',
                 backgroundColor: notifyEnabled ? '#FFF5EF' : '#F8FAFC',
-                border: `1.5px solid ${notifyEnabled ? '#FF6B00' : '#E2E8F0'}`,
+                border: `1.5px solid ${notifyEnabled ? '#FF6600' : '#E2E8F0'}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -1041,7 +1041,7 @@ export const DriverStatusMonitor: React.FC = () => {
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pr: 1 }}>
                 <NotificationsActiveOutlinedIcon
-                  sx={{ color: notifyEnabled ? '#FF6B00' : '#64748B', fontSize: 22 }}
+                  sx={{ color: notifyEnabled ? '#FF6600' : '#64748B', fontSize: 22 }}
                 />
                 <Box sx={{ textAlign: 'left' }}>
                   <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
@@ -1059,8 +1059,8 @@ export const DriverStatusMonitor: React.FC = () => {
                 slotProps={{ input: { 'aria-label': isTagalog ? 'I-notify ako kapag nagbago ang status' : 'Notify me when status changes' } }}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#FF6B00',
-                    '& + .MuiSwitch-track': { backgroundColor: '#FF6B00', opacity: 0.9 },
+                    color: '#FF6600',
+                    '& + .MuiSwitch-track': { backgroundColor: '#FF6600', opacity: 0.9 },
                   },
                 }}
               />
@@ -1103,8 +1103,8 @@ export const DriverStatusMonitor: React.FC = () => {
             onClick={() => checkStatus(false)}
             disabled={loading}
             sx={{
-              backgroundColor: '#FF6B00',
-              '&:hover': { backgroundColor: '#E66000' },
+              backgroundColor: '#FF6600',
+              '&:hover': { backgroundColor: '#E65C00' },
             }}
           >
             {loading ? (

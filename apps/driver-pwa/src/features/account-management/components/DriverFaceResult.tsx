@@ -239,9 +239,9 @@ export const DriverFaceResult: React.FC = () => {
           disabled={submitting}
           onClick={handleContinue}
           sx={{
-            backgroundColor: result.match ? '#FF6B00' : '#DC2626',
+            backgroundColor: result.match ? '#FF6600' : '#DC2626',
             '&:hover': {
-              backgroundColor: result.match ? '#E66000' : '#B91C1C',
+              backgroundColor: result.match ? '#E65C00' : '#B91C1C',
             },
           }}
         >

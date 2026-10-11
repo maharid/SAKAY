@@ -166,7 +166,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
                   userSelect: "none",
                   borderRadius: "14px",
                   backgroundColor: isSelected ? "#FFF7ED" : "#FFFFFF",
-                  border: isSelected ? "1.5px solid #FF6B00" : "1px solid #F1F5F9",
+                  border: isSelected ? "1.5px solid #FF6600" : "1px solid #F1F5F9",
                   transition: "all 0.15s ease",
                   "&:hover": {
                     backgroundColor: isSelected ? "#FFF7ED" : "#F8FAFC",
@@ -197,7 +197,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
                       width: 20,
                       height: 20,
                       borderRadius: "50%",
-                      border: "2px solid #FF6B00",
+                      border: "2px solid #FF6600",
                       backgroundColor: "#FFFFFF",
                       display: "flex",
                       alignItems: "center",
@@ -210,7 +210,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        backgroundColor: "#FF6B00",
+                        backgroundColor: "#FF6600",
                       }}
                     />
                   </Box>
@@ -273,17 +273,17 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
           sx={{
             height: "48px",
             borderRadius: "14px",
-            backgroundColor: "#FF6B00",
+            backgroundColor: "#FF6600",
             color: "#1A1A1A",
             fontWeight: 700,
             fontSize: "15px",
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",
-            boxShadow: "0 4px 14px rgba(255, 107, 0, 0.25)",
+            boxShadow: "0 4px 14px rgba(255, 102, 0, 0.25)",
             transition: "all 0.15s ease",
             "&:hover": {
-              backgroundColor: "#E66000",
-              boxShadow: "0 6px 18px rgba(255, 107, 0, 0.35)",
+              backgroundColor: "#E65C00",
+              boxShadow: "0 6px 18px rgba(255, 102, 0, 0.35)",
             },
             "&:active": {
               transform: "scale(0.98)",

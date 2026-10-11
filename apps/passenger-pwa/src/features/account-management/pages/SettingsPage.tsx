@@ -100,7 +100,7 @@ const SettingsPage: React.FC = () => {
             <List disablePadding>
               <ListItem disablePadding>
                 <ListItemButton onClick={() => navigate("/profile")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6B00" }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
                     <PersonOutlinedIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
@@ -117,7 +117,7 @@ const SettingsPage: React.FC = () => {
 
               <ListItem disablePadding>
                 <ListItemButton onClick={() => navigate("/change-password")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6B00" }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
                     <LockOutlinedIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
@@ -161,7 +161,7 @@ const SettingsPage: React.FC = () => {
             <List disablePadding>
               <ListItem sx={{ py: 1.5, px: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6B00" }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
                     <TranslateIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
@@ -195,7 +195,7 @@ const SettingsPage: React.FC = () => {
                       py: 1,
                       minHeight: 44,
                       borderRadius: "9px",
-                      backgroundColor: language === "tl" ? "#FF6B00" : "transparent",
+                      backgroundColor: language === "tl" ? "#FF6600" : "transparent",
                       color: language === "tl" ? "#1A1A1A" : "#64748B",
                       display: "flex",
                       alignItems: "center",
@@ -228,7 +228,7 @@ const SettingsPage: React.FC = () => {
                       py: 1,
                       minHeight: 44,
                       borderRadius: "9px",
-                      backgroundColor: language === "en" ? "#FF6B00" : "transparent",
+                      backgroundColor: language === "en" ? "#FF6600" : "transparent",
                       color: language === "en" ? "#1A1A1A" : "#64748B",
                       display: "flex",
                       alignItems: "center",
@@ -329,7 +329,7 @@ const SettingsPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <InfoOutlinedIcon sx={{ color: "#FF6B00", fontSize: 22 }} />
+          <InfoOutlinedIcon sx={{ color: "#FF6600", fontSize: 22 }} />
           <Box sx={{ flex: 1 }}>
             <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
               SAKAY Passenger PWA v1.2.0

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
 
-const DEFAULT_ACCENT = '#FF6B00';
+const DEFAULT_ACCENT = '#FF6600';
 
 interface ThemeContextType {
   themeColor: string;
@@ -18,7 +18,7 @@ const hexToRgba = (hex: string, alpha: number) => {
     c = c.split('').map((char) => char + char).join('');
   }
   const num = parseInt(c, 16);
-  if (isNaN(num)) return `rgba(255, 107, 0, ${alpha})`;
+  if (isNaN(num)) return `rgba(255, 102, 0, ${alpha})`;
   const r = (num >> 16) & 255;
   const g = (num >> 8) & 255;
   const b = num & 255;

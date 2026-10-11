@@ -574,10 +574,10 @@ export const VerifyOtp: React.FC = () => {
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '16px',
                   height: '58px',
-                  border: digit ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                  border: digit ? '1.5px solid #FF6600' : '1px solid #E2E8F0',
                   '&.Mui-focused': {
-                    borderColor: '#FF6B00',
-                    boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)',
+                    borderColor: '#FF6600',
+                    boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
                   },
                   '& fieldset': { border: 'none' },
                 },
@@ -597,7 +597,7 @@ export const VerifyOtp: React.FC = () => {
             height: '48px',
             borderRadius: '14px',
             backgroundColor: resendBlocked ? '#F8FAFC' : '#FFFFFF',
-            border: resendBlocked ? '1.5px solid #E2E8F0' : '1.5px solid #FF6B00',
+            border: resendBlocked ? '1.5px solid #E2E8F0' : '1.5px solid #FF6600',
             color: resendBlocked ? '#64748B' : '#C2410C',
             display: 'flex',
             alignItems: 'center',
@@ -610,19 +610,19 @@ export const VerifyOtp: React.FC = () => {
             fontFamily: 'inherit',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': resendBlocked ? {} : {
-              backgroundColor: 'rgba(255, 107, 0, 0.06)',
-              borderColor: '#E66000',
-              color: '#E66000',
+              backgroundColor: 'rgba(255, 102, 0, 0.06)',
+              borderColor: '#E65C00',
+              color: '#E65C00',
               transform: 'translateY(-1px)',
             },
             '&:active': resendBlocked ? {} : {
-              backgroundColor: 'rgba(255, 107, 0, 0.12)',
+              backgroundColor: 'rgba(255, 102, 0, 0.12)',
               transform: 'translateY(0)',
             },
           }}
         >
           {isResending ? (
-            <CircularProgress size={18} sx={{ color: '#FF6B00' }} />
+            <CircularProgress size={18} sx={{ color: '#FF6600' }} />
           ) : (
             <RefreshRoundedIcon sx={{ fontSize: 19, color: 'inherit' }} />
           )}
@@ -658,7 +658,7 @@ export const VerifyOtp: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: isComplete ? '#FF6B00' : '#E2E8F0',
+            backgroundColor: isComplete ? '#FF6600' : '#E2E8F0',
             color: isComplete ? '#1A1A1A' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
@@ -666,7 +666,7 @@ export const VerifyOtp: React.FC = () => {
               color: '#64748B',
             },
             '&:hover': {
-              backgroundColor: isComplete ? '#E66000' : '#E2E8F0',
+              backgroundColor: isComplete ? '#E65C00' : '#E2E8F0',
               boxShadow: 'none',
             },
           }}

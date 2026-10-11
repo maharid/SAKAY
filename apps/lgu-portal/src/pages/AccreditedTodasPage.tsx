@@ -190,7 +190,7 @@ export const AccreditedTodasPage: React.FC = () => {
                         <Chip
                           label={toda.acronym}
                           size="small"
-                          sx={{ fontSize: '8.8px', fontWeight: 600, backgroundColor: 'rgba(255, 107, 26, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
+                          sx={{ fontSize: '8.8px', fontWeight: 600, backgroundColor: 'rgba(255, 102, 0, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
                         />
                       )}
                       {toda.flaggedForReview && (

@@ -401,7 +401,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
                     transition: 'all 0.15s ease',
                     '&:hover': {
                       backgroundColor: '#FFEAD9',
-                      borderColor: '#FF6B00',
+                      borderColor: '#FF6600',
                     },
                   }}
                 >
@@ -449,7 +449,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
                     transition: 'all 0.15s ease',
                     '&:hover': {
                       backgroundColor: '#FFEAD9',
-                      borderColor: '#FF6B00',
+                      borderColor: '#FF6600',
                     },
                   }}
                 >
@@ -495,7 +495,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
                   transition: 'all 0.15s ease',
                   '&:hover': {
                     backgroundColor: '#FFEAD9',
-                    borderColor: '#FF6B00',
+                    borderColor: '#FF6600',
                   },
                 }}
               >
@@ -546,7 +546,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
                   transition: 'all 0.15s ease',
                   '&:hover': {
                     backgroundColor: '#FFEAD9',
-                    borderColor: '#FF6B00',
+                    borderColor: '#FF6600',
                   },
                 }}
               >
@@ -589,7 +589,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
                   transition: 'all 0.15s ease',
                   '&:hover': {
                     backgroundColor: '#FFEAD9',
-                    borderColor: '#FF6B00',
+                    borderColor: '#FF6600',
                   },
                 }}
               >

@@ -14,12 +14,12 @@
   --mac-popover-bg: rgba(255, 255, 255, 0.94);
 
   /* Brand accents */
-  --sakay-orange: #ff6b1a;
-  --sakay-orange-hover: #ea5f12;
-  --sakay-orange-active: #d7520e;
+  --sakay-orange: #ff6600;
+  --sakay-orange-hover: #e65c00;
+  --sakay-orange-active: #cc5200;
   --sakay-orange-soft: #fff2e9;
-  --sakay-orange-border: rgba(255, 107, 26, 0.32);
-  --sakay-orange-glow: rgba(255, 107, 26, 0.14);
+  --sakay-orange-border: rgba(255, 102, 0, 0.32);
+  --sakay-orange-glow: rgba(255, 102, 0, 0.14);
 
   /* Neutral palette */
   --mac-text-primary: #1d1d1f;

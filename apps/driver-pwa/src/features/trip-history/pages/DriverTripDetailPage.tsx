@@ -161,7 +161,7 @@ export const DriverTripDetailPage: React.FC = () => {
             flexDirection: "column",
             alignItems: "center",
             border: "1px solid #F1F5F9",
-            boxShadow: "0 4px 20px rgba(255, 107, 0, 0.05)",
+            boxShadow: "0 4px 20px rgba(255, 102, 0, 0.05)",
           }}
         >
           <Chip
@@ -222,7 +222,7 @@ export const DriverTripDetailPage: React.FC = () => {
           <Box sx={{ width: "100%", display: "flex", gap: 2, mb: 1 }}>
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.5 }}>
               {/* Pickup location orange circle marker */}
-              <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: "#FF6B00", stroke: "#FF6B00", strokeWidth: 1.5 }} />
+              <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: "#FF6600", stroke: "#FF6600", strokeWidth: 1.5 }} />
               <Box
                 sx={{
                   height: 38,
@@ -231,7 +231,7 @@ export const DriverTripDetailPage: React.FC = () => {
                 }}
               />
               {/* Dropoff location orange pin icon */}
-              <PlaceIcon sx={{ fontSize: 20, color: "#FF6B00" }} />
+              <PlaceIcon sx={{ fontSize: 20, color: "#FF6600" }} />
             </Box>
 
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -273,7 +273,7 @@ export const DriverTripDetailPage: React.FC = () => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "16px" }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "16px" }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
@@ -293,7 +293,7 @@ export const DriverTripDetailPage: React.FC = () => {
               <IconButton aria-label={language === "tl" ? "Tawagan ang pasahero" : "Call passenger"} onClick={handleCallPassenger} sx={{ backgroundColor: "#E6F4EA", color: "#1E8E3E" }}>
                 <PhoneOutlinedIcon fontSize="small" />
               </IconButton>
-              <IconButton aria-label={language === "tl" ? "Magpadala ng text" : "Send a text message"} onClick={handleOpenSMS} sx={{ backgroundColor: "#FFF8F0", color: "#FF6B00" }}>
+              <IconButton aria-label={language === "tl" ? "Magpadala ng text" : "Send a text message"} onClick={handleOpenSMS} sx={{ backgroundColor: "#FFF8F0", color: "#FF6600" }}>
                 <ChatOutlinedIcon fontSize="small" />
               </IconButton>
             </Box>
@@ -324,7 +324,7 @@ export const DriverTripDetailPage: React.FC = () => {
             <Chip
               label={tripMode}
               size="small"
-              sx={{ backgroundColor: tripMode.includes("Shared") ? "#E6F4EA" : "#FFF8F0", color: tripMode.includes("Shared") ? "#1E8E3E" : "#FF6B00", fontWeight: 700, fontSize: "12px" }}
+              sx={{ backgroundColor: tripMode.includes("Shared") ? "#E6F4EA" : "#FFF8F0", color: tripMode.includes("Shared") ? "#1E8E3E" : "#FF6600", fontWeight: 700, fontSize: "12px" }}
             />
           </Box>
 
@@ -341,7 +341,7 @@ export const DriverTripDetailPage: React.FC = () => {
             <Chip
               label="₱ Cash"
               size="small"
-              sx={{ backgroundColor: "#FF6B00", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
+              sx={{ backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
             />
           </Box>
         </Paper>
@@ -372,7 +372,7 @@ export const DriverTripDetailPage: React.FC = () => {
             {passengerRatingReceived ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Rating value={passengerRatingReceived.stars || 5} readOnly size="small" sx={{ color: "#FF6B00" }} />
+                  <Rating value={passengerRatingReceived.stars || 5} readOnly size="small" sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
                     {(passengerRatingReceived.stars || 5).toFixed(1)} / 5.0
                   </Typography>
@@ -380,7 +380,7 @@ export const DriverTripDetailPage: React.FC = () => {
                 {passengerRatingReceived.tags && passengerRatingReceived.tags.length > 0 && (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
                     {passengerRatingReceived.tags.map((tag: string) => (
-                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "12px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
+                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "12px", backgroundColor: "#FFF8F0", color: "#FF6600", height: 22 }} />
                     ))}
                   </Box>
                 )}
@@ -408,7 +408,7 @@ export const DriverTripDetailPage: React.FC = () => {
             {driverRatingGiven ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Rating value={driverRatingGiven.stars || driverRatingGiven.rating || 5} readOnly size="small" sx={{ color: "#FF6B00" }} />
+                  <Rating value={driverRatingGiven.stars || driverRatingGiven.rating || 5} readOnly size="small" sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
                     {(driverRatingGiven.stars || driverRatingGiven.rating || 5).toFixed(1)} / 5.0
                   </Typography>
@@ -416,7 +416,7 @@ export const DriverTripDetailPage: React.FC = () => {
                 {driverRatingGiven.tags && driverRatingGiven.tags.length > 0 && (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
                     {driverRatingGiven.tags.map((tag: string) => (
-                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "12px", backgroundColor: "#FFF8F0", color: "#FF6B00", height: 22 }} />
+                      <Chip key={tag} label={tag} size="small" sx={{ fontSize: "12px", backgroundColor: "#FFF8F0", color: "#FF6600", height: 22 }} />
                     ))}
                   </Box>
                 )}
@@ -433,8 +433,8 @@ export const DriverTripDetailPage: React.FC = () => {
                 onClick={() => setRatingModalOpen(true)}
                 sx={{
                   borderRadius: "12px",
-                  borderColor: "#FF6B00",
-                  color: "#FF6B00",
+                  borderColor: "#FF6600",
+                  color: "#FF6600",
                   fontSize: "13px",
                   fontWeight: 700,
                   textTransform: "none",

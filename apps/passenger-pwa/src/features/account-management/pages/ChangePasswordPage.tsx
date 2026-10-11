@@ -190,7 +190,7 @@ const ChangePasswordPage: React.FC = () => {
             variant="contained"
             disabled={loading || !newPassword || !confirmPassword}
             sx={{
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               borderRadius: "14px",
               height: "46px",
@@ -200,7 +200,7 @@ const ChangePasswordPage: React.FC = () => {
               fontFamily: "Poppins, sans-serif",
               boxShadow: "none",
               mt: 1,
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
               "&:disabled": { backgroundColor: "#F1F5F9", color: "#64748B" },
             }}
           >

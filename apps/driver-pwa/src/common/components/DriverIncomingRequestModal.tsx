@@ -263,7 +263,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
               <FormControlLabel
                 key={reason}
                 value={reason}
-                control={<Radio sx={{ '&.Mui-checked': { color: '#FF6B00' } }} />}
+                control={<Radio sx={{ '&.Mui-checked': { color: '#FF6600' } }} />}
                 label={language === 'tl' ? DECLINE_LABELS[reason].tl : DECLINE_LABELS[reason].en}
               />
             ))}

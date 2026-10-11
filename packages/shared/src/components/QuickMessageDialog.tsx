@@ -94,7 +94,7 @@ export const QuickMessageDialog: React.FC<QuickMessageDialogProps> = ({
     justifyContent: 'space-between',
     gap: 1,
     textAlign: 'left' as const,
-    border: `1.5px solid ${selected ? '#FF6B00' : '#E2E8F0'}`,
+    border: `1.5px solid ${selected ? '#FF6600' : '#E2E8F0'}`,
     backgroundColor: selected ? '#FFF7ED' : '#FFFFFF',
     fontFamily: FONT,
     fontSize: '14px',
@@ -186,14 +186,14 @@ export const QuickMessageDialog: React.FC<QuickMessageDialogProps> = ({
             sx={{
               minHeight: 48,
               borderRadius: '14px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               color: '#1A1A1A',
               textTransform: 'none',
               fontWeight: 700,
               fontSize: '15px',
               fontFamily: FONT,
               boxShadow: 'none',
-              '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+              '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
               '&.Mui-disabled': { backgroundColor: '#E2E8F0', color: '#64748B' },
             }}
           >

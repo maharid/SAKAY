@@ -133,7 +133,7 @@ const AccountSelection: React.FC = () => {
               justifyContent: "center",
               flexShrink: 0,
               backgroundColor: "#FFEBE0",
-              color: "#FF6B00",
+              color: "#FF6600",
             }}
           >
             <PersonIcon sx={{ fontSize: 24 }} />
@@ -198,7 +198,7 @@ const AccountSelection: React.FC = () => {
               justifyContent: "center",
               flexShrink: 0,
               backgroundColor: "#FFEBE0",
-              color: "#FF6B00",
+              color: "#FF6600",
             }}
           >
             <SportsMotorsportsIcon sx={{ fontSize: 24 }} />

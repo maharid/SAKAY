@@ -16,6 +16,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
 import GroupsIcon from '@mui/icons-material/Groups';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
@@ -157,12 +158,12 @@ export const DriverEarnings: React.FC = () => {
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: '24px', background: 'linear-gradient(135deg, #1F1F1F 0%, #0A0A0A 100%)', color: '#FFFFFF', boxShadow: '0 12px 24px rgba(0,0,0,0.15)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AccountBalanceWalletIcon sx={{ color: '#FF6B00' }} />
+              <AccountBalanceWalletIcon sx={{ color: '#FF6600' }} />
               <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
                 {language === 'tl' ? 'Kabuuang kita ngayong araw' : "Today's total earnings"}
               </Typography>
             </Box>
-            <Chip label="Live Total" size="small" sx={{ backgroundColor: 'rgba(255, 107, 0, 0.2)', color: '#FF8533', fontWeight: 700, fontSize: '12px' }} />
+            <Chip label="Live Total" size="small" sx={{ backgroundColor: 'rgba(255, 102, 0, 0.2)', color: '#FF8533', fontWeight: 700, fontSize: '12px' }} />
           </Box>
 
           <Typography sx={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
@@ -200,6 +201,7 @@ export const DriverEarnings: React.FC = () => {
             </Typography>
             <Button
               onClick={() => navigate('/driver/history')}
+              endIcon={<ChevronRightIcon sx={{ fontSize: '18px !important', ml: -0.25 }} />}
               sx={{
                 fontSize: '13px',
                 fontWeight: 700,
@@ -211,10 +213,19 @@ export const DriverEarnings: React.FC = () => {
                 mr: -1,
                 minHeight: 44,
                 minWidth: 'auto',
-                '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' },
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                '&:hover': { backgroundColor: 'transparent', textDecoration: 'none', color: '#9A3412' },
+                '&:active': { textDecoration: 'none' },
+                '&:focus-visible': {
+                  outline: '2px solid #FF6600',
+                  outlineOffset: '2px',
+                  borderRadius: '8px',
+                },
               }}
             >
-              {language === 'tl' ? 'Tingnan Lahat >' : 'See All Trips >'}
+              {language === 'tl' ? 'Tingnan Lahat' : 'See All Trips'}
             </Button>
           </Box>
 
@@ -264,7 +275,7 @@ export const DriverEarnings: React.FC = () => {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Avatar sx={{ width: 40, height: 40, backgroundColor: trip.tripMode === 'Shared Ride' ? '#ECFDF5' : '#FFF7ED', color: trip.tripMode === 'Shared Ride' ? '#10B981' : '#FF6B00' }}>
+                  <Avatar sx={{ width: 40, height: 40, backgroundColor: trip.tripMode === 'Shared Ride' ? '#ECFDF5' : '#FFF7ED', color: trip.tripMode === 'Shared Ride' ? '#10B981' : '#FF6600' }}>
                     {trip.tripMode === 'Shared Ride' ? <GroupsIcon fontSize="small" /> : <TwoWheelerIcon fontSize="small" />}
                   </Avatar>
                   <Box>

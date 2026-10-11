@@ -49,7 +49,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ open, title, message
             width: "72px",
             height: "72px",
             borderRadius: "50%",
-            backgroundColor: "rgba(255, 107, 0, 0.1)",
+            backgroundColor: "rgba(255, 102, 0, 0.1)",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
@@ -59,7 +59,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ open, title, message
           <CheckCircleIcon
             sx={{
               fontSize: "44px",
-              color: "#FF6B00",
+              color: "#FF6600",
             }}
           />
         </Box>

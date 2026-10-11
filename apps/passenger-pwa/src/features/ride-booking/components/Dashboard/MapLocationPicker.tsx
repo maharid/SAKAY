@@ -241,9 +241,9 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
           {/* SAKAY Orange Center Location Pin */}
           <LocationOnIcon
             sx={{
-              color: "#FF6B00",
+              color: "#FF6600",
               fontSize: "44px",
-              filter: "drop-shadow(0px 6px 12px rgba(255, 107, 0, 0.4))",
+              filter: "drop-shadow(0px 6px 12px rgba(255, 102, 0, 0.4))",
             }}
           />
 
@@ -321,9 +321,9 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {resolving ? (
-                <CircularProgress size={16} sx={{ color: "#FF6B00" }} />
+                <CircularProgress size={16} sx={{ color: "#FF6600" }} />
               ) : (
-                <LocationOnIcon sx={{ color: "#FF6B00", fontSize: 20, flexShrink: 0 }} />
+                <LocationOnIcon sx={{ color: "#FF6600", fontSize: 20, flexShrink: 0 }} />
               )}
               <Typography
                 sx={{
@@ -357,7 +357,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             disabled={resolving || outside}
             onClick={handleConfirm}
             sx={{
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               borderRadius: "14px",
               height: "44px",
@@ -366,7 +366,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
               textTransform: "none",
               fontFamily: "Poppins, sans-serif",
               boxShadow: "none",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             }}
           >
             {language === "tl" ? "Kumpirmahin ang Lokasyon" : "Confirm Location"}

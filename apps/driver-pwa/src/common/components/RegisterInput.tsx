@@ -62,9 +62,9 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
           height: multiline ? 'auto' : '62px',
           borderRadius: '16px',
           backgroundColor: focused ? '#FFFFFF' : '#F1F3F5',
-          border: `1.5px solid ${error ? '#DC2626' : focused ? '#FF6B00' : '#E2E8F0'}`,
+          border: `1.5px solid ${error ? '#DC2626' : focused ? '#FF6600' : '#E2E8F0'}`,
           boxShadow: focused
-            ? '0 0 0 3px rgba(255, 107, 0, 0.12)'
+            ? '0 0 0 3px rgba(255, 102, 0, 0.12)'
             : 'none',
           px: 2,
           py: multiline ? 1.25 : 0,

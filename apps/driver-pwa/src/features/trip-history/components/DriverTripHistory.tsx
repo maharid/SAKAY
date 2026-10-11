@@ -189,7 +189,7 @@ export const DriverTripHistory: React.FC = () => {
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: '4px', flexShrink: 0 }}>
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #64748B', backgroundColor: '#FFFFFF' }} />
                     <Box sx={{ width: '1.5px', height: '26px', backgroundColor: '#CBD5E1', my: '2px' }} />
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#FF6B00' }} />
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#FF6600' }} />
                   </Box>
 
                   <Box sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -288,7 +288,7 @@ export const DriverTripHistory: React.FC = () => {
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, pb: 4 }}>
         {loading ? (
           <Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <CircularProgress size={32} sx={{ color: '#FF6B00' }} />
+            <CircularProgress size={32} sx={{ color: '#FF6600' }} />
           </Box>
         ) : !hasTrips ? (
           <Paper

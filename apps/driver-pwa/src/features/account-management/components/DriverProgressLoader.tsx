@@ -163,7 +163,7 @@ export const DriverProgressLoader: React.FC<DriverProgressLoaderProps> = ({
               sx={{
                 width: `${currentPct}%`,
                 height: '100%',
-                backgroundColor: '#FF6B00',
+                backgroundColor: '#FF6600',
                 borderRadius: '7px',
                 willChange: 'width',
               }}

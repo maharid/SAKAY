@@ -171,7 +171,7 @@ const PassengerHistory: React.FC = () => {
                       width: "10px",
                       height: "10px",
                       borderRadius: "50%",
-                      backgroundColor: "#FF6B00",
+                      backgroundColor: "#FF6600",
                     }}
                   />
                 </Box>
@@ -348,7 +348,7 @@ const PassengerHistory: React.FC = () => {
       >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "40px" }}>
-            <CircularProgress sx={{ color: "#FF6B00" }} />
+            <CircularProgress sx={{ color: "#FF6600" }} />
           </Box>
         ) : !hasTrips ? (
           <Box sx={{ textAlign: "center", py: 8, px: 2 }}>
@@ -365,14 +365,14 @@ const PassengerHistory: React.FC = () => {
               onClick={() => navigate("/new-trip")}
               sx={{
                 mt: 3,
-                backgroundColor: "#FF6B00",
+                backgroundColor: "#FF6600",
                 color: "#1A1A1A",
                 borderRadius: "14px",
                 fontWeight: 700,
                 textTransform: "none",
                 boxShadow: "none",
                 fontFamily: "Poppins, sans-serif",
-                "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+                "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
               }}
             >
               {language === "tl" ? "Mag-book ng Biyahe" : "Book a Ride"}

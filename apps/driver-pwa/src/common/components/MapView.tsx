@@ -440,7 +440,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           })
         : L.divIcon({
             className: "leaflet-pickup-marker",
-            html: `<div style="width:14px;height:14px;background-color:#FFFFFF;border:3px solid #FF6B00;border-radius:50%;opacity:0.85;box-shadow:0 2px 6px rgba(15,23,42,0.25);box-sizing:content-box;"></div>`,
+            html: `<div style="width:14px;height:14px;background-color:#FFFFFF;border:3px solid #FF6600;border-radius:50%;opacity:0.85;box-shadow:0 2px 6px rgba(15,23,42,0.25);box-sizing:content-box;"></div>`,
             iconSize: [20, 20],
             iconAnchor: [10, 10],
           });
@@ -497,7 +497,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       // 4b. Main road route line: solid SAKAY orange
       const routeLine = L.polyline(activeRoutePoints, {
-        color: "#FF6B00",
+        color: "#FF6600",
         weight: 6,
         opacity: 1,
         lineCap: "round",

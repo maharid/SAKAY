@@ -51,9 +51,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...
       case 'Suspension Review':
       case 'Reactivation Review':
         return {
-          backgroundColor: 'rgba(255, 107, 26, 0.14)',
+          backgroundColor: 'rgba(255, 102, 0, 0.14)',
           color: 'var(--sakay-orange)',
-          borderColor: 'rgba(255, 107, 26, 0.4)',
+          borderColor: 'rgba(255, 102, 0, 0.4)',
         };
       case 'Dismissed':
       case 'Unpublished':

@@ -378,7 +378,7 @@ const Dashboard: React.FC = () => {
             justifyContent: "space-between",
             cursor: "pointer",
             boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-            border: "1px solid rgba(255, 107, 0, 0.5)",
+            border: "1px solid rgba(255, 102, 0, 0.5)",
             transition: "transform 0.2s ease",
             "&:active": { transform: "scale(0.99)" },
           }}
@@ -389,7 +389,7 @@ const Dashboard: React.FC = () => {
                 width: "10px",
                 height: "10px",
                 borderRadius: "50%",
-                backgroundColor: "#FF6B00",
+                backgroundColor: "#FF6600",
                 animation: "pulse 1.5s infinite ease-in-out",
                 "@keyframes pulse": {
                   "0%": { transform: "scale(0.8)", opacity: 1 },
@@ -399,7 +399,7 @@ const Dashboard: React.FC = () => {
               }}
             />
             <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6B00" }}>
+              <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#FF6600" }}>
                 {language === 'tl' ? 'Aktibong Biyahe:' : 'Active Trip:'} {openBooking?.booking_status}
               </Typography>
               <Typography noWrap sx={{ fontSize: "12px", color: "#CBD5E1" }}>
@@ -541,7 +541,7 @@ const Dashboard: React.FC = () => {
 
               {permissionRequesting && (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "12px" }}>
-                  <CircularProgress size={16} sx={{ color: "#FF6B00" }} />
+                  <CircularProgress size={16} sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "12px", color: "#C2410C", fontWeight: 600 }}>
                     {language === 'tl' ? 'Humihingi ng pahintulot sa browser...' : 'Requesting browser permission...'}
                   </Typography>

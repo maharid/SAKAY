@@ -288,9 +288,9 @@ export const DriverReviewTricycle: React.FC = () => {
             borderRadius: '16px',
             fontSize: '16px',
             fontWeight: 700,
-            backgroundColor: '#FF6B00',
+            backgroundColor: '#FF6600',
             boxShadow: 'none',
-            '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+            '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
           }}
         >
           {submitting ? 'Sinusuri...' : t.useThisPhoto || 'Gamitin ang Larawang Ito'}

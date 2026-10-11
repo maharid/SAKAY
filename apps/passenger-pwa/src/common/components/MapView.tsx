@@ -612,7 +612,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       // 5b. Main road route line: solid vibrant orange matching SAKAY and BOOK - SOLO.png
       const routeLine = L.polyline(activeRoutePoints, {
-        color: "#FF6B00",
+        color: "#FF6600",
         weight: 6,
         opacity: 1,
         lineCap: "round",

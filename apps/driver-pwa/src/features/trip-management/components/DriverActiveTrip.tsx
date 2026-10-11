@@ -190,8 +190,10 @@ export const DriverActiveTrip: React.FC = () => {
     fetchBookingDetails();
   }, [bookingId, language]);
 
-  // The database is the source of truth. The passenger's phone is a DIFFERENT device, so neither this browser's storage nor a broadcast on a
-  // public channel (anyone can send one) can tell the driver that the passenger paid or cancelled; the booking row can, read every 2 seconds.
+  const paymentConfirmedRef = useRef(false);
+  paymentConfirmedRef.current = paymentConfirmed;
+
+  // The database is the source of truth, backed by real-time sync.
   useEffect(() => {
     if (!bookingId) return;
 
@@ -213,15 +215,16 @@ export const DriverActiveTrip: React.FC = () => {
         if (data.booking_status === 'Completed') {
           if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
           setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
-          if (!paymentConfirmed) {
+          if (!paymentConfirmedRef.current) {
             setPaymentConfirmed(true);
             setWaitingForPayment(false);
             setFeedbackModalOpen(true);
           }
         } else if (data.booking_status === 'Arrived at Destination') {
+          if (paymentConfirmedRef.current) return;
           if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
           setBooking((prev: any) => (prev && prev.booking_status !== 'Arrived at Destination' ? { ...prev, booking_status: 'Arrived at Destination' } : prev));
-          if (!paymentConfirmed) setWaitingForPayment(true);
+          if (!paymentConfirmedRef.current) setWaitingForPayment(true);
         } else if (data.booking_status === 'Cancelled' && data.cancelled_by !== 'driver') {
           setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking' : 'The booking was cancelled'));
           setPassengerCancelledAlertOpen(true);
@@ -236,8 +239,57 @@ export const DriverActiveTrip: React.FC = () => {
 
     checkBookingInDb();
     const interval = setInterval(checkBookingInDb, 2000);
-    return () => clearInterval(interval);
-  }, [bookingId, paymentConfirmed, language, navigate]);
+
+    // Subscribe to realtime postgres changes and passenger payment broadcasts
+    const syncChannel = supabase
+      .channel(`driver_sync_${bookingId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'booking',
+          filter: `booking_id=eq.${bookingId}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          if (!row) return;
+          if (row.booking_status === 'Completed') {
+            if (row.actual_fare !== null && row.actual_fare !== undefined) setCurrentFare(Number(row.actual_fare));
+            setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
+            setPaymentConfirmed(true);
+            setWaitingForPayment(false);
+            setFeedbackModalOpen(true);
+          } else if (row.booking_status === 'Cancelled' && row.cancelled_by !== 'driver') {
+            setPassengerCancelReason(row.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking' : 'The booking was cancelled'));
+            setPassengerCancelledAlertOpen(true);
+          }
+        }
+      )
+      .on('broadcast', { event: 'payment_confirmed' }, () => {
+        setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
+        setPaymentConfirmed(true);
+        setWaitingForPayment(false);
+        setFeedbackModalOpen(true);
+      })
+      .subscribe();
+
+    const bookingSyncChannel = supabase
+      .channel(`booking_sync_${bookingId}`)
+      .on('broadcast', { event: 'payment_confirmed' }, () => {
+        setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
+        setPaymentConfirmed(true);
+        setWaitingForPayment(false);
+        setFeedbackModalOpen(true);
+      })
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(syncChannel);
+      supabase.removeChannel(bookingSyncChannel);
+    };
+  }, [bookingId, language, navigate]);
 
   // The trip's progress as the database holds it (what Finish Trip is checked against), read while the passenger is on board.
   const readServerProgress = useCallback(async () => {
@@ -466,13 +518,13 @@ export const DriverActiveTrip: React.FC = () => {
   const primaryButtonSx = {
     minHeight: 52,
     borderRadius: '16px',
-    backgroundColor: '#FF6B00',
+    backgroundColor: '#FF6600',
     color: '#1A1A1A',
     fontWeight: 700,
     fontSize: '16px',
     textTransform: 'none',
     boxShadow: 'none',
-    '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+    '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
     '&.Mui-disabled': { backgroundColor: '#E2E8F0', color: '#64748B' },
   } as const;
   const confirmationLeft = waitingForPayment
@@ -575,7 +627,7 @@ export const DriverActiveTrip: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6B00', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -648,7 +700,7 @@ export const DriverActiveTrip: React.FC = () => {
                 height: 6,
                 borderRadius: 3,
                 backgroundColor: '#E2E8F0',
-                '& .MuiLinearProgress-bar': { backgroundColor: '#FF6B00', borderRadius: 3 },
+                '& .MuiLinearProgress-bar': { backgroundColor: '#FF6600', borderRadius: 3 },
               }}
             />
           </Box>
@@ -686,7 +738,7 @@ export const DriverActiveTrip: React.FC = () => {
 
         {!booking ? (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25, minHeight: 52 }} role="status">
-            <CircularProgress size={20} sx={{ color: '#FF6B00' }} />
+            <CircularProgress size={20} sx={{ color: '#FF6600' }} />
             <Typography sx={{ fontSize: '14px', color: '#475569', fontFamily: 'Poppins, sans-serif' }}>{tl ? 'Kinukuha ang biyahe...' : 'Loading the trip...'}</Typography>
           </Box>
         ) : booking.booking_status === 'Accepted' || booking.booking_status === 'Driver Assigned' ? (
@@ -866,13 +918,13 @@ export const DriverActiveTrip: React.FC = () => {
             sx={{
               height: 46,
               borderRadius: '14px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
-              boxShadow: '0 4px 14px rgba(255, 107, 0, 0.25)',
-              '&:hover': { backgroundColor: '#E66000' },
+              boxShadow: '0 4px 14px rgba(255, 102, 0, 0.25)',
+              '&:hover': { backgroundColor: '#E65C00' },
             }}
           >
             {language === 'tl' ? 'OK (Bumalik sa Home)' : 'OK (Return Home)'}
@@ -908,10 +960,10 @@ export const DriverActiveTrip: React.FC = () => {
             sx={{
               height: 44,
               borderRadius: '12px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               fontWeight: 700,
               textTransform: 'none',
-              '&:hover': { backgroundColor: '#E66000' },
+              '&:hover': { backgroundColor: '#E65C00' },
             }}
           >
             {language === 'tl' ? 'Manatili sa Biyahe' : 'Stay in Trip'}

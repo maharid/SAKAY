@@ -35,14 +35,14 @@ const inputStyles = {
       borderColor: '#C7C7CC',
     },
     '&.Mui-focused fieldset': {
-      borderColor: '#FF6B00',
+      borderColor: '#FF6600',
     },
   },
   '& .MuiInputLabel-root': {
     fontSize: '14px',
     color: '#86868B',
     '&.Mui-focused': {
-      color: '#FF6B00',
+      color: '#FF6600',
     },
   },
 };
@@ -50,15 +50,15 @@ const inputStyles = {
 const primaryButtonStyles = {
   borderRadius: '12px',
   padding: '12px 24px',
-  backgroundColor: '#FF6B00',
+  backgroundColor: '#FF6600',
   color: '#FFFFFF',
   textTransform: 'none',
   fontSize: '14px',
   fontWeight: 600,
-  boxShadow: '0 4px 12px rgba(255, 107, 0, 0.25)',
+  boxShadow: '0 4px 12px rgba(255, 102, 0, 0.25)',
   '&:hover': {
     backgroundColor: '#E05E00',
-    boxShadow: '0 6px 16px rgba(255, 107, 0, 0.35)',
+    boxShadow: '0 6px 16px rgba(255, 102, 0, 0.35)',
   },
   '&.Mui-disabled': {
     backgroundColor: '#FFB885',
@@ -178,14 +178,14 @@ export const LoginPage: React.FC = () => {
             width: '100%',
             borderRadius: '22px',
             padding: '2px',
-            background: 'linear-gradient(90deg, #FF6B00 0%, #FF8A00 33%, #E04800 66%, #FF6B00 100%)',
+            background: 'linear-gradient(90deg, #FF6600 0%, #FF8A00 33%, #E04800 66%, #FF6600 100%)',
             backgroundSize: '300% 100%',
             animation: 'gradient-border 4s linear infinite',
             '@keyframes gradient-border': {
               '0%': { backgroundPosition: '0% 50%' },
               '100%': { backgroundPosition: '100% 50%' },
             },
-            boxShadow: '0 8px 32px rgba(255, 107, 0, 0.1)',
+            boxShadow: '0 8px 32px rgba(255, 102, 0, 0.1)',
           }}
         >
           <Paper
@@ -350,11 +350,11 @@ export const LoginPage: React.FC = () => {
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: -1 }}>
                         <FormControlLabel
-                          control={<Checkbox size="small" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} sx={{ color: '#C7C7CC', '&.Mui-checked': { color: '#FF6B00' }, py: 0.5 }} />}
+                          control={<Checkbox size="small" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} sx={{ color: '#C7C7CC', '&.Mui-checked': { color: '#FF6600' }, py: 0.5 }} />}
                           label={<Typography sx={{ fontSize: '13px', color: '#1D1D1F', fontWeight: 500 }}>Remember me</Typography>}
                           sx={{ ml: -1 }}
                         />
-                        <Button variant="text" sx={{ textTransform: 'none', fontSize: '13px', fontWeight: 500, color: '#FF6B00', p: 0, minWidth: 'auto', '&:hover': { background: 'none', textDecoration: 'underline' } }}>
+                        <Button variant="text" sx={{ textTransform: 'none', fontSize: '13px', fontWeight: 500, color: '#FF6600', p: 0, minWidth: 'auto', '&:hover': { background: 'none', textDecoration: 'underline' } }}>
                           Forgot your password?
                         </Button>
                       </Box>
@@ -375,7 +375,7 @@ export const LoginPage: React.FC = () => {
                             }}
                             sx={{
                               fontWeight: 700,
-                              color: '#FF6B00',
+                              color: '#FF6600',
                               cursor: 'pointer',
                               '&:hover': { textDecoration: 'underline' },
                             }}
@@ -402,7 +402,7 @@ export const LoginPage: React.FC = () => {
                   <Fade in={true} timeout={600}>
                     <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexGrow: 1 }}>
                       <Box component="img" src={logoTextOrange} alt="SAKAY" sx={{ height: 28, mb: 4, objectFit: 'contain' }} />
-                      <CircularProgress size={28} sx={{ color: '#FF6B00', mb: 2 }} />
+                      <CircularProgress size={28} sx={{ color: '#FF6600', mb: 2 }} />
                       <Typography sx={{ fontSize: '14px', color: '#86868B', fontWeight: 500 }}>
                         Signing into SAKAY LGU Portal...
                       </Typography>

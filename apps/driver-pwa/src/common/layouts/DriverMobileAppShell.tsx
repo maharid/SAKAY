@@ -259,7 +259,7 @@ export const DriverMobileAppShell: React.FC = () => {
                       color: isActive ? '#C2410C' : '#64748B',
                       transition: 'all 0.18s ease-in-out',
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 107, 0, 0.04)',
+                        backgroundColor: 'rgba(255, 102, 0, 0.04)',
                       },
                     }}
                   >

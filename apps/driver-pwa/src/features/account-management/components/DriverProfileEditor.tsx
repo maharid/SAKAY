@@ -260,7 +260,7 @@ export const DriverProfileEditor: React.FC = () => {
               sx={{
                 width: '90px',
                 height: '90px',
-                backgroundColor: '#FF6B00',
+                backgroundColor: '#FF6600',
                 fontSize: '32px',
                 fontWeight: 700,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
@@ -279,7 +279,7 @@ export const DriverProfileEditor: React.FC = () => {
                 position: 'absolute',
                 bottom: 0,
                 right: 0,
-                backgroundColor: '#FF6B00',
+                backgroundColor: '#FF6600',
                 color: '#1A1A1A',
                 '&:hover': { backgroundColor: '#E05300' },
                 width: '30px',
@@ -391,7 +391,7 @@ export const DriverProfileEditor: React.FC = () => {
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BadgeIcon sx={{ color: '#FF6B00', fontSize: 20 }} />
+                <BadgeIcon sx={{ color: '#FF6600', fontSize: 20 }} />
                 <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
                   {profile.licenseNumber || 'D02-18-987654'}
                 </Typography>
@@ -426,7 +426,7 @@ export const DriverProfileEditor: React.FC = () => {
                 fontWeight: 600,
                 minHeight: 44,
                 mt: 0.5,
-                '&:hover': { borderColor: '#FF6B00', color: '#FF6B00', backgroundColor: '#FFF8F0' },
+                '&:hover': { borderColor: '#FF6600', color: '#FF6600', backgroundColor: '#FFF8F0' },
               }}
             >
               {isTagalog ? 'I-update / I-upload ang Lisensya' : 'Re-verify / Upload License'}
@@ -462,7 +462,7 @@ export const DriverProfileEditor: React.FC = () => {
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DescriptionIcon sx={{ color: '#FF6B00', fontSize: 20 }} />
+                <DescriptionIcon sx={{ color: '#FF6600', fontSize: 20 }} />
                 <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
                   {profile.todaName || 'Calapan Central TODA'}
                 </Typography>
@@ -497,7 +497,7 @@ export const DriverProfileEditor: React.FC = () => {
                 fontWeight: 600,
                 minHeight: 44,
                 mt: 0.5,
-                '&:hover': { borderColor: '#FF6B00', color: '#FF6B00', backgroundColor: '#FFF8F0' },
+                '&:hover': { borderColor: '#FF6600', color: '#FF6600', backgroundColor: '#FFF8F0' },
               }}
             >
               {isTagalog ? 'I-update ang MTOP Permit' : 'Re-verify / Upload MTOP Permit'}
@@ -533,7 +533,7 @@ export const DriverProfileEditor: React.FC = () => {
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TwoWheelerIcon sx={{ color: '#FF6B00', fontSize: 20 }} />
+                <TwoWheelerIcon sx={{ color: '#FF6600', fontSize: 20 }} />
                 <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
                   Plaka: {profile.vehiclePlate || '123-ABC'}
                 </Typography>
@@ -568,7 +568,7 @@ export const DriverProfileEditor: React.FC = () => {
                 fontWeight: 600,
                 minHeight: 44,
                 mt: 0.5,
-                '&:hover': { borderColor: '#FF6B00', color: '#FF6B00', backgroundColor: '#FFF8F0' },
+                '&:hover': { borderColor: '#FF6600', color: '#FF6600', backgroundColor: '#FFF8F0' },
               }}
             >
               {isTagalog ? 'I-update ang Larawan ng Tricycle' : 'Update Tricycle Photo / Details'}

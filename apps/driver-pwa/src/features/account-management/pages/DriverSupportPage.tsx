@@ -119,13 +119,13 @@ export const DriverSupportPage: React.FC = () => {
                 width: 44,
                 height: 44,
                 borderRadius: '14px',
-                backgroundColor: 'rgba(255, 107, 0, 0.2)',
+                backgroundColor: 'rgba(255, 102, 0, 0.2)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <PhoneIcon sx={{ color: '#FF6B00', fontSize: 24 }} />
+              <PhoneIcon sx={{ color: '#FF6600', fontSize: 24 }} />
             </Box>
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 700 }}>
@@ -143,7 +143,7 @@ export const DriverSupportPage: React.FC = () => {
             variant="contained"
             startIcon={<PhoneIcon />}
             sx={{
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               color: '#1A1A1A',
               borderRadius: '12px',
               height: '44px',
@@ -151,7 +151,7 @@ export const DriverSupportPage: React.FC = () => {
               fontWeight: 700,
               textTransform: 'none',
               boxShadow: 'none',
-              '&:hover': { backgroundColor: '#E66000', boxShadow: 'none' },
+              '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
             }}
           >
             {isTagalog ? 'Tumawag Ngayon: 0917-123-4567' : 'Call Hotline: 0917-123-4567'}
@@ -175,7 +175,7 @@ export const DriverSupportPage: React.FC = () => {
         {/* FAQs Section */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-            <HelpOutlinedIcon sx={{ color: '#FF6B00', fontSize: 20 }} />
+            <HelpOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />
             <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
               {isTagalog ? 'Mga Madalas Itanong (FAQ)' : 'Frequently Asked Questions'}
             </Typography>

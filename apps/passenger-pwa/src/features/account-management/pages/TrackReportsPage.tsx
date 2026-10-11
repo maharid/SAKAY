@@ -289,7 +289,7 @@ const TrackReportsPage: React.FC = () => {
           variant="contained"
           onClick={() => navigate("/incident-report")}
           sx={{
-            backgroundColor: "#FF6B00",
+            backgroundColor: "#FF6600",
             color: "#1A1A1A",
             borderRadius: "14px",
             height: "44px",
@@ -298,7 +298,7 @@ const TrackReportsPage: React.FC = () => {
             textTransform: "none",
             fontFamily: "Poppins, sans-serif",
             boxShadow: "none",
-            "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+            "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
           }}
         >
           {language === "tl" ? "+ Magsumite ng Bagong Reklamo" : "+ Submit New Incident Report"}

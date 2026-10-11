@@ -438,7 +438,7 @@ export const FareConfigurationPage: React.FC = () => {
                   key={version.id}
                   sx={{
                     transition: 'var(--mac-transition-fast)',
-                    backgroundColor: version.is_active ? 'rgba(255, 107, 26, 0.03)' : 'transparent',
+                    backgroundColor: version.is_active ? 'rgba(255, 102, 0, 0.03)' : 'transparent',
                     '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                   }}
                 >

@@ -255,7 +255,7 @@ const BookSummary: React.FC = () => {
 
       {loading ? (
         <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "16px" }}>
-          <CircularProgress sx={{ color: "#FF6B00" }} />
+          <CircularProgress sx={{ color: "#FF6600" }} />
           <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>
             {language === "tl" ? "Kinakalkula ang distansya at pamasahe..." : "Calculating distance & fare..."}
           </Typography>
@@ -331,7 +331,7 @@ const BookSummary: React.FC = () => {
             {/* Distance Detail */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Box sx={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <RouteIcon sx={{ color: "#FF6B00", fontSize: "20px" }} />
+                <RouteIcon sx={{ color: "#FF6600", fontSize: "20px" }} />
                 <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>
                   {language === "tl" ? "Distansya" : "Distance"}
                 </Typography>
@@ -351,7 +351,7 @@ const BookSummary: React.FC = () => {
             {/* Service Type Detail & Interactive Toggle */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Box sx={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <LocalTaxiIcon sx={{ color: "#FF6B00", fontSize: "20px" }} />
+                <LocalTaxiIcon sx={{ color: "#FF6600", fontSize: "20px" }} />
                 <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>
                   {language === "tl" ? "Uri ng Biyahe" : "Trip Type"}
                 </Typography>
@@ -368,9 +368,9 @@ const BookSummary: React.FC = () => {
                     fontSize: "12px",
                     fontWeight: 700,
                     textTransform: "none",
-                    backgroundColor: tripType === "Solo" ? "#FF6B00" : "#F1F5F9",
+                    backgroundColor: tripType === "Solo" ? "#FF6600" : "#F1F5F9",
                     color: tripType === "Solo" ? "#1A1A1A" : "#64748B",
-                    "&:hover": { backgroundColor: tripType === "Solo" ? "#E66000" : "#E2E8F0" },
+                    "&:hover": { backgroundColor: tripType === "Solo" ? "#E65C00" : "#E2E8F0" },
                   }}
                 >
                   Solo
@@ -401,7 +401,7 @@ const BookSummary: React.FC = () => {
             {/* Passenger Detail & Dynamic +/- Counter */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Box sx={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <PersonIcon sx={{ color: "#FF6B00", fontSize: "20px" }} />
+                <PersonIcon sx={{ color: "#FF6600", fontSize: "20px" }} />
                 <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>
                   {language === "tl" ? "Bilang ng Pasahero" : "Passenger Count"}
                 </Typography>
@@ -469,14 +469,14 @@ const BookSummary: React.FC = () => {
                 width: "120px",
                 height: "120px",
                 borderRadius: "50%",
-                backgroundColor: "rgba(255, 107, 0, 0.1)",
+                backgroundColor: "rgba(255, 102, 0, 0.1)",
                 filter: "blur(10px)",
               }}
             />
 
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <Box sx={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <AccountBalanceWalletIcon sx={{ color: "#FF6B00" }} />
+                <AccountBalanceWalletIcon sx={{ color: "#FF6600" }} />
                 <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#64748B" }}>
                   {tripType === "Shared"
                     ? language === "tl" ? "ESTIMASYON NG SHARED FARE" : "SHARED FARE ESTIMATE"
@@ -507,8 +507,8 @@ const BookSummary: React.FC = () => {
                     <Typography>{language === "tl" ? "Solo Trip multiplier (Buong Kapasidad):" : "Full capacity multiplier:"}</Typography>
                     <Typography>× {quote.seat_capacity}</Typography>
                   </Box>
-                  <Box sx={{ display: "flex", gap: "6px", alignItems: "flex-start", marginTop: "4px", backgroundColor: "rgba(255, 107, 0, 0.08)", padding: "10px", borderRadius: "12px" }}>
-                    <InfoIcon sx={{ color: "#FF6B00", fontSize: "16px", marginTop: "2px" }} />
+                  <Box sx={{ display: "flex", gap: "6px", alignItems: "flex-start", marginTop: "4px", backgroundColor: "rgba(255, 102, 0, 0.08)", padding: "10px", borderRadius: "12px" }}>
+                    <InfoIcon sx={{ color: "#FF6600", fontSize: "16px", marginTop: "2px" }} />
                     <Typography sx={{ fontSize: "12px", color: "#FF8533", lineHeight: 1.4 }}>
                       {language === "tl"
                         ? "Dahil ito ay Solo Trip, sisingilin ang kabuuang pamasahe para sa buong kapasidad ng tricycle (" + quote.seat_capacity + " na upuan), kahit ilan pa ang sumakay."
@@ -543,10 +543,10 @@ const BookSummary: React.FC = () => {
               borderRadius: "16px",
               fontWeight: 700,
               fontSize: "1rem",
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               color: "#1A1A1A",
               "&:hover": {
-                backgroundColor: "#E66000",
+                backgroundColor: "#E65C00",
                 boxShadow: "none",
               },
               boxShadow: "none",
@@ -588,11 +588,11 @@ const BookSummary: React.FC = () => {
             zIndex: 99999,
             color: "#1A1A1A",
             fontWeight: 700,
-            backgroundColor: "#FF6B00",
+            backgroundColor: "#FF6600",
             padding: "10px 24px",
             borderRadius: "10px",
             boxShadow: "none",
-            "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+            "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             textTransform: "none",
           }}
         >

@@ -45,8 +45,8 @@ const FloatingSelect: React.FC<FloatingSelectProps> = ({ label, value, onChange,
           height: '62px',
           borderRadius: '16px',
           backgroundColor: focused ? '#FFFFFF' : '#F1F3F5',
-          border: `1.5px solid ${focused ? '#FF6B00' : '#E2E8F0'}`,
-          boxShadow: focused ? '0 0 0 3px rgba(255, 107, 0, 0.12)' : 'none',
+          border: `1.5px solid ${focused ? '#FF6600' : '#E2E8F0'}`,
+          boxShadow: focused ? '0 0 0 3px rgba(255, 102, 0, 0.12)' : 'none',
           px: 2,
           position: 'relative',
           display: 'flex',
@@ -313,7 +313,7 @@ export const IncidentReporting: React.FC = () => {
 
           {selectedFile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <IconButton aria-label={language === "tl" ? "Palitan ang file" : "Replace file"} size="small" onClick={() => fileInputRef.current?.click()} sx={{ color: '#FF6B00' }}>
+              <IconButton aria-label={language === "tl" ? "Palitan ang file" : "Replace file"} size="small" onClick={() => fileInputRef.current?.click()} sx={{ color: '#FF6600' }}>
                 <RefreshIcon sx={{ fontSize: 18 }} />
               </IconButton>
               <IconButton aria-label={language === "tl" ? "Alisin ang file" : "Remove file"} size="small" onClick={handleRemoveFile} sx={{ color: '#EF4444' }}>

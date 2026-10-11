@@ -809,7 +809,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     px: 1.25,
                     borderRadius: '8px',
                     cursor: waiting ? 'pointer' : 'default',
-                    border: selected ? '1.5px solid #FF6B00' : '1.5px solid transparent',
+                    border: selected ? '1.5px solid #FF6600' : '1.5px solid transparent',
                     backgroundColor: selected ? '#FFF7ED' : 'transparent',
                   }}
                 >

@@ -33,8 +33,8 @@ export const BookingIllustration: React.FC<{ width?: string | number; height?: s
       <rect x="140" y="46" width="40" height="6" rx="3" fill="#0F172A" />
 
       {/* Phone Map Route */}
-      <path d="M120 180 C130 150, 180 160, 175 110" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="120" cy="180" r="5" fill="#FF6B00" />
+      <path d="M120 180 C130 150, 180 160, 175 110" stroke="#FF6600" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="120" cy="180" r="5" fill="#FF6600" />
 
       {/* Map Pin / Marker */}
       <g transform="translate(160, 80)">
@@ -43,7 +43,7 @@ export const BookingIllustration: React.FC<{ width?: string | number; height?: s
         {/* Pin Shape */}
         <path
           d="M0 0 C-12 0 -15 12 0 30 C15 12 12 0 0 0 Z"
-          fill="#FF6B00"
+          fill="#FF6600"
           stroke="#FFFFFF"
           strokeWidth="2"
         />
@@ -65,7 +65,7 @@ export const BookingIllustration: React.FC<{ width?: string | number; height?: s
         {/* Hair */}
         <path d="M13 20 C13 10 37 10 37 20 C37 15 30 11 25 13 C20 11 13 15 13 20 Z" fill="#0F172A" />
         {/* Orange Shirt Detail */}
-        <path d="M16 35 L25 48 L34 35 Z" fill="#FF6B00" />
+        <path d="M16 35 L25 48 L34 35 Z" fill="#FF6600" />
       </g>
     </svg>
   );
@@ -121,7 +121,7 @@ export const FareIllustration: React.FC<{ width?: string | number; height?: stri
         {/* Wallet Back */}
         <rect x="0" y="0" width="140" height="90" rx="12" fill="#E05300" />
         {/* Wallet Front Fold */}
-        <path d="M0 15 C0 6 6 0 15 0 H125 C134 0 140 6 140 15 V75 C140 84 134 90 125 90 H15 C6 90 0 84 0 75 Z" fill="#FF6B00" />
+        <path d="M0 15 C0 6 6 0 15 0 H125 C134 0 140 6 140 15 V75 C140 84 134 90 125 90 H15 C6 90 0 84 0 75 Z" fill="#FF6600" />
         
         {/* Wallet Stitching effect */}
         <path d="M5 10 H135 V80 H5 Z" fill="none" stroke="#FFA366" strokeWidth="1.5" strokeDasharray="4 3" />
@@ -176,7 +176,7 @@ export const SafetyIllustration: React.FC<{ width?: string | number; height?: st
       {/* Stylized Tricycle Body */}
       <g transform="translate(75, 100)">
         {/* Cab Back Frame */}
-        <rect x="5" y="15" width="85" height="65" rx="10" fill="#FF6B00" />
+        <rect x="5" y="15" width="85" height="65" rx="10" fill="#FF6600" />
         <rect x="15" y="23" width="65" height="35" rx="5" fill="#E2E8F0" /> {/* Window */}
         <path d="M5 45 H90" stroke="#0F172A" strokeWidth="2" />
 

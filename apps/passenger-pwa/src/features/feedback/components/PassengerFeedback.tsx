@@ -283,7 +283,7 @@ export const PassengerFeedback: React.FC = () => {
 
         {/* Driver Card */}
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6B00', color: '#1A1A1A', fontWeight: 700, fontSize: '22px', margin: '0 auto 12px auto' }}>
+          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '22px', margin: '0 auto 12px auto' }}>
             {driverName.charAt(0)}
           </Avatar>
           <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
@@ -303,7 +303,7 @@ export const PassengerFeedback: React.FC = () => {
               readOnly={submitted}
               onChange={(_, newValue) => !submitted && setRating(newValue)}
               size="large"
-              sx={{ color: '#FF6B00', fontSize: '38px' }}
+              sx={{ color: '#FF6600', fontSize: '38px' }}
             />
           </Box>
         </Paper>
@@ -332,7 +332,7 @@ export const PassengerFeedback: React.FC = () => {
                     borderRadius: '20px',
                     backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
                     color: isSelected ? '#C2410C' : '#475569',
-                    border: isSelected ? '1.5px solid #FF6B00' : '1px solid #E2E8F0',
+                    border: isSelected ? '1.5px solid #FF6600' : '1px solid #E2E8F0',
                   }}
                 />
               );
@@ -375,13 +375,13 @@ export const PassengerFeedback: React.FC = () => {
             sx={{
               height: 52,
               borderRadius: '16px',
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
               fontWeight: 700,
               fontSize: '15px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
-              boxShadow: '0 4px 14px rgba(255, 107, 0, 0.3)',
-              '&:hover': { backgroundColor: '#E66000' },
+              boxShadow: '0 4px 14px rgba(255, 102, 0, 0.3)',
+              '&:hover': { backgroundColor: '#E65C00' },
               '&.Mui-disabled': { backgroundColor: '#FFB380', color: '#1A1A1A' },
             }}
           >
@@ -437,13 +437,13 @@ export const PassengerFeedback: React.FC = () => {
           sx={{
             height: '52px',
             borderRadius: '16px',
-            backgroundColor: '#FF6B00',
+            backgroundColor: '#FF6600',
             fontWeight: 700,
             fontSize: '15px',
             textTransform: 'none',
             fontFamily: 'Poppins, sans-serif',
-            boxShadow: '0 4px 14px rgba(255, 107, 0, 0.3)',
-            '&:hover': { backgroundColor: '#E66000' },
+            boxShadow: '0 4px 14px rgba(255, 102, 0, 0.3)',
+            '&:hover': { backgroundColor: '#E65C00' },
           }}
         >
           {language === 'tl' ? 'Bumalik sa Dashboard' : 'Return to Dashboard'}

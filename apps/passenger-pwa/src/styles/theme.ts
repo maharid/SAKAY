@@ -3,9 +3,9 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#FF6B00',
+      main: '#FF6600',
       light: '#FF8533',
-      dark: '#D65A00',
+      dark: '#CC5200',
       contrastText: '#1A1A1A', // white on the brand orange is 2.9:1; near-black is 6.3:1 (WCAG AA needs 4.5:1)
     },
     secondary: {
@@ -81,11 +81,12 @@ const theme = createTheme({
             boxShadow: 'none',
           },
           '&.MuiButton-containedPrimary': {
-            backgroundColor: '#FF6B00',
-            color: '#FFFFFF',
+            backgroundColor: '#FF6600',
+            color: '#1A1A1A',
+            fontWeight: 700,
             boxShadow: 'none',
             '&:hover': {
-              backgroundColor: '#E66000',
+              backgroundColor: '#E65C00',
               boxShadow: 'none',
             },
           },
@@ -110,7 +111,7 @@ const theme = createTheme({
               borderColor: '#CBD5E1',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#FF6B00',
+              borderColor: '#FF6600',
             },
           },
         },

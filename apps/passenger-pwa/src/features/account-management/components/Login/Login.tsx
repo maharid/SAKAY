@@ -360,7 +360,7 @@ const Login: React.FC = () => {
                   cursor: "pointer",
                   "&:hover": {
                     textDecoration: "underline",
-                    color: "#E66000",
+                    color: "#E65C00",
                   },
                 }}
               >
@@ -407,7 +407,7 @@ const Login: React.FC = () => {
                 marginLeft: "6px",
                 transition: "color 0.2s",
                 "&:hover": {
-                  color: "#E66000",
+                  color: "#E65C00",
                   textDecoration: "underline",
                 },
               }}

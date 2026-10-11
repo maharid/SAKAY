@@ -34,19 +34,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
-            backgroundColor: 'rgba(255, 107, 0, 0.15)',
-            border: '1px solid rgba(255, 107, 0, 0.3)',
+            backgroundColor: 'rgba(255, 102, 0, 0.15)',
+            border: '1px solid rgba(255, 102, 0, 0.3)',
             padding: '8px 18px',
             borderRadius: '20px',
           }}
         >
-          <LocalPoliceOutlinedIcon sx={{ color: '#FF6B00', fontSize: '16' }} />
+          <LocalPoliceOutlinedIcon sx={{ color: '#FF6600', fontSize: '16' }} />
           <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: '#FFD580', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             SAKAY LGU Portal
           </Typography>
         </Box>
 
-        <CircularProgress size={36} thickness={4} sx={{ color: '#FF6B00' }} />
+        <CircularProgress size={36} thickness={4} sx={{ color: '#FF6600' }} />
 
         <Typography sx={{ fontSize: '11.3px', color: '#94A3B8', fontWeight: 400 }}>
           Verifying administrator credentials...
@@ -79,7 +79,7 @@ export const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ child
           backgroundColor: '#0F172A',
         }}
       >
-        <CircularProgress size={32} sx={{ color: '#FF6B00' }} />
+        <CircularProgress size={32} sx={{ color: '#FF6600' }} />
       </Box>
     );
   }

@@ -522,7 +522,7 @@ const SetPlace: React.FC = () => {
                 height: "36px",
                 borderRadius: "50%",
                 backgroundColor: "#FFF2E9",
-                color: "#FF6B00",
+                color: "#FF6600",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -530,7 +530,7 @@ const SetPlace: React.FC = () => {
               }}
             >
               {locatingCurrent ? (
-                <CircularProgress size={18} sx={{ color: "#FF6B00" }} />
+                <CircularProgress size={18} sx={{ color: "#FF6600" }} />
               ) : (
                 <MyLocationIcon sx={{ fontSize: "20px" }} />
               )}
@@ -596,7 +596,7 @@ const SetPlace: React.FC = () => {
                 height: "36px",
                 borderRadius: "50%",
                 backgroundColor: "#FFF2E9",
-                color: "#FF6B00",
+                color: "#FF6600",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -648,7 +648,7 @@ const SetPlace: React.FC = () => {
           /* Active Search Results */
           loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", padding: "32px" }}>
-              <CircularProgress size={28} sx={{ color: "#FF6B00" }} />
+              <CircularProgress size={28} sx={{ color: "#FF6600" }} />
             </Box>
           ) : suggestions.length > 0 ? (
             suggestions.map((place, idx) => (

@@ -119,13 +119,13 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
             sx={{
               minHeight: 52,
               borderRadius: "16px",
-              backgroundColor: "#FF6B00",
+              backgroundColor: "#FF6600",
               textTransform: "none",
               fontWeight: 700,
               fontSize: "15px",
               fontFamily: FONT,
               boxShadow: "none",
-              "&:hover": { backgroundColor: "#E66000", boxShadow: "none" },
+              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
             }}
           >
             {isTagalog ? "Subukan Muli" : "Retry Search"}
@@ -158,7 +158,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
           "@media (prefers-reduced-motion: reduce)": { animation: "none" },
         }}
       >
-        <Box sx={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: "#FF6B00", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: "#FF6600", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Box component="img" src={totoHeadImg} alt="" sx={{ width: 40, height: 40, objectFit: "contain" }} />
         </Box>
       </Box>
@@ -198,7 +198,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
           height: 6,
           borderRadius: 3,
           backgroundColor: "#E5E7EB",
-          "& .MuiLinearProgress-bar": { backgroundColor: "#FF6B00", borderRadius: 3 },
+          "& .MuiLinearProgress-bar": { backgroundColor: "#FF6600", borderRadius: 3 },
         }}
       />
 

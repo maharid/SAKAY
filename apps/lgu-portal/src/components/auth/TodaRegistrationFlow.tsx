@@ -345,7 +345,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         borderBottom: '1px solid rgba(229, 229, 234, 0.5)',
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#FF6B00' }}>
+          <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#FF6600' }}>
             {STEPS[activeStep]}
           </Typography>
           <Typography sx={{ fontSize: '12px', fontWeight: 500, color: '#86868B' }}>
@@ -361,7 +361,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
             backgroundColor: '#F5F5F7',
             '& .MuiLinearProgress-bar': {
               borderRadius: 3,
-              backgroundColor: '#FF6B00',
+              backgroundColor: '#FF6600',
             }
           }} 
         />
@@ -383,7 +383,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         {activeStep === 0 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <Box sx={{ gridColumn: '1 / -1' }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>Organization Details</Typography><Typography sx={{ fontSize: "11px", color: "#FF6B00", fontWeight: 600 }}>* Required fields</Typography></Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>Organization Details</Typography><Typography sx={{ fontSize: "11px", color: "#FF6600", fontWeight: 600 }}>* Required fields</Typography></Box>
             </Box>
             <FormInput name="todaName" label="TODA Name *" value={formData.todaName} onChange={handleChange} sx={inputStyles} />
             <FormInput name="todaAcronym" label="TODA Acronym" value={formData.todaAcronym} onChange={handleChange} sx={inputStyles} />
@@ -421,7 +421,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         {/* STEP 1: Location & Service */}
         {activeStep === 1 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>Location & Area</Typography><Typography sx={{ fontSize: "11px", color: "#FF6B00", fontWeight: 600 }}>* Required fields</Typography></Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>Location & Area</Typography><Typography sx={{ fontSize: "11px", color: "#FF6600", fontWeight: 600 }}>* Required fields</Typography></Box>
             <Autocomplete
               fullWidth
               disableClearable
@@ -442,15 +442,15 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
                       py: 1,
                       mb: 0.5,
                       '&[aria-selected="true"]': {
-                        backgroundColor: 'rgba(255, 107, 0, 0.08) !important',
-                        color: '#FF6B00',
+                        backgroundColor: 'rgba(255, 102, 0, 0.08) !important',
+                        color: '#FF6600',
                         fontWeight: 500
                       },
                       '&.Mui-focused': {
-                        backgroundColor: 'rgba(255, 107, 0, 0.04)'
+                        backgroundColor: 'rgba(255, 102, 0, 0.04)'
                       },
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 107, 0, 0.04)'
+                        backgroundColor: 'rgba(255, 102, 0, 0.04)'
                       }
                     }
                   } 
@@ -470,7 +470,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         {activeStep === 2 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <Box sx={{ gridColumn: '1 / -1' }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>Membership Scope</Typography><Typography sx={{ fontSize: "11px", color: "#FF6B00", fontWeight: 600 }}>* Required fields</Typography></Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>Membership Scope</Typography><Typography sx={{ fontSize: "11px", color: "#FF6600", fontWeight: 600 }}>* Required fields</Typography></Box>
             </Box>
             <NumberField name="activeDrivers" label="Active Drivers *" value={formData.activeDrivers} onChange={handleChange} sx={inputStyles} />
             <NumberField name="registeredTricycles" label="Registered Tricycles *" value={formData.registeredTricycles} onChange={handleChange} sx={inputStyles} />
@@ -481,7 +481,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         {activeStep === 3 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <Box sx={{ gridColumn: '1 / -1' }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>President & Account Credentials</Typography><Typography sx={{ fontSize: "11px", color: "#FF6B00", fontWeight: 600 }}>* Required fields</Typography></Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Typography sx={stepHeadingStyles}>President & Account Credentials</Typography><Typography sx={{ fontSize: "11px", color: "#FF6600", fontWeight: 600 }}>* Required fields</Typography></Box>
             </Box>
             <FormInput name="presidentName" label="President Name *" value={formData.presidentName} onChange={handleChange} sx={{ ...inputStyles, gridColumn: '1 / -1' }} />
             <FormInput name="email" label="Login Email *" type="email" value={formData.email} onChange={handleChange} sx={inputStyles} {...getFieldErrorProps(isEmailInvalid, "Please enter a valid email address.")} />
@@ -734,13 +734,13 @@ const DocumentUploadBox = ({ label, sublabel, file, onFileSelect, onRemove, acce
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        border: isDragging ? '2px dashed #FF6B00' : '1px solid #E5E5EA',
+        border: isDragging ? '2px dashed #FF6600' : '1px solid #E5E5EA',
         borderRadius: '16px',
         p: 2.5,
-        backgroundColor: isDragging ? 'rgba(255, 107, 0, 0.06)' : '#FFFFFF',
-        boxShadow: isDragging ? '0 0 0 4px rgba(255, 107, 0, 0.12)' : 'none',
+        backgroundColor: isDragging ? 'rgba(255, 102, 0, 0.06)' : '#FFFFFF',
+        boxShadow: isDragging ? '0 0 0 4px rgba(255, 102, 0, 0.12)' : 'none',
         transition: 'all 0.2s',
-        '&:hover': { borderColor: isDragging ? '#FF6B00' : '#C7C7CC' },
+        '&:hover': { borderColor: isDragging ? '#FF6600' : '#C7C7CC' },
         ...(isDragging ? { '& *': { pointerEvents: 'none' } } : {}),
       }}
     >
@@ -749,7 +749,7 @@ const DocumentUploadBox = ({ label, sublabel, file, onFileSelect, onRemove, acce
           <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#1D1D1F', mb: 0.5 }}>{label}</Typography>
           <Typography sx={{ fontSize: '13px', color: '#86868B' }}>{sublabel}</Typography>
         </Box>
-        <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#FF6B00', backgroundColor: 'rgba(255, 107, 0, 0.08)', px: 1.2, py: 0.5, borderRadius: '6px' }}>
+        <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#FF6600', backgroundColor: 'rgba(255, 102, 0, 0.08)', px: 1.2, py: 0.5, borderRadius: '6px' }}>
           REQUIRED
         </Typography>
       </Box>
@@ -773,20 +773,20 @@ const DocumentUploadBox = ({ label, sublabel, file, onFileSelect, onRemove, acce
               startIcon={<CloudUploadOutlinedIcon />}
               sx={{ 
                 borderStyle: isDragging ? 'solid' : 'dashed', 
-                borderColor: isDragging ? '#FF6B00' : '#C7C7CC', 
-                color: isDragging ? '#FF6B00' : '#1D1D1F',
+                borderColor: isDragging ? '#FF6600' : '#C7C7CC', 
+                color: isDragging ? '#FF6600' : '#1D1D1F',
                 fontWeight: 600,
                 textTransform: 'none',
                 py: 2,
                 borderRadius: '12px',
-                backgroundColor: isDragging ? 'rgba(255, 107, 0, 0.08)' : '#FAFAF9',
+                backgroundColor: isDragging ? 'rgba(255, 102, 0, 0.08)' : '#FAFAF9',
                 '&:hover': { backgroundColor: '#F0F0F5', borderColor: '#86868B' }
               }}
             >
               {isDragging ? 'Drop File Here' : 'Select File to Upload'}
               <input type="file" hidden accept={accept} onChange={(e) => e.target.files && onFileSelect(e.target.files[0])} />
             </Button>
-            <Typography sx={{ fontSize: '12px', color: isDragging ? '#FF6B00' : '#86868B', fontWeight: isDragging ? 600 : 500 }}>
+            <Typography sx={{ fontSize: '12px', color: isDragging ? '#FF6600' : '#86868B', fontWeight: isDragging ? 600 : 500 }}>
               {isDragging ? 'Release to upload' : `${acceptedText} · ${maxSizeText}`}
             </Typography>
           </Box>
@@ -836,7 +836,7 @@ const NumberField = ({ label, value, onChange, name, ...props }: any) => {
                   component="button"
                   type="button"
                   onClick={handleUp}
-                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '14px', border: 'none', background: 'transparent', cursor: 'pointer', '&:hover': { backgroundColor: '#F0F0F5', color: '#FF6B00' }, color: '#86868B', borderBottom: '1px solid #E5E5EA' }}
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '14px', border: 'none', background: 'transparent', cursor: 'pointer', '&:hover': { backgroundColor: '#F0F0F5', color: '#FF6600' }, color: '#86868B', borderBottom: '1px solid #E5E5EA' }}
                 >
                   <KeyboardArrowUpIcon sx={{ fontSize: '14px' }} />
                 </Box>
@@ -844,7 +844,7 @@ const NumberField = ({ label, value, onChange, name, ...props }: any) => {
                   component="button"
                   type="button"
                   onClick={handleDown}
-                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '14px', border: 'none', background: 'transparent', cursor: 'pointer', '&:hover': { backgroundColor: '#F0F0F5', color: '#FF6B00' }, color: '#86868B' }}
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '14px', border: 'none', background: 'transparent', cursor: 'pointer', '&:hover': { backgroundColor: '#F0F0F5', color: '#FF6600' }, color: '#86868B' }}
                 >
                   <KeyboardArrowDownIcon sx={{ fontSize: '14px' }} />
                 </Box>
@@ -875,10 +875,10 @@ const inputStyles = {
     zIndex: 2,
     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     transform: 'translate(16px, 20px) scale(1)',
-    '&.Mui-focused': { color: '#FF6B00', fontWeight: 700 },
+    '&.Mui-focused': { color: '#FF6600', fontWeight: 700 },
     '&.MuiInputLabel-shrink': {
       transform: 'translate(16px, 8px) scale(0.72)',
-      color: '#FF6B00',
+      color: '#FF6600',
       fontWeight: 700,
       textTransform: 'uppercase',
       letterSpacing: '0.5px',
@@ -897,15 +897,15 @@ const inputStyles = {
       borderWidth: '1.5px',
     },
     '&:hover fieldset': { 
-      borderColor: '#FF6B00',
+      borderColor: '#FF6600',
     },
     '&.Mui-focused fieldset': {
-      borderColor: '#FF6B00',
+      borderColor: '#FF6600',
       borderWidth: '1.5px',
     },
     '&.Mui-focused': {
       backgroundColor: '#FFFFFF',
-      boxShadow: '0 0 0 3px rgba(255, 107, 0, 0.12)',
+      boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
     },
   },
   '& .MuiSelect-select': {
@@ -938,22 +938,22 @@ const inputStyles = {
 const primaryButtonStyles = {
   height: '42px',
   borderRadius: '8px',
-  backgroundColor: '#FF6B00',
+  backgroundColor: '#FF6600',
   color: '#FFFFFF',
   fontSize: '14px',
   fontWeight: 600,
   textTransform: 'none',
-  boxShadow: '0 2px 4px rgba(255, 107, 0, 0.15)',
+  boxShadow: '0 2px 4px rgba(255, 102, 0, 0.15)',
   transition: 'all 0.2s ease',
   '&:hover': {
     backgroundColor: '#E65A00',
-    boxShadow: '0 4px 8px rgba(255, 107, 0, 0.25)',
+    boxShadow: '0 4px 8px rgba(255, 102, 0, 0.25)',
   },
   '&:active': {
     transform: 'scale(0.98)',
   },
   '&.Mui-disabled': {
-    backgroundColor: 'rgba(255, 107, 0, 0.5)',
+    backgroundColor: 'rgba(255, 102, 0, 0.5)',
     color: '#FFFFFF',
     boxShadow: 'none',
   }

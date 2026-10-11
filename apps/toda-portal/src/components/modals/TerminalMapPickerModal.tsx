@@ -118,13 +118,13 @@ export const TerminalMapPickerModal: React.FC<TerminalMapPickerModalProps> = ({
           width: 36px;
           height: 36px;
           border-radius: 50% 50% 50% 0;
-          background: #FF6B00;
+          background: #FF6600;
           transform: rotate(-45deg);
           display: flex;
           align-items: center;
           justify-content: center;
           border: 3px solid #FFFFFF;
-          box-shadow: 0 4px 14px rgba(255, 107, 0, 0.45);
+          box-shadow: 0 4px 14px rgba(255, 102, 0, 0.45);
           cursor: grab;
         ">
           <div style="
@@ -147,8 +147,8 @@ export const TerminalMapPickerModal: React.FC<TerminalMapPickerModalProps> = ({
     markerRef.current = marker;
 
     const circle = L.circle([startLat, startLng], {
-      color: '#FF6B00',
-      fillColor: '#FF6B00',
+      color: '#FF6600',
+      fillColor: '#FF6600',
       fillOpacity: 0.12,
       weight: 1.5,
       radius: 350,

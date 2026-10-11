@@ -243,7 +243,7 @@ export const ProfileEditor: React.FC = () => {
           backgroundColor: "#FFFFFF",
         }}
       >
-        <CircularProgress sx={{ color: "#FF6B00" }} />
+        <CircularProgress sx={{ color: "#FF6600" }} />
         <Typography sx={{ marginTop: "16px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif" }}>
           {language === "tl" ? "Kinukuha ang profile..." : "Loading profile..."}
         </Typography>
@@ -305,7 +305,7 @@ export const ProfileEditor: React.FC = () => {
                 position: "absolute",
                 bottom: 0,
                 right: 0,
-                backgroundColor: "#FF6B00",
+                backgroundColor: "#FF6600",
                 color: "#1A1A1A",
                 "&:hover": { backgroundColor: "#E05300" },
                 width: "30px",
