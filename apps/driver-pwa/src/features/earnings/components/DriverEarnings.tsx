@@ -205,7 +205,7 @@ export const DriverEarnings: React.FC = () => {
               sx={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: '#C2410C',
+                color: '#FF6600',
                 textTransform: 'none',
                 fontFamily: 'Poppins, sans-serif',
                 px: 1,
@@ -222,11 +222,11 @@ export const DriverEarnings: React.FC = () => {
                 '&:hover': {
                   backgroundColor: 'transparent',
                   textDecoration: 'none !important',
-                  color: '#9A3412',
+                  color: '#E65C00',
                 },
                 '&:active': {
                   textDecoration: 'none !important',
-                  color: '#7C2D12',
+                  color: '#CC5200',
                 },
                 '&:focus-visible': {
                   outline: '2px solid #FF6600',

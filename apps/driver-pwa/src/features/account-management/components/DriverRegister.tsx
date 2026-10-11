@@ -445,7 +445,7 @@ export const DriverRegister: React.FC = () => {
                     hasAttemptedSubmit && !hasTodaSelection
                       ? '#DC2626'
                       : todaFocused
-                      ? '#C2410C'
+                      ? '#FF6600'
                       : hasTodaSelection
                       ? '#64748B'
                       : '#64748B',
@@ -505,7 +505,7 @@ export const DriverRegister: React.FC = () => {
                     <Checkbox
                       size="small"
                       checked={selectedTodaIds.includes(toda.id)}
-                      sx={{ p: 0.5, mr: 1, color: '#64748B', '&.Mui-checked': { color: '#C2410C' } }}
+                      sx={{ p: 0.5, mr: 1, color: '#64748B', '&.Mui-checked': { color: '#FF6600' } }}
                     />
                     {toda.name} ({toda.acronym})
                   </MenuItem>
@@ -703,7 +703,7 @@ export const DriverRegister: React.FC = () => {
           <Box
             component="span"
             sx={{
-              color: '#C2410C',
+              color: '#FF6600',
               fontWeight: 700,
               textDecoration: 'none',
               '&:hover': { textDecoration: 'underline' },

@@ -575,7 +575,7 @@ const Dashboard: React.FC = () => {
               {permissionRequesting && (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "12px" }}>
                   <CircularProgress size={16} sx={{ color: "#FF6600" }} />
-                  <Typography sx={{ fontSize: "12px", color: "#C2410C", fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: "12px", color: "#FF6600", fontWeight: 600 }}>
                     {language === 'tl' ? 'Humihingi ng pahintulot sa browser...' : 'Requesting browser permission...'}
                   </Typography>
                 </Box>
@@ -614,7 +614,7 @@ const Dashboard: React.FC = () => {
               onClick={() => handleAllowLocation(true)}
               sx={{
                 padding: "14px 16px",
-                color: "#C2410C",
+                color: "#FF6600",
                 fontWeight: 700,
                 fontSize: "14px",
                 textTransform: "none",

@@ -294,7 +294,7 @@ export const DriverNavigation: React.FC = () => {
         </IconButton>
 
         <Box sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(255, 102, 0, 0.4)' }}>
-          <NavigationIcon sx={{ fontSize: 22, color: '#FFFFFF', transform: 'rotate(0deg)' }} />
+          <NavigationIcon sx={{ fontSize: 22, transform: 'rotate(0deg)' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700, }}>
@@ -329,7 +329,7 @@ export const DriverNavigation: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
@@ -366,7 +366,7 @@ export const DriverNavigation: React.FC = () => {
             <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>
               {language === 'tl' ? 'Pamasahe' : 'Fare'}
             </Typography>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#C2410C' }}>₱{fare.toFixed(2)}</Typography>
+            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#FF6600' }}>₱{fare.toFixed(2)}</Typography>
           </Box>
         </Box>
 
@@ -382,9 +382,8 @@ export const DriverNavigation: React.FC = () => {
           sx={{
             height: 50,
             borderRadius: '14px',
-            '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 },
+            '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#1A1A1A', opacity: 0.75 },
             backgroundColor: '#FF6600',
-            color: '#FFFFFF',
             fontWeight: 700,
             fontSize: '15px',
             textTransform: 'none',
@@ -443,7 +442,6 @@ export const DriverNavigation: React.FC = () => {
               height: 46,
               borderRadius: '12px',
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
               fontWeight: 700,
               textTransform: 'none',
               '&:hover': { backgroundColor: '#E65C00' },

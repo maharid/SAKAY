@@ -1149,7 +1149,7 @@ const NewTrip: React.FC = () => {
             onClick={handleSaveNotes}
             sx={{
               backgroundColor: "#FF6600",
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               borderRadius: "12px",
               fontWeight: 700,
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
@@ -1285,7 +1285,7 @@ const NewTrip: React.FC = () => {
                 <Chip
                   label="₱ Cash"
                   size="small"
-                  sx={{ backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
+                  sx={{ backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
                 />
               </Box>
             </Box>
@@ -1340,7 +1340,7 @@ const NewTrip: React.FC = () => {
                 border: "1px solid #FFE4D6",
               }}
             >
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#C2410C" }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: "#FF6600" }}>
                 Solo Trip
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#64748B", mt: 0.5 }}>

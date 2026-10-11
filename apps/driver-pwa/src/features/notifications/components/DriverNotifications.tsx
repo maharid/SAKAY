@@ -267,7 +267,7 @@ export const DriverNotifications: React.FC = () => {
                 {getCategoryIcon(selectedNotif.category)}
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#C2410C' }}>
+                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#FF6600' }}>
                   TODA Administrator
                 </Typography>
                 <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
@@ -287,7 +287,7 @@ export const DriverNotifications: React.FC = () => {
                   textTransform: 'none',
                   borderRadius: '10px',
                   borderColor: '#E2E8F0',
-                  color: '#C2410C',
+                  color: '#FF6600',
                   py: 0.5,
                   px: 1.25,
                   minHeight: 34,
@@ -441,7 +441,7 @@ export const DriverNotifications: React.FC = () => {
               sx={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: '#C2410C',
+                color: '#FF6600',
                 textTransform: 'none',
                 p: '6px 8px',
                 minHeight: 40,

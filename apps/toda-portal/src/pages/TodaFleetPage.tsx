@@ -229,9 +229,9 @@ export const TodaFleetPage: React.FC = () => {
               <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Under Maintenance / Inactive
               </Typography>
-              <BuildIcon sx={{ color: '#C2410C', fontSize: 22 }} />
+              <BuildIcon sx={{ color: '#FF6600', fontSize: 22 }} />
             </Box>
-            <Typography sx={{ fontSize: '28px', fontWeight: 700, color: '#C2410C', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '28px', fontWeight: 700, color: '#FF6600', mb: 0.5 }}>
               {maintenanceUnits} Units
             </Typography>
             <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
@@ -362,7 +362,7 @@ export const TodaFleetPage: React.FC = () => {
                         textTransform: 'none',
                         fontSize: '12.5px',
                         borderColor: 'var(--mac-border-color)',
-                        color: unit.status === 'Active' ? '#C2410C' : '#2E7D32',
+                        color: unit.status === 'Active' ? '#FF6600' : '#2E7D32',
                       }}
                     >
                       {unit.status === 'Active' ? 'Set Maintenance' : 'Set Active'}

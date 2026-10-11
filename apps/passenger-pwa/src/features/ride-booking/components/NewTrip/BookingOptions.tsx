@@ -174,7 +174,7 @@ const BookingOptions: React.FC<BookingOptionsProps> = ({
               textAlign: "left",
             }}
           >
-            <ChatOutlinedIcon sx={{ fontSize: 18, flexShrink: 0, color: note ? "#C2410C" : "#64748B" }} />
+            <ChatOutlinedIcon sx={{ fontSize: 18, flexShrink: 0, color: note ? "#FF6600" : "#64748B" }} />
             <Typography
               id="driver-note-value"
               noWrap

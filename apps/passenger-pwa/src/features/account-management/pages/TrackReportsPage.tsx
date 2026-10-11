@@ -133,7 +133,7 @@ const TrackReportsPage: React.FC = () => {
                   fontFamily: "Poppins, sans-serif",
                   textTransform: "none",
                   backgroundColor: isSelected ? "#FFFFFF" : "transparent",
-                  color: isSelected ? "#C2410C" : "#64748B",
+                  color: isSelected ? "#FF6600" : "#64748B",
                   boxShadow: isSelected ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
                   whiteSpace: "nowrap",
                   minWidth: 0,
@@ -247,7 +247,7 @@ const TrackReportsPage: React.FC = () => {
                         sx={{
                           fontSize: "14px",
                           fontWeight: 700,
-                          color: "#C2410C",
+                          color: "#FF6600",
                           fontFamily: "Poppins, sans-serif",
                           lineHeight: 1.3,
                           mb: 0.5,
@@ -290,7 +290,7 @@ const TrackReportsPage: React.FC = () => {
           onClick={() => navigate("/incident-report")}
           sx={{
             backgroundColor: "#FF6600",
-            color: "#FFFFFF",
+            color: "#1A1A1A",
             borderRadius: "14px",
             height: "44px",
             fontSize: "14px",

@@ -443,7 +443,7 @@ export const Register: React.FC = () => {
             />
           </Box>
           {phoneRegisteredError && (
-            <Typography sx={{ ...extendTapArea(12), fontSize: '12px', color: '#C2410C', fontWeight: 600, px: 0.5, mt: -0.5, cursor: 'pointer' }}
+            <Typography sx={{ ...extendTapArea(12), fontSize: '12px', color: '#FF6600', fontWeight: 600, px: 0.5, mt: -0.5, cursor: 'pointer' }}
               role="button"
               tabIndex={0}
               onKeyDown={activateWithKeyboard}
@@ -647,7 +647,7 @@ export const Register: React.FC = () => {
           <Box
             component="span"
             sx={{
-              color: '#C2410C',
+              color: '#FF6600',
               fontWeight: 700,
               textDecoration: 'none',
               '&:hover': { textDecoration: 'underline' },

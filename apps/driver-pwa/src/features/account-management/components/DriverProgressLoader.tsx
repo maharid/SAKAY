@@ -177,7 +177,7 @@ export const DriverProgressLoader: React.FC<DriverProgressLoaderProps> = ({
             mt: 4,
             fontSize: '15px',
             fontWeight: 700,
-            color: '#C2410C',
+            color: '#FF6600',
             textAlign: 'center',
             lineHeight: 1.5,
             maxWidth: '320px',

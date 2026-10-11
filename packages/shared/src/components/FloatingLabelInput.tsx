@@ -95,7 +95,7 @@ export const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
             fontSize: isFloating ? 12 : 15,
             fontWeight: isFloating ? 600 : 400,
             lineHeight: 1.2,
-            color: error ? '#B42318' : focused ? '#C2410C' : '#6B6B70',
+            color: error ? '#B42318' : focused ? '#FF6600' : '#6B6B70',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',

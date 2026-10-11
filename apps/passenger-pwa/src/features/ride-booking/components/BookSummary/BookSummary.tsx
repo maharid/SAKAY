@@ -484,7 +484,7 @@ const BookSummary: React.FC = () => {
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-                <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#C2410C" }}>
+                <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#FF6600" }}>
                   ₱
                 </Typography>
                 <Typography sx={{ fontSize: "28px", whiteSpace: "nowrap", fontWeight: 700, color: "#FFFFFF", lineHeight: 1 }}>

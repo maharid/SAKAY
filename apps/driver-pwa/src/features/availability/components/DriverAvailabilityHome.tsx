@@ -555,7 +555,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               width: 42,
               height: 42,
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
+              color: '#1A1A1A',
               fontWeight: 700,
               fontSize: '17px',
               border: '2px solid #FFFFFF',
@@ -987,7 +987,6 @@ export const DriverAvailabilityHome: React.FC = () => {
             onClick={() => setTodaModalOpen(false)}
             sx={{
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
               fontWeight: 700,
               borderRadius: '14px',
               height: '46px',
@@ -1086,7 +1085,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           onClick={() => handleAllowLocation(true)}
           sx={{
             py: '14px',
-            color: '#C2410C',
+            color: '#FF6600',
             fontWeight: 700,
             fontSize: '14px',
             textTransform: 'none',
@@ -1180,7 +1179,6 @@ export const DriverAvailabilityHome: React.FC = () => {
             disabled={renewalSubmitting || (!renewalLicenseExpiry && !renewalMtopExpiry)}
             sx={{
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
               textTransform: 'none',
               fontWeight: 700,
               borderRadius: '10px',

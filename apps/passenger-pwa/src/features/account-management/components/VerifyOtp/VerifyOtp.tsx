@@ -598,7 +598,7 @@ export const VerifyOtp: React.FC = () => {
             borderRadius: '14px',
             backgroundColor: resendBlocked ? '#F8FAFC' : '#FFFFFF',
             border: resendBlocked ? '1.5px solid #E2E8F0' : '1.5px solid #FF6600',
-            color: resendBlocked ? '#64748B' : '#C2410C',
+            color: resendBlocked ? '#64748B' : '#FF6600',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

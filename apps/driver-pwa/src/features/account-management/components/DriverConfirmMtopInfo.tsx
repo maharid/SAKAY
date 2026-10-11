@@ -98,7 +98,7 @@ const SakayMtopInput: React.FC<SakayMtopInputProps> = ({
             transform: isFloating ? 'translateY(0)' : 'translateY(-50%)',
             fontSize: isFloating ? '12px' : '15px',
             fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#C2410C' : isFloating ? '#64748B' : '#64748B',
+            color: error ? '#DC2626' : focused ? '#FF6600' : isFloating ? '#64748B' : '#64748B',
             textTransform: 'none',
             userSelect: 'none',
             pointerEvents: 'none',

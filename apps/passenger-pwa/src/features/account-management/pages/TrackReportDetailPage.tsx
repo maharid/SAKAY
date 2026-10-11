@@ -199,7 +199,7 @@ export const TrackReportDetailPage: React.FC = () => {
             <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 700, }}>
               {language === "tl" ? "Kategorya" : "Category"}
             </Typography>
-            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#C2410C", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#FF6600", fontFamily: "Poppins, sans-serif", mt: 0.25 }}>
               {report.incidentType}
             </Typography>
           </Box>

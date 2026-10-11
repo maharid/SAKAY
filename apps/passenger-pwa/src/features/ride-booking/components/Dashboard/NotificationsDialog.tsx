@@ -255,7 +255,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   {getCategoryIcon(selectedNotif.category)}
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
                     {selectedNotif.category === "advisories"
                       ? (isTagalog ? "TODA / LGU Tagapamahala" : "TODA / LGU Administration")
                       : "SAKAY"}
@@ -377,7 +377,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               sx={{
                 fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary,
                 fontWeight: TYPOGRAPHY_TOKENS.fontWeight.bold,
-                color: "#C2410C",
+                color: "#FF6600",
                 textTransform: "none",
                 p: "6px 8px",
                 minHeight: 40,

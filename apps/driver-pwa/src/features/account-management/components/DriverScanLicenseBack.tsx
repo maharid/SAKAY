@@ -357,12 +357,12 @@ export const DriverScanLicenseBack: React.FC = () => {
           }}
         >
           {t.scanBackPromptPrefix}
-          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
+          <Box component="span" sx={{ color: '#FF6600', fontWeight: 700 }}>
             {t.scanBackWord}
           </Box>
           {t.scanPromptMid}
           <br />
-          <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
+          <Box component="span" sx={{ color: '#FF6600', fontWeight: 700 }}>
             {t.philippineDriversLicense}
           </Box>
           {t.scanPromptSuffix}
@@ -570,7 +570,7 @@ export const DriverScanLicenseBack: React.FC = () => {
         >
           <Typography
             sx={{
-              color: '#C2410C',
+              color: '#FF6600',
               fontWeight: 700,
               fontSize: '14px',
               mb: 1.25,

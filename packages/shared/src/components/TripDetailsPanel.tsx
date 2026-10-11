@@ -23,7 +23,7 @@ interface TripDetailsPanelProps {
 
 const INK = '#0F172A';
 const MUTED = '#475569'; // 7.6:1 on white (the lighter slate used elsewhere is below 4.5:1 for small text)
-const ORANGE_TEXT = '#C2410C'; // brand orange that is readable as text (5.2:1 on white)
+const ORANGE_TEXT = '#FF6600'; // brand orange
 
 const TEXT = {
   en: {

@@ -133,12 +133,12 @@ export const QuickMessageDialog: React.FC<QuickMessageDialogProps> = ({
         {templates.map((text) => (
           <ButtonBase key={text} role="radio" aria-checked={choice === text} onClick={() => setChoice(text)} sx={optionSx(choice === text)}>
             <span>{text}</span>
-            {choice === text && <CheckIcon aria-hidden sx={{ fontSize: 20, color: '#C2410C', flexShrink: 0 }} />}
+            {choice === text && <CheckIcon aria-hidden sx={{ fontSize: 20, color: '#FF6600', flexShrink: 0 }} />}
           </ButtonBase>
         ))}
         <ButtonBase role="radio" aria-checked={choice === 'custom'} onClick={() => setChoice('custom')} sx={optionSx(choice === 'custom')}>
           <span>{tl ? 'Iba pang mensahe' : 'Other message'}</span>
-          {choice === 'custom' && <CheckIcon aria-hidden sx={{ fontSize: 20, color: '#C2410C', flexShrink: 0 }} />}
+          {choice === 'custom' && <CheckIcon aria-hidden sx={{ fontSize: 20, color: '#FF6600', flexShrink: 0 }} />}
         </ButtonBase>
         {choice === 'custom' && (
           <TextField

@@ -247,7 +247,7 @@ export const PassengerFeedback: React.FC = () => {
         <Button
           onClick={() => navigate('/support')}
           sx={{
-            color: '#C2410C',
+            color: '#FF6600',
             fontWeight: 700,
             fontSize: '14px',
             textTransform: 'none',
@@ -331,7 +331,7 @@ export const PassengerFeedback: React.FC = () => {
                     height: 40,
                     borderRadius: '20px',
                     backgroundColor: isSelected ? '#FFF8F0' : '#FFFFFF',
-                    color: isSelected ? '#C2410C' : '#475569',
+                    color: isSelected ? '#FF6600' : '#475569',
                     border: isSelected ? '1.5px solid #FF6600' : '1px solid #E2E8F0',
                   }}
                 />

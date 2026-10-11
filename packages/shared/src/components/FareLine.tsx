@@ -16,7 +16,7 @@ export interface FareLineProps {
 }
 
 const TONES = {
-  light: { label: '#475569', detail: '#64748B', amount: '#0F172A', total: '#C2410C' },
+  light: { label: '#475569', detail: '#64748B', amount: '#0F172A', total: '#FF6600' },
   dark: { label: '#CBD5E1', detail: '#94A3B8', amount: '#FFFFFF', total: '#FFB27A' },
 } as const;
 

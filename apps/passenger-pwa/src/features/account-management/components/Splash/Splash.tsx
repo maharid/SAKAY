@@ -437,7 +437,7 @@ const Splash: React.FC<SplashProps> = ({ initialStep }) => {
             onKeyDown={activateWithKeyboard}
             onClick={() => navigate("/login")}
             sx={{ ...extendTapArea(12),
-              color: "#C2410C",
+              color: "#FF6600",
               fontWeight: 600,
               cursor: "pointer",
               ml: "4px",

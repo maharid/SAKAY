@@ -42,7 +42,7 @@ textarea,
 /* A visible focus ring for keyboard and switch users (the brand orange, darkened so it reads on white). The custom fields draw their own. */
 :focus-visible,
 .Mui-focusVisible {
-  outline: 3px solid #C2410C !important;
+  outline: 3px solid #FF6600 !important;
   outline-offset: 2px !important;
 }
 

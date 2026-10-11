@@ -69,7 +69,7 @@ const RegistrationSuccess: React.FC = () => {
           <Box component="span" sx={{ display: "block" }}>
             {language === "tl" ? "Maligayang Pagbabalik," : "Welcome Back,"}
           </Box>
-          <Box component="span" sx={{ display: "block", color: "#C2410C", mt: "2px" }}>
+          <Box component="span" sx={{ display: "block", color: "#FF6600", mt: "2px" }}>
             {(state?.name?.trim() || (language === "tl" ? "Pasahero" : "Passenger"))}!
           </Box>
         </Typography>

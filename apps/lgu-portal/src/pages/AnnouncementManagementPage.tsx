@@ -677,7 +677,7 @@ export const AnnouncementManagementPage: React.FC = () => {
                     textTransform: 'none',
                     fontWeight: 600,
                     borderRadius: '8px',
-                    color: selectedAnn.is_published ? '#C2410C' : '#2E7D32',
+                    color: selectedAnn.is_published ? '#FF6600' : '#2E7D32',
                     borderColor: selectedAnn.is_published ? '#FDBA74' : '#A7F3D0',
                     '&:hover': { backgroundColor: selectedAnn.is_published ? '#FFF7ED' : '#ECFDF5' },
                   }}
