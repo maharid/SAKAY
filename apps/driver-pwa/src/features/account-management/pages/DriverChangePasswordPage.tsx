@@ -5,8 +5,6 @@ import {
   Paper,
   Button,
   IconButton,
-  InputAdornment,
-  TextField,
   Typography,
   CircularProgress,
   Alert,
@@ -17,6 +15,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import PageHeader from '../../../common/components/PageHeader';
+import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
 import { extendTapArea } from '@sakay/shared';
@@ -181,69 +180,23 @@ export const DriverChangePasswordPage: React.FC = () => {
           )}
 
           {/* New Password */}
-          <TextField
-            fullWidth
+          <RegisterInput
+            label={isTagalog ? 'Bagong Password' : 'New Password'}
             required
             type={showNewPassword ? 'text' : 'password'}
-            label={isTagalog ? 'Bagong Password' : 'New Password'}
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            slotProps={{
-              inputLabel: {
-                sx: {
-                  color: '#64748B',
-                  fontSize: '15px',
-                  transform: 'translate(16px, 18px) scale(1)',
-                  transformOrigin: 'top left',
-                  '&.MuiInputLabel-shrink': {
-                    transform: 'translate(16px, 8px) scale(0.75)',
-                    fontWeight: 600,
-                  },
-                  '&.Mui-focused': {
-                    color: '#FF6600',
-                  },
-                },
-              },
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      edge="end"
-                      size="small"
-                      sx={{ ...extendTapArea(8), color: '#64748B' }}
-                    >
-                      {showNewPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                notched: false,
-                sx: {
-                  height: '58px',
-                  borderRadius: '14px',
-                  backgroundColor: '#F8FAFC',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#E2E8F0',
-                    borderWidth: '1.5px',
-                    '& legend': { display: 'none' },
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#FF6600', borderWidth: '1.5px' },
-                  '&.Mui-focused': {
-                    boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
-                  },
-                  '& .MuiOutlinedInput-input': {
-                    pt: '20px',
-                    pb: '4px',
-                    px: '16px',
-                    fontSize: '15px',
-                    fontWeight: 500,
-                    color: '#0F172A',
-                  },
-                },
-              },
-            }}
+            onChange={(val) => setNewPassword(val)}
+            endAdornment={
+              <IconButton
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                edge="end"
+                size="small"
+                sx={{ ...extendTapArea(8), color: '#64748B' }}
+              >
+                {showNewPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+              </IconButton>
+            }
           />
 
           {/* Criteria List */}
@@ -259,71 +212,25 @@ export const DriverChangePasswordPage: React.FC = () => {
           </Box>
 
           {/* Confirm New Password */}
-          <TextField
-            fullWidth
+          <RegisterInput
+            label={isTagalog ? 'Kumpirmahin ang Bagong Password' : 'Confirm New Password'}
             required
             type={showConfirmPassword ? 'text' : 'password'}
-            label={isTagalog ? 'Kumpirmahin ang Bagong Password' : 'Confirm New Password'}
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(val) => setConfirmPassword(val)}
             error={confirmPassword.length > 0 && newPassword !== confirmPassword}
             helperText={confirmPassword.length > 0 && newPassword !== confirmPassword ? (isTagalog ? 'Hindi magkatugma ang password.' : 'Passwords do not match.') : ''}
-            slotProps={{
-              inputLabel: {
-                sx: {
-                  color: '#64748B',
-                  fontSize: '15px',
-                  transform: 'translate(16px, 18px) scale(1)',
-                  transformOrigin: 'top left',
-                  '&.MuiInputLabel-shrink': {
-                    transform: 'translate(16px, 8px) scale(0.75)',
-                    fontWeight: 600,
-                  },
-                  '&.Mui-focused': {
-                    color: '#FF6600',
-                  },
-                },
-              },
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      edge="end"
-                      size="small"
-                      sx={{ ...extendTapArea(8), color: '#64748B' }}
-                    >
-                      {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                notched: false,
-                sx: {
-                  height: '58px',
-                  borderRadius: '14px',
-                  backgroundColor: '#F8FAFC',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#E2E8F0',
-                    borderWidth: '1.5px',
-                    '& legend': { display: 'none' },
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#FF6600', borderWidth: '1.5px' },
-                  '&.Mui-focused': {
-                    boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
-                  },
-                  '& .MuiOutlinedInput-input': {
-                    pt: '20px',
-                    pb: '4px',
-                    px: '16px',
-                    fontSize: '15px',
-                    fontWeight: 500,
-                    color: '#0F172A',
-                  },
-                },
-              },
-            }}
+            endAdornment={
+              <IconButton
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                edge="end"
+                size="small"
+                sx={{ ...extendTapArea(8), color: '#64748B' }}
+              >
+                {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+              </IconButton>
+            }
           />
         </Paper>
 
