@@ -100,59 +100,55 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
       ];
 
   return (
-    <Box
-      sx={{
-        p: "12px",
-        borderRadius: "16px",
-        backgroundColor: c.panelBg,
-        border: c.panelBorder,
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-      }}
-    >
-      <Typography sx={{ fontSize: "13px", fontWeight: 700, color: c.title, fontFamily: FONT, lineHeight: 1.3 }}>
-        {tl ? "Pamasahe sa Shared Trip" : "Shared trip fare"}
-      </Typography>
-
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-        {tiles.map((tile) => (
-          <Box
-            key={tile.key}
-            sx={{ minWidth: 0, p: "10px", borderRadius: "12px", backgroundColor: c.tileBg, border: c.tileBorder, display: "flex", flexDirection: "column", gap: "2px" }}
-          >
-            <Typography sx={{ fontSize: "12px", color: c.caption, fontFamily: FONT, lineHeight: 1.3 }}>{tile.caption}</Typography>
-            <Typography
-              sx={{ fontSize: "18px", fontWeight: 700, color: tile.color, fontFamily: FONT, lineHeight: 1.3, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}
-            >
-              {formatPeso(tile.value)}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-
-      <Typography sx={{ fontSize: "12px", color: c.text, fontFamily: FONT, lineHeight: 1.45 }}>{summary}</Typography>
-
+    <Box>
       <ButtonBase
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
+        aria-expanded={open}
         sx={{
-          alignSelf: "flex-start",
-          minHeight: 36,
-          gap: "6px",
-          borderRadius: "8px",
-          color: c.link,
-          fontFamily: FONT,
-          fontSize: "13px",
-          fontWeight: 600,
-          mt: "-4px",
-          mb: "-2px",
-          px: "4px",
-          "&:hover": { textDecoration: "underline" },
+          width: "100%",
+          p: "10px 14px",
+          borderRadius: "14px",
+          backgroundColor: c.panelBg,
+          border: c.panelBorder,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "10px",
+          textAlign: "left",
+          transition: "all 0.15s ease",
+          "&:hover": {
+            backgroundColor: tone === "dark" ? "rgba(255, 255, 255, 0.1)" : "#E0EDFF",
+          },
+          "&:focus-visible": {
+            outline: "2px solid #FF6600",
+            outlineOffset: "2px",
+          },
         }}
       >
-        <InfoOutlinedIcon sx={{ fontSize: 16 }} />
-        {tl ? "Paano gumagana ang sharing?" : "How sharing works"}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: 1 }}>
+          <InfoOutlinedIcon sx={{ color: c.title, fontSize: 20, flexShrink: 0 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: "13px", fontWeight: 700, color: c.title, fontFamily: FONT, lineHeight: 1.2 }}>
+              {tl ? "Pamasahe sa Shared Trip" : "Shared Trip Fare Info"}
+            </Typography>
+            <Typography sx={{ fontSize: "12px", color: c.caption, fontFamily: FONT, lineHeight: 1.2, mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {formatPeso(matchedEstimate)} ({tl ? "may kapares" : "matched"}) • {formatPeso(maxUnmatchedFare)} max
+            </Typography>
+          </Box>
+        </Box>
+        <Typography
+          sx={{
+            fontSize: "12px",
+            fontWeight: 700,
+            color: c.link,
+            fontFamily: FONT,
+            flexShrink: 0,
+            lineHeight: 1.2,
+          }}
+        >
+          {tl ? "Tingnan" : "Details"} &rsaquo;
+        </Typography>
       </ButtonBase>
 
       {/* Compact Fare Breakdown Modal */}
@@ -195,6 +191,10 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
               </Box>
             ))}
           </Box>
+
+          <Typography sx={{ fontSize: "12px", color: "#475569", fontFamily: FONT, lineHeight: 1.45, fontStyle: "italic", px: 0.5 }}>
+            {summary}
+          </Typography>
 
           <Box component="ul" sx={{ m: 0, pl: 2.5, display: "flex", flexDirection: "column", gap: "8px" }}>
             {details.map((line, i) => (

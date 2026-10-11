@@ -440,6 +440,7 @@ export async function fetchDriverNotifications(): Promise<any[]> {
       id: n.notification_id || n.id,
       title: n.title,
       message: n.message,
+      notificationType: n.notification_type,
       category: n.notification_type === 'TODA_REMINDER' ? 'TODA Reminder' : 'TODA Announcement',
       type: 'alert',
       time: n.sent_at ? new Date(n.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent',

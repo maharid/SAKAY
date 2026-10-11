@@ -13,6 +13,7 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import Alert from "@mui/material/Alert";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
 import { TYPOGRAPHY_TOKENS, activateWithKeyboard } from "@sakay/shared";
@@ -92,7 +93,12 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   onMarkAllAsRead = () => {},
 }) => {
   const { language } = useLanguage();
+  const isTagalog = language === "tl";
   const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'promos' | 'advisories'>('all');
+  const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
+  const [showingTranslation, setShowingTranslation] = useState(false);
+  const [translationNotice, setTranslationNotice] = useState<string | null>(null);
+
   const [localReadIds, setLocalReadIds] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem("sakay_read_notifications");
@@ -127,6 +133,19 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     setLocalReadIds(Array.from(new Set([...localReadIds, ...allIds])));
     onMarkAllAsRead();
   };
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    handleMarkAsRead(item.id);
+    setSelectedNotif(item);
+  };
+
+  const handleCloseDialog = () => {
+    setSelectedNotif(null);
+    setShowingTranslation(false);
+    setTranslationNotice(null);
+    onClose();
+  };
+
   const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
 
   const filters = [
@@ -154,10 +173,39 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     }
   };
 
+  const hasDistinctTranslation = Boolean(
+    selectedNotif &&
+    ((selectedNotif.titleEn && selectedNotif.titleTl && selectedNotif.titleEn !== selectedNotif.titleTl) ||
+     (selectedNotif.bodyEn && selectedNotif.bodyTl && selectedNotif.bodyEn !== selectedNotif.bodyTl))
+  );
+
+  const handleToggleTranslation = () => {
+    setTranslationNotice(null);
+    if (showingTranslation) {
+      setShowingTranslation(false);
+      return;
+    }
+
+    const apiUrl = (import.meta as any).env?.VITE_TRANSLATION_API_URL;
+    const apiKey = (import.meta as any).env?.VITE_TRANSLATION_API_KEY;
+
+    if (apiUrl || apiKey) {
+      setShowingTranslation(true);
+    } else if (hasDistinctTranslation) {
+      setShowingTranslation(true);
+    } else {
+      setTranslationNotice(
+        isTagalog
+          ? "Hindi pa nakakonekta ang panlabas na serbisyo ng pagsasalin (Translation service is not configured)."
+          : "External translation service is not configured."
+      );
+    }
+  };
+
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleCloseDialog}
       fullScreen
       slotProps={{
         paper: {
@@ -168,7 +216,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         },
       }}
     >
-      {/* 1. Header (Matching Image 2: ProfileEditor square rounded back button card) */}
+      {/* 1. Header */}
       <DialogTitle
         sx={{
           display: "flex",
@@ -183,8 +231,16 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         }}
       >
         <IconButton
-          onClick={onClose}
-          aria-label="Close notifications"
+          onClick={() => {
+            if (selectedNotif) {
+              setSelectedNotif(null);
+              setShowingTranslation(false);
+              setTranslationNotice(null);
+            } else {
+              handleCloseDialog();
+            }
+          }}
+          aria-label={selectedNotif ? (isTagalog ? "Bumalik sa listahan" : "Back to list") : "Close notifications"}
           sx={{
             backgroundColor: "#FFFFFF",
             border: "1px solid #E2E8F0",
@@ -207,14 +263,117 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             fontFamily: "Poppins, sans-serif",
           }}
         >
-          {language === "tl" ? "Mga Notification" : "Notifications"}
+          {selectedNotif
+            ? (isTagalog ? "Detalye ng Abiso" : "Notice Details")
+            : (language === "tl" ? "Mga Notification" : "Notifications")}
         </Typography>
 
         <Box sx={{ width: "44px" }} /> {/* spacer */}
       </DialogTitle>
 
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
-        {/* 2. Compact Filter Pills (28px height, 13px font size) */}
+        {selectedNotif ? (
+          <Box sx={{ flex: 1, overflowY: "auto", p: 2.5 }}>
+            {/* Header info */}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    backgroundColor: "#FFF2E9",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {getCategoryIcon(selectedNotif.category)}
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#C2410C" }}>
+                    {selectedNotif.category === "advisories"
+                      ? (isTagalog ? "TODA / LGU Tagapamahala" : "TODA / LGU Administration")
+                      : "SAKAY"}
+                  </Typography>
+                  <Typography sx={{ fontSize: "12px", color: "#64748B" }}>
+                    {getRelativeTime(selectedNotif.createdAt, selectedNotif.timeTl, selectedNotif.timeEn, language)}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {selectedNotif.category === "advisories" && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleToggleTranslation}
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    borderRadius: "10px",
+                    borderColor: "#E2E8F0",
+                    color: "#C2410C",
+                    py: 0.5,
+                    px: 1.25,
+                    minHeight: 34,
+                    "&:hover": { backgroundColor: "#FFF7ED", borderColor: "#FF6600" },
+                  }}
+                >
+                  {showingTranslation
+                    ? (isTagalog ? "Ipakita ang orihinal" : "Show original")
+                    : (isTagalog ? "Isalin sa Tagalog" : "Translate to English")}
+                </Button>
+              )}
+            </Box>
+
+            {translationNotice && (
+              <Alert severity="info" sx={{ mb: 2, borderRadius: "12px", fontSize: "13px" }}>
+                {translationNotice}
+              </Alert>
+            )}
+
+            {showingTranslation && (
+              <Box sx={{ mb: 1.5, display: "inline-block", px: 1, py: 0.25, borderRadius: "6px", backgroundColor: "#F1F5F9" }}>
+                <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>
+                  {isTagalog ? "Pagsasalin sa Tagalog" : "English Translation"}
+                </Typography>
+              </Box>
+            )}
+
+            <Typography
+              sx={{
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "#0F172A",
+                lineHeight: 1.3,
+                mb: 2,
+              }}
+            >
+              {showingTranslation
+                ? (isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn)
+                : (selectedNotif.titleTl || selectedNotif.titleEn)}
+            </Typography>
+
+            <Divider sx={{ mb: 2.5, borderColor: "#F1F5F9" }} />
+
+            <Typography
+              sx={{
+                fontSize: "14px",
+                color: "#334155",
+                lineHeight: 1.6,
+                whiteSpace: "pre-line",
+              }}
+            >
+              {showingTranslation
+                ? (isTagalog ? selectedNotif.bodyTl : selectedNotif.bodyEn)
+                : (selectedNotif.bodyTl || selectedNotif.bodyEn)}
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            {/* 2. Compact Filter Pills (28px height, 13px font size) */}
         <Box
           className="hide-scrollbar"
           sx={{
@@ -340,7 +499,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                     tabIndex={0}
                     onKeyDown={activateWithKeyboard}
                     onClick={() => {
-                      if (!item.isRead) handleMarkAsRead(item.id);
+                      handleNotificationClick(item);
                     }}
                     sx={{
                       py: 1.5,
@@ -437,6 +596,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             })}
           </Box>
         )}
+        </>
+      )}
       </DialogContent>
     </Dialog>
   );

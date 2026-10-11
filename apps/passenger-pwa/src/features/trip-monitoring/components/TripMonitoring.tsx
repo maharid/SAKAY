@@ -23,7 +23,9 @@ import StarIcon from '@mui/icons-material/Star';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import TimerIcon from '@mui/icons-material/Timer';
 import LinearProgress from '@mui/material/LinearProgress';
+import CircularProgress from '@mui/material/CircularProgress';
 import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
@@ -45,6 +47,8 @@ import {
   MapControlButton,
   MapControlStack,
   searchRadiusFromStatus,
+  COMPLETION_CONFIRM_TIMEOUT_SECONDS,
+  formatCountdown,
 } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
@@ -276,6 +280,28 @@ export const TripMonitoring: React.FC = () => {
   // Asks the database for the booking's state right now (the poll below, on demand): set by the effect that owns the poll.
   const pollNowRef = useRef<(() => Promise<void>) | null>(null);
 
+  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState<boolean>(() => {
+    return localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
+  });
+
+  useEffect(() => {
+    setIsPaymentConfirmed(localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true');
+  }, [activeBookingId]);
+
+  const [paymentTimerNow, setPaymentTimerNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (booking?.booking_status !== 'Arrived at Destination' || isPaymentConfirmed) return;
+    const interval = setInterval(() => {
+      setPaymentTimerNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [booking?.booking_status, isPaymentConfirmed]);
+
+  const fareLockedAtMs = booking?.fare_locked_at ? Date.parse(booking.fare_locked_at) : null;
+  const paymentSecondsLeft = fareLockedAtMs
+    ? Math.max(0, COMPLETION_CONFIRM_TIMEOUT_SECONDS - Math.floor((paymentTimerNow - fareLockedAtMs) / 1000))
+    : COMPLETION_CONFIRM_TIMEOUT_SECONDS;
+
   const handleCopyBookingId = () => {
     if (activeBookingId) {
       navigator.clipboard.writeText(activeBookingId);
@@ -363,6 +389,14 @@ export const TripMonitoring: React.FC = () => {
       }
       localStorage.setItem(`payment_confirmed_${activeBookingId}`, 'true');
       localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
+      setIsPaymentConfirmed(true);
+
+      const driverChannel = supabase.channel(`driver_sync_${activeBookingId}`);
+      await driverChannel.send({
+        type: 'broadcast',
+        event: 'payment_confirmed',
+        payload: { bookingId: activeBookingId, payment_confirmed: true },
+      });
 
       const channel = supabase.channel(`booking_sync_${activeBookingId}`);
       await channel.send({
@@ -621,7 +655,7 @@ export const TripMonitoring: React.FC = () => {
           }
 
           setBooking((prev) => {
-            const isPaidLocally = localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
+            const isPaidLocally = isPaymentConfirmed || localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
             if (isPaidLocally && (d.booking_status === 'Arrived at Destination' || prev?.booking_status === 'Completed')) {
               return prev; // Never let stale polling revert a completed payment
             }
@@ -683,7 +717,7 @@ export const TripMonitoring: React.FC = () => {
 
             setBooking((prev) => {
               const mappedStatus = mapBookingStatus(row.booking_status);
-              const isPaidLocally = localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
+              const isPaidLocally = isPaymentConfirmed || localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
               if (isPaidLocally && (mappedStatus === 'Arrived at Destination' || prev?.booking_status === 'Completed')) {
                 return prev;
               }
@@ -1119,6 +1153,78 @@ export const TripMonitoring: React.FC = () => {
             <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} />
           )}
 
+          {status === 'Arrived at Destination' && !isPaymentConfirmed && (
+            <Box
+              sx={{
+                p: '12px 14px',
+                borderRadius: '16px',
+                backgroundColor: paymentSecondsLeft === 0 ? '#FEF2F2' : '#FFFBEB',
+                border: `1.5px solid ${paymentSecondsLeft === 0 ? '#FCA5A5' : '#FCD34D'}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <TimerIcon aria-hidden sx={{ color: paymentSecondsLeft === 0 ? '#B91C1C' : '#B45309', fontSize: 20, flexShrink: 0 }} />
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', lineHeight: 1.3 }}>
+                  {language === 'tl' ? 'Pakibayaran ang drayber' : 'Please pay the driver'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography
+                  role="timer"
+                  aria-live="off"
+                  sx={{
+                    fontSize: paymentSecondsLeft === 0 ? '22px' : '32px',
+                    fontWeight: 700,
+                    color: paymentSecondsLeft === 0 ? '#B91C1C' : '#92400E',
+                    lineHeight: 1.1,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {paymentSecondsLeft === 0
+                    ? (language === 'tl' ? 'Tapos na ang oras' : 'Time is up')
+                    : formatCountdown(paymentSecondsLeft)}
+                </Typography>
+              </Box>
+              <Typography sx={{ fontSize: '13px', color: paymentSecondsLeft === 0 ? '#991B1B' : '#78350F', fontWeight: 500, lineHeight: 1.45, mt: 0.25 }}>
+                {language === 'tl'
+                  ? 'Ibigay ang opisyal na pamasahe sa drayber at pindutin ang "Nabayaran ko na" sa ibaba bago matapos ang oras.'
+                  : 'Pay the driver the official fare and tap "I Paid" below before the time runs out.'}
+              </Typography>
+            </Box>
+          )}
+
+          {status === 'Arrived at Destination' && isPaymentConfirmed && (
+            <Box
+              role="status"
+              sx={{
+                p: '14px 16px',
+                borderRadius: '16px',
+                backgroundColor: '#F0FDF4',
+                border: '1.5px solid #86EFAC',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              <CircularProgress size={22} sx={{ color: '#16A34A', flexShrink: 0 }} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#166534', lineHeight: 1.3 }}>
+                  {language === 'tl'
+                    ? 'Nabayaran na • Naghihintay ng kumpirmasyon ng drayber'
+                    : 'Paid • Waiting for driver confirmation'}
+                </Typography>
+                <Typography sx={{ fontSize: '12px', color: '#15803D', mt: 0.25, lineHeight: 1.4 }}>
+                  {language === 'tl'
+                    ? 'Ipinadala na sa drayber ang iyong kumpirmasyon ng bayad. Hinihintay na lang matapos ang biyahe.'
+                    : 'Your payment confirmation has been sent to the driver. Waiting to complete the trip.'}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
           {status === 'No Driver Found' ? (
             <Box role="alert" sx={{ p: 2, backgroundColor: '#FEF2F2', borderRadius: '16px', border: '1.5px solid #FCA5A5', textAlign: 'center' }}>
               <Typography sx={{ fontWeight: 700, fontSize: '16px', color: '#991B1B' }}>
@@ -1257,7 +1363,7 @@ export const TripMonitoring: React.FC = () => {
                 variant="contained"
                 fullWidth
                 onClick={handlePassengerPaid}
-                disabled={paidFlight.busy || localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true'}
+                disabled={paidFlight.busy || isPaymentConfirmed}
                 sx={{
                   minHeight: 52,
                   borderRadius: '16px',
@@ -1272,7 +1378,7 @@ export const TripMonitoring: React.FC = () => {
               >
                 {paidFlight.busy
                   ? (language === 'tl' ? 'Kinukumpirma...' : 'Confirming...')
-                  : localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true'
+                  : isPaymentConfirmed
                   ? (language === 'tl' ? 'Nabayaran na • Naghihintay ng kumpirmasyon' : 'Paid • Waiting for confirmation')
                   : (language === 'tl' ? 'Nabayaran ko na' : 'I Paid')}
               </Button>

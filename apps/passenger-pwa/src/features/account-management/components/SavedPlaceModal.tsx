@@ -150,11 +150,11 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
         <DialogTitle sx={{ fontWeight: 700, fontSize: "18px", color: "#0F172A", fontFamily: "Poppins, sans-serif", pb: 1 }}>
           {initialPlace
             ? language === "tl"
-              ? "I-edit ang Lugar"
-              : "Edit Saved Location"
+              ? "I-edit ang Naka-save na Lugar"
+              : "Edit Saved Place"
             : language === "tl"
-            ? "Magdagdag ng Lugar"
-            : "Add Saved Location"}
+            ? "Magdagdag ng Naka-save na Lugar"
+            : "Add Saved Place"}
         </DialogTitle>
         <DialogContent sx={{ py: 1 }}>
           {/* Field 1: Pangalan ng Lugar */}
