@@ -342,18 +342,26 @@ export const PassengerFeedback: React.FC = () => {
 
         {/* Written Feedback (Optional) */}
         <Box>
-          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 1, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Karagdagang Komento (Optional)' : 'Additional Comments (Optional)'}
-          </Typography>
           <TextField
             fullWidth
             multiline
             rows={3.5}
             disabled={submitted}
+            label={language === 'tl' ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
             placeholder={language === 'tl' ? 'Ibahagi ang iyong opinyon tungkol sa serbisyo...' : 'Share your thoughts about the service...'}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '16px' } }}
+            slotProps={{
+              input: {
+                sx: {
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '14px',
+                  '& fieldset': { borderColor: '#E2E8F0' },
+                  '&:hover fieldset': { borderColor: '#CBD5E1' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
+              },
+            }}
           />
         </Box>
       </Box>

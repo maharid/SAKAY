@@ -75,46 +75,67 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
       onSecondaryAction={close}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        <Box>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>Who should receive it</Typography>
-          <TextField
-            select
-            fullWidth
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as ReminderAudience)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          >
-            {AUDIENCES.map((a) => (
-              <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
-            ))}
-          </TextField>
-        </Box>
+        <TextField
+          select
+          fullWidth
+          label="Who should receive it"
+          value={audience}
+          onChange={(e) => setAudience(e.target.value as ReminderAudience)}
+          slotProps={{
+            input: {
+              sx: {
+                borderRadius: '12px',
+                '& fieldset': { borderColor: '#E5E5EA' },
+                '&:hover fieldset': { borderColor: '#C7C7CC' },
+                '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+              },
+            },
+          }}
+        >
+          {AUDIENCES.map((a) => (
+            <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
+          ))}
+        </TextField>
 
-        <Box>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>Title</Typography>
-          <TextField
-            fullWidth
-            value={title}
-            onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
-            placeholder="e.g. Renew your Driver's License"
-            helperText={`${title.length}/${TITLE_MAX}`}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-        </Box>
+        <TextField
+          fullWidth
+          label="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
+          placeholder="e.g. Renew your Driver's License"
+          helperText={`${title.length}/${TITLE_MAX}`}
+          slotProps={{
+            input: {
+              sx: {
+                borderRadius: '12px',
+                '& fieldset': { borderColor: '#E5E5EA' },
+                '&:hover fieldset': { borderColor: '#C7C7CC' },
+                '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+              },
+            },
+          }}
+        />
 
-        <Box>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>Message</Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            value={message}
-            onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX))}
-            placeholder="What should the drivers do, and by when?"
-            helperText={`${message.length}/${MESSAGE_MAX}`}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-        </Box>
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          label="Message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX))}
+          placeholder="What should the drivers do, and by when?"
+          helperText={`${message.length}/${MESSAGE_MAX}`}
+          slotProps={{
+            input: {
+              sx: {
+                borderRadius: '12px',
+                '& fieldset': { borderColor: '#E5E5EA' },
+                '&:hover fieldset': { borderColor: '#C7C7CC' },
+                '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+              },
+            },
+          }}
+        />
 
         {error && <Alert severity="error" sx={{ borderRadius: '10px' }}>{error}</Alert>}
         {result && <Alert severity={result.startsWith('No driver') ? 'info' : 'success'} sx={{ borderRadius: '10px' }}>{result}</Alert>}

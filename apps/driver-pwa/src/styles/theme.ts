@@ -72,6 +72,39 @@ export const theme = createTheme({
   shape: {
     borderRadius: 14,
   },
+  components: {
+    MuiTextField: {
+      defaultProps: {
+        variant: 'outlined',
+        fullWidth: true,
+      },
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 14,
+            backgroundColor: '#F8FAFC',
+            fontSize: '15px',
+            '& fieldset': {
+              borderColor: '#E2E8F0',
+            },
+            '&:hover fieldset': {
+              borderColor: '#CBD5E1',
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#FF6600',
+            },
+          },
+          '& .MuiInputLabel-root': {
+            color: '#64748B',
+            fontSize: '14px',
+            '&.Mui-focused': {
+              color: '#FF6600',
+            },
+          },
+        },
+      },
+    },
+  },
 });
 
 export default theme;

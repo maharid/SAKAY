@@ -10,8 +10,6 @@ import {
   Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import HttpsOutlinedIcon from '@mui/icons-material/HttpsOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -37,9 +35,6 @@ export const DriverResetPassword: React.FC = () => {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
   useEffect(() => {
     // Validate that the user arrived via a valid recovery session or token
@@ -177,9 +172,6 @@ export const DriverResetPassword: React.FC = () => {
     }
   };
 
-  const showPasswordIcon = !passwordFocused && !newPassword;
-  const showConfirmPasswordIcon = !confirmPasswordFocused && !confirmPassword;
-
   return (
     <Box
       sx={{
@@ -282,26 +274,9 @@ export const DriverResetPassword: React.FC = () => {
             label={t.newPassword}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
             error={hasAttemptedSubmit && !isPasswordValid}
             slotProps={{
-              inputLabel: {
-                shrink: Boolean(passwordFocused || newPassword),
-                sx: {
-                  color: '#64748B',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  '&.Mui-focused': { color: '#FF6600', fontWeight: 600 },
-                  ...(showPasswordIcon ? { transform: 'translate(44px, 16px) scale(1)' } : {}),
-                },
-              },
               input: {
-                startAdornment: showPasswordIcon ? (
-                  <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: '#0F172A', fontSize: 20 }} />
-                  </InputAdornment>
-                ) : null,
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
@@ -316,10 +291,9 @@ export const DriverResetPassword: React.FC = () => {
                   </InputAdornment>
                 ),
                 sx: {
-                  borderRadius: '16px',
+                  borderRadius: '14px',
                   backgroundColor: '#F8FAFC',
                   fontSize: '15px',
-                  height: '56px',
                   '& fieldset': { borderColor: '#E2E8F0' },
                   '&:hover fieldset': { borderColor: '#CBD5E1' },
                   '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -393,8 +367,6 @@ export const DriverResetPassword: React.FC = () => {
             label={t.confirmPassword}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            onFocus={() => setConfirmPasswordFocused(true)}
-            onBlur={() => setConfirmPasswordFocused(false)}
             error={isPasswordMismatched || (hasAttemptedSubmit && !confirmPassword)}
             helperText={
               isPasswordMismatched
@@ -411,22 +383,7 @@ export const DriverResetPassword: React.FC = () => {
                   fontWeight: isPasswordMismatched || showMatchSuccess ? 600 : 400,
                 },
               },
-              inputLabel: {
-                shrink: Boolean(confirmPasswordFocused || confirmPassword),
-                sx: {
-                  color: '#64748B',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  '&.Mui-focused': { color: '#FF6600', fontWeight: 600 },
-                  ...(showConfirmPasswordIcon ? { transform: 'translate(44px, 16px) scale(1)' } : {}),
-                },
-              },
               input: {
-                startAdornment: showConfirmPasswordIcon ? (
-                  <InputAdornment position="start">
-                    <HttpsOutlinedIcon sx={{ color: '#0F172A', fontSize: 20 }} />
-                  </InputAdornment>
-                ) : null,
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
@@ -441,10 +398,9 @@ export const DriverResetPassword: React.FC = () => {
                   </InputAdornment>
                 ),
                 sx: {
-                  borderRadius: '16px',
+                  borderRadius: '14px',
                   backgroundColor: '#F8FAFC',
                   fontSize: '15px',
-                  height: '56px',
                   '& fieldset': { borderColor: '#E2E8F0' },
                   '&:hover fieldset': { borderColor: '#CBD5E1' },
                   '&.Mui-focused fieldset': { borderColor: '#FF6600' },
