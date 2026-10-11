@@ -27,7 +27,6 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
-import appIconToto from '@sakay/shared/src/assets/icons/app-icon-toto.webp';
 import { DriverForegroundReminder } from '../../../common/components/DriverPresenceNotices';
 import PauseBookingsControl from './PauseBookingsControl';
 import { supabase } from '../../../services/supabaseClient';
@@ -552,22 +551,15 @@ export const DriverAvailabilityHome: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar
-            src={appIconToto}
-            alt={firstName}
             sx={{
               width: 42,
               height: 42,
-              backgroundColor: '#FFEBE0',
+              backgroundColor: '#FF6600',
+              color: '#1A1A1A',
               fontWeight: 700,
               fontSize: '17px',
               border: '2px solid #FFFFFF',
-              boxShadow: '0 2px 8px rgba(255, 102, 0, 0.25)',
-              '& img': {
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                padding: '2px',
-              },
+              boxShadow: '0 2px 8px rgba(255, 102, 0, 0.3)',
             }}
           >
             {initialLetter}
