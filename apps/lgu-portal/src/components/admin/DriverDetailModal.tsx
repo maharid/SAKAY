@@ -1661,23 +1661,26 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
               {/* Reviewer Notes */}
               <Box>
-                <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                  Reviewer Notes / Instructions for Driver
-                </Typography>
                 <TextField
                   fullWidth
                   multiline
                   rows={3}
+                  label="Reviewer Notes / Instructions for Driver"
                   placeholder={DEFAULT_NOTES_BY_DOC_TYPE[configureDocIssue.docType]}
                   value={configureDocIssue.notes}
                   onChange={(e) =>
                     setConfigureDocIssue((prev) => (prev ? { ...prev, notes: e.target.value } : null))
                   }
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      backgroundColor: '#FFFFFF',
+                  slotProps={{
+                    input: {
+                      sx: {
+                        borderRadius: '12px',
+                        fontSize: '13px',
+                        backgroundColor: '#FFFFFF',
+                        '& fieldset': { borderColor: '#E5E5EA' },
+                        '&:hover fieldset': { borderColor: '#C7C7CC' },
+                        '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                      },
                     },
                   }}
                 />

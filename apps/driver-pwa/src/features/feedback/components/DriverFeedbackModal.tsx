@@ -280,9 +280,6 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
 
           {/* Comment / Remarks */}
           <Box>
-            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', mb: 0.5, fontFamily: 'Poppins, sans-serif' }}>
-              {language === 'tl' ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
-            </Typography>
             <TextField
               fullWidth
               multiline
@@ -290,8 +287,19 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
               disabled={alreadyRated}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
+              label={language === 'tl' ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
               placeholder={language === 'tl' ? 'Isulat ang iyong komento...' : 'Write your comment...'}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '14px', fontSize: '13px' } }}
+              slotProps={{
+                input: {
+                  sx: {
+                    borderRadius: '14px',
+                    backgroundColor: '#FFFFFF',
+                    '& fieldset': { borderColor: '#E2E8F0' },
+                    '&:hover fieldset': { borderColor: '#CBD5E1' },
+                    '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                  },
+                },
+              }}
             />
           </Box>
         </DialogContent>

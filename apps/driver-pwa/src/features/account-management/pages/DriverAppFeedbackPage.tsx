@@ -112,14 +112,11 @@ export const DriverAppFeedbackPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
-            {isTagalog ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
-          </Typography>
-
           <TextField
             fullWidth
             multiline
             rows={4}
+            label={isTagalog ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
             placeholder={
               isTagalog
                 ? 'Isulat dito ang iyong komento o suhestiyon...'
@@ -127,10 +124,15 @@ export const DriverAppFeedbackPage: React.FC = () => {
             }
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '14px',
-                fontSize: '13px',
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: '14px',
+                  backgroundColor: '#F8FAFC',
+                  '& fieldset': { borderColor: '#E2E8F0' },
+                  '&:hover fieldset': { borderColor: '#CBD5E1' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
               },
             }}
           />

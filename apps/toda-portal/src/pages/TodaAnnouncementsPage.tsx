@@ -449,70 +449,90 @@ export const TodaAnnouncementsPage: React.FC = () => {
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {/* Title Field */}
-          <Box>
-            <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
-              Announcement Title
-            </Typography>
-            <TextField
-              fullWidth
-              placeholder="e.g. Mandatory General Assembly Meeting on May 20..."
-              value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-          </Box>
+          <TextField
+            fullWidth
+            label="Announcement Title"
+            placeholder="e.g. Mandatory General Assembly Meeting on May 20..."
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.target.value)}
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: '12px',
+                  '& fieldset': { borderColor: '#E5E5EA' },
+                  '&:hover fieldset': { borderColor: '#C7C7CC' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
+              },
+            }}
+          />
 
           {/* Category & Urgency Selectors */}
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
-                Category
-              </Typography>
-              <TextField
-                select
-                fullWidth
-                value={formCategory}
-                onChange={(e) => setFormCategory(e.target.value as any)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              >
-                {categoryOptions.filter((c) => c.value !== 'All').map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                ))}
-              </TextField>
-            </Box>
+            <TextField
+              select
+              fullWidth
+              label="Category"
+              value={formCategory}
+              onChange={(e) => setFormCategory(e.target.value as any)}
+              slotProps={{
+                input: {
+                  sx: {
+                    borderRadius: '12px',
+                    '& fieldset': { borderColor: '#E5E5EA' },
+                    '&:hover fieldset': { borderColor: '#C7C7CC' },
+                    '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                  },
+                },
+              }}
+            >
+              {categoryOptions.filter((c) => c.value !== 'All').map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+              ))}
+            </TextField>
 
-            <Box>
-              <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
-                Urgency Priority
-              </Typography>
-              <TextField
-                select
-                fullWidth
-                value={formUrgency}
-                onChange={(e) => setFormUrgency(e.target.value as any)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              >
-                <MenuItem value="Standard">Standard Priority</MenuItem>
-                <MenuItem value="High Priority">High Priority (Urgent Advisory)</MenuItem>
-              </TextField>
-            </Box>
+            <TextField
+              select
+              fullWidth
+              label="Urgency Priority"
+              value={formUrgency}
+              onChange={(e) => setFormUrgency(e.target.value as any)}
+              slotProps={{
+                input: {
+                  sx: {
+                    borderRadius: '12px',
+                    '& fieldset': { borderColor: '#E5E5EA' },
+                    '&:hover fieldset': { borderColor: '#C7C7CC' },
+                    '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                  },
+                },
+              }}
+            >
+              <MenuItem value="Standard">Standard Priority</MenuItem>
+              <MenuItem value="High Priority">High Priority (Urgent Advisory)</MenuItem>
+            </TextField>
           </Box>
 
           {/* Message Content Area */}
-          <Box>
-            <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
-              Announcement Content / Message
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              placeholder="Provide clear details and instructions for TODA member drivers..."
-              value={formMessage}
-              onChange={(e) => setFormMessage(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-          </Box>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Announcement Content / Message"
+            placeholder="Provide clear details and instructions for TODA member drivers..."
+            value={formMessage}
+            onChange={(e) => setFormMessage(e.target.value)}
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: '12px',
+                  '& fieldset': { borderColor: '#E5E5EA' },
+                  '&:hover fieldset': { borderColor: '#C7C7CC' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
+              },
+            }}
+          />
 
           <Box
             sx={{

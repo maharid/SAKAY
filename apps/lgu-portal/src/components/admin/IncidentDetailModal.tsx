@@ -252,22 +252,24 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
         {/* Section 6: Official Findings & Action Taken */}
         <Box sx={{ mb: 4 }}>
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.5, letterSpacing: '0.3px' }}>
-            Official LGU Investigation Findings & Action Taken
-          </Typography>
           <TextField
             multiline
             rows={3}
             fullWidth
+            label="Official LGU Investigation Findings & Action Taken"
             placeholder="Record official investigation findings, witness notes, or administrative action rationale..."
             value={findingsText}
             onChange={(e) => setFindingsText(e.target.value)}
-            sx={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '10px',
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '10px',
-                fontSize: '11.3px',
+            slotProps={{
+              input: {
+                sx: {
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  '& fieldset': { borderColor: '#E5E5EA' },
+                  '&:hover fieldset': { borderColor: '#C7C7CC' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
               },
             }}
           />

@@ -158,20 +158,25 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
         </DialogTitle>
         <DialogContent sx={{ py: 1 }}>
           {/* Field 1: Pangalan ng Lugar */}
-          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#475569", mb: 0.5, fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Pangalan ng Lugar" : "Place Name"}
-          </Typography>
           <TextField
             fullWidth
             value={placeName}
             onChange={(e) => setPlaceName(e.target.value)}
+            label={language === "tl" ? "Pangalan ng Lugar" : "Place Name"}
             placeholder={language === "tl" ? "Hal. Bahay, Paaralan, Trabaho" : "e.g. Home, School, Work"}
             variant="outlined"
-            size="small"
-            sx={{
-              mb: 1.5,
-              "& .MuiOutlinedInput-root": { borderRadius: "12px", fontSize: "14px" },
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: "14px",
+                  backgroundColor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
+                },
+              },
             }}
+            sx={{ mb: 1.5 }}
           />
 
           {/* Field 1.5: Simbolo / Icon Selection */}
@@ -247,10 +252,6 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
           </Box>
 
           {/* Field 2: Lokasyon */}
-          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#475569", mb: 0.5, fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Lokasyon" : "Location"}
-          </Typography>
-
           {/* Option A: Search / type address */}
           <TextField
             fullWidth
@@ -259,13 +260,21 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
               setAddressSearchQuery(e.target.value);
               setPlaceAddress(e.target.value);
             }}
+            label={language === "tl" ? "Lokasyon" : "Location"}
             placeholder={language === "tl" ? "Ilagay ang address o landmark" : "Enter address or landmark"}
             variant="outlined"
-            size="small"
-            sx={{
-              mb: 1,
-              "& .MuiOutlinedInput-root": { borderRadius: "12px", fontSize: "14px" },
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: "14px",
+                  backgroundColor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
+                },
+              },
             }}
+            sx={{ mb: 1 }}
           />
 
           {/* Search Autocomplete Suggestions */}

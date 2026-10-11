@@ -1116,19 +1116,26 @@ const NewTrip: React.FC = () => {
             fullWidth
             value={tempNoteText}
             onChange={(e) => setTempNoteText(e.target.value)}
+            label={language === "tl" ? "Mga Tala para sa Drayber" : "Notes for Driver"}
             placeholder={
               language === "tl"
                 ? "Hal. Sa tapat po ng tindahan maghintay, may dalang mabigat na gamit..."
                 : "E.g. Please wait in front of the store, carrying heavy luggage..."
             }
-            sx={{
-              mt: 1,
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "14px",
-                fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
-                fontFamily: "Poppins, sans-serif",
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: "14px",
+                  backgroundColor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
+                  fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile,
+                  fontFamily: "Poppins, sans-serif",
+                },
               },
             }}
+            sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>

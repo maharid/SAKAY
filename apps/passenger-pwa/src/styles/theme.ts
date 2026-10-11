@@ -101,9 +101,9 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 12,
-            backgroundColor: '#F7F9FC',
-            fontSize: '1rem', // 16px input text
+            borderRadius: 14,
+            backgroundColor: '#F8FAFC',
+            fontSize: '15px',
             '& fieldset': {
               borderColor: '#E2E8F0',
             },
@@ -112,6 +112,13 @@ const theme = createTheme({
             },
             '&.Mui-focused fieldset': {
               borderColor: '#FF6600',
+            },
+          },
+          '& .MuiInputLabel-root': {
+            color: '#64748B',
+            fontSize: '14px',
+            '&.Mui-focused': {
+              color: '#FF6600',
             },
           },
         },

@@ -109,14 +109,11 @@ const AppFeedbackPage: React.FC = () => {
             gap: 1.5,
           }}
         >
-          <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Karagdagang Komento (Opsyonal)" : "Additional Comments (Optional)"}
-          </Typography>
-
           <TextField
             fullWidth
             multiline
             rows={4}
+            label={language === "tl" ? "Karagdagang Komento (Opsyonal)" : "Additional Comments (Optional)"}
             placeholder={
               language === "tl"
                 ? "Isulat dito ang iyong komento o suhestiyon..."
@@ -124,11 +121,15 @@ const AppFeedbackPage: React.FC = () => {
             }
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "14px",
-                fontSize: "13px",
-                fontFamily: "Poppins, sans-serif",
+            slotProps={{
+              input: {
+                sx: {
+                  borderRadius: "14px",
+                  backgroundColor: "#F8FAFC",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
+                },
               },
             }}
           />

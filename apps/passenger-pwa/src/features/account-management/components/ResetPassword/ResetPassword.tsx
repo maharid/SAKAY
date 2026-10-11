@@ -6,7 +6,6 @@ import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Alert from "@mui/material/Alert";
@@ -180,22 +179,20 @@ const ResetPassword: React.FC = () => {
         {/* New Password */}
         <Box sx={{ width: "100%" }}>
           <TextField
+            fullWidth
+            required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
-            placeholder={language === "tl" ? "Bagong Password" : "New Password"}
+            label={language === "tl" ? "Bagong Password" : "New Password"}
             type={showPassword ? "text" : "password"}
             slotProps={{
               input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#64748B" }} />
-                  </InputAdornment>
-                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")} sx={extendTapArea(8)}
+                      aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")}
+                      sx={extendTapArea(8)}
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                       disabled={loading}
@@ -205,10 +202,9 @@ const ResetPassword: React.FC = () => {
                   </InputAdornment>
                 ),
                 sx: {
-                  height: "56px",
                   backgroundColor: "#F8FAFC",
                   borderRadius: "14px",
-                  "& fieldset": { borderColor: "#F1F5F9" },
+                  "& fieldset": { borderColor: "#E2E8F0" },
                   "&:hover fieldset": { borderColor: "#CBD5E1" },
                   "&.Mui-focused fieldset": { borderColor: "#FF6600" },
                 },
@@ -220,22 +216,20 @@ const ResetPassword: React.FC = () => {
         {/* Confirm New Password */}
         <Box sx={{ width: "100%" }}>
           <TextField
+            fullWidth
+            required
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading}
-            placeholder={language === "tl" ? "Kumpirmahin ang Bagong Password" : "Confirm New Password"}
+            label={language === "tl" ? "Kumpirmahin ang Bagong Password" : "Confirm New Password"}
             type={showConfirmPassword ? "text" : "password"}
             slotProps={{
               input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: "#64748B" }} />
-                  </InputAdornment>
-                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")} sx={extendTapArea(8)}
+                      aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")}
+                      sx={extendTapArea(8)}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       edge="end"
                       disabled={loading}
@@ -245,10 +239,9 @@ const ResetPassword: React.FC = () => {
                   </InputAdornment>
                 ),
                 sx: {
-                  height: "56px",
                   backgroundColor: "#F8FAFC",
                   borderRadius: "14px",
-                  "& fieldset": { borderColor: "#F1F5F9" },
+                  "& fieldset": { borderColor: "#E2E8F0" },
                   "&:hover fieldset": { borderColor: "#CBD5E1" },
                   "&.Mui-focused fieldset": { borderColor: "#FF6600" },
                 },
