@@ -261,6 +261,7 @@ export const DriverProfileEditor: React.FC = () => {
                 width: '90px',
                 height: '90px',
                 backgroundColor: '#FF6600',
+                color: '#FFFFFF',
                 fontSize: '32px',
                 fontWeight: 700,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.08)',

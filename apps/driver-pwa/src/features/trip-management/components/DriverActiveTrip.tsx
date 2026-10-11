@@ -519,7 +519,7 @@ export const DriverActiveTrip: React.FC = () => {
     minHeight: 52,
     borderRadius: '16px',
     backgroundColor: '#FF6600',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     fontWeight: 700,
     fontSize: '16px',
     textTransform: 'none',
@@ -627,7 +627,7 @@ export const DriverActiveTrip: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -919,6 +919,7 @@ export const DriverActiveTrip: React.FC = () => {
               height: 46,
               borderRadius: '14px',
               backgroundColor: '#FF6600',
+              color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
@@ -961,6 +962,7 @@ export const DriverActiveTrip: React.FC = () => {
               height: 44,
               borderRadius: '12px',
               backgroundColor: '#FF6600',
+              color: '#FFFFFF',
               fontWeight: 700,
               textTransform: 'none',
               '&:hover': { backgroundColor: '#E65C00' },

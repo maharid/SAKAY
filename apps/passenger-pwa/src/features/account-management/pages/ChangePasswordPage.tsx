@@ -1,55 +1,77 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
-import CircularProgress from "@mui/material/CircularProgress";
-import Alert from "@mui/material/Alert";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Paper,
+  Button,
+  IconButton,
+  InputAdornment,
+  TextField,
+  Typography,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-import PageHeader from "../../../common/components/PageHeader";
-import { RegisterInput } from "../../../common/components/RegisterInput";
-import { useLanguage } from "../../../utils/LanguageContext";
-import { supabase } from "../../../services/supabaseClient";
-import { extendTapArea } from "@sakay/shared";
+import PageHeader from '../../../common/components/PageHeader';
+import { useLanguage } from '../../../utils/LanguageContext';
+import { supabase } from '../../../services/supabaseClient';
+import { extendTapArea } from '@sakay/shared';
 
 const ChangePasswordPage: React.FC = () => {
   const { language } = useLanguage();
+  const isTagalog = language === 'tl';
   const navigate = useNavigate();
 
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Password criteria check
+  const hasMinLength = newPassword.length >= 8;
+  const hasUppercase = /[A-Z]/.test(newPassword);
+  const hasLowercase = /[a-z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-]/.test(newPassword);
+
+  const criteriaList = [
+    { label: isTagalog ? 'Hindi bababa sa 8 karakter' : 'Minimum 8 characters', met: hasMinLength },
+    { label: isTagalog ? 'May 1 malaking titik (A-Z)' : 'At least 1 uppercase letter (A-Z)', met: hasUppercase },
+    { label: isTagalog ? 'May 1 maliit na titik (a-z)' : 'At least 1 lowercase letter (a-z)', met: hasLowercase },
+    { label: isTagalog ? 'May 1 numero (0-9)' : 'At least 1 number (0-9)', met: hasNumber },
+    { label: isTagalog ? 'May 1 espesyal na karakter (!@#$%^&*)' : 'At least 1 special character (!@#$%^&*)', met: hasSpecial },
+  ];
+
+  const isPasswordValid = criteriaList.every((c) => c.met);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
+    setErrorMsg('');
+    setSuccessMsg('');
 
-    if (!newPassword || newPassword.length < 6) {
+    if (!isPasswordValid) {
       setErrorMsg(
-        language === "tl"
-          ? "Ang bagong password ay dapat mayroong hindi bababa sa 6 na karakter."
-          : "New password must be at least 6 characters."
+        isTagalog
+          ? 'Pakitiyak na natutugunan ng bagong password ang lahat ng pamantayan sa ibaba.'
+          : 'Please make sure your new password meets all security criteria below.'
       );
       return;
     }
 
     if (newPassword !== confirmPassword) {
       setErrorMsg(
-        language === "tl"
-          ? "Hindi magkatugma ang bagong password at kumpirmasyon."
-          : "New password and confirm password do not match."
+        isTagalog
+          ? 'Hindi magkatugma ang bagong password at kumpirmasyon.'
+          : 'New password and confirm password do not match.'
       );
       return;
     }
@@ -60,21 +82,22 @@ const ChangePasswordPage: React.FC = () => {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw error;
       }
+
       setSuccessMsg(
-        language === "tl"
-          ? "Matagumpay na nanalitan ang iyong password!"
-          : "Password successfully updated!"
+        isTagalog
+          ? 'Matagumpay na napalitan ang iyong password!'
+          : 'Password successfully updated!'
       );
       setTimeout(() => {
-        navigate("/settings");
+        navigate('/settings', { replace: true });
       }, 1500);
     } catch (err: any) {
-      console.warn("Change password error:", err);
+      console.warn('Passenger change password error:', err);
       setErrorMsg(
         err?.message ||
-          (language === "tl"
-            ? "Nagkaroon ng problema sa pagpapalit ng password."
-            : "Failed to update password. Please try again.")
+          (isTagalog
+            ? 'Nagkaroon ng problema sa pagpapalit ng password.'
+            : 'Failed to update password. Please try again.')
       );
     } finally {
       setLoading(false);
@@ -84,16 +107,16 @@ const ChangePasswordPage: React.FC = () => {
   return (
     <Box
       sx={{
-        width: "100%",
-        height: "100%",
-        backgroundColor: "#FAFAFA",
-        display: "flex",
-        flexDirection: "column",
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#FAFAFA',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <PageHeader
-        title={language === "tl" ? "Palitan ang Password" : "Change Password"}
-        onBack={() => navigate("/settings")}
+        title={isTagalog ? 'Palitan ang Password' : 'Change Password'}
+        onBack={() => navigate('/settings')}
       />
 
       <Box
@@ -102,11 +125,11 @@ const ChangePasswordPage: React.FC = () => {
         className="hide-scrollbar"
         sx={{
           flexGrow: 1,
-          overflowY: "auto",
-          "& > *": { flexShrink: 0 },
+          overflowY: 'auto',
+          '& > *': { flexShrink: 0 },
           p: 2.5,
-          display: "flex",
-          flexDirection: "column",
+          display: 'flex',
+          flexDirection: 'column',
           gap: 2,
         }}
       >
@@ -114,105 +137,163 @@ const ChangePasswordPage: React.FC = () => {
           elevation={0}
           sx={{
             p: 2.5,
-            borderRadius: "20px",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #F1F5F9",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
+            borderRadius: '20px',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #F1F5F9',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2.5,
           }}
         >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1, borderBottom: '1px solid #F8FAFC' }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
+                backgroundColor: '#FFF2E9',
+                color: '#FF6600',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <LockOutlinedIcon sx={{ fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+                {isTagalog ? 'Seguridad ng Account' : 'Account Security'}
+              </Typography>
+              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
+                {isTagalog ? 'Ilagay ang iyong bagong secure password' : 'Enter your new secure password'}
+              </Typography>
+            </Box>
+          </Box>
+
           {errorMsg && (
-            <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
+            <Alert severity="error" sx={{ borderRadius: '12px' }}>
               {errorMsg}
             </Alert>
           )}
 
           {successMsg && (
-            <Alert severity="success" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
+            <Alert severity="success" sx={{ borderRadius: '12px' }}>
               {successMsg}
             </Alert>
           )}
 
-          <RegisterInput
-            label={language === "tl" ? "Kasalukuyang Password" : "Current Password"}
-            value={currentPassword}
-            onChange={(val) => setCurrentPassword(val)}
-            type={showCurrentPassword ? "text" : "password"}
-            endAdornment={
-              <IconButton aria-label={showCurrentPassword ? (language === "tl" ? "Itago ang kasalukuyang password" : "Hide current password") : (language === "tl" ? "Ipakita ang kasalukuyang password" : "Show current password")} sx={extendTapArea(8)} size="small" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
-                {showCurrentPassword ? (
-                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
-                ) : (
-                  <VisibilityOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
-                )}
-              </IconButton>
-            }
-          />
-
-          <RegisterInput
-            label={language === "tl" ? "Bagong Password" : "New Password"}
-            value={newPassword}
-            onChange={(val) => setNewPassword(val)}
-            type={showNewPassword ? "text" : "password"}
-            required
-            endAdornment={
-              <IconButton aria-label={showNewPassword ? (language === "tl" ? "Itago ang bagong password" : "Hide new password") : (language === "tl" ? "Ipakita ang bagong password" : "Show new password")} sx={extendTapArea(8)} size="small" onClick={() => setShowNewPassword(!showNewPassword)}>
-                {showNewPassword ? (
-                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
-                ) : (
-                  <VisibilityOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
-                )}
-              </IconButton>
-            }
-          />
-
-          <RegisterInput
-            label={language === "tl" ? "Kumpirmahin ang Bagong Password" : "Confirm New Password"}
-            value={confirmPassword}
-            onChange={(val) => setConfirmPassword(val)}
-            type={showConfirmPassword ? "text" : "password"}
-            required
-            endAdornment={
-              <IconButton aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")} sx={extendTapArea(8)} size="small" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                {showConfirmPassword ? (
-                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
-                ) : (
-                  <VisibilityOutlinedIcon sx={{ fontSize: 20, color: "#64748B" }} />
-                )}
-              </IconButton>
-            }
-          />
-
-          <Button
-            type="submit"
+          {/* New Password */}
+          <TextField
             fullWidth
-            variant="contained"
-            disabled={loading || !newPassword || !confirmPassword}
-            sx={{
-              backgroundColor: "#FF6600",
-              color: "#FFFFFF",
-              borderRadius: "14px",
-              height: "46px",
-              fontSize: "14px",
-              fontWeight: 700,
-              textTransform: "none",
-              fontFamily: "Poppins, sans-serif",
-              boxShadow: "none",
-              mt: 1,
-              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
-              "&:disabled": { backgroundColor: "#F1F5F9", color: "#64748B" },
+            required
+            type={showNewPassword ? 'text' : 'password'}
+            label={isTagalog ? 'Bagong Password' : 'New Password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      edge="end"
+                      size="small"
+                      sx={{ ...extendTapArea(8), color: '#64748B' }}
+                    >
+                      {showNewPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: {
+                  borderRadius: '14px',
+                  backgroundColor: '#F8FAFC',
+                  '& fieldset': { borderColor: '#E2E8F0' },
+                  '&:hover fieldset': { borderColor: '#CBD5E1' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
+              },
             }}
-          >
-            {loading ? (
-              <CircularProgress size={22} sx={{ color: "#FFFFFF" }} />
-            ) : language === "tl" ? (
-              "I-save ang Bagong Password"
-            ) : (
-              "Update Password"
-            )}
-          </Button>
+          />
+
+          {/* Criteria List */}
+          <Box sx={{ pl: 0.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            {criteriaList.map((crit, idx) => (
+              <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 16, color: crit.met ? '#16A34A' : '#CBD5E1' }} />
+                <Typography sx={{ fontSize: '12px', color: crit.met ? '#16A34A' : '#64748B', fontWeight: crit.met ? 600 : 400 }}>
+                  {crit.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Confirm New Password */}
+          <TextField
+            fullWidth
+            required
+            type={showConfirmPassword ? 'text' : 'password'}
+            label={isTagalog ? 'Kumpirmahin ang Bagong Password' : 'Confirm New Password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            error={confirmPassword.length > 0 && newPassword !== confirmPassword}
+            helperText={confirmPassword.length > 0 && newPassword !== confirmPassword ? (isTagalog ? 'Hindi magkatugma ang password.' : 'Passwords do not match.') : ''}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      edge="end"
+                      size="small"
+                      sx={{ ...extendTapArea(8), color: '#64748B' }}
+                    >
+                      {showConfirmPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: {
+                  borderRadius: '14px',
+                  backgroundColor: '#F8FAFC',
+                  '& fieldset': { borderColor: '#E2E8F0' },
+                  '&:hover fieldset': { borderColor: '#CBD5E1' },
+                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
+                },
+              },
+            }}
+          />
         </Paper>
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          disabled={loading || !newPassword || !confirmPassword}
+          sx={{
+            height: '52px',
+            borderRadius: '16px',
+            backgroundColor: '#FF6600',
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontSize: '15px',
+            textTransform: 'none',
+            boxShadow: 'none',
+            '&:hover': { backgroundColor: '#E55C00', boxShadow: 'none' },
+            '&.Mui-disabled': { backgroundColor: '#FFD1B3', color: '#888888' },
+            mb: 'calc(var(--safe-area-bottom) + 8px)',
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={24} sx={{ color: '#FFFFFF' }} />
+          ) : isTagalog ? (
+            'I-save ang Bagong Password'
+          ) : (
+            'Save New Password'
+          )}
+        </Button>
       </Box>
     </Box>
   );

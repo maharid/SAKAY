@@ -555,7 +555,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               width: 42,
               height: 42,
               backgroundColor: '#FF6600',
-              color: '#1A1A1A',
+              color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '17px',
               border: '2px solid #FFFFFF',
