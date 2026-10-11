@@ -519,7 +519,7 @@ export const DriverActiveTrip: React.FC = () => {
     minHeight: 52,
     borderRadius: '16px',
     backgroundColor: '#FF6600',
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     fontWeight: 700,
     fontSize: '16px',
     textTransform: 'none',
@@ -627,7 +627,7 @@ export const DriverActiveTrip: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
+            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -655,7 +655,7 @@ export const DriverActiveTrip: React.FC = () => {
             <IconButton
               aria-label={tl ? 'Magpadala ng mensahe sa pasahero' : 'Message passenger'}
               onClick={() => setCommModalOpen(true)}
-              sx={{ backgroundColor: '#FFF1E6', color: '#C2410C', width: 44, height: 44, borderRadius: '12px', '&:hover': { backgroundColor: '#FFE6D2' } }}
+              sx={{ backgroundColor: '#FFF1E6', color: '#FF6600', width: 44, height: 44, borderRadius: '12px', '&:hover': { backgroundColor: '#FFE6D2' } }}
             >
               <MessageIcon fontSize="small" />
             </IconButton>
@@ -665,7 +665,7 @@ export const DriverActiveTrip: React.FC = () => {
         {/* Where to: the pickup until the passenger boards, the destination after (the address is always in view, at every stage) */}
         {targetAddress && (
           <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <PlaceIcon aria-hidden sx={{ fontSize: 20, mt: '2px', color: isPreTrip ? '#C2410C' : '#B91C1C', flexShrink: 0 }} />
+            <PlaceIcon aria-hidden sx={{ fontSize: 20, mt: '2px', color: isPreTrip ? '#FF6600' : '#B91C1C', flexShrink: 0 }} />
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
                 {isPreTrip ? 'Pickup' : tl ? 'Destinasyon' : 'Destination'}
@@ -788,7 +788,7 @@ export const DriverActiveTrip: React.FC = () => {
                 fullWidth
                 disabled={moving}
                 onClick={handleEndTripWithoutConfirmation}
-                sx={{ minHeight: 52, borderRadius: '16px', fontWeight: 700, textTransform: 'none', fontFamily: 'Poppins, sans-serif', borderColor: '#C2410C', color: '#C2410C' }}
+                sx={{ minHeight: 52, borderRadius: '16px', fontWeight: 700, textTransform: 'none', fontFamily: 'Poppins, sans-serif', borderColor: '#FF6600', color: '#FF6600' }}
               >
                 {tl ? 'Tapusin ang biyahe (hindi nagkumpirma ang pasahero)' : 'End trip (the passenger did not confirm)'}
               </Button>
@@ -919,7 +919,6 @@ export const DriverActiveTrip: React.FC = () => {
               height: 46,
               borderRadius: '14px',
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
@@ -962,7 +961,6 @@ export const DriverActiveTrip: React.FC = () => {
               height: 44,
               borderRadius: '12px',
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
               fontWeight: 700,
               textTransform: 'none',
               '&:hover': { backgroundColor: '#E65C00' },

@@ -163,7 +163,7 @@ const SlideToFinish: React.FC<{ onFinish: () => void; language: string; disabled
           lineHeight: 1.2,
           fontSize: '13px',
           fontWeight: 700,
-          color: disabled ? '#64748B' : '#C2410C',
+          color: disabled ? '#64748B' : '#FF6600',
           fontFamily: 'Poppins, sans-serif',
           pointerEvents: 'none',
           opacity: disabled ? 1 : Math.max(0.2, 1 - slidePos / 140),
@@ -1277,7 +1277,7 @@ export const TripMonitoring: React.FC = () => {
                   <IconButton
                     aria-label={language === 'tl' ? 'Magpadala ng mensahe sa drayber' : 'Message driver'}
                     onClick={handleOpenCommModal}
-                    sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#C2410C', '&:hover': { backgroundColor: '#FFE6D2' } }}
+                    sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#FF6600', '&:hover': { backgroundColor: '#FFE6D2' } }}
                   >
                     <MessageIcon fontSize="small" />
                   </IconButton>
@@ -1486,7 +1486,7 @@ export const TripMonitoring: React.FC = () => {
           <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#64748B', textAlign: 'center', display: 'block' }}>
             {language === 'tl' ? 'Opisyal na pamasahe' : 'Official tariff fare'}
           </Typography>
-          <Typography sx={{ fontSize: '30px', fontWeight: 700, lineHeight: 1.2, color: '#C2410C', my: 0.75, textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontSize: '30px', fontWeight: 700, lineHeight: 1.2, color: '#FF6600', my: 0.75, textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
             {formatPeso(passengerPayableFare)}
           </Typography>
           <Typography sx={{ fontSize: '12px', lineHeight: 1.4, color: '#64748B', textAlign: 'center', display: 'block' }}>
@@ -1742,7 +1742,6 @@ export const TripMonitoring: React.FC = () => {
               height: 46,
               borderRadius: '14px',
               backgroundColor: '#FF6600',
-              color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',

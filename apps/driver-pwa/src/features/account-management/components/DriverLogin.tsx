@@ -416,7 +416,7 @@ export const DriverLogin: React.FC = () => {
                 onClick={() => navigate('/forgot-password')}
                 sx={{ ...extendTapArea(12),
                   fontSize: '14px',
-                  color: '#C2410C',
+                  color: '#FF6600',
                   fontWeight: 600,
                   cursor: 'pointer',
                   '&:hover': { textDecoration: 'underline', color: '#E65C00' },
@@ -458,7 +458,7 @@ export const DriverLogin: React.FC = () => {
               onKeyDown={activateWithKeyboard}
               onClick={() => navigate('/driver/register')}
               sx={{ ...extendTapArea(12),
-                color: '#C2410C',
+                color: '#FF6600',
                 fontWeight: 700,
                 cursor: 'pointer',
                 marginLeft: '6px',

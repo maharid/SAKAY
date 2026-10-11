@@ -56,7 +56,7 @@ export const PauseBookingsControl: React.FC<PauseBookingsControlProps> = ({ lang
           disabled={busy}
           sx={{
             backgroundColor: '#FFF7ED',
-            color: '#C2410C',
+            color: '#FF6600',
             fontWeight: 700,
             fontSize: '12px',
             border: '1px solid #FDBA74',

@@ -165,7 +165,7 @@ const LocationPermission: React.FC = () => {
             {requesting && (
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "12px" }}>
                 <CircularProgress size={16} sx={{ color: "#FF6600" }} />
-                <Typography sx={{ fontSize: "12px", color: "#C2410C", fontWeight: 600 }}>
+                <Typography sx={{ fontSize: "12px", color: "#FF6600", fontWeight: 600 }}>
                   {language === 'tl' ? 'Humihingi ng pahintulot sa browser...' : 'Requesting browser permission...'}
                 </Typography>
               </Box>

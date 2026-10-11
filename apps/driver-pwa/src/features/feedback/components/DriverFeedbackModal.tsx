@@ -245,7 +245,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                 readOnly={alreadyRated}
                 onChange={(_, val) => !alreadyRated && setStars(val)}
                 size="large"
-                sx={{ color: '#C2410C', fontSize: '34px' }}
+                sx={{ color: '#FF6600', fontSize: '34px' }}
               />
             </Box>
           </Paper>
@@ -268,7 +268,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
                       fontSize: '12px',
                       fontWeight: isSelected ? 700 : 500,
                       backgroundColor: isSelected ? '#FFF8F0' : '#F1F5F9',
-                      color: isSelected ? '#C2410C' : '#475569',
+                      color: isSelected ? '#FF6600' : '#475569',
                       border: isSelected ? '1px solid #FF6600' : '1px solid transparent',
                       fontFamily: 'Poppins, sans-serif',
                     }}

@@ -355,7 +355,7 @@ const Login: React.FC = () => {
                 onClick={() => navigate("/forgot-password")}
                 sx={{ ...extendTapArea(12),
                   fontSize: "14px",
-                  color: "#C2410C",
+                  color: "#FF6600",
                   fontWeight: 600,
                   cursor: "pointer",
                   "&:hover": {
@@ -401,7 +401,7 @@ const Login: React.FC = () => {
               onKeyDown={activateWithKeyboard}
               onClick={() => navigate("/register")}
               sx={{ ...extendTapArea(12),
-                color: "#C2410C",
+                color: "#FF6600",
                 fontWeight: 700,
                 cursor: "pointer",
                 marginLeft: "6px",

@@ -272,7 +272,7 @@ export const DriverPrepareDocuments: React.FC = () => {
       >
         <Typography
           sx={{
-            color: '#C2410C',
+            color: '#FF6600',
             fontSize: '14px',
             fontWeight: 600,
             textAlign: 'center',

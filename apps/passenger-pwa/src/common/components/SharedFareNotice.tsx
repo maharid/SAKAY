@@ -35,7 +35,7 @@ const PALETTE = {
     caption: "#475569",
     text: "#1E3A8A",
     matched: "#15803D",
-    unmatched: "#C2410C",
+    unmatched: "#FF6600",
     link: "#1D4ED8",
   },
   dark: {

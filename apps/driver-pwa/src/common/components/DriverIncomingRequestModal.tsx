@@ -157,7 +157,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
             {language === 'tl' ? 'Pasahero:' : 'Passenger:'} <strong>{incomingRequest.passenger_name}</strong> • {incomingRequest.passenger_count} {language === 'tl' ? 'pasahero' : 'passenger(s)'}
           </Typography>
           {offerInfo?.distanceM != null && (
-            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#C2410C', fontWeight: 700, mt: 0.5 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#FF6600', fontWeight: 700, mt: 0.5 }}>
               {language === 'tl'
                 ? `Pickup: ${formatDistance(offerInfo.distanceM / 1000)} mula sa iyo${etaMinutes ? ` (~${etaMinutes} min)` : ''}`
                 : `Pickup is ${formatDistance(offerInfo.distanceM / 1000)} from you${etaMinutes ? ` (~${etaMinutes} min)` : ''}`}
@@ -204,7 +204,7 @@ export const DriverIncomingRequestModal: React.FC = () => {
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
                 {language === 'tl' ? 'Pamasahe' : 'Fare'}
               </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 700, color: '#C2410C', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{formatPeso(incomingRequest.estimated_fare)}</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 700, color: '#FF6600', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{formatPeso(incomingRequest.estimated_fare)}</Typography>
             </Box>
           </Box>
 

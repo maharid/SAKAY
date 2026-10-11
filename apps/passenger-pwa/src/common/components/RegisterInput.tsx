@@ -92,7 +92,7 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
             transform: isFloating ? 'translateY(0)' : multiline ? 'none' : 'translateY(-50%)',
             fontSize: isFloating ? '12px' : '16px',
             fontWeight: isFloating ? 600 : 400,
-            color: error ? '#DC2626' : focused ? '#C2410C' : '#64748B',
+            color: error ? '#DC2626' : focused ? '#FF6600' : '#64748B',
             userSelect: 'none',
             pointerEvents: 'none',
             whiteSpace: isFloating ? 'normal' : 'nowrap',

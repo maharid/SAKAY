@@ -144,7 +144,7 @@ const PassengerHistory: React.FC = () => {
                   size="small"
                   sx={{
                     backgroundColor: trip.type === "Share" ? "#E6F4EA" : "#FFF5EB",
-                    color: trip.type === "Share" ? "#1E8E3E" : "#C2410C",
+                    color: trip.type === "Share" ? "#1E8E3E" : "#FF6600",
                     fontSize: "12px",
                     fontWeight: 700,
                     height: "24px",
@@ -167,7 +167,7 @@ const PassengerHistory: React.FC = () => {
                 sx={{
                   fontSize: "18px",
                   fontWeight: 700,
-                  color: "#C2410C",
+                  color: "#FF6600",
                   fontFamily: "Poppins, sans-serif",
                   fontVariantNumeric: "tabular-nums",
                   flexShrink: 0,

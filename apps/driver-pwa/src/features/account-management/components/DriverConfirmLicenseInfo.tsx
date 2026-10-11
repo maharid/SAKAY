@@ -220,7 +220,7 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
             transform: isFloating ? 'translateY(0)' : 'translateY(-50%)',
             fontSize: isFloating ? '12px' : '14px',
             fontWeight: isFloating ? 700 : 500,
-            color: error ? '#DC2626' : focused ? '#C2410C' : isFloating ? '#64748B' : '#64748B',
+            color: error ? '#DC2626' : focused ? '#FF6600' : isFloating ? '#64748B' : '#64748B',
             textTransform: 'none',
             userSelect: 'none',
             pointerEvents: 'none',
@@ -321,7 +321,7 @@ const SakayFormInput: React.FC<SakayFormInputProps> = ({
                       justifyContent: 'space-between',
                     }}
                   >
-                    <Typography sx={{ fontSize: '14px', fontWeight: isChecked ? 700 : 600, color: isChecked ? '#C2410C' : '#0F172A' }}>
+                    <Typography sx={{ fontSize: '14px', fontWeight: isChecked ? 700 : 600, color: isChecked ? '#FF6600' : '#0F172A' }}>
                       {code}
                     </Typography>
                     {isChecked && <CheckIcon sx={{ fontSize: 18, color: '#FF6600' }} />}

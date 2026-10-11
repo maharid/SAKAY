@@ -234,7 +234,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
                     sx={{
                       fontSize: "12px",
                       fontWeight: isSelected ? 700 : 500,
-                      color: isSelected ? "#C2410C" : "#64748B",
+                      color: isSelected ? "#FF6600" : "#64748B",
                       fontFamily: "Poppins, sans-serif",
                       textAlign: "center",
                     }}

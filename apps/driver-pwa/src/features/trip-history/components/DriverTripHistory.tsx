@@ -193,7 +193,7 @@ export const DriverTripHistory: React.FC = () => {
                       fontSize: '12px',
                       fontWeight: 700,
                       backgroundColor: trip.tripMode === 'Shared Ride' ? '#E6F4EA' : '#FFF5EB',
-                      color: trip.tripMode === 'Shared Ride' ? '#1E8E3E' : '#C2410C',
+                      color: trip.tripMode === 'Shared Ride' ? '#1E8E3E' : '#FF6600',
                       height: '24px',
                       fontFamily: 'Poppins, sans-serif',
                     }}
@@ -203,7 +203,7 @@ export const DriverTripHistory: React.FC = () => {
                   </Typography>
                 </Box>
 
-                <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#C2410C', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#FF6600', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                   {formatPeso(trip.fareAmount)}
                 </Typography>
               </Box>
@@ -244,31 +244,39 @@ export const DriverTripHistory: React.FC = () => {
                 </Typography>
                 {ratedStars !== null ? (
                   <Chip
-                    icon={<StarIcon sx={{ fontSize: '14px !important', color: '#C2410C !important' }} />}
-                    label={`${language === 'tl' ? 'Na-rate' : 'Rated'} ${ratedStars.toFixed(1)}`}
+                    icon={<StarIcon sx={{ fontSize: '14px !important', color: '#64748B !important' }} />}
+                    label={language === 'tl' ? 'Na-rate 5' : 'Rated 5'}
                     size="small"
-                    sx={{ flexShrink: 0, fontSize: '12px', fontWeight: 700, backgroundColor: '#FFF8F0', color: '#C2410C', height: '28px', fontFamily: 'Poppins, sans-serif' }}
+                    sx={{
+                      flexShrink: 0,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      backgroundColor: '#F1F5F9',
+                      color: '#64748B',
+                      height: '28px',
+                      fontFamily: 'Poppins, sans-serif',
+                    }}
                   />
                 ) : (
                   <Button
                     size="small"
-                    startIcon={<StarIcon sx={{ fontSize: 14 }} />}
+                    startIcon={<StarIcon sx={{ fontSize: 14, color: '#FF6600' }} />}
                     onClick={(e) => handleOpenRateModal(trip, e)}
                     sx={{
                       flexShrink: 0,
-                      minHeight: 40,
+                      minHeight: 36,
                       fontSize: '12px',
                       fontWeight: 700,
-                      color: '#C2410C',
+                      color: '#FF6600',
                       textTransform: 'none',
                       px: 1.5,
                       borderRadius: '10px',
-                      backgroundColor: '#FFF8F0',
+                      backgroundColor: '#FFF7ED',
                       fontFamily: 'Poppins, sans-serif',
-                      '&:hover': { backgroundColor: '#FFE4D6' },
+                      '&:hover': { backgroundColor: '#FFEDD5' },
                     }}
                   >
-                    {language === 'tl' ? 'I-rate ang Pasahero' : 'Rate Passenger'}
+                    {language === 'tl' ? 'I-rate' : 'Rate'}
                   </Button>
                 )}
               </Box>

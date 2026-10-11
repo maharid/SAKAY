@@ -418,7 +418,7 @@ export const DriverVerifyOtp: React.FC = () => {
             borderRadius: '14px',
             backgroundColor: resendTimer > 0 ? '#F8FAFC' : '#FFFFFF',
             border: resendTimer > 0 ? '1.5px solid #E2E8F0' : '1.5px solid #FF6600',
-            color: resendTimer > 0 ? '#64748B' : '#C2410C',
+            color: resendTimer > 0 ? '#64748B' : '#FF6600',
             boxShadow: 'none',
             display: 'flex',
             alignItems: 'center',

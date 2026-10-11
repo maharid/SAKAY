@@ -368,7 +368,7 @@ export const DriverScanFace: React.FC = () => {
           {isTagalog ? (
             <>
               Ilagay ang iyong{' '}
-              <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
+              <Box component="span" sx={{ color: '#FF6600', fontWeight: 700 }}>
                 mukha
               </Box>{' '}
               sa loob ng frame at tumingin nang diretso sa camera.
@@ -376,7 +376,7 @@ export const DriverScanFace: React.FC = () => {
           ) : (
             <>
               Position your{' '}
-              <Box component="span" sx={{ color: '#C2410C', fontWeight: 700 }}>
+              <Box component="span" sx={{ color: '#FF6600', fontWeight: 700 }}>
                 face
               </Box>{' '}
               inside the frame and look straight at the camera.

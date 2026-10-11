@@ -137,7 +137,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
             transform: 'translateY(0)',
             fontSize: '12px',
             fontWeight: 700,
-            color: error ? '#DC2626' : focused ? '#C2410C' : '#64748B',
+            color: error ? '#DC2626' : focused ? '#FF6600' : '#64748B',
             userSelect: 'none',
             pointerEvents: 'none',
             lineHeight: 1.15,
