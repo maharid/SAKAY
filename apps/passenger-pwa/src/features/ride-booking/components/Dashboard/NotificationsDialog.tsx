@@ -13,7 +13,6 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import Alert from "@mui/material/Alert";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
 import { TYPOGRAPHY_TOKENS, activateWithKeyboard } from "@sakay/shared";
@@ -96,9 +95,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   const isTagalog = language === "tl";
   const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'promos' | 'advisories'>('all');
   const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
-  const [showingTranslation, setShowingTranslation] = useState(false);
-  const [translationNotice, setTranslationNotice] = useState<string | null>(null);
-
   const [localReadIds, setLocalReadIds] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem("sakay_read_notifications");
@@ -141,8 +137,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
   const handleCloseDialog = () => {
     setSelectedNotif(null);
-    setShowingTranslation(false);
-    setTranslationNotice(null);
     onClose();
   };
 
@@ -170,35 +164,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         return <CampaignOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       default:
         return <NotificationsOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
-    }
-  };
-
-  const hasDistinctTranslation = Boolean(
-    selectedNotif &&
-    ((selectedNotif.titleEn && selectedNotif.titleTl && selectedNotif.titleEn !== selectedNotif.titleTl) ||
-     (selectedNotif.bodyEn && selectedNotif.bodyTl && selectedNotif.bodyEn !== selectedNotif.bodyTl))
-  );
-
-  const handleToggleTranslation = () => {
-    setTranslationNotice(null);
-    if (showingTranslation) {
-      setShowingTranslation(false);
-      return;
-    }
-
-    const apiUrl = (import.meta as any).env?.VITE_TRANSLATION_API_URL;
-    const apiKey = (import.meta as any).env?.VITE_TRANSLATION_API_KEY;
-
-    if (apiUrl || apiKey) {
-      setShowingTranslation(true);
-    } else if (hasDistinctTranslation) {
-      setShowingTranslation(true);
-    } else {
-      setTranslationNotice(
-        isTagalog
-          ? "Hindi pa nakakonekta ang panlabas na serbisyo ng pagsasalin (Translation service is not configured)."
-          : "External translation service is not configured."
-      );
     }
   };
 
@@ -234,8 +199,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           onClick={() => {
             if (selectedNotif) {
               setSelectedNotif(null);
-              setShowingTranslation(false);
-              setTranslationNotice(null);
             } else {
               handleCloseDialog();
             }
@@ -302,45 +265,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                   </Typography>
                 </Box>
               </Box>
-
-              {selectedNotif.category === "advisories" && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleToggleTranslation}
-                  sx={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    textTransform: "none",
-                    borderRadius: "10px",
-                    borderColor: "#E2E8F0",
-                    color: "#C2410C",
-                    py: 0.5,
-                    px: 1.25,
-                    minHeight: 34,
-                    "&:hover": { backgroundColor: "#FFF7ED", borderColor: "#FF6600" },
-                  }}
-                >
-                  {showingTranslation
-                    ? (isTagalog ? "Ipakita ang orihinal" : "Show original")
-                    : (isTagalog ? "Isalin sa Tagalog" : "Translate to English")}
-                </Button>
-              )}
             </Box>
-
-            {translationNotice && (
-              <Alert severity="info" sx={{ mb: 2, borderRadius: "12px", fontSize: "13px" }}>
-                {translationNotice}
-              </Alert>
-            )}
-
-            {showingTranslation && (
-              <Box sx={{ mb: 1.5, display: "inline-block", px: 1, py: 0.25, borderRadius: "6px", backgroundColor: "#F1F5F9" }}>
-                <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>
-                  {isTagalog ? "Pagsasalin sa Tagalog" : "English Translation"}
-                </Typography>
-              </Box>
-            )}
 
             <Typography
               sx={{
@@ -351,9 +276,9 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                 mb: 2,
               }}
             >
-              {showingTranslation
-                ? (isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn)
-                : (selectedNotif.titleTl || selectedNotif.titleEn)}
+              {isTagalog
+                ? (selectedNotif.titleTl || selectedNotif.titleEn)
+                : (selectedNotif.titleEn || selectedNotif.titleTl)}
             </Typography>
 
             <Divider sx={{ mb: 2.5, borderColor: "#F1F5F9" }} />
@@ -366,9 +291,9 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                 whiteSpace: "pre-line",
               }}
             >
-              {showingTranslation
-                ? (isTagalog ? selectedNotif.bodyTl : selectedNotif.bodyEn)
-                : (selectedNotif.bodyTl || selectedNotif.bodyEn)}
+              {isTagalog
+                ? (selectedNotif.bodyTl || selectedNotif.bodyEn)
+                : (selectedNotif.bodyEn || selectedNotif.bodyTl)}
             </Typography>
           </Box>
         ) : (

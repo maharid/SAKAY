@@ -7,7 +7,6 @@ import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Avatar from "@mui/material/Avatar";
-import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import HeadsetMicOutlinedIcon from "@mui/icons-material/HeadsetMicOutlined";
 import PlaceIcon from "@mui/icons-material/Place";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -120,10 +119,6 @@ export const TripDetailPage: React.FC = () => {
       JSON.stringify({ address: dropoffAddress, lat: 13.4150, lng: 121.1810 })
     );
     navigate("/new-trip");
-  };
-
-  const handleOpenSMS = () => {
-    if (driverPhone) window.location.href = `sms:${driverPhone}`;
   };
 
   return (
@@ -411,27 +406,6 @@ export const TripDetailPage: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-
-          <Button
-            variant="outlined"
-            startIcon={<ChatOutlinedIcon />}
-            onClick={handleOpenSMS}
-            disabled={!driverPhone}
-            sx={{
-              borderRadius: "999px",
-              borderColor: "#FF6600",
-              color: "#FF6600",
-              fontSize: "13px",
-              fontWeight: 700,
-              textTransform: "none",
-              fontFamily: "Poppins, sans-serif",
-              px: 2,
-              py: 0.75,
-              "&:hover": { borderColor: "#E65C00", backgroundColor: "#FFF7ED" },
-            }}
-          >
-            {language === "tl" ? "Mag-SMS" : "SMS Driver"}
-          </Button>
         </Paper>
 
         {/* Bi-directional Ratings & Feedback Section */}

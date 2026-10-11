@@ -167,10 +167,200 @@ export function localizeSystemNotification(
     }
   }
 
-  // Default: custom user-authored or non-system announcement
+  // 8. Stall Warning (Rule 8.2) - Mixed Language fix
+  if (
+    type === 'STALL_WARNING' ||
+    titleTrimmed.includes('Hindi ka pa gumagalaw') ||
+    titleTrimmed.includes('You have not started')
+  ) {
+    if (language === 'en') {
+      return {
+        title: 'You Have Not Started Traveling',
+        message: 'You have not started traveling toward the passenger. Please proceed or cancel the booking.',
+        isSystemGenerated: true,
+      };
+    } else {
+      return {
+        title: 'Hindi Ka Pa Gumagalaw',
+        message: 'Hindi ka pa nagsisimulang pumunta sa pasahero. Pakisimulan o ikansela ang booking.',
+        isSystemGenerated: true,
+      };
+    }
+  }
+
+  // 9. Booking Auto Cancelled (Rule 8.3 / Rule 8.4)
+  if (
+    type === 'BOOKING_AUTO_CANCELLED' ||
+    titleTrimmed.includes('Nakansela ang booking') ||
+    titleTrimmed.includes('Booking cancelled') ||
+    titleTrimmed.includes('Booking Cancelled')
+  ) {
+    if (language === 'en') {
+      let msg = cleanBilingualText(rawMessage, 'en');
+      if (msg.includes('Hindi ka nagsimulang') || msg.includes('Hindi nakapagpatuloy')) {
+        msg = msg.includes('strike')
+          ? 'You did not start traveling toward the passenger, so the booking was cancelled and given to another driver. One strike was recorded. You may appeal through the Exemption & Appeal process.'
+          : 'Your driver was unable to proceed. We\'re finding you another driver.';
+      }
+      return {
+        title: 'Booking Cancelled',
+        message: msg,
+        isSystemGenerated: true,
+      };
+    } else {
+      let msg = cleanBilingualText(rawMessage, 'tl');
+      if (msg.includes('You did not start traveling toward the passenger')) {
+        msg = 'Hindi ka nagsimulang bumiyahe papunta sa pasahero, kaya nakansela ang booking at ibinigay sa ibang drayber. Naitala ang isang strike. Kung may humarang sa kalsada, aberya sa sasakyan, o GPS fault, maaari kang umapela sa pamamagitan ng proseso ng Exemption & Appeal.';
+      } else if (msg.includes('You stopped on the way to the passenger for 5 minutes')) {
+        msg = 'Huminto ka sa daan papunta sa pasahero nang 5 minuto nang hindi nag-uulat ng trapiko o saradong kalsada, kaya nakansela ang booking at ibinigay sa ibang drayber. Naitala ang isang strike. Maaari kang umapela sa pamamagitan ng proseso ng Exemption & Appeal.';
+      } else if (msg.includes('Your driver was unable to proceed')) {
+        msg = 'Hindi nakapagpatuloy ang iyong drayber. Naghahanap kami ng ibang drayber.';
+      }
+      return {
+        title: 'Nakansela ang Booking',
+        message: msg,
+        isSystemGenerated: true,
+      };
+    }
+  }
+
+  // 10. Suspension Ended / Lifted
+  if (
+    type === 'SUSPENSION_ENDED' ||
+    titleTrimmed.includes('Naalis ang Suspensyon') ||
+    titleTrimmed.includes('Tapos na ang Suspensyon') ||
+    titleTrimmed.includes('Suspension Lifted')
+  ) {
+    if (language === 'en') {
+      return {
+        title: 'Account Suspension Lifted',
+        message: 'Suspension lifted after your exemption was granted.',
+        isSystemGenerated: true,
+      };
+    } else {
+      return {
+        title: 'Naalis ang Suspensyon ng Iyong Account',
+        message: 'Inalis ang suspensyon dahil napagbigyan ang iyong exemption.',
+        isSystemGenerated: true,
+      };
+    }
+  }
+
+  // 11. Account Restrictions & Strikes
+  if (
+    type === 'ACCOUNT_RESTRICTION_NOTICE' ||
+    type === 'STRIKE_ISSUED' ||
+    titleTrimmed.includes('Suspendido ang Iyong Account') ||
+    titleTrimmed.includes('Na-deactivate ang Iyong Account') ||
+    titleTrimmed.includes('Account Suspended') ||
+    titleTrimmed.includes('Account Deactivated')
+  ) {
+    const isSuspended = titleTrimmed.includes('Suspendido') || titleTrimmed.includes('Suspended');
+    const isDeactivated = titleTrimmed.includes('Na-deactivate') || titleTrimmed.includes('Deactivated');
+
+    if (language === 'en') {
+      const titleEn = isDeactivated
+        ? 'Your Account is Deactivated'
+        : isSuspended
+        ? 'Your Account is Suspended'
+        : cleanBilingualText(rawTitle, 'en');
+      return {
+        title: titleEn,
+        message: cleanBilingualText(rawMessage, 'en'),
+        isSystemGenerated: true,
+      };
+    } else {
+      const titleTl = isDeactivated
+        ? 'Na-deactivate ang Iyong Account'
+        : isSuspended
+        ? 'Suspendido ang Iyong Account'
+        : cleanBilingualText(rawTitle, 'tl');
+      return {
+        title: titleTl,
+        message: cleanBilingualText(rawMessage, 'tl'),
+        isSystemGenerated: true,
+      };
+    }
+  }
+
+  // 12. Account Reinstated
+  if (
+    type === 'ACCOUNT_REINSTATED' ||
+    titleTrimmed.includes('Naibalik ang Iyong Account') ||
+    titleTrimmed.includes('Account Reinstated')
+  ) {
+    if (language === 'en') {
+      return {
+        title: 'Your Account Has Been Reinstated',
+        message: cleanBilingualText(rawMessage, 'en'),
+        isSystemGenerated: true,
+      };
+    } else {
+      return {
+        title: 'Naibalik ang Iyong Account',
+        message: cleanBilingualText(rawMessage, 'tl'),
+        isSystemGenerated: true,
+      };
+    }
+  }
+
+  // Default: Check if title or message is bilingual (contains Tagalog and English)
+  const cleanedTitle = cleanBilingualText(rawTitle, language);
+  const cleanedMessage = cleanBilingualText(rawMessage, language);
+  const hasBilingualArtifacts = cleanedTitle !== rawTitle || cleanedMessage !== rawMessage;
+
   return {
-    title: rawTitle,
-    message: rawMessage,
-    isSystemGenerated: false,
+    title: cleanedTitle,
+    message: cleanedMessage,
+    isSystemGenerated: hasBilingualArtifacts,
   };
+}
+
+const TAGALOG_REGEX = /\b(ang|ng|sa|mga|na|ka|mo|ko|at|ay|iyo|inyo|inyong|drayber|pasahero|biyahe|hindi|dahil|para|isinumite|napagbigyan|mag-book|nagsisimula|nagsisimulang|gumagalaw|nakapagpatuloy|nakansela|inalis|suspensyon|paalala|abiso|ulat|kalsada|pumunta|pakisimulan|ikansela|huminto|daan|trapiko|sarado|manatiling|maingat|pagmamaneho|lisensya)\b/i;
+const ENGLISH_REGEX = /\b(the|is|are|you|your|have|not|started|driver|passenger|trip|cancelled|canceled|booking|please|appeal|suspension|lifted|unable|finding|traveling|proceed|toward|stopped|delay|exemption|license|reminder|notice|warning)\b/i;
+
+function countMatches(str: string, regex: RegExp): number {
+  const matches = str.match(new RegExp(regex.source, regex.flags + 'g'));
+  return matches ? matches.length : 0;
+}
+
+export function cleanBilingualText(raw: string, language: 'tl' | 'en'): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+
+  // Pattern: "TextA (TextB)"
+  const match = trimmed.match(/^(.*?)\s*\(([^()]+)\)\s*$/s);
+  if (!match) return trimmed;
+
+  const part1 = match[1].trim();
+  const part2 = match[2].trim();
+
+  const part1Tl = countMatches(part1, TAGALOG_REGEX);
+  const part1En = countMatches(part1, ENGLISH_REGEX);
+  const part2Tl = countMatches(part2, TAGALOG_REGEX);
+  const part2En = countMatches(part2, ENGLISH_REGEX);
+
+  // If part2 has no language keywords and is short, might be a date or metadata e.g. (12 days)
+  if (part2Tl === 0 && part2En === 0 && part2.length < 25) {
+    return trimmed;
+  }
+
+  const isPart1Tagalog = part1Tl > part1En;
+  const isPart2Tagalog = part2Tl > part2En;
+
+  if (isPart1Tagalog && !isPart2Tagalog) {
+    return language === 'tl' ? part1 : part2;
+  }
+  if (!isPart1Tagalog && isPart2Tagalog) {
+    return language === 'tl' ? part2 : part1;
+  }
+
+  if (part2Tl > 0 && part1En > 0) {
+    return language === 'tl' ? part2 : part1;
+  }
+  if (part1Tl > 0 && part2En > 0) {
+    return language === 'tl' ? part1 : part2;
+  }
+
+  return language === 'tl' ? part1 : part2;
 }

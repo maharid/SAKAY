@@ -293,7 +293,7 @@ export const DriverEarnings: React.FC = () => {
                     <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
                       {trip.passengerName}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: '#64748B', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <Typography sx={{ fontSize: '12px', color: '#64748B', lineHeight: 1.35, wordBreak: 'break-word' }}>
                       {trip.pickupLocation} → {trip.dropoffLocation}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
