@@ -290,7 +290,7 @@ const TrackReportsPage: React.FC = () => {
           onClick={() => navigate("/incident-report")}
           sx={{
             backgroundColor: "#FF6600",
-            color: "#1A1A1A",
+            color: "#FFFFFF",
             borderRadius: "14px",
             height: "44px",
             fontSize: "14px",

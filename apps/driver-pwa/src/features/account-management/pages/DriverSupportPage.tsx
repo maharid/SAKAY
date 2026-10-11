@@ -144,7 +144,7 @@ export const DriverSupportPage: React.FC = () => {
             startIcon={<PhoneIcon />}
             sx={{
               backgroundColor: '#FF6600',
-              color: '#1A1A1A',
+              color: '#FFFFFF',
               borderRadius: '12px',
               height: '44px',
               fontSize: '14px',

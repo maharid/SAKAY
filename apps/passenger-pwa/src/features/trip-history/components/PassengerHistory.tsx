@@ -366,7 +366,7 @@ const PassengerHistory: React.FC = () => {
               sx={{
                 mt: 3,
                 backgroundColor: "#FF6600",
-                color: "#1A1A1A",
+                color: "#FFFFFF",
                 borderRadius: "14px",
                 fontWeight: 700,
                 textTransform: "none",

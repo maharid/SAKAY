@@ -6,7 +6,7 @@ const theme = createTheme({
       main: '#FF6600',
       light: '#FF8533',
       dark: '#CC5200',
-      contrastText: '#1A1A1A', // white on the brand orange is 2.9:1; near-black is 6.3:1 (WCAG AA needs 4.5:1)
+      contrastText: '#FFFFFF',
     },
     secondary: {
       main: '#1F1F1F',
@@ -82,7 +82,7 @@ const theme = createTheme({
           },
           '&.MuiButton-containedPrimary': {
             backgroundColor: '#FF6600',
-            color: '#1A1A1A',
+            color: '#FFFFFF',
             fontWeight: 700,
             boxShadow: 'none',
             '&:hover': {

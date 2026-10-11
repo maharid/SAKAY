@@ -7,6 +7,8 @@ export { default as FareLine } from './components/FareLine';
 export type { FareLineProps } from './components/FareLine';
 export { MapControlButton, MapControlStack } from './components/MapControls';
 export type { MapControlButtonProps, MapControlStackProps, MapControlIcon } from './components/MapControls';
+export { FloatingLabelInput } from './components/FloatingLabelInput';
+export type { FloatingLabelInputProps } from './components/FloatingLabelInput';
 export { QuickMessageDialog } from './components/QuickMessageDialog';
 export type { QuickMessageDialogProps } from './components/QuickMessageDialog';
 export * from './utils/sms';

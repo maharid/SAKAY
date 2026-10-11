@@ -1085,6 +1085,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
           sx={{
             borderRadius: '14px',
             backgroundColor: '#FF6600',
+            color: '#FFFFFF',
             fontWeight: 700,
             py: 1.25,
             textTransform: 'none',

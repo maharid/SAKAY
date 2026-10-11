@@ -213,7 +213,7 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
             sx={{
               borderRadius: "14px",
               backgroundColor: "#FF6600",
-              color: "#1A1A1A",
+              color: "#FFFFFF",
               fontWeight: 700,
               fontSize: "14px",
               height: "44px",

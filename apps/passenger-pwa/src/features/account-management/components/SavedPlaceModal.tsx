@@ -217,7 +217,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
                       height: "38px",
                       borderRadius: "12px",
                       backgroundColor: isSelected ? "#FF6600" : "#FFFFFF",
-                      color: isSelected ? "#1A1A1A" : "#64748B",
+                      color: isSelected ? "#FFFFFF" : "#64748B",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -334,7 +334,7 @@ const SavedPlaceModal: React.FC<SavedPlaceModalProps> = ({
             disabled={!placeName.trim() || !(placeAddress.trim() || addressSearchQuery.trim())}
             sx={{
               backgroundColor: "#FF6600",
-              color: "#1A1A1A",
+              color: "#FFFFFF",
               borderRadius: "12px",
               fontWeight: 700,
               textTransform: "none",

@@ -144,7 +144,7 @@ export const DriverAppFeedbackPage: React.FC = () => {
             variant="contained"
             sx={{
               backgroundColor: '#FF6600',
-              color: '#1A1A1A',
+              color: '#FFFFFF',
               borderRadius: '14px',
               height: '52px',
               fontSize: '15px',
@@ -192,7 +192,7 @@ export const DriverAppFeedbackPage: React.FC = () => {
             }}
             sx={{
               backgroundColor: '#FF6600',
-              color: '#1A1A1A',
+              color: '#FFFFFF',
               borderRadius: '12px',
               px: 4,
               fontWeight: 700,

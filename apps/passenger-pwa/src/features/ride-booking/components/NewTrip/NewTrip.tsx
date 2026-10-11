@@ -1149,7 +1149,7 @@ const NewTrip: React.FC = () => {
             onClick={handleSaveNotes}
             sx={{
               backgroundColor: "#FF6600",
-              color: "#1A1A1A",
+              color: "#FFFFFF",
               borderRadius: "12px",
               fontWeight: 700,
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
@@ -1285,7 +1285,7 @@ const NewTrip: React.FC = () => {
                 <Chip
                   label="₱ Cash"
                   size="small"
-                  sx={{ backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
+                  sx={{ backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
                 />
               </Box>
             </Box>
