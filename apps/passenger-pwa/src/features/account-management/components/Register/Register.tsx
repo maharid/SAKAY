@@ -613,7 +613,7 @@ export const Register: React.FC = () => {
             fontSize: '16px',
             fontWeight: 700,
             backgroundColor: (isAllRequiredFilled && !submitted) ? '#FF6600' : '#E2E8F0',
-            color: (isAllRequiredFilled && !submitted) ? '#1A1A1A' : '#64748B',
+            color: (isAllRequiredFilled && !submitted) ? '#FFFFFF' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',

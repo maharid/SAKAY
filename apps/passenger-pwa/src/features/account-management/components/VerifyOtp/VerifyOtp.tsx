@@ -659,7 +659,7 @@ export const VerifyOtp: React.FC = () => {
             fontSize: '16px',
             fontWeight: 700,
             backgroundColor: isComplete ? '#FF6600' : '#E2E8F0',
-            color: isComplete ? '#1A1A1A' : '#64748B',
+            color: isComplete ? '#FFFFFF' : '#64748B',
             boxShadow: 'none',
             '&.Mui-disabled': {
               backgroundColor: '#E2E8F0',

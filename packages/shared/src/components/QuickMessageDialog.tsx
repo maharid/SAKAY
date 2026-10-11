@@ -187,7 +187,7 @@ export const QuickMessageDialog: React.FC<QuickMessageDialogProps> = ({
               minHeight: 48,
               borderRadius: '14px',
               backgroundColor: '#FF6600',
-              color: '#1A1A1A',
+              color: '#FFFFFF',
               textTransform: 'none',
               fontWeight: 700,
               fontSize: '15px',

@@ -369,7 +369,7 @@ const BookSummary: React.FC = () => {
                     fontWeight: 700,
                     textTransform: "none",
                     backgroundColor: tripType === "Solo" ? "#FF6600" : "#F1F5F9",
-                    color: tripType === "Solo" ? "#1A1A1A" : "#64748B",
+                    color: tripType === "Solo" ? "#FFFFFF" : "#64748B",
                     "&:hover": { backgroundColor: tripType === "Solo" ? "#E65C00" : "#E2E8F0" },
                   }}
                 >
@@ -544,7 +544,7 @@ const BookSummary: React.FC = () => {
               fontWeight: 700,
               fontSize: "1rem",
               backgroundColor: "#FF6600",
-              color: "#1A1A1A",
+              color: "#FFFFFF",
               "&:hover": {
                 backgroundColor: "#E65C00",
                 boxShadow: "none",
@@ -586,7 +586,7 @@ const BookSummary: React.FC = () => {
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 99999,
-            color: "#1A1A1A",
+            color: "#FFFFFF",
             fontWeight: 700,
             backgroundColor: "#FF6600",
             padding: "10px 24px",

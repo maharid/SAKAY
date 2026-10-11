@@ -90,7 +90,7 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
             px: 2,
             borderRadius: '14px',
             backgroundColor: '#FF6600',
-            color: '#1A1A1A',
+            color: '#FFFFFF',
             fontWeight: 700,
             fontSize: '14px',
             lineHeight: 1.2,

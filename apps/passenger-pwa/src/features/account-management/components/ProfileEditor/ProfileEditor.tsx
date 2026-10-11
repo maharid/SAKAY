@@ -306,7 +306,7 @@ export const ProfileEditor: React.FC = () => {
                 bottom: 0,
                 right: 0,
                 backgroundColor: "#FF6600",
-                color: "#1A1A1A",
+                color: "#FFFFFF",
                 "&:hover": { backgroundColor: "#E05300" },
                 width: "30px",
                 height: "30px",

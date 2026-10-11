@@ -273,7 +273,7 @@ export const DriverTripDetailPage: React.FC = () => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "16px" }}>
+            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "16px" }}>
               {passengerName.charAt(0)}
             </Avatar>
             <Box>
@@ -341,7 +341,7 @@ export const DriverTripDetailPage: React.FC = () => {
             <Chip
               label="₱ Cash"
               size="small"
-              sx={{ backgroundColor: "#FF6600", color: "#1A1A1A", fontWeight: 700, fontSize: "12px", height: "26px" }}
+              sx={{ backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
             />
           </Box>
         </Paper>

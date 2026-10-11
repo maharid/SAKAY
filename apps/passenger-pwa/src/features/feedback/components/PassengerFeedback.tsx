@@ -283,7 +283,7 @@ export const PassengerFeedback: React.FC = () => {
 
         {/* Driver Card */}
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: '20px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6600', color: '#1A1A1A', fontWeight: 700, fontSize: '22px', margin: '0 auto 12px auto' }}>
+          <Avatar sx={{ width: 64, height: 64, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '22px', margin: '0 auto 12px auto' }}>
             {driverName.charAt(0)}
           </Avatar>
           <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
@@ -376,13 +376,14 @@ export const PassengerFeedback: React.FC = () => {
               height: 52,
               borderRadius: '16px',
               backgroundColor: '#FF6600',
+              color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '15px',
               textTransform: 'none',
               fontFamily: 'Poppins, sans-serif',
               boxShadow: '0 4px 14px rgba(255, 102, 0, 0.3)',
               '&:hover': { backgroundColor: '#E65C00' },
-              '&.Mui-disabled': { backgroundColor: '#FFB380', color: '#1A1A1A' },
+              '&.Mui-disabled': { backgroundColor: '#FFB380', color: '#FFFFFF' },
             }}
           >
             {submitting ? (

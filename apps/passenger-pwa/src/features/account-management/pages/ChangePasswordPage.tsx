@@ -191,7 +191,7 @@ const ChangePasswordPage: React.FC = () => {
             disabled={loading || !newPassword || !confirmPassword}
             sx={{
               backgroundColor: "#FF6600",
-              color: "#1A1A1A",
+              color: "#FFFFFF",
               borderRadius: "14px",
               height: "46px",
               fontSize: "14px",

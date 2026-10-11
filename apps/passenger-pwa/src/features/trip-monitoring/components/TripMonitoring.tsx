@@ -1240,7 +1240,7 @@ export const TripMonitoring: React.FC = () => {
             /* Driver identity */
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-                <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6600', fontWeight: 700, fontSize: '20px' }}>
+                <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '20px' }}>
                   {driverName.charAt(0)}
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
@@ -1353,7 +1353,7 @@ export const TripMonitoring: React.FC = () => {
                   fullWidth
                   onClick={handleRetrySearch}
                   disabled={retryFlight.busy}
-                  sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#1A1A1A', opacity: 0.75 }, backgroundColor: '#FF6600', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' } }}
+                  sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 }, backgroundColor: '#FF6600', color: '#FFFFFF', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' } }}
                 >
                   {language === 'tl' ? 'Subukan Muli' : 'Retry Search'}
                 </Button>
@@ -1446,7 +1446,7 @@ export const TripMonitoring: React.FC = () => {
             variant="contained"
             fullWidth
             onClick={() => setLeaveConfirmModalOpen(false)}
-            sx={{ borderRadius: '12px', backgroundColor: '#FF6600', fontWeight: 700, height: '44px', textTransform: 'none', '&:hover': { backgroundColor: '#E05000' } }}
+            sx={{ borderRadius: '12px', backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, height: '44px', textTransform: 'none', '&:hover': { backgroundColor: '#E05000' } }}
           >
             {language === 'tl' ? 'Manatili sa Tracking' : 'Stay on Tracking'}
           </Button>
@@ -1742,6 +1742,7 @@ export const TripMonitoring: React.FC = () => {
               height: 46,
               borderRadius: '14px',
               backgroundColor: '#FF6600',
+              color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '14px',
               textTransform: 'none',
