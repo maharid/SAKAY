@@ -36,6 +36,7 @@ export const DriverResetPassword: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
@@ -49,7 +50,11 @@ export const DriverResetPassword: React.FC = () => {
         const search = window.location.search || '';
         const hasRecoveryToken = hash.includes('type=recovery') || hash.includes('access_token') || search.includes('code=');
 
-        if (session || hasRecoveryToken) {
+        if (session) {
+          setIsAuthenticated(true);
+          setSessionValid(true);
+        } else if (hasRecoveryToken) {
+          setIsAuthenticated(false);
           setSessionValid(true);
         } else {
           setSessionValid(false);
@@ -155,7 +160,11 @@ export const DriverResetPassword: React.FC = () => {
       setLoading(false);
       setSuccessModalOpen(true);
       setTimeout(() => {
-        navigate('/driver/login', { replace: true });
+        if (isAuthenticated) {
+          navigate('/driver/settings', { replace: true });
+        } else {
+          navigate('/driver/login', { replace: true });
+        }
       }, 1600);
     } catch (err: any) {
       setErrorMessage(
@@ -196,8 +205,14 @@ export const DriverResetPassword: React.FC = () => {
         }}
       >
         <IconButton
-          aria-label="Back"
-          onClick={() => navigate('/driver/login')}
+          aria-label={language === 'tl' ? 'Bumalik' : 'Back'}
+          onClick={() => {
+            if (isAuthenticated) {
+              navigate('/driver/settings');
+            } else {
+              navigate('/driver/login');
+            }
+          }}
           sx={{
             color: '#0F172A',
             backgroundColor: '#FFFFFF',

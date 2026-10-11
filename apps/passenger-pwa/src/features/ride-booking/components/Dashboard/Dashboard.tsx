@@ -18,6 +18,7 @@ import HomeBottomSheet from "./HomeBottomSheet";
 import PassengerNavigationDrawer from "./PassengerNavigationDrawer";
 import TulongDialog from "./TulongDialog";
 import NotificationsDialog from "./NotificationsDialog";
+import type { NotificationItem } from "./NotificationsDialog";
 import { useOpenBooking } from "../../hooks/useOpenBooking";
 import {
   DEFAULT_CALAPAN_CENTER,
@@ -278,14 +279,14 @@ const Dashboard: React.FC = () => {
   };
 
   // Notifications State & Handlers with localStorage persistence
-  const [notifications, setNotifications] = useState(() => {
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
     const rawRead = localStorage.getItem("sakay_read_notifications");
     let readIds: string[] = [];
     try {
       if (rawRead) readIds = JSON.parse(rawRead);
     } catch {}
 
-    const items = [
+    const items: NotificationItem[] = [
       {
         id: "n1",
         titleTl: "Maligayang Pagdating sa SAKAY!",
@@ -295,12 +296,44 @@ const Dashboard: React.FC = () => {
         timeTl: "Ngayon",
         timeEn: "Just now",
         isRead: readIds.includes("n1"),
-        category: "promos" as const,
+        category: "promos",
       },
     ];
 
     return items;
   });
+
+  useEffect(() => {
+    void supabase
+      .from("announcement")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const rawRead = localStorage.getItem("sakay_read_notifications");
+        let readIds: string[] = [];
+        try {
+          if (rawRead) readIds = JSON.parse(rawRead);
+        } catch {}
+        const fetched: NotificationItem[] = data.map((a: any) => ({
+          id: a.announcement_id || a.id,
+          titleTl: a.title,
+          titleEn: a.title,
+          bodyTl: a.message || a.content || "",
+          bodyEn: a.message || a.content || "",
+          createdAt: a.created_at,
+          timeTl: a.created_at ? undefined : "Kamakailan",
+          timeEn: a.created_at ? undefined : "Recent",
+          isRead: readIds.includes(a.announcement_id || a.id),
+          category: "advisories",
+        }));
+        setNotifications((prev) => {
+          const defaultItems = prev.filter((p) => p.id === "n1");
+          return [...defaultItems, ...fetched];
+        });
+      });
+  }, []);
 
   const handleMarkAsRead = (id: string) => {
     setNotifications((prev) => {

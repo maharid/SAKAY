@@ -16,7 +16,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
 import GroupsIcon from '@mui/icons-material/Groups';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
@@ -201,7 +201,7 @@ export const DriverEarnings: React.FC = () => {
             </Typography>
             <Button
               onClick={() => navigate('/driver/history')}
-              endIcon={<ChevronRightIcon sx={{ fontSize: '18px !important', ml: -0.25 }} />}
+              endIcon={<ArrowForwardIcon sx={{ fontSize: '18px !important', ml: -0.25 }} />}
               sx={{
                 fontSize: '13px',
                 fontWeight: 700,
@@ -213,15 +213,26 @@ export const DriverEarnings: React.FC = () => {
                 mr: -1,
                 minHeight: 44,
                 minWidth: 'auto',
-                textDecoration: 'none',
+                textDecoration: 'none !important',
                 display: 'inline-flex',
                 alignItems: 'center',
-                '&:hover': { backgroundColor: 'transparent', textDecoration: 'none', color: '#9A3412' },
-                '&:active': { textDecoration: 'none' },
+                '&, &:hover, &:active, &:focus, &:visited, &.MuiButton-root': {
+                  textDecoration: 'none !important',
+                },
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  textDecoration: 'none !important',
+                  color: '#9A3412',
+                },
+                '&:active': {
+                  textDecoration: 'none !important',
+                  color: '#7C2D12',
+                },
                 '&:focus-visible': {
                   outline: '2px solid #FF6600',
                   outlineOffset: '2px',
                   borderRadius: '8px',
+                  textDecoration: 'none !important',
                 },
               }}
             >

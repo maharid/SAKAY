@@ -17,7 +17,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverNotifications } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { activateWithKeyboard } from '@sakay/shared';
+import { activateWithKeyboard, localizeSystemNotification } from '@sakay/shared';
 
 export interface NotificationItem {
   id: string;
@@ -95,18 +95,22 @@ export const DriverNotifications: React.FC = () => {
     fetchDriverNotifications()
       .then((data) => {
         {
-          const mapped: NotificationItem[] = (data || []).map((d: any) => ({
-            id: d.id,
-            titleTl: d.title,
-            titleEn: d.title,
-            bodyTl: d.message,
-            bodyEn: d.message,
-            createdAt: d.time ? undefined : new Date().toISOString(),
-            timeTl: d.time,
-            timeEn: d.time,
-            isRead: d.read === true,
-            category: d.category === 'TODA Announcement' || d.category === 'TODA Reminder' ? 'advisories' : 'promos',
-          }));
+          const mapped: NotificationItem[] = (data || []).map((d: any) => {
+            const tl = localizeSystemNotification(d.title, d.message, 'tl', d.notificationType);
+            const en = localizeSystemNotification(d.title, d.message, 'en', d.notificationType);
+            return {
+              id: d.id,
+              titleTl: tl.title,
+              titleEn: en.title,
+              bodyTl: tl.message,
+              bodyEn: en.message,
+              createdAt: d.time ? undefined : new Date().toISOString(),
+              timeTl: d.time,
+              timeEn: d.time,
+              isRead: d.read === true,
+              category: d.category === 'TODA Announcement' || d.category === 'TODA Reminder' ? 'advisories' : 'promos',
+            };
+          });
           setFetchedNotifs(mapped);
         }
       })

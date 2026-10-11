@@ -10,12 +10,12 @@
  * glyphs. Inline styles only, so they look right without any stylesheet; the pulse is a CSS class each app defines (see animations.css).
  */
 
+import appIconToto from '../assets/icons/app-icon-toto.webp';
+
 const PERSON_PATH =
   'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4';
-const TRICYCLE_PATH =
-  'M21 11.18V9.72c0-.47-.16-.92-.46-1.28L16.6 3.72c-.38-.46-.94-.72-1.54-.72H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h.18C3.6 16.16 4.7 17 6 17s2.4-.84 2.82-2h8.37c.41 1.16 1.51 2 2.82 2 1.66 0 3-1.34 3-3-.01-1.3-.85-2.4-2.01-2.82M18.4 9H16V6.12zM3 5h4v4H3zm3 10c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m3-2v-2h3V9H9V5h5v8zm11 2c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1M7 20h4v-2l6 3h-4v2z';
 
-export const PASSENGER_MARKER_COLOR = '#2563EB';
+export const PASSENGER_MARKER_COLOR = '#FF6600';
 export const DRIVER_MARKER_COLOR = '#FF6600';
 
 /** `divIcon` size and anchor for each marker (the anchor is the centre: the marker sits ON its position) */
@@ -30,7 +30,7 @@ export function passengerMarkerHtml(): string {
   return `
     <div class="sakay-marker sakay-passenger-marker" style="position:relative;width:${s}px;height:${s}px;">
       <div class="sakay-marker-pulse" style="position:absolute;inset:2px;border-radius:50%;background:${PASSENGER_MARKER_COLOR};opacity:0.22;"></div>
-      <div class="sakay-marker-body" style="position:absolute;left:4px;top:4px;width:30px;height:30px;border-radius:50%;background:${PASSENGER_MARKER_COLOR};border:3px solid #FFFFFF;box-shadow:0 3px 10px rgba(37,99,235,0.45);display:flex;align-items:center;justify-content:center;box-sizing:content-box;">
+      <div class="sakay-marker-body" style="position:absolute;left:4px;top:4px;width:30px;height:30px;border-radius:50%;background:${PASSENGER_MARKER_COLOR};border:3px solid #FFFFFF;box-shadow:0 3px 10px rgba(255,102,0,0.45);display:flex;align-items:center;justify-content:center;box-sizing:content-box;">
         ${svg(PERSON_PATH, 18)}
       </div>
     </div>`;
@@ -43,8 +43,8 @@ export function driverMarkerHtml(): string {
       <div class="sakay-marker-heading" style="position:absolute;inset:0;opacity:0;transition:transform 0.35s linear, opacity 0.2s ease;transform-origin:50% 50%;">
         <svg width="${s}" height="${s}" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path d="M26 1 L35 13 L26 9.5 L17 13 Z" fill="#C2410C" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg>
       </div>
-      <div class="sakay-marker-body" style="position:absolute;left:7px;top:7px;width:32px;height:32px;border-radius:50%;background:${DRIVER_MARKER_COLOR};border:3px solid #FFFFFF;box-shadow:0 4px 14px rgba(255,107,0,0.55);display:flex;align-items:center;justify-content:center;box-sizing:content-box;">
-        ${svg(TRICYCLE_PATH, 22)}
+      <div class="sakay-marker-body" style="position:absolute;left:7px;top:7px;width:32px;height:32px;border-radius:50%;background:${DRIVER_MARKER_COLOR};border:3px solid #FFFFFF;box-shadow:0 4px 14px rgba(255,102,0,0.55);display:flex;align-items:center;justify-content:center;box-sizing:content-box;">
+        <img src="${appIconToto}" alt="Driver" style="width:26px;height:26px;object-fit:contain;display:block;" />
       </div>
     </div>`;
 }

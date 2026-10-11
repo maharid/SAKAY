@@ -87,7 +87,7 @@ export const DriverChangePasswordPage: React.FC = () => {
           : 'Password successfully updated!'
       );
       setTimeout(() => {
-        navigate('/driver/home');
+        navigate('/driver/settings', { replace: true });
       }, 1500);
     } catch (err: any) {
       console.warn('Driver change password error:', err);
@@ -114,7 +114,7 @@ export const DriverChangePasswordPage: React.FC = () => {
     >
       <PageHeader
         title={isTagalog ? 'Palitan ang Password' : 'Change Password'}
-        onBack={() => navigate(-1)}
+        onBack={() => navigate('/driver/settings')}
       />
 
       <Box
