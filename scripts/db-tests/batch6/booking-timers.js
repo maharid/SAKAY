@@ -60,9 +60,9 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.moveTo('D1', 300); await s.sweep(); await s.sweep();
   cur = await s.booking(b.booking_id);
   check('running the sweep again changes nothing (one warning, the same time)', (await notes(ID.D1, 'STALL_WARNING')).length === 1 && String(cur.stall_warned_at) === String(warnedAt));
-  await s.moveTo('D1', 260); await s.sweep();                       // 40 m closer, fix accuracy 15 m: 25 m of real movement
+  await s.moveTo('D1', 230); await s.sweep();                       // 70 m closer, both fixes' accuracy 15 m: 40 m of real movement (Batch 7, D7-8: the error of BOTH fixes is subtracted)
   cur = await s.booking(b.booking_id);
-  check('the driver sets off (40 m, less the 15 m GPS error = 25 m): the warning is cleared and the clock restarts from here',
+  check('the driver sets off (70 m, less the 15 m GPS error of each fix = 40 m): the warning is cleared and the clock restarts from here',
     cur.stall_warned_at === null && new Date(cur.stall_anchor_at) > new Date(cur.accepted_at) && cur.booking_status === 'Accepted', cur);
   await reset(b);
 
@@ -160,7 +160,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.online('D1', 300); await s.online('D2', 600);
   await clearStrikes();
   b = await bookAndAccept('D1', 'P1');
-  await s.moveTo('D1', 250);
+  await s.moveTo('D1', 200);
   await silence('D1', 170); await s.sweep();
   check('after 170 s without a location update nothing is flagged', (await s.booking(b.booking_id)).driver_unreachable_since === null);
   await silence('D1', 20); await s.sweep();
@@ -170,7 +170,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   check('the passenger is told, in the policy\'s words', un.length === 1 && /Your driver appears to be experiencing a connectivity issue\. We'll keep trying to reach them\./.test(un[0].message), un);
   await s.sweep(); await s.sweep();
   check('the sweep repeating does not tell the passenger twice', (await notes(ID.P1, 'DRIVER_UNREACHABLE')).length === 1);
-  await s.moveTo('D1', 250); await s.sweep();
+  await s.moveTo('D1', 200); await s.sweep();
   check('the driver is heard from again: the mark is cleared', (await s.booking(b.booking_id)).driver_unreachable_since === null);
   await silence('D1', 200); await s.sweep();
   check('silent again: marked again', (await s.booking(b.booking_id)).driver_unreachable_since !== null);

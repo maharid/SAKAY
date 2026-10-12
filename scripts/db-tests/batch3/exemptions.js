@@ -67,7 +67,7 @@ const { ID, seed } = require('../fixtures');
   await strike('driver', ID.D1, 'DRV_STALL', 'd1-ok47');
   await db.exec(`UPDATE strikes_ledger SET issued_at = now() - interval '47 hours' WHERE idempotency_key='d1-ok47'`);
   check('request at 47 hours is accepted', (await request(ID.D_AUTH, await sid('d1-ok47'))).ok);
-  await strike('driver', ID.D1, 'DRV_DELIBERATE_OFFLINE', 'd1-delib');
+  await strike('driver', ID.D1, 'DRV_DELIBERATE_OFFLINE', 'd1-delib', { reason: 'Confirmed by the LGU Administrator after review (Rule 9.6)' });   // Batch 7: administrator-confirmed, so a reason is required
   const nel = await request(ID.D_AUTH, await sid('d1-delib'));
   check('deliberate mid-trip offline (9.6) is not eligible for exemption', !nel.ok && /not eligible/.test(nel.error), nel);
   const stranger = await request(ID.D3_AUTH, await sid('d1-ok47'));

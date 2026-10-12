@@ -74,6 +74,17 @@ drivers placed N metres from the pickup, and the apps' calls (`accept`, `decline
 | `batch6/leftover-offers-migration.js` | The follow-up migration `20261020000001`: a project that has Phase B as it was first applied (the original eligibility function, a leftover offer left by the old browser dispatcher) is put back on the emulator, the bug is shown (a nearby driver is never offered a booking), and the follow-up migration alone fixes it, leaves a running search alone, runs twice without error and keeps the function closed to signed-in users (12 checks). |
 | `e2e/solo-trip.js` | One whole solo trip, start to finish, as the apps do it: book, offer, accept, arrive, ride, fare lock, confirm (50 checks). |
 
+## Batch 7 suites (`batch7/*.js`): connectivity, interrupted trips, reconciliation and the GPS areas
+These prove `20261021000001` on the whole chain with the same fixtures and the same "move the stored timestamps back" technique as Batch 6 (`b6fixtures.js`).
+They were **mutation-tested**: seven deliberate breakages of the migration (one-sided jitter filter, no re-confirmation guard, a passenger struck while the driver is
+unreachable, the TODA allowed to issue the LGU-only strike, no 4-minute warning, a fare higher than the system's, no silence record) are each caught. A suite must end with
+`process.exit(summary() ? 0 : 1)`: a bare `summary()` exits 0 even when checks fail (and `run-all.js` then prints PASS).
+
+| Suite | Proves |
+|---|---|
+| `batch7/connectivity.js` | The two-sided jitter filter; the 4-minute en-route warning and the stored, audited delay reason; the record of every silence with the last confirmed point; the whole Rule 9.3 chain (5 minutes, provisional strike, the driver's appeal within 48 h, another TODA refused, the waiver); an Ongoing trip that loses GPS (never cancelled, flagged, the passenger's live status with the server's age, re-confirmation required by the driver AND the passenger, a double tap, a second silence needs a second answer); the 30-minute reconciliation (who sees it, both phones, the fare never higher or below the base fare, atomic refusal, the fare ledger, audit, flag resolved, both parties told, cancelled outcome); the passenger's phone off and the driver's app crash (state resumes from the database); no late-cancel strike while the driver is unreachable; the deliberate offline (report by the TODA Administrator, confirmation only by the LGU, 2 strikes, no appeal); the route deviation (1 strike on the first case); who may read or write the silence record; the lists the apps offer equal what the database accepts; the migration run twice (131 checks). |
+| `batch7/area-escalation.js` | Rule 17.5 on a database that counts from zero: stalls and silences grouped by square, waived strikes count and voided ones do not, who sees which areas, the report to the LGU Administrator (the database's own counts, no duplicate, reportable again once resolved) (24 checks). |
+
 ## Perimeter lockdown suites (`security/perimeter-*.js`) and the server tests
 These prove the five `20261008*` migrations (stages S0 - S4), the operator scripts and the Express layer. None of them touches Supabase.
 

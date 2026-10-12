@@ -41,6 +41,7 @@ const PAIRS = {
   stall_cancel_seconds: ['DRIVER_STALL_CANCEL_SECONDS', 1],
   stall_min_movement_m: ['DRIVER_STALL_MIN_MOVEMENT_METERS', 1],
   stall_en_route_seconds: ['DRIVER_STALL_EN_ROUTE_SECONDS', 1],
+  stall_en_route_warn_seconds: ['DRIVER_STALL_EN_ROUTE_WARN_SECONDS', 1],
   unreachable_warn_seconds: ['DRIVER_UNREACHABLE_WARN_SECONDS', 1],
   unreachable_cancel_seconds: ['DRIVER_UNREACHABLE_CANCEL_SECONDS', 1],
   ongoing_reconcile_seconds: ['TRIP_RECONCILE_SECONDS', 1],
@@ -67,7 +68,8 @@ Object.assign(PAIRS, {
 });
 // sweep_batch_limit: how many searches one sweep advances; osrm_calls_per_transaction: a safety budget; cron_log_retention_days: housekeeping.
 // Implementation details, not policy numbers.
-const DB_ONLY = ['sweep_batch_limit', 'osrm_calls_per_transaction', 'cron_log_retention_days'];
+// Batch 7: the Rule 17.5 area grouping (cell size, count, window) is an analysis aid the database evaluates (the policy says "repeatedly"): provisional pilot values.
+const DB_ONLY = ['sweep_batch_limit', 'osrm_calls_per_transaction', 'cron_log_retention_days', 'gps_area_cell_millidegrees', 'gps_area_flag_count', 'gps_area_window_days'];
 
 (async () => {
   const s = await setup();

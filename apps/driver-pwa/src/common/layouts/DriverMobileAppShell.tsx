@@ -17,6 +17,7 @@ import { useLanguage } from '../../utils/LanguageContext';
 import { supabase } from '../../services/supabaseClient';
 import { fetchDriverNotifications } from '../../services/driverApiService';
 import { DriverSessionProvider } from '../../contexts/DriverSessionContext';
+import { ConnectionLostBanner } from '@sakay/shared';
 import { DriverIncomingRequestModal } from '../components/DriverIncomingRequestModal';
 import DriverPresenceNotices from '../components/DriverPresenceNotices';
 import SakayToast from '../components/SakayToast';
@@ -214,6 +215,9 @@ export const DriverMobileAppShell: React.FC = () => {
             backgroundColor: '#F8FAFC',
           }}
         >
+          {/* Rule 17.4: while this phone cannot reach the server, every screen says so (a stalled screen is not a finished or cancelled trip) */}
+          <ConnectionLostBanner language={language} />
+
           {/* Main Content Area */}
           <Box sx={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <Outlet />
