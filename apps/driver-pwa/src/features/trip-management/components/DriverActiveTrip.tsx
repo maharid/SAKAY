@@ -55,6 +55,8 @@ import ReconfirmTripDialog from './ReconfirmTripDialog';
 import { DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
 import { useTripConnectivity } from '../../../hooks/useTripConnectivity';
 import ArrivalWaitPanel from './ArrivalWaitPanel';
+import PassengerCheckCard from './PassengerCheckCard';
+import { arrivalZoneHint } from '../../../utils/arrivalHint';
 
 export const DriverActiveTrip: React.FC = () => {
   const { language } = useLanguage();
@@ -172,6 +174,8 @@ export const DriverActiveTrip: React.FC = () => {
             estimated_distance_km: Number(data.estimated_distance_km) || 0,
             estimated_fare: Number(data.estimated_fare) || fare,
             booking_status: data.booking_status,
+            // Rule 11.1: when the driver confirmed the passenger's first name (the trip cannot start before)
+            boarding_verified_at: data.boarding_verified_at ?? null,
             created_at: data.created_at,
             updated_at: data.updated_at,
           } as any);
@@ -204,10 +208,11 @@ export const DriverActiveTrip: React.FC = () => {
       try {
         const { data } = await supabase
           .from('booking')
-          .select('booking_status, actual_fare, fare_locked_at, fare_breakdown, cancelled_by, cancellation_reason')
+          .select('booking_status, actual_fare, fare_locked_at, fare_breakdown, cancelled_by, cancellation_reason, boarding_verified_at')
           .eq('booking_id', bookingId)
           .maybeSingle();
         if (!data) return;
+        setBooking((prev: any) => (prev && (prev.boarding_verified_at ?? null) !== (data.boarding_verified_at ?? null) ? { ...prev, boarding_verified_at: data.boarding_verified_at ?? null } : prev));
         if (data.fare_locked_at) {
           setFareLockedAt(data.fare_locked_at);
           if (data.actual_fare !== null && data.actual_fare !== undefined) {
@@ -754,9 +759,15 @@ export const DriverActiveTrip: React.FC = () => {
             {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Papunta Na Ako' : "I'm On My Way"}
           </Button>
         ) : booking.booking_status === 'In Transit' ? (
-          <Button variant="contained" fullWidth disabled={moving} onClick={handleArrived} sx={primaryButtonSx}>
-            {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
-          </Button>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Button variant="contained" fullWidth disabled={moving} onClick={handleArrived} sx={primaryButtonSx}>
+              {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
+            </Button>
+            {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
+            <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
+              {arrivalZoneHint(tl)}
+            </Typography>
+          </Box>
         ) : booking.booking_status === 'Arrived at Pickup' || booking.booking_status === 'Driver Arrived' ? (
           <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <ArrivalWaitPanel
@@ -768,7 +779,23 @@ export const DriverActiveTrip: React.FC = () => {
                 navigate('/driver/home', { replace: true });
               }}
             />
-            <Button variant="contained" fullWidth disabled={moving} onClick={handleStartTrip} startIcon={moving ? undefined : <LocalTaxiIcon />} sx={primaryButtonSx}>
+            {/* Rule 11.1: the first name is checked before boarding; the database does not let the trip start until the driver has said so */}
+            <PassengerCheckCard
+              bookingId={bookingId}
+              firstName={passengerName}
+              verified={Boolean(booking.boarding_verified_at)}
+              language={language}
+              onConfirmed={() => setBooking((prev: any) => (prev ? { ...prev, boarding_verified_at: new Date().toISOString() } : prev))}
+              onMessage={setToastMessage}
+            />
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={moving || !booking.boarding_verified_at}
+              onClick={handleStartTrip}
+              startIcon={moving ? undefined : <LocalTaxiIcon />}
+              sx={primaryButtonSx}
+            >
               {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Simulan ang Biyahe' : 'Start Trip'}
             </Button>
           </Box>

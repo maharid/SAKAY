@@ -6,8 +6,9 @@ const { setup: setupBase, ID, attempt, check, summary, asUser } = require('./b4f
 const PICKUP = { lat: 13.4115, lng: 121.1803 };
 const DROPOFF = { lat: 13.4415, lng: 121.1803 };
 
-async function setup() {
-  const base = await setupBase(null);
+// `until`: the last migration to apply (default: the whole chain)
+async function setup(until = null) {
+  const base = await setupBase(until);
   const { db, as, svc } = base;
   // (the Batch 4 q / one take no parameters; these do)
   const q = async (sql, args) => (await db.query(sql, args)).rows;
@@ -76,8 +77,30 @@ async function setup() {
   // The driver moves the booking along, exactly as the Driver app does (plain UPDATE of booking_status). Since Batch 6 the database refuses
   // a jump (a trip cannot start before the driver has arrived), so a request for a later step walks through each step before it, as the app does.
   const STEPS = ['Accepted', 'In Transit', 'Driver Arrived', 'Trip Ongoing', 'Arrived at Destination'];
-  const writeStatus = (uid, bookingId, status) =>
-    as(uid, (tx) => tx.query(`UPDATE public.booking SET booking_status = $2 WHERE booking_id = $1 RETURNING *`, [bookingId, status])).then((r) => r.rows[0]);
+  // Since 20261023000001 (Batch 8) the database refuses Arrived from outside the pickup zone (a fresh fix of at most 30 m of error within 25 m of
+  // the pickup) and refuses to start the trip before the driver has confirmed the passenger's first name. A real driver at the pickup has both, so
+  // before such a step the helper gives the driver exactly that (a fix 5 m from the pickup, 10 m of error; the confirmation through the same RPC the
+  // app calls). It leaves the driver where he arrived. A suite that tests those two refusals writes the status itself.
+  const ASSIGNED_STATUSES = ['Accepted', 'Assigned', 'Driver Assigned', 'Driver En Route', 'Heading to Passenger', 'In Transit'];
+  const ARRIVED_STATUSES = ['Driver Arrived', 'Arrived at Pickup'];
+  const ONGOING_STATUSES = ['Trip Ongoing', 'Ongoing'];
+  const prepareDriverStep = async (uid, bookingId, status) => {
+    const b = await one(`SELECT driver_id, booking_status, pickup_latitude AS lat, pickup_longitude AS lng FROM public.booking WHERE booking_id = $1`, [bookingId]);
+    if (!b || !b.driver_id) return;
+    if (ARRIVED_STATUSES.includes(status) && ASSIGNED_STATUSES.includes(b.booking_status)) {
+      await base.internal(`UPDATE public.driver SET current_latitude = ${Number(b.lat) + 5 / 111195}, current_longitude = ${Number(b.lng)},
+                                  last_location_update = clock_timestamp(), last_location_accuracy_m = 10 WHERE driver_id = '${b.driver_id}'`);
+    } else if (ONGOING_STATUSES.includes(status) && ARRIVED_STATUSES.includes(b.booking_status)) {
+      const confirmed = await attempt(() => as(uid, (tx) => tx.query(`SELECT public.driver_confirm_passenger($1)`, [bookingId])));
+      // (booking-guards.js ends with a fail-closed section that makes is_service_context() answer NULL on purpose: the RPC then refuses, as it should, and
+      // the confirmation is written directly, as a trusted direct session would. The RPC itself is tested in batch8/arrival-and-wait.js.)
+      if (!confirmed.ok) await base.internal(`UPDATE public.booking SET boarding_verified_at = COALESCE(boarding_verified_at, clock_timestamp()) WHERE booking_id = '${bookingId}'`);
+    }
+  };
+  const writeStatus = async (uid, bookingId, status) => {
+    await prepareDriverStep(uid, bookingId, status);
+    return as(uid, (tx) => tx.query(`UPDATE public.booking SET booking_status = $2 WHERE booking_id = $1 RETURNING *`, [bookingId, status])).then((r) => r.rows[0]);
+  };
   // Since 20261017000001 the database lets the driver arrive only once the trip's recorded fixes reach 90% progress. A real trip has them (the
   // heartbeat logs each published fix), so before the driver arrives this gives the trip one published fix AT the destination - unless the test
   // already recorded a track that gets there. Its accuracy (90 m) is worse than the 50 m the fare track accepts, so the fare suites that mean
@@ -112,7 +135,7 @@ async function setup() {
       [bookingId, driverId, PICKUP.lat, stepDeg, PICKUP.lng, lngDeg, accuracy, startAt, n, skip]
     );
 
-  return { ...base, q, one, anon, num, fare, allocate, quote, book, getBooking, assign, setStatus, arrivalFix, logTrack, PICKUP, DROPOFF, ID, attempt, check, summary, asUser };
+  return { ...base, q, one, anon, num, fare, allocate, quote, book, getBooking, assign, setStatus, prepareDriverStep, arrivalFix, logTrack, PICKUP, DROPOFF, ID, attempt, check, summary, asUser };
 }
 
 module.exports = { setup, ID, attempt, check, summary, asUser, PICKUP, DROPOFF };

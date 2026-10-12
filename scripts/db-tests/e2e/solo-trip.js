@@ -17,7 +17,12 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const D1 = DRIVERS.D1;
   const D2 = DRIVERS.D2;
   const rows = async (uid, sql, args = []) => (await as(uid, (tx) => tx.query(sql, args))).rows;
-  const driverSets = (key, bookingId, set) => attempt(() => as(DRIVERS[key].uid, (tx) => tx.query(`UPDATE public.booking SET ${set} WHERE booking_id=$1 RETURNING *`, [bookingId])));
+  // (before an arrival or the start of the trip the driver is given what a driver at the pickup has: see prepareDriverStep in b5fixtures.js)
+  const driverSets = async (key, bookingId, set) => {
+    const target = /booking_status='([^']+)'/.exec(set);
+    if (target) await s.prepareDriverStep(DRIVERS[key].uid, bookingId, target[1]);
+    return attempt(() => as(DRIVERS[key].uid, (tx) => tx.query(`UPDATE public.booking SET ${set} WHERE booking_id=$1 RETURNING *`, [bookingId])));
+  };
 
   console.log('S1 the driver goes Online near the pickup');
   const on = await s.online('D1', 300);
@@ -41,12 +46,12 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
 
   console.log('\nS4 the driver sees the offer and the booking, and the passenger\'s name');
   const mine = await s.myOffer('D1');
-  check('the driver\'s one call returns the offer with the booking details, the passenger name, the ETA and the time left',
-    !!mine && mine.attempt_id === offers[0].attempt_id && mine.passenger_name === 'Pax One' && Number(mine.estimated_fare) === Number(qt.solo_fare) && mine.seconds_remaining > 0, mine);
+  check('the driver\'s one call returns the offer with the booking details, the passenger\'s FIRST NAME only (Rule 11.1), the ETA and the time left',
+    !!mine && mine.attempt_id === offers[0].attempt_id && mine.passenger_first_name === 'Pax' && mine.passenger_name === undefined &&Number(mine.estimated_fare) === Number(qt.solo_fare) && mine.seconds_remaining > 0, mine);
   const seen = await rows(D1.uid, `SELECT * FROM public.booking WHERE booking_id=$1`, [b.booking_id]);
   check('the driver can read the offered booking (pickup, drop-off, fare)', seen.length === 1 && Number(seen[0].estimated_fare) === Number(qt.solo_fare), seen);
   const parties = await rows(D1.uid, `SELECT * FROM public.get_booking_counterparties($1::uuid[])`, [[b.booking_id]]);
-  check('the driver learns the passenger\'s name for the offer (not yet the phone)', parties.length === 1 && parties[0].passenger_name === 'Pax One' && !parties[0].passenger_phone, parties);
+  check('the driver learns the passenger\'s FIRST NAME for the offer, not the full name (Rule 11.1), and not yet the phone', parties.length === 1 && parties[0].passenger_name === 'Pax' &&!parties[0].passenger_phone, parties);
   check('a driver who was NOT offered the booking cannot read it', (await rows(D2.uid, `SELECT * FROM public.booking WHERE booking_id=$1`, [b.booking_id])).length === 0);
 
   console.log('\nS5 the driver accepts (one atomic call)');

@@ -63,9 +63,9 @@ const { AFF } = require('../b4fixtures');
   check('the passenger of a live trip sees the driver\'s name, TODA and phone',
     asPax && asPax.driver_name === 'Driver One' && asPax.driver_phone === '+639180000001' && asPax.toda_name === 'Toda One', asPax);
   const asDrv = row(await cpt(ID.D_AUTH, [B2.booking_id]), B2.booking_id);
-  check('the driver of a live trip sees the passenger\'s name and phone', asDrv && asDrv.passenger_name === 'Pax Two' && asDrv.passenger_phone === '+639170000002', asDrv);
+  check('the driver of a live trip sees the passenger\'s FIRST NAME (Rule 11.1) and phone', asDrv && asDrv.passenger_name === 'Pax' && asDrv.passenger_phone === '+639170000002', asDrv);
   const offerOnly = row(await cpt(ID.D_AUTH, [B1.booking_id]), B1.booking_id);
-  check('a driver holding only an offer sees the passenger\'s name but NOT the phone, and no driver data', offerOnly && offerOnly.passenger_name === 'Pax One' && offerOnly.passenger_phone === null && offerOnly.driver_id === null, offerOnly);
+  check('a driver holding only an offer sees the passenger\'s first name but NOT the phone, and no driver data', offerOnly && offerOnly.passenger_name === 'Pax' && offerOnly.passenger_phone === null && offerOnly.driver_id === null, offerOnly);
   check('a driver with no offer and no trip gets nothing', (await cpt(ID.D2_AUTH, [B1.booking_id, B2.booking_id])).length === 0);
   check('another passenger gets nothing about a booking that is not theirs', (await cpt(ID.P_AUTH, [B2.booking_id])).length === 0);
   const staff = await cpt(ID.T_AUTH, [B2.booking_id, B1.booking_id]);
@@ -75,7 +75,7 @@ const { AFF } = require('../b4fixtures');
   await svc((tx) => tx.query(`UPDATE public.booking SET booking_status = 'Completed' WHERE booking_id = '${B2.booking_id}'`));
   const done = row(await cpt(ID.P2_AUTH, [B2.booking_id]), B2.booking_id);
   const doneDrv = row(await cpt(ID.D_AUTH, [B2.booking_id]), B2.booking_id);
-  check('after the trip the names stay but the phones are no longer shared', done.driver_name === 'Driver One' && done.driver_phone === null && doneDrv.passenger_name === 'Pax Two' && doneDrv.passenger_phone === null, { done, doneDrv });
+  check('after the trip the names stay but the phones are no longer shared', done.driver_name === 'Driver One' && done.driver_phone === null && doneDrv.passenger_name === 'Pax' && doneDrv.passenger_phone === null, { done, doneDrv });
   const many = await attempt(() => cpt(ID.L_AUTH, Array.from({ length: 201 }, () => B1.booking_id)));
   check('more than 200 ids is refused', !many.ok && /ERR_TOO_MANY_BOOKINGS/.test(many.error), err(many));
 

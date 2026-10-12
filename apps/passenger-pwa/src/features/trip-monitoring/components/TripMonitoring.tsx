@@ -1395,6 +1395,7 @@ export const TripMonitoring: React.FC = () => {
         onConfirmCancel={handleCancelTrip}
         language={language}
         loading={cancelFlight.busy}
+        phase={status === 'Driver Arrived' ? 'arrived' : status === 'Searching Driver' ? 'searching' : 'accepted'}
       />
 
       {/* 5. Quick message to the driver (the shared sheet: ready-made messages, one tap to choose, one to send) */}

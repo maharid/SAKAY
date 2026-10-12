@@ -14,8 +14,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const off = async (k) => { await s.goOffline(DRIVERS[k].uid); };
   const allOffline = async () => { for (const k of ['D1', 'D2', 'D3']) if ((await s.status(DRIVERS[k].id)) !== 'Offline') await off(k); };
   const reset = async (b) => { if (b) await s.finish(b.booking_id); await s.sweep(); await allOffline(); };
-  const driverSets = (key, bookingId, status) =>
-    attempt(() => as(DRIVERS[key].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2 WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
+  const driverSets = s.driverSets;
   const paxSets = (pax, bookingId, status) =>
     attempt(() => as(s.PAX[pax].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2 WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
   const bookAndAccept = async (key = 'D1', pax = 'P1') => {

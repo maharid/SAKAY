@@ -20,7 +20,8 @@ const OFFER_ALERT_REPEAT_MS = 5000;
 interface PendingOfferRow {
   attempt_id: string;
   booking_id: string;
-  passenger_name: string | null;
+  /** Rule 11.1: the driver is shown the passenger's FIRST name only */
+  passenger_first_name: string | null;
   passenger_count: number | null;
   is_shared_trip: boolean | null;
   pickup_address: string;
@@ -308,7 +309,7 @@ export const DriverSessionProvider: React.FC<{
       const mapped: BookingRecord = {
         booking_id: offer.booking_id,
         passenger_id: '',
-        passenger_name: offer.passenger_name || 'Passenger',
+        passenger_name: offer.passenger_first_name || 'Passenger',          // (a first name only: Rule 11.1)
         passenger_phone: '',                                                 // the phone stays hidden until the driver accepts
         booking_type: 'Immediate',
         is_shared_trip: Boolean(offer.is_shared_trip),

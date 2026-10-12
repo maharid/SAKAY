@@ -25,6 +25,8 @@ interface DriverSearchPanelProps {
   details?: TripDetailsView | null;
   onCancel: () => void;
   onRetry: () => void;
+  /** Rule 29.9: the pickup may be changed while the search is running (offered only then; the database refuses once a driver has accepted) */
+  onChangePickup?: () => void;
 }
 
 const FONT = "Poppins, sans-serif";
@@ -57,6 +59,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
   details,
   onCancel,
   onRetry,
+  onChangePickup,
 }) => {
   const isTagalog = language === "tl";
   const elapsedSeconds = useSearchClock(startedAt);
@@ -208,6 +211,17 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
         <Alert severity="warning" sx={{ width: "100%", borderRadius: "12px", py: 0.5, fontFamily: FONT }}>
           {errorMessage}
         </Alert>
+      )}
+
+      {onChangePickup && (
+        <Button
+          fullWidth
+          variant="text"
+          onClick={onChangePickup}
+          sx={{ minHeight: 44, borderRadius: "14px", textTransform: "none", fontWeight: 600, fontSize: "14px", color: "#334155", fontFamily: FONT, "&:hover": { backgroundColor: "#F1F5F9" } }}
+        >
+          {isTagalog ? "Mali ang pickup? Baguhin" : "Wrong pickup? Change it"}
+        </Button>
       )}
 
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75 }}>

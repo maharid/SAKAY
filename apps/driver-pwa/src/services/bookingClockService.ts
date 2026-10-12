@@ -20,6 +20,10 @@ export interface ArrivalWait {
   driverInZone: boolean;
   /** The wait is over AND the driver is at the pickup: the Passenger No-Show button may be used */
   canReportNoShow: boolean;
+  /** Rule 10.2: seconds of the wait that did not count because the driver was away from the pickup (the deadline already includes them) */
+  pausedSeconds: number;
+  /** Rule 11.1: the driver has confirmed the passenger's first name; the trip cannot start before */
+  boardingVerified: boolean;
 }
 
 interface ArrivalWaitRow {
@@ -30,6 +34,8 @@ interface ArrivalWaitRow {
   extended?: boolean;
   driver_in_zone?: boolean | null;
   can_report_no_show?: boolean;
+  paused_seconds?: number;
+  boarding_verified?: boolean;
   deadline?: string | null;
   server_time?: string | null;
 }
@@ -57,6 +63,8 @@ export const readArrivalWait = async (bookingId: string): Promise<ArrivalWaitRea
       extended: Boolean(row.extended),
       driverInZone: Boolean(row.driver_in_zone),
       canReportNoShow: Boolean(row.can_report_no_show),
+      pausedSeconds: Number(row.paused_seconds ?? 0),
+      boardingVerified: Boolean(row.boarding_verified),
     },
   };
 };
@@ -81,6 +89,17 @@ export const reportPassengerNoShow = async (bookingId: string): Promise<ClockAct
   const { data, error } = await supabase.rpc('driver_report_no_show', { p_booking_id: bookingId });
   const row = data as { success?: boolean; error?: string } | null;
   if (error || !row?.success) return { ok: false, error: refusal(row?.error ?? error?.message, 'The no-show could not be reported. Please try again.') };
+  return { ok: true, error: null };
+};
+
+/**
+ * Rule 11.1: "I checked the first name". The driver has asked the person at the pickup for their first name and it matches the booking; the database records it
+ * (booking.boarding_verified_at) and refuses to start the trip before. It cannot see who boards: Rules 11.2 - 11.4 stay the driver's procedure.
+ */
+export const confirmPassengerFirstName = async (bookingId: string): Promise<ClockActionResult> => {
+  const { data, error } = await supabase.rpc('driver_confirm_passenger', { p_booking_id: bookingId });
+  const row = data as { success?: boolean; error?: string } | null;
+  if (error || !row?.success) return { ok: false, error: refusal(row?.error ?? error?.message, 'The first name could not be confirmed. Please try again.') };
   return { ok: true, error: null };
 };
 

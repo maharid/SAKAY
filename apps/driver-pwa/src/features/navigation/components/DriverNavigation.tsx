@@ -28,6 +28,7 @@ import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayD
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
 import { DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
+import { arrivalZoneHint } from '../../../utils/arrivalHint';
 import {
   calculateDistanceKm,
   formatDistance,
@@ -399,6 +400,10 @@ export const DriverNavigation: React.FC = () => {
             ? (language === 'tl' ? 'Itinatala...' : 'Recording...')
             : (language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup')}
         </Button>
+        {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
+        <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500 }}>
+          {arrivalZoneHint(language === 'tl')}
+        </Typography>
       </Paper>
 
       {/* Communication Dialog */}

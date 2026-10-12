@@ -9,7 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import TimerIcon from '@mui/icons-material/Timer';
-import { formatCountdown, monotonicNow, useServerCountdown } from '@sakay/shared';
+import { PICKUP_ZONE_RADIUS_METERS, formatCountdown, monotonicNow, useServerCountdown } from '@sakay/shared';
 
 import { readArrivalWait, reportPassengerNoShow, type ArrivalWait } from '../../../services/bookingClockService';
 
@@ -112,11 +112,18 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
           {language === 'tl' ? 'Humingi ang pasahero ng dagdag na 2 minuto ("Papunta Na Ako").' : 'The passenger asked for 2 more minutes ("I\'m Almost There").'}
         </Typography>
       )}
+      {wait.pausedSeconds > 0 && (
+        <Typography sx={{ fontSize: '12px', color: '#78350F', fontWeight: 600 }}>
+          {language === 'tl'
+            ? `Na-pause ang oras nang ${wait.pausedSeconds} segundo habang wala ka sa pickup point (Rule 10.2).`
+            : `The timer was paused for ${wait.pausedSeconds} s while you were away from the pickup point (Rule 10.2).`}
+        </Typography>
+      )}
       {over && !wait.canReportNoShow && (
         <Typography sx={{ fontSize: '12px', color: '#B91C1C', fontWeight: 600 }}>
           {language === 'tl'
-            ? 'Para maiulat ito, dapat nasa pickup point ka at malinaw ang GPS.'
-            : 'To report it, be at the pickup point with a clear GPS signal.'}
+            ? `Para maiulat ito, dapat nasa loob ka ng ${PICKUP_ZONE_RADIUS_METERS} m ng pickup point at malinaw ang GPS.`
+            : `To report it, be within ${PICKUP_ZONE_RADIUS_METERS} m of the pickup point with a clear GPS signal.`}
         </Typography>
       )}
       <Button

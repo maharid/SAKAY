@@ -176,9 +176,19 @@ export const TRIP_RECONCILE_SECONDS = 1800;
 /** Rules 10.1 / 10.3: the passenger has this long after the driver arrived, and may add the extension once [DB no_show_wait_seconds, no_show_extension_seconds] */
 export const NO_SHOW_WAIT_SECONDS = 300;
 export const NO_SHOW_EXTENSION_SECONDS = 120;
-/** PI-06: the driver is "at the pickup" when his fix's accuracy circle reaches within this many metres of it; fixes less accurate than the cap are ignored [DB no_show_radius_m, zone_max_accuracy_m] */
-export const PICKUP_ZONE_RADIUS_METERS = 15;
-export const PICKUP_ZONE_MAX_ACCURACY_METERS = 50;
+/**
+ * PI-06 / D8-ZONE (figure F8.3): ONE pickup zone for Rules 8.5, 10.1 and the Arrived tap. The driver is "at the pickup" when his newest fix (no older than
+ * location_max_age_seconds, 45 s) is within this many metres of it by plain distance (the fix's own error earns no credit); a fix less accurate than the cap
+ * is ignored, never guessed at [DB no_show_radius_m, zone_max_accuracy_m]
+ */
+export const PICKUP_ZONE_RADIUS_METERS = 25;
+export const PICKUP_ZONE_MAX_ACCURACY_METERS = 30;
+/**
+ * Rule 10.2 (D8-X1): the driver may be this many metres beyond the zone, and may be outside it for this many seconds, without pausing the passenger's wait.
+ * Beyond either, the time does not count toward the wait [DB arrival_zone_tolerance_m, arrival_zone_tolerance_seconds]
+ */
+export const PICKUP_ZONE_TOLERANCE_METERS = 5;
+export const PICKUP_ZONE_TOLERANCE_SECONDS = 15;
 
 /** Rule 8.4: what a driver may report to explain standing still on the way (the database accepts exactly these) */
 export const DRIVER_DELAY_REASONS = ['traffic', 'road_closure'] as const;
@@ -463,6 +473,8 @@ export const POLICY_CONSTANTS = {
     NO_SHOW_EXTENSION_SECONDS,
     PICKUP_ZONE_RADIUS_METERS,
     PICKUP_ZONE_MAX_ACCURACY_METERS,
+    PICKUP_ZONE_TOLERANCE_METERS,
+    PICKUP_ZONE_TOLERANCE_SECONDS,
   },
   TELEMETRY: {
     ACTIVE_TRIP_GPS_INTERVAL_SECONDS,

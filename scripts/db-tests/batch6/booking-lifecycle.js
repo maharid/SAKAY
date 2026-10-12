@@ -12,8 +12,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const allOffline = async () => { for (const k of ['D1', 'D2', 'D3']) if ((await s.status(DRIVERS[k].id)) !== 'Offline') await off(k); };
   const reset = async (b) => { if (b) await s.finish(b.booking_id); await allOffline(); };
   // the driver / passenger write the booking exactly as the apps do: a plain UPDATE
-  const driverSets = (key, bookingId, status, extra = '') =>
-    attempt(() => as(DRIVERS[key].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2${extra} WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
+  const driverSets = s.driverSets;
   const paxSets = (pax, bookingId, status, extra = '') =>
     attempt(() => as(s.PAX[pax].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2${extra} WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
   // book as P1, let D1 accept (D1 is the nearest) and return the booking
