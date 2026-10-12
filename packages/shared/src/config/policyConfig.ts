@@ -122,6 +122,24 @@ export const TRIP_PROGRESS_CAP_PERCENT = 95;
 /** ...and never less than this once the passenger is on board [DB trip_progress_floor_pct] */
 export const TRIP_PROGRESS_FLOOR_PERCENT = 5;
 
+// Batch 9 (20261024000001): the end of the trip. completion_confirm_timeout_seconds above is ONE timer for the passenger's Confirm Fare / Report Fare
+// Discrepancy (Rules 16.6 / 18.2, PI-08 + PI-13 merged: figures F9.1 = F9.2); after it the driver may tap Payment Received ("Paid - fare unconfirmed", no strike).
+
+/** Figure F9.5: the TODA Administrator decides a fare dispute within this many business days (shown as overdue, never resolved by itself) [DB fare_dispute_toda_business_days] */
+export const FARE_DISPUTE_TODA_BUSINESS_DAYS = 2;
+/** Figure F9.5: ... and the LGU Administrator within this many business days of an escalation [DB fare_dispute_lgu_business_days] */
+export const FARE_DISPUTE_LGU_BUSINESS_DAYS = 3;
+/** Rule 16.6 / PI-20: a fare finished without the passenger's confirmation can still be reported for this many hours [DB late_dispute_window_hours] */
+export const LATE_FARE_DISPUTE_WINDOW_HOURS = 24;
+/** Rule 13.6 / D9-9: early ends of one kind (personal, or Safety Concern) in the window that raise a review flag (no strike) [DB early_end_flag_count, early_end_flag_window_days] */
+export const EARLY_END_FLAG_COUNT = 3;
+export const EARLY_END_FLAG_WINDOW_DAYS = 30;
+/** PI-15: a trip left at the destination without Payment Received this long is flagged for the TODA Administrator [DB payment_stuck_minutes] */
+export const PAYMENT_STUCK_MINUTES = 30;
+/** Rule 18.7: complaints of refused change that raise a TODA review flag; the policy says "repeated", so this is a pilot figure [DB change_refusal_flag_count, change_refusal_window_days] */
+export const CHANGE_REFUSAL_FLAG_COUNT = 3;
+export const CHANGE_REFUSAL_WINDOW_DAYS = 30;
+
 /** Rules 12.7 / 12.9: cancellations in the window that raise a review flag (no strike) [DB repeat_cancel_flag_count, repeat_cancel_window_hours] */
 export const REPEAT_CANCEL_FLAG_COUNT = 3;
 export const REPEAT_CANCEL_WINDOW_HOURS = 24;
@@ -447,6 +465,14 @@ export const POLICY_CONSTANTS = {
     TRIP_PROGRESS_NEAR_DESTINATION_METERS,
     TRIP_PROGRESS_CAP_PERCENT,
     TRIP_PROGRESS_FLOOR_PERCENT,
+    FARE_DISPUTE_TODA_BUSINESS_DAYS,
+    FARE_DISPUTE_LGU_BUSINESS_DAYS,
+    LATE_FARE_DISPUTE_WINDOW_HOURS,
+    EARLY_END_FLAG_COUNT,
+    EARLY_END_FLAG_WINDOW_DAYS,
+    PAYMENT_STUCK_MINUTES,
+    CHANGE_REFUSAL_FLAG_COUNT,
+    CHANGE_REFUSAL_WINDOW_DAYS,
     REPEAT_CANCEL_FLAG_COUNT,
     REPEAT_CANCEL_WINDOW_HOURS,
     DISPATCH_DECLINE_FLAG_COUNT,

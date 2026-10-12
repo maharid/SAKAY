@@ -31,11 +31,14 @@ import {
   reportDeliberateOffline,
   fetchGpsAreas,
   reportGpsArea,
+  fetchFareDisputes,
+  escalateFareDispute,
+  resolveFareDispute,
 } from '../services/todaApiService';
 import type { GpsArea } from '../services/todaApiService';
 import { GpsAreasCard } from '../components/admin/GpsAreasCard';
-import { TripReconciliationPanel } from '@sakay/shared';
-import type { ReconciliationTrip } from '@sakay/shared';
+import { FareDisputesPanel, TripReconciliationPanel } from '@sakay/shared';
+import type { FareDisputeRow, ReconciliationTrip } from '@sakay/shared';
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { driverActivity, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike } from '@sakay/shared';
@@ -118,10 +121,17 @@ export const TodaOperationsPage: React.FC = () => {
   const [gpsAreas, setGpsAreas] = useState<{ areas: GpsArea[]; minCount: number; windowDays: number }>({ areas: [], minCount: 3, windowDays: 30 });
   const loadReconciliation = async () => setReconTrips(await fetchTripsNeedingReconciliation());
   const loadGpsAreas = async () => setGpsAreas(await fetchGpsAreas());
+  // Rules 13.5 / 18.4 / 18.6: the fare disputes of this TODA's drivers wait here for a decision within 2 business days (or an escalation to the LGU Administrator)
+  const [fareDisputes, setFareDisputes] = useState<FareDisputeRow[]>([]);
+  const loadFareDisputes = async () => setFareDisputes(await fetchFareDisputes());
   useEffect(() => {
     loadReconciliation();
     loadGpsAreas();
-    const timer = setInterval(loadReconciliation, 15000);
+    loadFareDisputes();
+    const timer = setInterval(() => {
+      loadReconciliation();
+      loadFareDisputes();
+    }, 15000);
     return () => clearInterval(timer);
   }, [targetTodaId]);
 
@@ -165,6 +175,25 @@ export const TodaOperationsPage: React.FC = () => {
           return message;
         }}
         onReportDeliberateOffline={reportDeliberateOffline}
+      />
+
+      <FareDisputesPanel
+        role="toda_admin"
+        disputes={fareDisputes}
+        showWhenEmpty={false}
+        onEscalate={async (id, reason) => {
+          const message = await escalateFareDispute(id, reason);
+          if (!message) await loadFareDisputes();
+          return message;
+        }}
+        onResolve={async (decision) => {
+          const message = await resolveFareDispute(decision);
+          if (!message) {
+            await loadFareDisputes();
+            loadData();
+          }
+          return message;
+        }}
       />
 
       <GpsAreasCard

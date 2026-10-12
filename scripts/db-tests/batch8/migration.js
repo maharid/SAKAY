@@ -17,7 +17,10 @@ const FILE = path.join(__dirname, '..', '..', '..', 'supabase', 'migrations', '2
   const unique = [...new Set(names)].sort();
   check(`it defines ${unique.length} functions, each once`, unique.length === names.length, names.filter((n, i) => names.indexOf(n) !== i));
 
-  const s = await setup();
+  // The chain up to this migration's own file: Batch 9 (20261024000001) replaces three of the functions this file defines (booking_status_guard,
+  // dispatch_constant, dispatch_sweep), so on the whole chain running this file a second time would put those three back. The question here is whether THIS
+  // file is safe to run twice at its own place in the chain.
+  const s = await setup('20261023000001_batch8_arrival_noshow_cancellation.sql');
   const { q, one, internal, db } = s;
   const fingerprints = async () => Object.fromEntries((await q(`SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS fn,
       md5(replace(p.prosrc, E'\\r', '')) || ':' || COALESCE(p.proacl::text, '') AS fp FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY($1::text[])`, [unique])).map((r) => [r.fn, r.fp]));

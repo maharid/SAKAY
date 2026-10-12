@@ -80,9 +80,41 @@ export type FareDistanceBasis =
   | 'estimate_no_track'
   | 'estimate_within_tolerance'
   | 'estimate_kept_incomplete_track'
-  | 'actual_distance';
+  | 'actual_distance'
+  // Batch 9 (Rules 13.4 / 13.5 / 13.7): an early end is billed on the distance travelled to the approved early point
+  | 'actual_distance_to_early_point'
+  | 'estimate_is_greater_than_actual'
+  | 'straight_line_to_early_point_no_track';
 
 export type FareBasis = 'solo' | 'unmatched_solo' | 'matched_estimate_pending_segments';
+
+/** Rules 13.4 / 13.5 / 13.7: how and where the trip ended early, recorded by the database when the driver ended it (booking.fare_breakdown.final.early_end). */
+export interface FareEarlyEndBreakdown {
+  kind: 'PERSONAL' | 'SAFETY' | 'DRIVER';
+  reason: string | null;
+  requested_at: string | null;
+  ended_at: string;
+  /** The approved early termination point (the driver's fix when he ended the trip); null when the database held no usable fix */
+  latitude: number | null;
+  longitude: number | null;
+  accuracy_m: number | null;
+  /** A Safety Concern fare is provisional until the administrative review (Rule 13.5) */
+  provisional: boolean;
+  /** The fare accepted at booking confirmation, on the same basis: the floor of a personal early end (Rule 13.4) */
+  accepted_estimate_fare: number;
+  actual_distance_km: number | null;
+}
+
+/** What an administrator decided about the fare of a completed trip (a dispute resolution or an audited correction, Rule 16.3 / 18.4) */
+export interface FareResolutionBreakdown {
+  source: 'fare_dispute' | 'admin_correction';
+  dispute_id?: string;
+  outcome?: string;
+  previous_fare: number;
+  final_fare: number;
+  resolved_by_role: 'toda_admin' | 'lgu_admin';
+  resolved_at: string;
+}
 
 /** The final, binding fare and how it was reached (Rule 6.2). */
 export interface FareFinalBreakdown {
@@ -102,6 +134,8 @@ export interface FareFinalBreakdown {
   minimum_fare: number;
   actual_fare: number;
   finalized_at: string;
+  /** Present only when the trip ended before the destination (Batch 9) */
+  early_end?: FareEarlyEndBreakdown;
 }
 
 /** booking.fare_breakdown: the rule snapshot, the estimate, and (once the trip arrived) the final fare. */
@@ -110,6 +144,8 @@ export interface FareBreakdown {
   rule: FareRuleSnapshot;
   estimate: FareEstimateBreakdown | null;
   final: FareFinalBreakdown | null;
+  /** An administrator's decision on the fare of the completed trip (Batch 9): the fare shown is then `resolution.final_fare` */
+  resolution?: FareResolutionBreakdown;
   /** Bookings made before the fare engine: the rule in force when they were created was looked up at the end */
   legacy_rule_lookup?: boolean;
 }

@@ -137,8 +137,12 @@ const { setup, check, summary } = require('../b5fixtures');
   check('with no GPS track the estimate stands (basis: estimate_no_track), and the breakdown has base 60 + distance 12',
     fin.distance_basis === 'estimate_no_track' && fin.basis === 'solo' && fin.deviation === false && num(fin.components.base) === 60 && num(fin.components.distance) === 12 && num(fin.billed_distance_km) === 5, fin);
   const lockedAt = arrived.fare_locked_at;
-  const completed = await setStatus(ID.P_AUTH, B.booking_id, 'Completed');
-  check('the passenger confirms payment (Completed): the fare and the lock are exactly as they were (computed once)',
+  // since Batch 9 a trip is completed by the passenger's Confirm Fare and the driver's Payment Received (nobody writes the status)
+  await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.passenger_confirm_fare($1)`, [B.booking_id])));
+  await attempt(() => as(ID.D_AUTH, (tx) => tx.query(`SELECT public.driver_confirm_payment_received($1)`, [B.booking_id])));
+  const completed = await getBooking(B.booking_id);
+  check('the passenger confirms the fare and the driver taps Payment Received (Completed): the fare and the lock are exactly as they were (computed once)',
+    completed.booking_status === 'Completed' &&
     num(completed.actual_fare) === 72 && JSON.stringify(completed.fare_locked_at) === JSON.stringify(lockedAt) && JSON.stringify(completed.fare_breakdown) === JSON.stringify(arrived.fare_breakdown), completed);
   check('both parties read the same figure from the same row', num((await getBooking(B.booking_id)).actual_fare) === 72);
   r = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`UPDATE public.booking SET actual_fare = 1 WHERE booking_id = $1`, [B.booking_id])));

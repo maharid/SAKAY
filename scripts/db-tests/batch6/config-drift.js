@@ -68,6 +68,18 @@ Object.assign(PAIRS, {
   osrm_breaker_seconds: ['OSRM_BREAKER_SECONDS', 1],
   osrm_max_candidates: ['OSRM_MAX_CANDIDATES', 1],
 });
+// Batch 9 (2026-10-12): the end of the trip - the dispute review targets (F9.5), the late dispute window (PI-20), the early-end counters (13.6 / D9-9),
+// the stuck trip (PI-15) and the change-refusal complaints (18.7); completion_confirm_timeout_seconds above is also the fare-confirmation timeout (F9.1 = F9.2)
+Object.assign(PAIRS, {
+  fare_dispute_toda_business_days: ['FARE_DISPUTE_TODA_BUSINESS_DAYS', 1],
+  fare_dispute_lgu_business_days: ['FARE_DISPUTE_LGU_BUSINESS_DAYS', 1],
+  late_dispute_window_hours: ['LATE_FARE_DISPUTE_WINDOW_HOURS', 1],
+  early_end_flag_count: ['EARLY_END_FLAG_COUNT', 1],
+  early_end_flag_window_days: ['EARLY_END_FLAG_WINDOW_DAYS', 1],
+  payment_stuck_minutes: ['PAYMENT_STUCK_MINUTES', 1],
+  change_refusal_flag_count: ['CHANGE_REFUSAL_FLAG_COUNT', 1],
+  change_refusal_window_days: ['CHANGE_REFUSAL_WINDOW_DAYS', 1],
+});
 // sweep_batch_limit: how many searches one sweep advances; osrm_calls_per_transaction: a safety budget; cron_log_retention_days: housekeeping.
 // Implementation details, not policy numbers.
 // Batch 7: the Rule 17.5 area grouping (cell size, count, window) is an analysis aid the database evaluates (the policy says "repeatedly"): provisional pilot values.

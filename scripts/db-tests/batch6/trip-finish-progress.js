@@ -3,7 +3,8 @@
 //   - the boundary is inclusive and on the whole percent: 89 is refused, 90 is accepted, 95 is accepted, an arrived trip reads 100
 //   - a driver cannot finish a trip the database has no position for; a position far away reads the floor
 //   - repeating the finish does nothing: the fare is locked once, nothing is settled twice
-//   - the passenger's own "we have arrived", the LGU administrator and trusted server code are not changed by this gate
+//   - the LGU administrator and trusted server code are not changed by this gate; since Batch 9 neither is a driver whose passenger has asked to end the trip early
+//     (the passenger's own "we have arrived" no longer exists: End Trip (Early) is a request)
 // Whole migration chain on the local emulator (never Supabase).
 const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures');
 const { DROPOFF } = require('../b5fixtures');
@@ -102,13 +103,15 @@ const KM_PER_DEG_LAT = 110.574;
   check('no second fare adjustment was recorded', (await q(`SELECT count(*)::int AS n FROM fare_adjustment_history WHERE booking_id='${b.booking_id}'`))[0].n === ledgerBefore);
   const early1 = await driverSets('D1', b.booking_id, 'Completed');
   const early2 = await driverSets('D1', b.booking_id, 'Completed');
-  check('the driver cannot end the trip before the passenger\'s confirmation time, however often he asks (Rule 16.6 unchanged)',
-    !early1.ok && !early2.ok && /ERR_WAIT_FOR_PASSENGER/.test(early1.error) && /ERR_WAIT_FOR_PASSENGER/.test(early2.error), { early1, early2 });
-  const paid = await paxSets('P1', b.booking_id, 'Completed');
-  const completedAt = paid.ok ? paid.value.rows[0].trip_completed_at : null;
-  const paidAgain = await paxSets('P1', b.booking_id, 'Completed');
-  check('the passenger confirms once (Completed); a second confirmation changes nothing (the completion time stays)',
-    paid.ok && paidAgain.ok && String(paidAgain.value.rows[0].trip_completed_at) === String(completedAt) && Number(paidAgain.value.rows[0].actual_fare) === Number(locked.actual_fare), { paid, paidAgain });
+  check('the driver cannot complete the trip by writing the status, however often he asks (Batch 9: Completed is the Payment Received tap, which waits for the passenger)',
+    !early1.ok && !early2.ok && /ERR_USE_PAYMENT_RECEIVED/.test(early1.error) && /ERR_USE_PAYMENT_RECEIVED/.test(early2.error), { early1, early2 });
+  const confirmed = await s.rpcAs(s.PAX.P1.uid, 'public.passenger_confirm_fare($1)', [b.booking_id]);
+  const paid = await s.rpcAs(s.DRIVERS.D1.uid, 'public.driver_confirm_payment_received($1)', [b.booking_id]);
+  const completedAt = (await s.booking(b.booking_id)).trip_completed_at;
+  const paidAgain = await s.rpcAs(s.DRIVERS.D1.uid, 'public.driver_confirm_payment_received($1)', [b.booking_id]);
+  const afterPaid = await s.booking(b.booking_id);
+  check('the passenger confirms the fare and the driver taps Payment Received once (Completed); a second tap changes nothing (the completion time and the fare stay)',
+    confirmed.success && paid.success && paidAgain.success && paidAgain.already_received === true && String(afterPaid.trip_completed_at) === String(completedAt) && Number(afterPaid.actual_fare) === Number(locked.actual_fare), { confirmed, paid, paidAgain });
   check('a finished trip cannot be finished again as a new arrival (it cannot go back to the destination from Completed)',
     !(await driverSets('D1', b.booking_id, 'Arrived at Destination')).ok);
   await endTrip(b);
@@ -145,7 +148,10 @@ const KM_PER_DEG_LAT = 110.574;
   // ------------------------------------------------------------------------------------------------------------------------------
   console.log('\nS6 who is NOT held to the gate');
   b = await boardedTrip();
-  check('before any fix the passenger can still say "we have arrived" (Slide to Finish Trip, unchanged: the passenger is on board)', (await paxSets('P1', b.booking_id, 'Arrived at Destination')).ok);
+  const paxFinish = await paxSets('P1', b.booking_id, 'Arrived at Destination');
+  check('the passenger no longer ends the trip by writing the status (Batch 9, D9-6: End Trip (Early) is a REQUEST)', !paxFinish.ok && /ERR_USE_EARLY_END/.test(paxFinish.error), paxFinish);
+  const asked = await s.rpcAs(s.PAX.P1.uid, 'public.passenger_request_early_end($1,$2,$3)', [b.booking_id, 'changed_plans', null]);
+  check('...but once the passenger has asked, the driver is not held to the gate: before any fix he can end the trip (Rule 13.2)', asked.success && (await driverSets('D1', b.booking_id, 'Arrived at Destination')).ok, asked);
   await endTrip(b);
   b = await boardedTrip();
   const lgu = await attempt(() => as(ID.L_AUTH, (tx) => tx.query(`UPDATE booking SET booking_status='Arrived at Destination' WHERE booking_id=$1 RETURNING booking_status`, [b.booking_id])));

@@ -9,12 +9,16 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import PageHeader from '../../../common/components/PageHeader';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { fetchReportableTrips, submitIncidentReport, type ReportableTrip } from '../../../services/incidentService';
-import { activateWithKeyboard, useInFlight } from '@sakay/shared';
+import { activateWithKeyboard, isEmergencyIncident, useInFlight } from '@sakay/shared';
 
 /** What a driver can report about a trip. These are the labels the TODA and LGU already review (the passenger's list, the ones that apply to a driver). */
 const CATEGORIES = [
+  { value: 'Emergency', tl: 'Emergency (habang nasa biyahe)', en: 'Emergency (during the trip)' },
+  { value: 'Safety Concern', tl: 'Alalahanin sa Kaligtasan (habang nasa biyahe)', en: 'Safety Concern (during the trip)' },
+  { value: 'Accident', tl: 'Aksidente (habang nasa biyahe)', en: 'Accident (during the trip)' },
   { value: 'Passenger Misconduct', tl: 'Hindi Angkop na Asal ng Pasahero', en: 'Passenger Misconduct' },
   { value: 'Rude Behavior', tl: 'Bastos o Hindi Magalang na Pag-uugali', en: 'Rude Behavior' },
+  { value: 'Counterfeit Currency', tl: 'Peke o Pinaghihinalaang Pekeng Pera', en: 'Counterfeit Currency (referred to the TODA / police)' },
   { value: 'Lost Item', tl: 'Naiwang Gamit sa Tricycle', en: 'Lost Item in Tricycle' },
   { value: 'Others', tl: 'Iba Pang Reklamo', en: 'Other Issues' },
 ];
@@ -38,7 +42,7 @@ export const DriverIncidentReporting: React.FC = () => {
   const [trips, setTrips] = useState<ReportableTrip[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
   const [bookingId, setBookingId] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0].value);
+  const [category, setCategory] = useState('Passenger Misconduct');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +57,8 @@ export const DriverIncidentReporting: React.FC = () => {
         if (!alive) return;
         setTrips(list);
         const fromScreen = navState?.bookingId;
-        setBookingId(fromScreen && list.some((t) => t.bookingId === fromScreen) ? fromScreen : list.length === 1 ? list[0].bookingId : '');
+        const completed = list.filter((t) => !t.inProgress);
+        setBookingId(fromScreen && list.some((t) => t.bookingId === fromScreen) ? fromScreen : completed.length === 1 ? completed[0].bookingId : '');
       })
       .catch((err) => alive && setError(err instanceof Error ? err.message : String(err)))
       .finally(() => alive && setTripsLoading(false));
@@ -61,6 +66,12 @@ export const DriverIncidentReporting: React.FC = () => {
       alive = false;
     };
   }, [navState?.bookingId]);
+
+  // Rule 16.5: a report is about a completed trip; the trip in progress is listed only for an emergency (Emergency, Safety Concern, Accident)
+  const visibleTrips = trips.filter((t) => !t.inProgress || isEmergencyIncident(category));
+  useEffect(() => {
+    setBookingId((current) => (current && !trips.some((t) => t.bookingId === current && (!t.inProgress || isEmergencyIncident(category))) ? '' : current));
+  }, [category, trips]);
 
   const canSubmit = Boolean(bookingId) && description.trim().length > 0 && !flight.busy && !submitted;
 
@@ -102,16 +113,17 @@ export const DriverIncidentReporting: React.FC = () => {
           label={tl ? 'Biyaheng iuulat' : 'Trip to report'}
           value={bookingId}
           onChange={(e) => setBookingId(e.target.value)}
-          disabled={tripsLoading || trips.length === 0}
+          disabled={tripsLoading || visibleTrips.length === 0}
           sx={fieldSx}
         >
-          {trips.map((t) => (
+          {visibleTrips.map((t) => (
             <MenuItem key={t.bookingId} value={t.bookingId} sx={{ fontSize: '13px', fontFamily: FONT, whiteSpace: 'normal' }}>
               {t.dateLabel} • {t.label}
+              {t.inProgress ? (tl ? ' (kasalukuyan)' : ' (in progress)') : ''}
             </MenuItem>
           ))}
         </TextField>
-        {!tripsLoading && trips.length === 0 && (
+        {!tripsLoading && visibleTrips.length === 0 && (
           <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
             {tl ? 'Wala ka pang natapos na biyahe na maiuulat.' : 'You have no completed trip to report yet.'}
           </Alert>
@@ -124,6 +136,14 @@ export const DriverIncidentReporting: React.FC = () => {
             </MenuItem>
           ))}
         </TextField>
+        {/* Rule 18.8: counterfeit money is not decided by the app: the report goes to the TODA Administrator, who refers it to the police where it is needed */}
+        {category === 'Counterfeit Currency' && (
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
+            {tl
+              ? 'Hindi pinapasya ng app ang tungkol sa pekeng pera. Ipapadala ang ulat sa TODA Administrator, na magrerekomenda ng pulisya kung kailangan.'
+              : 'The app does not decide about counterfeit money. The report goes to the TODA Administrator, who refers it to the police where appropriate.'}
+          </Alert>
+        )}
 
         <TextField
           fullWidth

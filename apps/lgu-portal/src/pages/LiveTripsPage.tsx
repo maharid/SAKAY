@@ -34,8 +34,9 @@ import { ActionButton } from '../components/admin/ActionButton';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
 import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip } from '../services/adminApiService';
-import { TripReconciliationPanel } from '@sakay/shared';
+import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip, fetchFareDisputes, resolveFareDispute } from '../services/adminApiService';
+import { FareDisputesPanel, TripReconciliationPanel } from '@sakay/shared';
+import type { FareDisputeRow } from '@sakay/shared';
 import type { ReconciliationTrip } from '@sakay/shared';
 
 /**
@@ -77,13 +78,18 @@ export const LiveTripsPage: React.FC = () => {
   // Rule 9.5: trips whose driver has been silent for 30 minutes wait here for an administrator to phone the parties and close them
   const [reconTrips, setReconTrips] = useState<ReconciliationTrip[]>([]);
   const loadReconciliation = async () => setReconTrips(await fetchTripsNeedingReconciliation());
+  // Rules 13.5 / 18.4 / 18.6: the fare disputes the LGU Administrator decides (escalated by a TODA Administrator, or with no TODA): 3 business days
+  const [fareDisputes, setFareDisputes] = useState<FareDisputeRow[]>([]);
+  const loadFareDisputes = async () => setFareDisputes(await fetchFareDisputes());
 
   useEffect(() => {
     loadTrips();
     loadReconciliation();
+    loadFareDisputes();
     const interval = setInterval(() => {
       loadTrips();
       loadReconciliation();
+      loadFareDisputes();
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -215,6 +221,21 @@ export const LiveTripsPage: React.FC = () => {
           const message = await reconcileTrip(input);
           if (!message) {
             await loadReconciliation();
+            loadTrips();
+          }
+          return message;
+        }}
+      />
+
+      <FareDisputesPanel
+        role="lgu_admin"
+        disputes={fareDisputes}
+        showWhenEmpty={false}
+        onEscalate={async () => 'The LGU Administrator decides a dispute directly.'}
+        onResolve={async (decision) => {
+          const message = await resolveFareDispute(decision);
+          if (!message) {
+            await loadFareDisputes();
             loadTrips();
           }
           return message;

@@ -187,6 +187,21 @@ export interface Booking {
   fare_matrix_id?: string | null;
   fare_breakdown?: FareBreakdown | null;
   fare_locked_at?: string | null;
+  /** Rules 18.3 / 18.4 (Batch 9): Unpaid, Paid (Confirm Fare AND Payment Received), Payment Disputed, Waived. Written only by the database. */
+  payment_status?: 'Unpaid' | 'Paid' | 'Payment Disputed' | 'Waived';
+  confirm_fare_at?: string | null;
+  fare_discrepancy_at?: string | null;
+  payment_received_at?: string | null;
+  /** The trip was finished by the confirmation timeout without the passenger's answer ("Paid - fare unconfirmed") */
+  fare_unconfirmed?: boolean;
+  /** Rules 13.2 - 13.7: how and where the trip ended early (null when it ended at the destination) */
+  early_end_kind?: 'PERSONAL' | 'SAFETY' | 'DRIVER' | null;
+  early_end_reason?: string | null;
+  early_end_requested_at?: string | null;
+  early_end_at?: string | null;
+  early_end_latitude?: number | null;
+  early_end_longitude?: number | null;
+  early_end_accuracy_m?: number | null;
   fare_confirmation_status: 'Matched' | 'Flagged for Review';
   booking_status: 'Pending' | 'Searching Driver' | 'Driver Assigned' | 'Driver En Route' | 'Driver Arrived' | 'Passenger Boarded' | 'Trip Ongoing' | 'Completed' | 'Cancelled' | 'No Driver Found';
   cancelled_by?: 'Passenger' | 'Driver' | 'System';

@@ -11,7 +11,7 @@
  */
 
 import { supabase } from './supabaseClient';
-import { signIncidentEvidence, uploadIncidentEvidence, INCIDENT_EVIDENCE_MAX_BYTES } from '@sakay/shared';
+import { signIncidentEvidence, uploadIncidentEvidence, INCIDENT_EVIDENCE_MAX_BYTES, BOOKING_OPEN_STATUSES } from '@sakay/shared';
 import type { IncidentEvidenceFile } from '@sakay/shared';
 
 export { INCIDENT_EVIDENCE_MAX_BYTES };
@@ -33,11 +33,13 @@ export interface IncidentReportItem {
   evidencePaths: string[];
 }
 
-/** A completed trip the passenger can report about. */
+/** A trip the passenger can report about: a completed one, or (for an emergency only, Rule 16.5) the one in progress. */
 export interface ReportableTrip {
   bookingId: string;
   label: string;
   dateLabel: string;
+  /** The trip is not completed yet: only an emergency report may name it */
+  inProgress: boolean;
 }
 
 interface IncidentRow {
@@ -90,12 +92,15 @@ function toItem(row: IncidentRow): IncidentReportItem {
   };
 }
 
-/** The passenger's completed trips that had a driver, newest first (policy 16.5: a report is made after the trip). */
+/**
+ * The passenger's completed trips that had a driver, newest first (policy 16.5: a report is made after the trip), and the trip in progress with a driver,
+ * marked inProgress: the screen lists it for the emergency categories only, and the database refuses any other report about it.
+ */
 export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
   const { data, error } = await supabase
     .from('booking')
-    .select('booking_id, pickup_address, dropoff_address, created_at')
-    .eq('booking_status', 'Completed')
+    .select('booking_id, booking_status, pickup_address, dropoff_address, created_at')
+    .in('booking_status', ['Completed', ...BOOKING_OPEN_STATUSES])
     .not('driver_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -104,6 +109,7 @@ export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
     bookingId: b.booking_id as string,
     label: `${b.pickup_address || 'Pickup'} > ${b.dropoff_address || 'Drop-off'}`,
     dateLabel: formatDate(b.created_at as string),
+    inProgress: b.booking_status !== 'Completed',
   }));
 }
 
