@@ -1,6 +1,7 @@
 import React from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
+import { ConnectionLostBanner } from "@sakay/shared";
 import { supabase } from "../../services/supabaseClient";
 import SakayToast from "../../common/components/SakayToast";
 import { useLanguage } from "../../utils/LanguageContext";
@@ -86,6 +87,8 @@ export const MobileAppShell: React.FC<MobileAppShellProps> = ({ children }) => {
             backgroundColor: "#FFFFFF",
           }}
         >
+          {/* Rule 17.4: while this phone cannot reach the server, every screen says so (a stalled screen is not a finished or cancelled trip) */}
+          <ConnectionLostBanner language={language} />
           {children || <Outlet />}
         </Box>
       </Box>

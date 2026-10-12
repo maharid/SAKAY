@@ -164,6 +164,8 @@ export const DRIVER_STALL_CANCEL_SECONDS = 180;
 export const DRIVER_STALL_MIN_MOVEMENT_METERS = 20;
 /** Rule 8.4: standing still this long on the way (approach phase), without a reported delay, is a stall [DB stall_en_route_seconds] */
 export const DRIVER_STALL_EN_ROUTE_SECONDS = 300;
+/** Rule 8.4 (decision D7-7): the driver who stands still on the way is warned this long into the stand-still, with the Rule 8.2 text [DB stall_en_route_warn_seconds] */
+export const DRIVER_STALL_EN_ROUTE_WARN_SECONDS = 240;
 
 /** Rules 9.2 / 9.3: no location from an accepted driver this long: Driver Unreachable; then (before arriving) cancelled with a provisional strike [DB unreachable_warn_seconds, unreachable_cancel_seconds] */
 export const DRIVER_UNREACHABLE_WARN_SECONDS = 180;
@@ -181,6 +183,14 @@ export const PICKUP_ZONE_MAX_ACCURACY_METERS = 50;
 /** Rule 8.4: what a driver may report to explain standing still on the way (the database accepts exactly these) */
 export const DRIVER_DELAY_REASONS = ['traffic', 'road_closure'] as const;
 export type DriverDelayReason = (typeof DRIVER_DELAY_REASONS)[number];
+
+/** Rule 9.5: what the driver may say about an interrupted trip when he is connected again (the database accepts exactly these) */
+export const TRIP_RECONFIRM_STATUSES = ['ongoing', 'ended'] as const;
+export type TripReconfirmStatus = (typeof TRIP_RECONFIRM_STATUSES)[number];
+
+/** Rule 25.3: the grounds on which a strike may be appealed (the database accepts exactly these) */
+export const EXEMPTION_CAUSE_CODES = ['FORCE_MAJEURE', 'VEHICLE_BREAKDOWN', 'NETWORK_OUTAGE', 'MEDICAL_EMERGENCY', 'ACCIDENT_DOCUMENTED', 'DEVICE_FAILURE', 'OTHER'] as const;
+export type ExemptionCauseCode = (typeof EXEMPTION_CAUSE_CODES)[number];
 
 /** Rule 7.9: why a driver may decline an offer (the database accepts exactly these) */
 export const DISPATCH_DECLINE_REASONS = ['vehicle_issue', 'personal_emergency', 'safety_concern', 'end_of_shift', 'other'] as const;
@@ -208,6 +218,19 @@ export type DriverCancelReason = (typeof DRIVER_CANCEL_REASONS)[number];
  */
 export const ACTIVE_TRIP_GPS_INTERVAL_SECONDS = 5;
 export const ACTIVE_TRIP_GPS_INTERVAL_MS = ACTIVE_TRIP_GPS_INTERVAL_SECONDS * 1000;
+
+/**
+ * Rule 17.9: the passenger's map shows the time of the last driver position whenever that position is more than this many seconds old
+ * (counted by the SERVER's clock: get_driver_live_status().age_seconds). Display only; not a database rule.
+ */
+export const PASSENGER_STALE_LOCATION_INDICATOR_SECONDS = 10;
+/**
+ * Rule 17.4: this many calls to the server in a row that fail at the network level (or the browser saying it is offline) mean the connection is lost, and
+ * both apps show "Connection lost — reconnecting...". Display only; not a database rule.
+ */
+export const CONNECTION_LOST_AFTER_FAILED_CALLS = 2;
+/** Rule 17.9: a marker whose position is older than this many seconds is drawn dimmed (display only) */
+export const PASSENGER_STALE_LOCATION_DIM_SECONDS = 30;
 
 // ============================================================================
 // 4. AUTHENTICATION & SECURITY TIMERS (Rule 4.6)
@@ -432,6 +455,7 @@ export const POLICY_CONSTANTS = {
     DRIVER_STALL_CANCEL_SECONDS,
     DRIVER_STALL_MIN_MOVEMENT_METERS,
     DRIVER_STALL_EN_ROUTE_SECONDS,
+    DRIVER_STALL_EN_ROUTE_WARN_SECONDS,
     DRIVER_UNREACHABLE_WARN_SECONDS,
     DRIVER_UNREACHABLE_CANCEL_SECONDS,
     TRIP_RECONCILE_SECONDS,
@@ -443,6 +467,9 @@ export const POLICY_CONSTANTS = {
   TELEMETRY: {
     ACTIVE_TRIP_GPS_INTERVAL_SECONDS,
     ACTIVE_TRIP_GPS_INTERVAL_MS,
+    PASSENGER_STALE_LOCATION_INDICATOR_SECONDS,
+    PASSENGER_STALE_LOCATION_DIM_SECONDS,
+    CONNECTION_LOST_AFTER_FAILED_CALLS,
   },
   AUTH: {
     OTP_EXPIRATION_MINUTES,

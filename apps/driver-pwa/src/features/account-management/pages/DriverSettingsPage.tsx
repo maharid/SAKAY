@@ -284,6 +284,23 @@ export const DriverSettingsPage: React.FC = () => {
           >
             <List disablePadding>
               <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate('/driver/strikes')} sx={{ py: 1.5, px: 2 }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: '#64748B' }}>
+                    <GavelIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>
+                        {isTagalog ? 'Mga Strike at Apela' : 'Strikes & Appeals'}
+                      </Typography>
+                    }
+                  />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
+                </ListItemButton>
+              </ListItem>
+              <Divider sx={{ borderColor: '#F8FAFC' }} />
+
+              <ListItem disablePadding>
                 <ListItemButton onClick={() => navigate('/driver/support')} sx={{ py: 1.5, px: 2 }}>
                   <ListItemIcon sx={{ minWidth: 38, color: '#64748B' }}>
                     <HelpOutlinedIcon sx={{ fontSize: 20 }} />

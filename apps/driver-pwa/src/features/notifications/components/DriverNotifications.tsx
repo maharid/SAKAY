@@ -30,6 +30,8 @@ export interface NotificationItem {
   createdAt?: string;
   isRead?: boolean;
   category?: 'trips' | 'promos' | 'advisories' | 'all';
+  /** The kind of system notice (the strike notices take the driver to his strikes and the way to appeal them) */
+  notificationType?: string;
 }
 
 export function getRelativeTime(
@@ -108,6 +110,7 @@ export const DriverNotifications: React.FC = () => {
               timeTl: d.time,
               timeEn: d.time,
               isRead: d.read === true,
+              notificationType: d.notificationType,
               category: d.category === 'TODA Announcement' || d.category === 'TODA Reminder' ? 'advisories' : 'promos',
             };
           });
@@ -343,6 +346,17 @@ export const DriverNotifications: React.FC = () => {
           >
             {displayBody}
           </Typography>
+
+          {/* Rules 8.6 / 9.4: a strike notice (or a booking cancelled for him) leads to his strikes, where he can appeal within the window */}
+          {(selectedNotif.notificationType === 'STRIKE_ISSUED' || selectedNotif.notificationType === 'BOOKING_AUTO_CANCELLED') && (
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/driver/strikes')}
+              sx={{ mt: 2.5, textTransform: 'none', fontWeight: 700, borderRadius: '12px', minHeight: 44, borderColor: '#FF6600', color: '#FF6600' }}
+            >
+              {isTagalog ? 'Tingnan ang mga strike at mag-apela' : 'View my strikes and appeal'}
+            </Button>
+          )}
         </Box>
       </Box>
     );

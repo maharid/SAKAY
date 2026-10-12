@@ -18,7 +18,41 @@ import { DriverVerificationCard } from '../components/dashboard/DriverVerificati
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
 import { RecentIncidentReportsCard } from '../components/dashboard/RecentIncidentReportsCard';
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
-import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag } from '../services/adminApiService';
+import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline } from '../services/adminApiService';
+
+/** A review flag still waiting for an administrator: the database says Open or Under Review (it never says "Pending"). */
+const isOpenFlag = (f: any): boolean => f.status === 'Open' || f.status === 'Under Review';
+
+const EVIDENCE_TEXT: Record<string, string> = {
+  pattern_review: 'a pattern of interruptions found on review',
+  passenger_report: "a passenger's report",
+  admission: "the driver's own admission",
+};
+
+/** What the flag says, in plain lines, for the flags that carry their evidence with them (Rules 8.7, 9.5, 9.6, 17.5). */
+const describeFlagDetails = (flag: any): string[] => {
+  const d = flag?.details ?? {};
+  if (flag?.flag_type === 'DRIVER_DELIBERATE_OFFLINE_REPORT') {
+    return [
+      "Reported by the driver's " + (d.reported_by_role === 'lgu_admin' ? 'LGU' : 'TODA') + ' Administrator. Evidence: ' + (EVIDENCE_TEXT[d.evidence] ?? d.evidence) + '.',
+      d.note ? 'Note: ' + d.note : '',
+      'Interruptions of this driver in the last 30 days: ' + (d.interruptions_last_30_days ?? 0) + '.',
+      'Confirming issues 2 strikes (Rule 9.6); the driver cannot appeal it under Rule 9.4.',
+    ].filter(Boolean);
+  }
+  if (flag?.flag_type === 'GPS_AREA_REVIEW') {
+    return [
+      'Area around ' + d.center_latitude + ', ' + d.center_longitude + ' (about 550 m square).',
+      d.determinations + ' stall or lost-connection determinations in ' + d.window_days + ' days (' + d.stalls + ' stalls, ' + d.connectivity + ' lost connections).',
+      d.note ? 'Reported by the TODA Administrator: ' + d.note : '',
+      'Possible service-zone boundary adjustment (Rule 17.5).',
+    ].filter(Boolean);
+  }
+  if (flag?.flag_type === 'TRIP_MANUAL_RECONCILIATION') {
+    return ['Booking ' + d.booking_id + ' has been without a driver location for 30 minutes. Close it from Live Trips after contacting both parties.'];
+  }
+  return [];
+};
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,6 +69,7 @@ export const DashboardPage: React.FC = () => {
   const [selectedFlag, setSelectedFlag] = useState<any | null>(null);
   const [flagResolutionText, setFlagResolutionText] = useState('');
   const [flagDialogOpen, setFlagDialogOpen] = useState(false);
+  const [flagError, setFlagError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -81,6 +116,21 @@ export const DashboardPage: React.FC = () => {
     } catch (err) {
       console.error('[DashboardPage] Flag resolve error:', err);
     }
+  };
+
+  // Rule 9.6: the LGU Administrator confirms the TODA Administrator's report of a deliberate offline: 2 strikes
+  const handleConfirmDeliberateOffline = async () => {
+    if (!selectedFlag) return;
+    const message = await confirmDeliberateOffline(selectedFlag.flag_id, flagResolutionText);
+    if (message) {
+      setFlagError(message);
+      return;
+    }
+    setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Confirmed: 2 strikes (Rule 9.6)' } : f)));
+    setFlagDialogOpen(false);
+    setSelectedFlag(null);
+    setFlagResolutionText('');
+    setFlagError(null);
   };
 
   const kpis = stats?.kpis || {
@@ -225,7 +275,7 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* 3B. Administrative Review Flags Card (Rules 2.4, 2.5, 3.7) */}
-      {adminFlags.some((f) => f.status === 'Pending') && (
+      {adminFlags.some(isOpenFlag) && (
         <Card
           sx={{
             mb: 3.5,
@@ -249,18 +299,18 @@ export const DashboardPage: React.FC = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <FlagIcon sx={{ color: '#6D28D9', fontSize: 22 }} />
               <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#4C1D95' }}>
-                Administrative Review Flags ({adminFlags.filter((f) => f.status === 'Pending').length} Pending Action)
+                Administrative Review Flags ({adminFlags.filter(isOpenFlag).length} Pending Action)
               </Typography>
             </Box>
             <Typography sx={{ fontSize: '12px', color: '#6D28D9', fontWeight: 500 }}>
-              Batch 1 Governance (Rules 2.4, 2.5, 3.7)
+              Rules 2.4, 2.5, 3.7, 8.7, 9.5, 9.6, 17.5 and others
             </Typography>
           </Box>
           <CardContent sx={{ p: '16px 20px !important' }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {adminFlags
-                .filter((f) => f.status === 'Pending')
-                .slice(0, 5)
+                .filter(isOpenFlag)
+                .slice(0, 12)
                 .map((flag) => (
                   <Box
                     key={flag.flag_id}
@@ -278,21 +328,21 @@ export const DashboardPage: React.FC = () => {
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Chip
-                        label={flag.type}
+                        label={flag.flag_type}
                         size="small"
                         sx={{
                           fontWeight: 700,
                           fontSize: '11px',
                           backgroundColor:
-                            flag.type === 'ROSTER_MISMATCH'
+                            flag.flag_type === 'ROSTER_MISMATCH'
                               ? '#FEE2E2'
-                              : flag.type === 'TERMINAL_RELOCATION_PENDING'
+                              : flag.flag_type === 'TERMINAL_RELOCATION_PENDING'
                               ? '#FEF3C7'
                               : '#FFEDD5',
                           color:
-                            flag.type === 'ROSTER_MISMATCH'
+                            flag.flag_type === 'ROSTER_MISMATCH'
                               ? '#DC2626'
-                              : flag.type === 'TERMINAL_RELOCATION_PENDING'
+                              : flag.flag_type === 'TERMINAL_RELOCATION_PENDING'
                               ? '#D97706'
                               : '#EA580C',
                         }}
@@ -543,12 +593,24 @@ export const DashboardPage: React.FC = () => {
       {/* Flag Resolution Dialog */}
       <Dialog open={flagDialogOpen} onClose={() => setFlagDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>
-          Resolve Administrative Flag ({selectedFlag?.type})
+          Resolve Administrative Flag ({selectedFlag?.flag_type})
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', mb: 2 }}>
-            Provide resolution notes for {selectedFlag?.subject_type} {selectedFlag?.subject_id} (Rule {selectedFlag?.source_rule}).
+            Provide resolution notes for {selectedFlag?.subject_type} {selectedFlag?.subject_id} ({selectedFlag?.source_rule}).
           </Typography>
+          {describeFlagDetails(selectedFlag).length > 0 && (
+            <Box sx={{ mb: 2, p: 1.5, borderRadius: '8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              {describeFlagDetails(selectedFlag).map((line, i) => (
+                <Typography key={i} sx={{ fontSize: '12.5px', color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
+                  {line}
+                </Typography>
+              ))}
+            </Box>
+          )}
+          {flagError && (
+            <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', mb: 1.5 }}>{flagError}</Typography>
+          )}
           <TextField
             autoFocus
             fullWidth
@@ -561,9 +623,20 @@ export const DashboardPage: React.FC = () => {
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setFlagDialogOpen(false)} sx={{ textTransform: 'none' }}>
+          <Button onClick={() => { setFlagDialogOpen(false); setFlagError(null); }} sx={{ textTransform: 'none' }}>
             Cancel
           </Button>
+          {selectedFlag?.flag_type === 'DRIVER_DELIBERATE_OFFLINE_REPORT' && (
+            <Button
+              onClick={handleConfirmDeliberateOffline}
+              variant="contained"
+              color="error"
+              disabled={!flagResolutionText.trim()}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Confirm: 2 strikes
+            </Button>
+          )}
           <Button
             onClick={handleResolveFlag}
             variant="contained"

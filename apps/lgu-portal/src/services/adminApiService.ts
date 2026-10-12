@@ -13,6 +13,8 @@
  * ============================================================================
  */
 
+import { adminActionMessage, mapReconciliationTrips, reconcileTripArgs } from '@sakay/shared';
+import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import {
@@ -2393,6 +2395,30 @@ export async function fetchAdminReviewFlags() {
     console.error('[adminApiService] fetchAdminReviewFlags error:', err);
     return [];
   }
+}
+
+/**
+ * Rule 9.5: the trips whose driver stayed silent for 30 minutes and still wait for an administrator to close them (the LGU Administrator sees all).
+ */
+export async function fetchTripsNeedingReconciliation(): Promise<ReconciliationTrip[]> {
+  const { data, error } = await supabase.rpc('get_trips_needing_reconciliation');
+  if (error) {
+    console.warn('[adminApiService] fetchTripsNeedingReconciliation warning:', error.message);
+    return [];
+  }
+  return mapReconciliationTrips(data);
+}
+
+/** Rule 9.5: closes a silent trip after the parties were contacted. Resolves to null when accepted, else the database's own explanation. */
+export async function reconcileTrip(input: ReconcileInput): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_reconcile_trip', reconcileTripArgs(input));
+  return error ? adminActionMessage(error.message, 'The trip could not be closed.') : null;
+}
+
+/** Rule 9.6: the LGU Administrator confirms a TODA Administrator's report of a deliberate offline: 2 strikes, no appeal under Rule 9.4. */
+export async function confirmDeliberateOffline(flagId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('confirm_deliberate_offline', { p_flag_id: flagId, p_reason: reason });
+  return error ? adminActionMessage(error.message, 'The report could not be confirmed.') : null;
 }
 
 /**

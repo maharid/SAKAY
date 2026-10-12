@@ -27,6 +27,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
+import { DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
 import {
   calculateDistanceKm,
   formatDistance,
@@ -40,7 +41,7 @@ import {
 
 export const DriverNavigation: React.FC = () => {
   const { language } = useLanguage();
-  const { profile, setProfile, liveFix } = useDriverSession();
+  const { profile, setProfile, liveFix, locationIssue } = useDriverSession();
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const navigate = useNavigate();
@@ -369,6 +370,9 @@ export const DriverNavigation: React.FC = () => {
             <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#FF6600' }}>₱{fare.toFixed(2)}</Typography>
           </Box>
         </Box>
+
+        {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough) */}
+        <DriverLocationNotice issue={locationIssue} />
 
         <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
 

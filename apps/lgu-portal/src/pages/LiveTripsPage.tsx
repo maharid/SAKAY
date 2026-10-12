@@ -34,7 +34,9 @@ import { ActionButton } from '../components/admin/ActionButton';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
 import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchAllBookings, BookingRecordItem } from '../services/adminApiService';
+import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip } from '../services/adminApiService';
+import { TripReconciliationPanel } from '@sakay/shared';
+import type { ReconciliationTrip } from '@sakay/shared';
 
 /**
  * ============================================================================
@@ -72,9 +74,17 @@ export const LiveTripsPage: React.FC = () => {
     }
   };
 
+  // Rule 9.5: trips whose driver has been silent for 30 minutes wait here for an administrator to phone the parties and close them
+  const [reconTrips, setReconTrips] = useState<ReconciliationTrip[]>([]);
+  const loadReconciliation = async () => setReconTrips(await fetchTripsNeedingReconciliation());
+
   useEffect(() => {
     loadTrips();
-    const interval = setInterval(loadTrips, 10000);
+    loadReconciliation();
+    const interval = setInterval(() => {
+      loadTrips();
+      loadReconciliation();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -198,6 +208,19 @@ export const LiveTripsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+      <TripReconciliationPanel
+        trips={reconTrips}
+        showWhenEmpty={false}
+        onReconcile={async (input) => {
+          const message = await reconcileTrip(input);
+          if (!message) {
+            await loadReconciliation();
+            loadTrips();
+          }
+          return message;
+        }}
+      />
+
       <DispatchSettingsCard />
 
       {/* 1. Operational KPI Metric Cards */}

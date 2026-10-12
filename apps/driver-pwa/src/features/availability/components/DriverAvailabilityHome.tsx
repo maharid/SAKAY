@@ -29,6 +29,7 @@ import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
 import { DriverForegroundReminder, DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
 import PauseBookingsControl from './PauseBookingsControl';
+import { useDriverOpenBooking } from '../../../hooks/useDriverOpenBooking';
 import { supabase } from '../../../services/supabaseClient';
 import { checkDriverDocumentaryRestriction, fetchAccreditedTodas, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
 import { fetchMyAffiliationOptions } from '../../../services/driverPresenceService';
@@ -53,6 +54,9 @@ export const DriverAvailabilityHome: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile, setProfile, liveFix, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, locationIssue, sessionMissing } = useDriverSession();
+  // Rule 29.2: a reopened or reloaded app lands here with no memory of the trip it was on: the DATABASE says whether the driver has an open booking,
+  // and the first look of a page load takes him back to it (the card below does the same on demand)
+  const { openBooking, resume: resumeOpenBooking } = useDriverOpenBooking(true, true);
 
   // The map: what covers it (the driver card along the top, the bottom sheet and the recenter button above it), the direction the phone reports
   // for the current position, and whether that position is still refreshing
@@ -834,6 +838,24 @@ export const DriverAvailabilityHome: React.FC = () => {
             {language === 'tl'
               ? 'Walang secure na login session (demo login). Mag-login gamit ang tunay na account ng drayber para makapag-Online.'
               : 'No secure login session (demo login). Sign in with your real driver account to go Online.'}
+          </Alert>
+        )}
+
+        {/* Rule 29.2: a booking he has accepted and has not finished: the trip is still his, and the passenger is waiting */}
+        {openBooking && (
+          <Alert
+            severity="warning"
+            role="alert"
+            sx={{ borderRadius: '12px', fontSize: '12px', alignItems: 'center', py: 0.25 }}
+            action={
+              <Button size="small" color="inherit" onClick={resumeOpenBooking} sx={{ fontWeight: 700, textTransform: 'none', minHeight: 36 }}>
+                {language === 'tl' ? 'Ituloy' : 'Resume'}
+              </Button>
+            }
+          >
+            {language === 'tl'
+              ? 'May booking kang tinanggap na hindi pa tapos. Ituloy ang biyahe.'
+              : 'You have an accepted booking that is not finished. Resume the trip.'}
           </Alert>
         )}
 

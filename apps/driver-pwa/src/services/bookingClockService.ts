@@ -1,5 +1,7 @@
+import { reportNetworkOutcome } from '@sakay/shared';
+import type { DriverDelayReason, TripReconfirmStatus } from '@sakay/shared';
+
 import { supabase } from './supabaseClient';
-import type { DriverDelayReason } from '@sakay/shared';
 
 // The clocks of an accepted booking belong to the DATABASE: how long the passenger has to board once the driver has arrived (Rule 10), the
 // warning to a driver who has not set off (Rule 8.2), the delay he may report (Rule 8.4). This module only reads them and asks for the
@@ -100,9 +102,40 @@ export interface AssignedBookingClocks {
 /** Reads the clock marks of the driver's booking. Null when it could not be read (a network error is not "the booking is gone"). */
 export const getAssignedBookingClocks = async (bookingId: string): Promise<AssignedBookingClocks | null> => {
   const { data, error } = await supabase.from('booking').select('booking_status, stall_warned_at').eq('booking_id', bookingId).maybeSingle();
+  reportNetworkOutcome(error);
   if (error) return null;
   // Once the booking is given to another driver this driver can no longer read it at all (or it is back in the search).
   if (!data) return { stallWarnedAt: null, bookingGone: true };
   const back = data.booking_status === 'Pending' || data.booking_status === 'Searching Driver' || data.booking_status === 'No Driver Found';
   return { stallWarnedAt: (data.stall_warned_at as string | null) ?? null, bookingGone: back };
+};
+
+export interface TripConnectivity {
+  /** The connection was lost during this trip and the driver has not yet said what became of it (Rule 9.5) */
+  needsReconfirm: boolean;
+  /** The database is receiving the driver's position again: only then can he answer */
+  connected: boolean;
+  /** When the database marked the silence (3 minutes after the last position) */
+  interruptedSince: string | null;
+}
+
+/** Does this trip wait for the driver's re-confirmation? Null when it could not be read (a network error is not "nothing to confirm"). */
+export const getTripConnectivity = async (bookingId: string): Promise<TripConnectivity | null> => {
+  const { data, error } = await supabase.rpc('get_my_trip_connectivity', { p_booking_id: bookingId });
+  reportNetworkOutcome(error);
+  const row = data as { success?: boolean; needs_reconfirm?: boolean; connected?: boolean; interrupted_since?: string | null } | null;
+  if (error || !row || row.success === false) return null;
+  return { needsReconfirm: Boolean(row.needs_reconfirm), connected: Boolean(row.connected), interruptedSince: row.interrupted_since ?? null };
+};
+
+/**
+ * Rule 9.5: after a connection loss during the trip the driver says whether the trip is still going on or has ended. Until he does, the
+ * database refuses to move the trip to fare finalisation. The database also checks that his position is reaching it again.
+ */
+export const reconfirmTrip = async (bookingId: string, status: TripReconfirmStatus): Promise<ClockActionResult> => {
+  const { data, error } = await supabase.rpc('driver_reconfirm_trip', { p_booking_id: bookingId, p_status: status });
+  reportNetworkOutcome(error);
+  const row = data as { success?: boolean; error?: string } | null;
+  if (error || !row?.success) return { ok: false, error: refusal(row?.error ?? error?.message, 'The trip could not be re-confirmed. Please try again.') };
+  return { ok: true, error: null };
 };

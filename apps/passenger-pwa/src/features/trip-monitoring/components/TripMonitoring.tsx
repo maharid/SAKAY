@@ -15,6 +15,7 @@ import {
   TextField,
   MenuItem,
   Alert,
+  AlertTitle,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -48,7 +49,10 @@ import {
   MapControlStack,
   searchRadiusFromStatus,
   COMPLETION_CONFIRM_TIMEOUT_SECONDS,
+  PASSENGER_STALE_LOCATION_DIM_SECONDS,
   formatCountdown,
+  reportNetworkOutcome,
+  reportNetworkResult,
 } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
@@ -58,6 +62,8 @@ import { useArrivalWait } from '../hooks/useArrivalWait';
 import { usePassengerLocation } from '../hooks/usePassengerLocation';
 import { useDispatchStatus } from '../../ride-booking/hooks/useDispatchStatus';
 import ArrivalWaitCard from './ArrivalWaitCard';
+import DriverLastUpdated from './DriverLastUpdated';
+import { useDriverLiveStatus } from '../hooks/useDriverLiveStatus';
 
 const mapBookingStatus = (rawStatus: string): any => {
   if (rawStatus === 'Pending') return 'Searching Driver';
@@ -73,8 +79,8 @@ const mapBookingStatus = (rawStatus: string): any => {
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** The driver's app repeats its position every couple of seconds: nothing for this long and the tricycle is drawn dimmer */
-const DRIVER_STALE_MS = 30_000;
+/** The driver's app broadcasts its position every couple of seconds: while one arrived within this long the marker follows it, otherwise the database's copy */
+const BROADCAST_FLOWING_MS = 6_000;
 /**
  * What on the map is covered or crowded, in px: the status pill along the top, and the controls column on the right. (The trip sheet is NOT
  * here: it sits below the map in the layout, so opening it shrinks the map itself and the camera re-frames the new visible area.)
@@ -269,8 +275,6 @@ export const TripMonitoring: React.FC = () => {
   const [driverCancelReason, setDriverCancelReason] = useState<string>('');
   // The booking was cancelled because the passenger did not board in time (Rule 10.4), not because the driver gave it up
   const [noShowCancelled, setNoShowCancelled] = useState(false);
-  // Rule 9.2: the database has not heard from the driver for 3 minutes (cleared the moment it does)
-  const [driverUnreachable, setDriverUnreachable] = useState(false);
   const [extendingWait, setExtendingWait] = useState(false);
   const maxProgressRef = useRef(5);
   // Asks the database for the booking's state right now (the poll below, on demand): set by the effect that owns the poll.
@@ -435,11 +439,10 @@ export const TripMonitoring: React.FC = () => {
     known: Boolean(booking?.driver_latitude && booking?.driver_longitude),
   });
   const driverKnown = driverPos.known;
-  // When this phone last heard from the driver (a repeat of the same place counts: the driver's app repeats it every couple of seconds)
-  const driverHeardAtRef = useRef<number>(0);
-  const lastDriverPlaceRef = useRef<{ lat: number; lng: number } | null>(null);
-  const [driverStale, setDriverStale] = useState(false);
-  const hasLiveDriverGpsRef = useRef(false);
+  // When the driver's app last BROADCAST a position to this phone. While that is recent the marker follows the broadcast (smooth); otherwise it follows the
+  // database's copy (useDriverLiveStatus below). How OLD a position is comes from the database only (Rule 17.9): a broadcast carries the send time of the
+  // driver's phone and repeats a frozen position, so it cannot say that.
+  const lastBroadcastAtRef = useRef<number>(0);
   // The driver's app repeats its position every couple of seconds, so the SAME place is not a new position: no new state, no redraw. `at` is
   // when the driver's phone sent it, so that a late older fix cannot move the tricycle backward. `heading` is the direction the driver's phone
   // reported (absent when it did not): it only turns the marker's arrow.
@@ -447,12 +450,6 @@ export const TripMonitoring: React.FC = () => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const h = typeof heading === 'number' && Number.isFinite(heading) ? heading : null;
     const s = typeof speed === 'number' && Number.isFinite(speed) ? speed : null;
-    // The database's copy of the position is re-read every few seconds: only a CHANGED place counts as news from the driver
-    const last = lastDriverPlaceRef.current;
-    if (!last || last.lat !== lat || last.lng !== lng) {
-      lastDriverPlaceRef.current = { lat, lng };
-      driverHeardAtRef.current = Date.now();
-    }
     setDriverPos((prev) =>
       prev.known && prev.lat === lat && prev.lng === lng && (prev.heading ?? null) === h && (prev.speed ?? null) === s
         ? prev
@@ -529,7 +526,7 @@ export const TripMonitoring: React.FC = () => {
 
           const drvLat = driverInfo?.current_latitude ?? d.driver_latitude;
           const drvLng = driverInfo?.current_longitude ?? d.driver_longitude;
-          if (drvLat && drvLng && !hasLiveDriverGpsRef.current) {
+          if (drvLat && drvLng && Date.now() - lastBroadcastAtRef.current >= BROADCAST_FLOWING_MS) {
             applyDriverPos(Number(drvLat), Number(drvLng));
           }
 
@@ -586,18 +583,15 @@ export const TripMonitoring: React.FC = () => {
     const searching = row.booking_status === 'Pending' || row.booking_status === 'Searching Driver';
     if (!searching || row.driver_id || !loadedDriverIdRef.current) return;
     loadedDriverIdRef.current = null;
-    hasLiveDriverGpsRef.current = false;
-    lastDriverPlaceRef.current = null;
-    driverHeardAtRef.current = 0;
+    lastBroadcastAtRef.current = 0;
     setDriverPos((prev) => ({ ...prev, known: false }));
-    setDriverStale(false);
     setDriverPhotoUrl('');
     setDriverRating(null);
     setBooking((prev) => (prev ? { ...prev, driver_id: undefined, driver_name: '', driver_phone: '', franchise_no: '', vehicle_plate: '', toda_name: '' } : prev));
     setToastMessage(
       language === 'tl'
-        ? 'Hindi nakapagpatuloy ang iyong drayber. Naghahanap kami ng ibang drayber...'
-        : 'Your driver was unable to proceed. We are finding you another driver...'
+        ? 'Hindi nakapagpatuloy ang iyong drayber. Naghahanap kami ng ibang drayber.'
+        : 'Your driver was unable to proceed. We\'re finding you another driver.'
     );
   }, [language]);
 
@@ -618,15 +612,14 @@ export const TripMonitoring: React.FC = () => {
             created_at,
             driver_id,
             cancelled_by,
-            cancellation_reason,
-            driver_unreachable_since
+            cancellation_reason
           `)
           .eq('booking_id', activeBookingId)
           .maybeSingle();
+        reportNetworkOutcome(error);                          // Rule 17.4: does this phone reach the server?
 
         if (!error && data) {
           const d = data as any;
-          setDriverUnreachable(Boolean(d.driver_unreachable_since) && d.booking_status !== 'Cancelled' && d.booking_status !== 'Completed');
           if (d.booking_status === 'Cancelled' && d.cancelled_by && d.cancelled_by !== 'passenger') {
             const noShow = d.cancellation_reason === 'PASSENGER_NO_SHOW';
             setNoShowCancelled(noShow);
@@ -638,16 +631,6 @@ export const TripMonitoring: React.FC = () => {
           if (d.driver_id && d.driver_id !== loadedDriverIdRef.current) {
             loadedDriverIdRef.current = d.driver_id;
             fetchBookingFromDb();
-          }
-
-          // The driver's position comes from get_assigned_driver_details, which shares it only while the trip is live.
-          let drv: any = null;
-          if (d.driver_id && !hasLiveDriverGpsRef.current) {
-            const { data: details } = await supabase.rpc('get_assigned_driver_details', { p_booking_id: activeBookingId });
-            drv = Array.isArray(details) ? details[0] : details;
-          }
-          if (drv?.current_latitude && drv?.current_longitude && !hasLiveDriverGpsRef.current) {
-            applyDriverPos(Number(drv.current_latitude), Number(drv.current_longitude));
           }
 
           setBooking((prev) => {
@@ -676,7 +659,8 @@ export const TripMonitoring: React.FC = () => {
           });
         }
       } catch (err) {
-        // ignore polling errors
+        // a poll that did not get through is tried again by the next one; it is also a failed call for the "Connection lost" notice (Rule 17.4)
+        reportNetworkResult(false);
       }
     };
     pollNowRef.current = pollOnce;
@@ -707,7 +691,7 @@ export const TripMonitoring: React.FC = () => {
             }
             handleBackToSearch(row);
 
-            if (row.driver_latitude && row.driver_longitude && !hasLiveDriverGpsRef.current) {
+            if (row.driver_latitude && row.driver_longitude && Date.now() - lastBroadcastAtRef.current >= BROADCAST_FLOWING_MS) {
               applyDriverPos(Number(row.driver_latitude), Number(row.driver_longitude));
             }
 
@@ -739,9 +723,7 @@ export const TripMonitoring: React.FC = () => {
       )
       .on('broadcast', { event: 'driver_location' }, (payload: any) => {
         if (payload.payload?.lat && payload.payload?.lng) {
-          hasLiveDriverGpsRef.current = true;
-          // Heard from the driver just now, even when the place is the same one (a stationary driver still repeats it)
-          driverHeardAtRef.current = Date.now();
+          lastBroadcastAtRef.current = Date.now();
           const sentAt = Number(payload.payload.at);
           const sentHeading = payload.payload.heading === null || payload.payload.heading === undefined ? null : Number(payload.payload.heading);
           const sentSpeed = payload.payload.speed === null || payload.payload.speed === undefined ? null : Number(payload.payload.speed);
@@ -789,18 +771,15 @@ export const TripMonitoring: React.FC = () => {
         : 'Your location is not available right now. Try again with a clearer view of the sky.'
     );
   }, [passengerLocation.status, language]);
-  // A driver heard from a while ago is drawn dimmer (the map keeps the last place it knew)
+  // The driver's position as the DATABASE has it, and how old it is (Rules 17.1 / 17.9 / 9.2). The marker is drawn dimmer when the position is old, and the map says
+  // WHEN it was taken once it is more than 10 seconds old; when the driver's broadcast is not reaching this phone the database's copy moves the marker.
+  const driverLive = useDriverLiveStatus(activeBookingId, UUID_PATTERN.test(activeBookingId) && Boolean(booking?.driver_id) && isTripActive);
   useEffect(() => {
-    if (!driverKnown) return;
-    const check = () => {
-      const heardAt = driverHeardAtRef.current;
-      const stale = heardAt > 0 && Date.now() - heardAt > DRIVER_STALE_MS;
-      setDriverStale((prev) => (prev === stale ? prev : stale));
-    };
-    check();
-    const timer = setInterval(check, 5000);
-    return () => clearInterval(timer);
-  }, [driverKnown]);
+    if (!driverLive.position) return;
+    if (Date.now() - lastBroadcastAtRef.current < BROADCAST_FLOWING_MS) return;
+    applyDriverPos(driverLive.position.lat, driverLive.position.lng);
+  }, [driverLive.position, applyDriverPos]);
+  const driverStale = driverLive.ageSeconds !== null && driverLive.ageSeconds > PASSENGER_STALE_LOCATION_DIM_SECONDS;
 
   const handleCenterOnMe = () => {
     if (mapRef.current?.centerOnUser()) {
@@ -1088,6 +1067,11 @@ export const TripMonitoring: React.FC = () => {
           }}
         />
 
+        {/* Rule 17.9: when the driver's last position is more than 10 seconds old the map says when it was taken */}
+        {status !== 'Searching Driver' && driverKnown && (
+          <DriverLastUpdated ageSeconds={driverLive.ageSeconds} lastFixAt={driverLive.lastFixAt} language={language} />
+        )}
+
         {/* The search area itself is drawn on the map (MapView), at the radius the database reports: nothing is drawn here */}
 
         {/* Map controls: where I am, and the whole trip. Each really moves the camera; dragging the map lets go of either. */}
@@ -1137,8 +1121,12 @@ export const TripMonitoring: React.FC = () => {
         }}
       >
         <Box className="hide-scrollbar" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: '20px', pb: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {driverUnreachable && (
+          {driverLive.unreachable && (
             <Alert severity="warning" sx={{ borderRadius: '14px', fontSize: '13px', fontWeight: 600 }}>
+              {/* Rules 9.2 / 17.4 / 17.9: the title is the notice of Rule 17.4, the body the exact message of Rule 9.2 */}
+              <AlertTitle sx={{ fontSize: '13px', fontWeight: 700 }}>
+                {language === 'tl' ? 'Nawalan ng koneksyon — nire-reconnect...' : 'Connection lost — reconnecting...'}
+              </AlertTitle>
               {language === 'tl'
                 ? 'Mukhang may problema sa koneksyon ang iyong drayber. Patuloy kaming susubok na makontak siya.'
                 : "Your driver appears to be experiencing a connectivity issue. We'll keep trying to reach them."}

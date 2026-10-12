@@ -17,10 +17,14 @@ import {
   TodaDriverMember,
   TodaAnnouncement,
   TodaAuditLog,
+  DriverExemptionRequest,
+  EvidenceFileItem,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
 import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import type { RejectionReasonCode } from '@sakay/shared';
+import { adminActionMessage, deliberateOfflineArgs, mapReconciliationTrips, reconcileTripArgs } from '@sakay/shared';
+import type { DeliberateOfflineInput, ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -1543,3 +1547,131 @@ export async function addTodaRosterEntry(entry: {
   }
 }
 
+// ============================================================================
+// BATCH 7: TRIPS THAT WENT SILENT (RULES 9.5, 9.6), AREAS OF REPEATED GPS TROUBLE (RULE 17.5), STRIKE APPEALS (RULES 8.6, 9.4, 25)
+// ============================================================================
+
+/** Rule 9.5: the trips of this TODA's drivers whose location stayed silent for 30 minutes and wait to be closed by an administrator. */
+export async function fetchTripsNeedingReconciliation(): Promise<ReconciliationTrip[]> {
+  const { data, error } = await supabase.rpc('get_trips_needing_reconciliation');
+  if (error) {
+    console.warn('[todaApiService] fetchTripsNeedingReconciliation:', error.message);
+    return [];
+  }
+  return mapReconciliationTrips(data);
+}
+
+/** Rule 9.5: closes such a trip after phoning or texting the parties. Resolves to null when accepted, else the database's explanation. */
+export async function reconcileTrip(input: ReconcileInput): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_reconcile_trip', reconcileTripArgs(input));
+  return error ? adminActionMessage(error.message, 'The trip could not be closed.') : null;
+}
+
+/** Rule 9.6: reports a driver who went offline on purpose, with the evidence; the LGU Administrator confirms (2 strikes) or dismisses it. */
+export async function reportDeliberateOffline(input: DeliberateOfflineInput): Promise<string | null> {
+  const { error } = await supabase.rpc('report_deliberate_offline', deliberateOfflineArgs(input));
+  return error ? adminActionMessage(error.message, 'The report could not be sent.') : null;
+}
+
+export interface GpsArea {
+  cellKey: string;
+  centerLatitude: number;
+  centerLongitude: number;
+  determinations: number;
+  stalls: number;
+  connectivity: number;
+  firstAt: string;
+  lastAt: string;
+  reported: boolean;
+}
+
+/** Rule 17.5: the squares where this TODA's drivers were cancelled for a stall or a lost connection often enough to be worth reporting. */
+export async function fetchGpsAreas(): Promise<{ areas: GpsArea[]; minCount: number; windowDays: number }> {
+  const { data, error } = await supabase.rpc('get_gps_determination_hotspots');
+  const row = data as { areas?: Array<Record<string, unknown>>; min_count?: number; window_days?: number } | null;
+  if (error || !row) return { areas: [], minCount: 3, windowDays: 30 };
+  return {
+    minCount: Number(row.min_count ?? 3),
+    windowDays: Number(row.window_days ?? 30),
+    areas: (row.areas ?? []).map((a) => ({
+      cellKey: String(a.cell_key),
+      centerLatitude: Number(a.center_latitude),
+      centerLongitude: Number(a.center_longitude),
+      determinations: Number(a.determinations),
+      stalls: Number(a.stalls),
+      connectivity: Number(a.connectivity),
+      firstAt: String(a.first_at),
+      lastAt: String(a.last_at),
+      reported: Boolean(a.reported),
+    })),
+  };
+}
+
+/** Rule 17.5: reports an area to the LGU Administrator for a possible service-zone boundary adjustment. */
+export async function reportGpsArea(cellKey: string, note: string): Promise<string | null> {
+  const { error } = await supabase.rpc('report_gps_area_issue', { p_cell_key: cellKey, p_note: note });
+  return error ? adminActionMessage(error.message, 'The area could not be reported.') : null;
+}
+
+const manilaStamp = (iso: string): string =>
+  new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+/** Rules 8.6, 9.4, 25: the strike appeals of this TODA's drivers, as the database holds them (row security shows a TODA Administrator only their own). */
+export async function fetchTodaExemptionRequests(): Promise<DriverExemptionRequest[]> {
+  const { data: requests, error } = await supabase
+    .from('exemption_request')
+    .select('request_id, strike_id, subject_id, cause_code, justification, evidence_urls, status, requested_at, decision_due_at, assigned_role, decision_reason')
+    .eq('subject_type', 'driver')
+    .order('requested_at', { ascending: false })
+    .limit(100);
+  if (error || !requests || requests.length === 0) return [];
+
+  const strikeIds = [...new Set(requests.map((r) => String(r.strike_id)))];
+  const driverIds = [...new Set(requests.map((r) => String(r.subject_id)))];
+  const [strikes, drivers, catalog] = await Promise.all([
+    supabase.from('strikes_ledger').select('strike_id, violation_code, source_rule, points_active').in('strike_id', strikeIds),
+    supabase.from('driver').select('driver_id, full_name').in('driver_id', driverIds),
+    supabase.from('violation_catalog').select('violation_code, description'),
+  ]);
+  const strikeById = new Map((strikes.data ?? []).map((s) => [String(s.strike_id), s]));
+  const driverName = new Map((drivers.data ?? []).map((d) => [String(d.driver_id), String(d.full_name)]));
+  const described = new Map((catalog.data ?? []).map((c) => [String(c.violation_code), String(c.description)]));
+
+  return requests.map((r) => {
+    const strike = strikeById.get(String(r.strike_id));
+    const urls: string[] = Array.isArray(r.evidence_urls) ? (r.evidence_urls as unknown[]).map(String) : [];
+    const evidenceFiles: EvidenceFileItem[] = urls.map((url, i) => ({
+      id: url,
+      name: decodeURIComponent(url.split('/').pop() || '') || ('Evidence ' + (i + 1)),
+      type: /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) ? 'image' : /\.pdf(\?|$)/i.test(url) ? 'pdf' : 'document',
+      url,
+    }));
+    return {
+      id: String(r.request_id),
+      driverId: String(r.subject_id),
+      driverName: driverName.get(String(r.subject_id)) ?? 'Driver',
+      strikeId: String(r.strike_id),
+      incidentCategory: (strike ? described.get(String(strike.violation_code)) ?? String(strike.violation_code) : 'Strike') + (strike ? ' (' + strike.source_rule + ')' : ''),
+      reason: String(r.justification),
+      evidenceFiles,
+      submittedAt: manilaStamp(String(r.requested_at)),
+      status: String(r.status) as DriverExemptionRequest['status'],
+      decisionNotes: r.decision_reason ? String(r.decision_reason) : undefined,
+      causeCode: String(r.cause_code),
+      strikePointsActive: strike ? Number(strike.points_active) : undefined,
+      decisionDueAt: r.decision_due_at ? manilaStamp(String(r.decision_due_at)) : undefined,
+      assignedRole: String(r.assigned_role),
+    };
+  });
+}
+
+/** Rule 25.6: decides a strike appeal: Full waiver, Partial waiver (the points to waive) or Denied, with the reason (Rule 25.8). Null when accepted. */
+export async function decideExemptionRequest(requestId: string, outcome: 'FULL' | 'PARTIAL' | 'DENIED', reason: string, pointsToWaive?: number): Promise<string | null> {
+  const { error } = await supabase.rpc('decide_exemption', {
+    p_request_id: requestId,
+    p_outcome: outcome,
+    p_reason: reason,
+    p_points_to_waive: outcome === 'PARTIAL' ? pointsToWaive ?? null : null,
+  });
+  return error ? adminActionMessage(error.message, 'The decision could not be recorded.') : null;
+}

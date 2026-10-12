@@ -9,6 +9,8 @@
  * ============================================================================
  */
 
+import { reportNetworkOutcome, reportNetworkResult } from '@sakay/shared';
+
 import { supabase } from './supabaseClient';
 
 export interface PresenceSession {
@@ -78,9 +80,12 @@ function failure(error: unknown): PresenceResult {
 async function call(fn: string, args?: Record<string, unknown>): Promise<PresenceResult> {
   try {
     const { data, error } = await supabase.rpc(fn, args);
+    // Rule 17.4: the outcome of every call tells the "Connection lost" notice whether this phone reaches the server
+    reportNetworkOutcome(error);
     if (error) return failure(error);
     return (data ?? { success: false, error_code: 'ERR_EMPTY' }) as PresenceResult;
   } catch (err) {
+    reportNetworkResult(false);
     return failure(err);
   }
 }
@@ -132,7 +137,10 @@ export function sendHeartbeat(fix: PositionFix | null): Promise<PresenceResult> 
     p_session_token: loginSessionToken(),
   });
   return new Promise<PresenceResult>((resolve) => {
-    const timer = setTimeout(() => resolve({ success: false, error_code: 'ERR_TIMEOUT', error: 'The server did not answer in time.' }), HEARTBEAT_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      reportNetworkResult(false);                                    // no answer in time counts as a failed call (Rule 17.4)
+      resolve({ success: false, error_code: 'ERR_TIMEOUT', error: 'The server did not answer in time.' });
+    }, HEARTBEAT_TIMEOUT_MS);
     request.then((result) => {
       clearTimeout(timer);
       resolve(result);

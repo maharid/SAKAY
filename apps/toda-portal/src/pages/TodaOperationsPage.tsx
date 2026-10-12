@@ -26,7 +26,16 @@ import {
   fetchTodaProfile,
   fetchTodaDrivers,
   fetchTodaOperationsTrips,
+  fetchTripsNeedingReconciliation,
+  reconcileTrip,
+  reportDeliberateOffline,
+  fetchGpsAreas,
+  reportGpsArea,
 } from '../services/todaApiService';
+import type { GpsArea } from '../services/todaApiService';
+import { GpsAreasCard } from '../components/admin/GpsAreasCard';
+import { TripReconciliationPanel } from '@sakay/shared';
+import type { ReconciliationTrip } from '@sakay/shared';
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { driverActivity, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike } from '@sakay/shared';
@@ -103,6 +112,19 @@ export const TodaOperationsPage: React.FC = () => {
     loadData();
   }, [targetTodaId]);
 
+  // Rule 9.5: trips of this TODA's drivers whose location stayed silent for 30 minutes wait here for the administrator to phone the parties and close them.
+  // Rule 17.5: areas where the stall / lost-connection rules keep cancelling bookings may be a GPS problem of the place: report them to the LGU.
+  const [reconTrips, setReconTrips] = useState<ReconciliationTrip[]>([]);
+  const [gpsAreas, setGpsAreas] = useState<{ areas: GpsArea[]; minCount: number; windowDays: number }>({ areas: [], minCount: 3, windowDays: 30 });
+  const loadReconciliation = async () => setReconTrips(await fetchTripsNeedingReconciliation());
+  const loadGpsAreas = async () => setGpsAreas(await fetchGpsAreas());
+  useEffect(() => {
+    loadReconciliation();
+    loadGpsAreas();
+    const timer = setInterval(loadReconciliation, 15000);
+    return () => clearInterval(timer);
+  }, [targetTodaId]);
+
   const totalDrivers = drivers.length;
   // Online right now = the database says Available (idle) or Busy (on a trip); a paused driver is online but not taking new bookings
   const isOnlineNow = (d: TodaDriverMember): boolean => d.availabilityStatus === 'Available' || d.availabilityStatus === 'Busy';
@@ -130,6 +152,31 @@ export const TodaOperationsPage: React.FC = () => {
       />
 
 
+
+      <TripReconciliationPanel
+        trips={reconTrips}
+        showWhenEmpty={false}
+        onReconcile={async (input) => {
+          const message = await reconcileTrip(input);
+          if (!message) {
+            await loadReconciliation();
+            loadData();
+          }
+          return message;
+        }}
+        onReportDeliberateOffline={reportDeliberateOffline}
+      />
+
+      <GpsAreasCard
+        areas={gpsAreas.areas}
+        minCount={gpsAreas.minCount}
+        windowDays={gpsAreas.windowDays}
+        onReport={async (cellKey, note) => {
+          const message = await reportGpsArea(cellKey, note);
+          if (!message) await loadGpsAreas();
+          return message;
+        }}
+      />
 
       {/* 3. Supervisory Standing Banner & Compliance Indicators */}
       <Box sx={{ mb: 3.5 }}>

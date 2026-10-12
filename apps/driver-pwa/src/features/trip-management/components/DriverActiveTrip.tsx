@@ -51,11 +51,14 @@ import SakayToast from '../../../common/components/SakayToast';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from './EnRouteNotices';
+import ReconfirmTripDialog from './ReconfirmTripDialog';
+import { DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
+import { useTripConnectivity } from '../../../hooks/useTripConnectivity';
 import ArrivalWaitPanel from './ArrivalWaitPanel';
 
 export const DriverActiveTrip: React.FC = () => {
   const { language } = useLanguage();
-  const { profile, refreshPresence, liveFix } = useDriverSession();
+  const { profile, refreshPresence, liveFix, locationIssue } = useDriverSession();
   const navigate = useNavigate();
   const location = useLocation();
   const bookingId = (location.state as { bookingId?: string })?.bookingId || '';
@@ -298,6 +301,8 @@ export const DriverActiveTrip: React.FC = () => {
     if (answer && answer.progressPercent !== null) setServerProgress(answer.progressPercent);
   }, [bookingId]);
   const tripIsOn = booking?.booking_status === 'Trip Ongoing';
+  // Rule 9.5: the connection was lost during the trip and is back: the driver says whether it is still going on or has ended before it can be finished
+  const connectivity = useTripConnectivity(bookingId, tripIsOn);
   useEffect(() => {
     if (!tripIsOn) return;
     readServerProgress();
@@ -732,6 +737,9 @@ export const DriverActiveTrip: React.FC = () => {
           boxShadow: '0 -8px 30px rgba(0, 0, 0, 0.08)',
         }}
       >
+        {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough): dispatch and the passenger's map cannot see it */}
+        <DriverLocationNotice issue={locationIssue} />
+
         {onTheWay && (
           <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
         )}
@@ -872,6 +880,14 @@ export const DriverActiveTrip: React.FC = () => {
           refreshPresence();
           navigate('/driver/home', { replace: true });
         }}
+      />
+
+      <ReconfirmTripDialog
+        open={tripIsOn && connectivity.needsReconfirm && connectivity.connected}
+        bookingId={bookingId}
+        language={language}
+        interruptedSince={connectivity.interruptedSince}
+        onAnswered={connectivity.refresh}
       />
 
       {/* Bidirectional Passenger Cancellation Realtime Notification Modal */}

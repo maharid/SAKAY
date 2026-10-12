@@ -173,8 +173,13 @@ export interface DriverExemptionRequest {
   reason: string;
   evidenceFiles: EvidenceFileItem[];
   submittedAt: string;
-  status: 'Pending Review' | 'Approved' | 'Escalated to LGU' | 'Rejected';
+  status: 'Pending Review' | 'Approved' | 'Escalated to LGU' | 'Rejected' | 'Pending TODA Review' | 'Pending LGU Review' | 'Full Waiver' | 'Partial Waiver' | 'Denied';
   decisionNotes?: string;
+  /** From the database (Rule 25): why the driver says it was not his fault, the strike's points still counted, and who decides */
+  causeCode?: string;
+  strikePointsActive?: number;
+  decisionDueAt?: string;
+  assignedRole?: string;
 }
 
 export interface TodaAnnouncement {

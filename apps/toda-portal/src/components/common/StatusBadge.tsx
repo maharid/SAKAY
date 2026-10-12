@@ -12,6 +12,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...
   const getStatusStyles = (statusStr: string) => {
     switch (statusStr) {
       case 'Approved':
+      case 'Full Waiver':
+      case 'Partial Waiver':
       case 'Active':
       case 'Verified':
       case 'Resolved':
@@ -26,6 +28,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...
         };
       case 'Pending':
       case 'Pending Review':
+      case 'Pending TODA Review':
       case 'Under Review':
       case 'Submitted':
       case 'TODA Review':
@@ -48,6 +51,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...
       case 'Expiring Soon':
       case 'Resubmission Required':
       case 'Escalated to LGU':
+      case 'Pending LGU Review':
       case 'Suspension Review':
       case 'Reactivation Review':
         return {
@@ -68,6 +72,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...
           borderColor: 'rgba(100, 116, 139, 0.3)',
         };
       case 'Rejected':
+      case 'Denied':
       case 'Declined':
       case 'Suspended':
       case 'TODA Suspended':

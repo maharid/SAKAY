@@ -49,6 +49,8 @@ import {
   addTodaRosterEntry,
   updateTodaRosterEntry,
   fetchTodaProfile,
+  fetchTodaExemptionRequests,
+  decideExemptionRequest,
   TodaRosterEntry,
 } from '../services/todaApiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -80,6 +82,16 @@ export const TodaDriverMembershipPage: React.FC = () => {
   const [selectedExemption, setSelectedExemption] = useState<DriverExemptionRequest | null>(null);
   const [exemptionDecisionModalOpen, setExemptionDecisionModalOpen] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<EvidenceFileItem | null>(null);
+  // Rules 8.6, 9.4, 25: the decision on an appeal (Full waiver / Partial waiver / Denied, with the reason): the database checks and audits it
+  const [decisionOutcome, setDecisionOutcome] = useState<'FULL' | 'PARTIAL' | 'DENIED'>('FULL');
+  const [decisionReason, setDecisionReason] = useState('');
+  const [decisionPoints, setDecisionPoints] = useState('1');
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decisionBusy, setDecisionBusy] = useState(false);
+  const loadExemptions = async () => setExemptions(await fetchTodaExemptionRequests());
+  useEffect(() => {
+    loadExemptions();
+  }, [effectiveTodaId]);
 
   // Master Roster (Rule 2.4)
   const [rosterEntries, setRosterEntries] = useState<TodaRosterEntry[]>([]);
@@ -288,35 +300,26 @@ export const TodaDriverMembershipPage: React.FC = () => {
     setSelectedDriver(null);
   };
 
-  // Exemption Decision Handlers (Endorse vs Decline Endorsement)
-  const handleExemptionDecision = (approved: boolean) => {
-    if (!selectedExemption) return;
-
-    const newStatus = approved ? 'Approved' : 'Rejected';
-    setExemptions((prev) =>
-      prev.map((ex) =>
-        ex.id === selectedExemption.id
-          ? {
-              ...ex,
-              status: newStatus,
-              decisionNotes: approved
-                ? 'TODA President verified supporting evidence and endorsed strike exemption to LGU.'
-                : 'TODA President declined endorsement of strike exemption.',
-            }
-          : ex
-      )
-    );
-
-    recordTodaAuditAction({
-      actionType: approved ? 'STRIKE_EXEMPTION_ENDORSED' : 'STRIKE_EXEMPTION_DECLINED',
-      targetId: selectedExemption.id,
-      targetName: selectedExemption.driverName,
-      details: `${approved ? 'Endorsed' : 'Declined endorsement of'} strike exemption appeal for ${selectedExemption.driverName} (${selectedExemption.incidentCategory}).`,
-      category: 'Membership',
-    });
-
+  // Rule 25.6: a TODA Administrator decides the appeals routed to the TODA (Full waiver, Partial waiver or Denied, with the reason, Rule 25.8).
+  // The database decides whether this administrator may, writes the audit entry and tells the driver.
+  const handleExemptionDecision = async () => {
+    if (!selectedExemption || decisionBusy) return;
+    if (decisionReason.trim().length === 0) {
+      setDecisionError('A reason is required for every decision.');
+      return;
+    }
+    setDecisionBusy(true);
+    setDecisionError(null);
+    const message = await decideExemptionRequest(selectedExemption.id, decisionOutcome, decisionReason.trim(), Number(decisionPoints));
+    setDecisionBusy(false);
+    if (message) {
+      setDecisionError(message);
+      return;
+    }
+    setToast({ message: 'The decision was recorded and the driver was told.', severity: 'success' });
     setExemptionDecisionModalOpen(false);
     setSelectedExemption(null);
+    await loadExemptions();
   };
 
   return (
@@ -612,9 +615,13 @@ export const TodaDriverMembershipPage: React.FC = () => {
 
                   <TableCell align="right" sx={{ py: 2, px: 3 }}>
                     <ActionButton
-                      label="Review Appeal"
+                      label={ex.status === 'Pending TODA Review' ? 'Review Appeal' : 'View Appeal'}
                       onClick={() => {
                         setSelectedExemption(ex);
+                        setDecisionOutcome('FULL');
+                        setDecisionReason('');
+                        setDecisionPoints('1');
+                        setDecisionError(null);
                         setExemptionDecisionModalOpen(true);
                       }}
                     />
@@ -733,21 +740,61 @@ export const TodaDriverMembershipPage: React.FC = () => {
           open={exemptionDecisionModalOpen}
           onClose={() => setExemptionDecisionModalOpen(false)}
           title={`Review Strike Exemption Appeal — ${selectedExemption.driverName}`}
-          subtitle={`Submitted: ${selectedExemption.submittedAt} • TODA Endorsement Review`}
+          subtitle={'Submitted: ' + selectedExemption.submittedAt + (selectedExemption.decisionDueAt ? ' • Decision due: ' + selectedExemption.decisionDueAt : '')}
           badge={<StatusBadge status={selectedExemption.status} />}
           maxWidth={760}
-          primaryActionLabel={selectedExemption.status === 'Pending Review' ? "Endorse Appeal to LGU" : undefined}
-          onPrimaryAction={() => handleExemptionDecision(true)}
-          secondaryActionLabel={selectedExemption.status === 'Pending Review' ? "Decline Endorsement" : "Close"}
-          onSecondaryAction={() => {
-            if (selectedExemption.status === 'Pending Review') {
-              handleExemptionDecision(false);
-            } else {
-              setExemptionDecisionModalOpen(false);
-            }
-          }}
+          primaryActionLabel={selectedExemption.status === 'Pending TODA Review' ? 'Record decision' : undefined}
+          onPrimaryAction={handleExemptionDecision}
+          secondaryActionLabel="Close"
+          onSecondaryAction={() => setExemptionDecisionModalOpen(false)}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* The decision (Rule 25.6): only an appeal routed to this TODA and still waiting */}
+            {selectedExemption.status === 'Pending TODA Review' ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: '16px 18px', borderRadius: '12px', border: '1px solid var(--sakay-orange-border)', backgroundColor: 'var(--sakay-orange-soft)' }}>
+                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Your decision</Typography>
+                <TextField
+                  select
+                  size="small"
+                  label="Outcome"
+                  value={decisionOutcome}
+                  onChange={(e) => setDecisionOutcome(e.target.value as 'FULL' | 'PARTIAL' | 'DENIED')}
+                  slotProps={{ select: { native: true } }}
+                  fullWidth
+                >
+                  <option value="FULL">Full waiver: the strike is removed</option>
+                  <option value="PARTIAL">Partial waiver: some of its points are removed</option>
+                  <option value="DENIED">Denied: the strike stands</option>
+                </TextField>
+                {decisionOutcome === 'PARTIAL' && (
+                  <TextField
+                    size="small"
+                    type="number"
+                    label={'Points to waive (the strike has ' + (selectedExemption.strikePointsActive ?? '?') + ' active)'}
+                    value={decisionPoints}
+                    onChange={(e) => setDecisionPoints(e.target.value)}
+                    fullWidth
+                  />
+                )}
+                <TextField
+                  multiline
+                  minRows={2}
+                  size="small"
+                  label="Reason for the decision (the driver is told)"
+                  value={decisionReason}
+                  onChange={(e) => setDecisionReason(e.target.value)}
+                  fullWidth
+                />
+                {decisionError && <Alert severity="warning" sx={{ borderRadius: '10px' }}>{decisionError}</Alert>}
+              </Box>
+            ) : (
+              <Alert severity={selectedExemption.status === 'Denied' ? 'error' : selectedExemption.status === 'Pending LGU Review' ? 'info' : 'success'} sx={{ borderRadius: '10px' }}>
+                {selectedExemption.status === 'Pending LGU Review'
+                  ? 'This appeal was passed to the LGU Administrator (a serious consequence, or the deadline passed).'
+                  : 'Decided: ' + selectedExemption.status + (selectedExemption.decisionNotes ? ' — ' + selectedExemption.decisionNotes : '')}
+              </Alert>
+            )}
+
             {/* Section 1: Appeal Information */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1.5 }}>

@@ -41,6 +41,7 @@ import { DriverProfileEditor } from './features/account-management/components/Dr
 import { DriverSettingsPage } from './features/account-management/pages/DriverSettingsPage';
 import { DriverChangePasswordPage } from './features/account-management/pages/DriverChangePasswordPage';
 import { DriverSupportPage } from './features/account-management/pages/DriverSupportPage';
+import DriverStrikesPage from './features/account-management/pages/DriverStrikesPage';
 import { DriverIncidentReporting } from './features/incident-reporting/components/DriverIncidentReporting';
 import { DriverAppFeedbackPage } from './features/account-management/pages/DriverAppFeedbackPage';
 import { DriverAvailabilityHome } from './features/availability/components/DriverAvailabilityHome';
@@ -149,6 +150,7 @@ export const App: React.FC = () => {
             <Route path="/driver/change-password" element={<DriverChangePasswordPage />} />
             <Route path="/change-password" element={<DriverChangePasswordPage />} />
             <Route path="/driver/support" element={<DriverSupportPage />} />
+            <Route path="/driver/strikes" element={<DriverStrikesPage />} />
             <Route path="/support" element={<DriverSupportPage />} />
             <Route path="/driver/report-incident" element={<DriverIncidentReporting />} />
             <Route path="/driver/rate-app" element={<DriverAppFeedbackPage />} />

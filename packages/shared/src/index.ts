@@ -10,6 +10,17 @@ export type { MapControlButtonProps, MapControlStackProps, MapControlIcon } from
 export { FloatingLabelInput } from './components/FloatingLabelInput';
 export type { FloatingLabelInputProps } from './components/FloatingLabelInput';
 export { QuickMessageDialog } from './components/QuickMessageDialog';
+export { ConnectionLostBanner } from './components/ConnectionLostBanner';
+export { TripReconciliationPanel, DELIBERATE_OFFLINE_EVIDENCE } from './components/TripReconciliationPanel';
+export type {
+  TripReconciliationPanelProps,
+  ReconciliationTrip,
+  ReconcileInput,
+  DeliberateOfflineInput,
+  DeliberateOfflineEvidence,
+} from './components/TripReconciliationPanel';
+export * from './utils/tripReconciliation';
+export type { ConnectionLostBannerProps } from './components/ConnectionLostBanner';
 export type { QuickMessageDialogProps } from './components/QuickMessageDialog';
 export * from './utils/sms';
 export * from './styles/typography';
@@ -39,6 +50,7 @@ export * from './hooks/useSheetHandle';
 export * from './hooks/useMeasuredSize';
 export * from './hooks/useSafeAreaInsets';
 export * from './hooks/useStaleSignal';
+export * from './hooks/useConnectionStatus';
 export * from './config/calapanBarangays';
 export * from './utils/applicationReview';
 export * from './config/policyConfig';
