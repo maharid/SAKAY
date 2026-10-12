@@ -98,19 +98,26 @@ const tsList = (name) => {
   await s.online('D1', 300); await s.online('D2', 500);
   b = await s.bookAs('P1');
   const d1Offer = (await s.offers(b.booking_id))[0];
-  // Simulate the race the specification worries about: a second offer for the same booking reached D2 as well (a duplicate event, a
-  // realtime replay). The engine never does this on its own; the database must still hold.
-  await internal(`INSERT INTO dispatch_attempt (booking_id, driver_id, dispatch_method, response_status, cycle, tier, expires_at)
-                  VALUES ('${b.booking_id}', '${ID.D2}', 'forced duplicate', 'Pending', 1, 1, now() + interval '20 seconds')`);
-  const d2Offer = (await q(`SELECT attempt_id FROM dispatch_attempt WHERE booking_id='${b.booking_id}' AND driver_id='${ID.D2}'`))[0];
-  const win = await s.accept('D1', d1Offer.attempt_id);
-  const lose = await s.accept('D2', d2Offer.attempt_id);
+  // A second unanswered offer for the same booking (a duplicate event, a replay) cannot exist at all: the database refuses it (M2).
+  const dup = await attempt(() => internal(`INSERT INTO dispatch_attempt (booking_id, driver_id, dispatch_method, response_status, cycle, tier, expires_at)
+                  VALUES ('${b.booking_id}', '${ID.D2}', 'forced duplicate', 'Pending', 1, 1, now() + interval '20 seconds')`));
+  check('a second unanswered offer for the same booking is refused by the database (one Pending offer per booking)',
+    !dup.ok && /uq_dispatch_attempt_one_pending_per_booking/.test(dup.error), dup);
+  // The race that remains: D1's offer runs out at the very moment D1 taps Accept, and the search has already moved on to D2.
+  await s.expireOffer(b.booking_id);
+  const d2Offer = (await s.pendingOffer(b.booking_id));
+  check('D1\'s offer ran out and D2 holds the offer now', d2Offer !== undefined && d2Offer.driver_id === ID.D2 && (await one(`SELECT response_status FROM dispatch_attempt WHERE attempt_id='${d1Offer.attempt_id}'`)).response_status === 'Expired');
+  const lose = await s.accept('D1', d1Offer.attempt_id);
   b = await s.booking(b.booking_id);
-  check('the first accept wins', win.success === true && b.driver_id === ID.D1 && b.booking_status === 'Accepted', { win, b });
-  check('the second gets a clean rejection: already taken', lose.success === false && lose.error_code === 'ERR_BOOKING_UNAVAILABLE', lose);
-  check('the booking has exactly one driver and the loser\'s offer was withdrawn (not counted as ignored)',
-    (await q(`SELECT 1 FROM dispatch_attempt WHERE booking_id='${b.booking_id}' AND response_status='Accepted'`)).length === 1
-    && (await one(`SELECT response_status, unanswered FROM dispatch_attempt WHERE attempt_id='${d2Offer.attempt_id}'`)).response_status === 'Expired');
+  check('D1\'s late accept gets a clean rejection and assigns nobody', lose.success === false && /ERR_BOOKING_UNAVAILABLE|ERR_OFFER_EXPIRED/.test(lose.error_code) && b.driver_id === null, { lose, b });
+  const win = await s.accept('D2', d2Offer.attempt_id);
+  const winAgain = await s.accept('D2', d2Offer.attempt_id);
+  const lateAgain = await s.accept('D1', d1Offer.attempt_id);
+  b = await s.booking(b.booking_id);
+  check('D2 wins, and a double tap by D2 is harmless', win.success === true && winAgain.success === true && winAgain.already_accepted === true && b.driver_id === ID.D2 && b.booking_status === 'Accepted', { win, winAgain, b });
+  check('D1 still cannot take it after the assignment: the second driver gets a clean rejection', lateAgain.success === false && lateAgain.error_code === 'ERR_BOOKING_UNAVAILABLE', lateAgain);
+  check('the booking has exactly one driver and one accepted offer',
+    (await q(`SELECT 1 FROM dispatch_attempt WHERE booking_id='${b.booking_id}' AND response_status='Accepted'`)).length === 1);
   const fn = await one(`SELECT pg_get_functiondef('public.accept_booking_offer(uuid)'::regprocedure) AS def`);
   check('the decision is made under the booking\'s row lock (two transactions at once are serialized by the database, not the app)', /FOR UPDATE/.test(fn.def) && /SELECT \* INTO v_b FROM public.booking WHERE booking_id = v_booking_id FOR UPDATE/.test(fn.def));
   await reset(b);
@@ -191,7 +198,8 @@ const tsList = (name) => {
   console.log('\nS5 the two settings an LGU administrator may change (Batch 6 prompt B4)');
   const read = await call(ID.L_AUTH, 'public.get_dispatch_settings()');
   check('the LGU administrator reads the effective values, the defaults and the limits',
-    read.ok && read.value.offer_window_seconds === 15 && read.value.tier3_max_seconds === 300 && read.value.defaults.tier3_max_seconds === 300, read);
+    read.ok && read.value.offer_window_seconds === 15 && read.value.tier3_max_seconds === 600 && read.value.defaults.tier3_max_seconds === 600
+    && read.value.defaults.offer_window_seconds === 15, read);
   for (const [who, uid] of [['a passenger', ID.P_AUTH], ['a driver', ID.D_AUTH], ['a TODA administrator', ID.T_AUTH]]) {
     const r = await call(uid, `public.set_dispatch_setting('offer_window_seconds', 30)`);
     check(`${who} cannot change a setting`, !r.ok && /Access Denied/i.test(r.error), r);
@@ -205,8 +213,8 @@ const tsList = (name) => {
     && (await call(ID.L_AUTH, `public.set_dispatch_setting('tier3_max_seconds', 2000)`)).value.error_code === 'ERR_OUT_OF_RANGE'
     && (await call(ID.L_AUTH, `public.set_dispatch_setting('nonsense', 20)`)).value.error_code === 'ERR_UNKNOWN_SETTING');
   const set1 = await call(ID.L_AUTH, `public.set_dispatch_setting('offer_window_seconds', 30)`);
-  const set2 = await call(ID.L_AUTH, `public.set_dispatch_setting('tier3_max_seconds', 600)`);
-  check('the LGU administrator changes both', set1.value.success && set1.value.previous === 15 && set2.value.success && set2.value.previous === 300, { set1, set2 });
+  const set2 = await call(ID.L_AUTH, `public.set_dispatch_setting('tier3_max_seconds', 300)`);
+  check('the LGU administrator changes both', set1.value.success && set1.value.previous === 15 && set2.value.success && set2.value.previous === 600, { set1, set2 });
   check('and each change is in the audit log with before and after',
     (await q(`SELECT 1 FROM audit_log WHERE action_type='DISPATCH_SETTING_CHANGED' AND target_id IN ('offer_window_seconds','tier3_max_seconds')`)).length === 2);
   await s.online('D1', 300);
@@ -215,10 +223,10 @@ const tsList = (name) => {
   check('a new offer now lasts the new window plus the grace (30 s + 5 s)', Math.abs((new Date(o.expires_at) - new Date(o.notification_sent_at)) / 1000 - 35) < 0.5, o);
   check('and the driver is shown the new window', (await s.myOffer('D1')).window_seconds === 30 && (await s.myOffer('D1')).seconds_remaining === 30);
   await reset(b);
-  const r600 = await one(`SELECT public.dispatch_tier3_radius_m(299) a, public.dispatch_tier3_radius_m(599) b, public.dispatch_tier3_radius_m(600) c`);
-  check('the live search now runs 10 minutes: still 3.5 km at 4:59 and 9:59, over at 10:00', r600.a === 3500 && r600.b === 3500 && r600.c === null, r600);
+  const r300 = await one(`SELECT public.dispatch_tier3_radius_m(299) a, public.dispatch_tier3_radius_m(300) c`);
+  check('the live search now runs 5 minutes (the LGU administrator\'s choice): still 3.5 km at 4:59, over at 5:00', r300.a === 3500 && r300.c === null, r300);
   await call(ID.L_AUTH, `public.set_dispatch_setting('offer_window_seconds', 15)`);
-  await call(ID.L_AUTH, `public.set_dispatch_setting('tier3_max_seconds', 300)`);
+  await call(ID.L_AUTH, `public.set_dispatch_setting('tier3_max_seconds', 600)`);
 
   process.exit(summary() ? 0 : 1);
 })().catch((e) => { console.error('ERROR', e); process.exit(1); });

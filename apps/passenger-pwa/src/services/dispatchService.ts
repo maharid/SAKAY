@@ -59,11 +59,34 @@ export const getDispatchStatus = async (bookingId: string): Promise<DispatchStat
   };
 };
 
+/** What the database answered to a Retry: restarted, or why not (ERR_OPEN_BOOKING_EXISTS, ERR_RETRY_EXPIRED, ERR_NOT_SEARCHING, ...; null when it could not be reached). */
+export interface RetryOutcome {
+  ok: boolean;
+  errorCode: string | null;
+}
+
 /**
  * Retry after No Driver Found: the database starts a NEW cycle on the same booking, from the nearest drivers (Rule 7.4). Asking again while
- * the search is already running changes nothing. Returns false when the search could not be restarted.
+ * the search is already running changes nothing. It refuses while the passenger has another open booking (Rule 4.4) and when the search ended
+ * more than an hour ago (the pickup is probably not where the passenger is any more).
  */
-export const retryDriverSearch = async (bookingId: string): Promise<boolean> => {
+export const retryDriverSearch = async (bookingId: string): Promise<RetryOutcome> => {
   const { data, error } = await supabase.rpc('retry_driver_search', { p_booking_id: bookingId });
-  return !error && Boolean((data as { success?: boolean } | null)?.success);
+  const row = data as { success?: boolean; error_code?: string } | null;
+  if (!error && row?.success) return { ok: true, errorCode: null };
+  return { ok: false, errorCode: row?.error_code ?? null };
+};
+
+/** What to tell the passenger when a Retry was refused (Tagalog or English), so the booking screen and the trip screen say the same thing. */
+export const describeRetryRefusal = (errorCode: string | null, language: string): string => {
+  const tl = language === 'tl';
+  if (errorCode === 'ERR_OPEN_BOOKING_EXISTS') {
+    return tl ? 'May iba ka pang bukas na booking. Tapusin o kanselahin muna ito.' : 'You already have another open booking. Finish or cancel it first.';
+  }
+  if (errorCode === 'ERR_RETRY_EXPIRED') {
+    return tl
+      ? 'Matagal nang natapos ang paghahanap na ito para ulitin pa. Gumawa ng bagong booking.'
+      : 'This search ended too long ago to restart. Please make a new booking.';
+  }
+  return tl ? 'Hindi masimulan muli ang paghahanap. Pakisubukang muli.' : 'We could not restart the search. Please try again.';
 };

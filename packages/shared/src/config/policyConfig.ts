@@ -86,11 +86,12 @@ export const DISPATCH_TIER3_REFRESH_SECONDS = 30;
 
 /**
  * Tier 3 maximum duration: with nobody accepting by then, the booking becomes No Driver Found and the passenger may Retry or Cancel. [DB tier3_max_seconds]
- * Figure F6.5. The specification says 10 minutes (decision log PI-12: provisional); 300 s (5 minutes) is the default for the pilot because a
- * tricycle ride is short, the driver pool is small and a passenger can Retry at once. An LGU administrator can change it at run time
- * (dispatch_setting, 60 to 1800 s); this constant is only the DEFAULT the database falls back to and the drift test checks.
+ * Figure F6.5: 10 minutes, as Appendix B and the specification (Section 30, criterion 8) say (decision D-2, 2026-10-11; the pilot default was 300 s
+ * before). An LGU administrator can change it at run time (dispatch_setting, 60 to 1800 s); this constant is only the DEFAULT the database falls
+ * back to (dispatch_setting_default) and the drift test checks. The worst case a passenger waits is about 20 s x (offers made in Tiers 1 and 2)
+ * + this + 20 s, NOT "10:30" (docs/policy-decisions.md section 12.1).
  */
-export const DISPATCH_TIER3_MAX_SECONDS = 300;
+export const DISPATCH_TIER3_MAX_SECONDS = 600;
 
 /** Rule 12.8: this many accepted drivers in a row failing the same booking ends the dispatch cycle [DB accepted_cancel_limit] */
 export const DISPATCH_ACCEPTED_CANCEL_LIMIT = 3;
@@ -128,6 +129,33 @@ export const REPEAT_CANCEL_WINDOW_HOURS = 24;
 /** Rule 7.9: explicit declines in the window that raise a review flag for the TODA administrator (no strike) [DB decline_flag_count, decline_flag_window_hours] */
 export const DISPATCH_DECLINE_FLAG_COUNT = 5;
 export const DISPATCH_DECLINE_FLAG_WINDOW_HOURS = 24;
+/** Rule 7.9: how many days back the TODA administrator's decline history reads by default (get_driver_decline_history) [DB decline_history_days] */
+export const DISPATCH_DECLINE_HISTORY_DAYS = 30;
+
+/** Decision D-4: a No Driver Found booking that ended longer ago than this cannot be retried (the pickup is probably not where the passenger is any more) [DB retry_max_age_minutes] */
+export const DISPATCH_RETRY_MAX_AGE_MINUTES = 60;
+
+/**
+ * Rule 7.10 / PI-11 = A, figure F6.9: this many bookings of one zone (the barangay of the Priority TODA) reaching Tier 3 or ending as No Driver
+ * Found within this many hours are logged as a Coverage Gap Indicator: analysis only, no penalty, no change to ranking, fares or service zones.
+ * [DB coverage_gap_count, coverage_gap_window_hours]
+ */
+export const COVERAGE_GAP_COUNT = 5;
+export const COVERAGE_GAP_WINDOW_HOURS = 24;
+
+// ETA from the routing engine (Rule 7.2.2, decision D-1, figure F6.10). The database asks OSRM through the `http` extension when it is
+// installed, and otherwise uses the straight-line estimate labelled as such (eta_source). These mirror dispatch_constant() / _osrm_base_url().
+/** The routing servers, in the order they are tried (a failed request is retried once on the second) [DB _osrm_base_url]. The apps' road distance uses the same two. */
+export const OSRM_BASE_URLS = ['https://router.project-osrm.org', 'https://routing.openstreetmap.de/routed-car'] as const;
+/** One request may take this long [DB osrm_timeout_ms] */
+export const OSRM_TIMEOUT_MS = 2000;
+/** An ETA is reused this long [DB osrm_cache_seconds] */
+export const OSRM_CACHE_SECONDS = 15;
+/** This many failed rankings in a row open the circuit breaker, which keeps the routing engine out of the way for OSRM_BREAKER_SECONDS [DB osrm_failure_limit, osrm_breaker_seconds] */
+export const OSRM_FAILURE_LIMIT = 3;
+export const OSRM_BREAKER_SECONDS = 60;
+/** The nearest candidates (straight line) of a tier that one request ranks [DB osrm_max_candidates] */
+export const OSRM_MAX_CANDIDATES = 15;
 
 /** Rules 8.2 / 8.3: no movement toward the pickup this long after accepting: a warning, then cancelled on the driver's behalf [DB stall_warn_seconds, stall_cancel_seconds] */
 export const DRIVER_STALL_WARN_SECONDS = 120;
@@ -390,6 +418,16 @@ export const POLICY_CONSTANTS = {
     REPEAT_CANCEL_WINDOW_HOURS,
     DISPATCH_DECLINE_FLAG_COUNT,
     DISPATCH_DECLINE_FLAG_WINDOW_HOURS,
+    DISPATCH_DECLINE_HISTORY_DAYS,
+    DISPATCH_RETRY_MAX_AGE_MINUTES,
+    COVERAGE_GAP_COUNT,
+    COVERAGE_GAP_WINDOW_HOURS,
+    OSRM_BASE_URLS,
+    OSRM_TIMEOUT_MS,
+    OSRM_CACHE_SECONDS,
+    OSRM_FAILURE_LIMIT,
+    OSRM_BREAKER_SECONDS,
+    OSRM_MAX_CANDIDATES,
     DRIVER_STALL_WARN_SECONDS,
     DRIVER_STALL_CANCEL_SECONDS,
     DRIVER_STALL_MIN_MOVEMENT_METERS,

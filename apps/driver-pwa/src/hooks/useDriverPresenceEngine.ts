@@ -22,6 +22,8 @@ import {
   sendHeartbeat,
 } from '../services/driverPresenceService';
 import type { PositionFix, PresenceEndReason, PresenceResult } from '../services/driverPresenceService';
+import { INITIAL_LOCATION_WATCH, watchLocationAnswer } from '../utils/locationIssue';
+import type { LocationWatch } from '../utils/locationIssue';
 
 /**
  * Driver presence engine (Batch 4).
@@ -149,6 +151,11 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
 
   // Set when the app returns from the background after long enough that location updates were probably paused (17.6).
   const [backgroundNotice, setBackgroundNotice] = useState<{ seconds: number } | null>(null);
+
+  // Whether the server is getting a usable position from this phone (it answers every heartbeat, or does not answer at all); a driver whose
+  // position it refuses, or whose heartbeats it never hears, disappears from dispatch 45 s later while still "Online", so the driver is told
+  // (utils/locationIssue.ts).
+  const [locationWatch, setLocationWatch] = useState<LocationWatch>(INITIAL_LOCATION_WATCH);
 
   const fixRef = useRef<LocationCoords | null>(null);
   const presenceRef = useRef<PresenceView>(INITIAL_VIEW);
@@ -337,7 +344,10 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
         const res = await sendHeartbeat(toFix(fixRef.current));
         if (stopped) return;
         if (res.error_code === 'ERR_SESSION_SUPERSEDED') handleSuperseded();
-        else applyResult(res);
+        else {
+          applyResult(res);
+          setLocationWatch((previous) => watchLocationAnswer(previous, res, fixRef.current?.accuracy ?? null));
+        }
       } finally {
         inFlight = false;
       }
@@ -350,6 +360,11 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
       clearInterval(timer);
     };
   }, [driverId, presence.status, presence.sessionId, presence.openBooking, applyResult, handleSuperseded]);
+
+  // Not Online: there is no position to complain about.
+  useEffect(() => {
+    if (presence.status !== 'online') setLocationWatch(INITIAL_LOCATION_WATCH);
+  }, [presence.status]);
 
   // ── Actions ─────────────────────────────────────────────────────────────────────────────────
   const goOnline = useCallback(async (): Promise<PresenceOutcome> => {
@@ -459,6 +474,7 @@ export function useDriverPresenceEngine(driverId: string | null, onSessionSupers
     resumeBookings,
     enableLocation,
     locationReauthRequired,
+    locationIssue: locationWatch.issue,
     sessionMissing,
     offlineNotice,
     dismissOfflineNotice,

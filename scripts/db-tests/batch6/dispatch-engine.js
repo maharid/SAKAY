@@ -81,9 +81,9 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
 
   // ------------------------------------------------------------------------------------------------------------------------------
   console.log('\nS5 TEST 5: Tier 3 - the radius grows 2.0 -> 2.5 -> 3.0 -> 3.5 km and the pool is refreshed every 30 s');
-  const radii = await q(`SELECT s, public.dispatch_tier3_radius_m(s) r FROM unnest(ARRAY[0, 89, 90, 179, 180, 269, 270, 299, 300, 1000]) s`);
-  check('the schedule: 0-89 s 2.0 km, 90-179 s 2.5 km, 180-269 s 3.0 km, 270-299 s 3.5 km, then the search ends',
-    radii.map((r) => `${r.s}:${r.r ?? ''}`).join() === '0:2000,89:2000,90:2500,179:2500,180:3000,269:3000,270:3500,299:3500,300:,1000:', radii);
+  const radii = await q(`SELECT s, public.dispatch_tier3_radius_m(s) r FROM unnest(ARRAY[0, 89, 90, 179, 180, 269, 270, 299, 300, 599, 600, 1000]) s`);
+  check('the schedule: 0-89 s 2.0 km, 90-179 s 2.5 km, 180-269 s 3.0 km, 270 s up to the 10-minute maximum 3.5 km, then the search ends',
+    radii.map((r) => `${r.s}:${r.r ?? ''}`).join() === '0:2000,89:2000,90:2500,179:2500,180:3000,269:3000,270:3500,299:3500,300:3500,599:3500,600:,1000:', radii);
   await s.online('D1', 2200); await s.online('D2', 2800); await s.online('D3', 3400);
   b = await s.bookAs('P1');
   b = await s.booking(b.booking_id);
@@ -126,12 +126,12 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.decline('D1', o[0].attempt_id, 'other');                     // D1 declines in cycle 1
   await allOffline();
   check('the search is waiting in Tier 3', (await s.booking(b.booking_id)).dispatch_tier === 3);
-  await s.rewind(b.booking_id, 299); await s.sweep();
-  check('at 4:59 the booking is still searching', (await s.booking(b.booking_id)).booking_status === 'Pending');
+  await s.rewind(b.booking_id, 599); await s.sweep();
+  check('at 9:59 the booking is still searching (the maximum is 10 minutes, Appendix B and Section 30)', (await s.booking(b.booking_id)).booking_status === 'Pending');
   await s.rewind(b.booking_id, 2); const swept = await s.sweep();
   b = await s.booking(b.booking_id);
-  check('at 5:01 a SWEEP (the scheduled job, no app involved) ends it: No Driver Found, the reason recorded, the clock stopped',
-    swept >= 1 && b.booking_status === 'No Driver Found' && b.dispatch_ended_reason === 'no_driver_found' && b.dispatch_next_action_at === null, b);
+  check('at 10:01 a SWEEP (the scheduled job, no app involved) ends it: No Driver Found, the reason recorded, the clock stopped, the end time stamped',
+    swept >= 1 && b.booking_status === 'No Driver Found' && b.dispatch_ended_reason === 'no_driver_found' && b.dispatch_next_action_at === null && b.dispatch_ended_at !== null, b);
   check('the passenger is told, and the audit log has it',
     (await q(`SELECT 1 FROM notification WHERE passenger_id='${ID.P1}' AND notification_type='NO_DRIVER_FOUND'`)).length === 1
     && (await q(`SELECT 1 FROM audit_log WHERE action_type='DISPATCH_NO_DRIVER_FOUND' AND target_id='${b.booking_id}'`)).length === 1);

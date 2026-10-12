@@ -53,7 +53,7 @@ import {
 import { supabase } from '../../../services/supabaseClient';
 import { submitIncidentReport } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { retryDriverSearch } from '../../../services/dispatchService';
+import { describeRetryRefusal, retryDriverSearch } from '../../../services/dispatchService';
 import { useArrivalWait } from '../hooks/useArrivalWait';
 import { usePassengerLocation } from '../hooks/usePassengerLocation';
 import { useDispatchStatus } from '../../ride-booking/hooks/useDispatchStatus';
@@ -221,12 +221,8 @@ export const TripMonitoring: React.FC = () => {
     try {
       // A new search round that starts again from the nearest drivers (the same retry the booking screen uses)
       const restarted = await retryDriverSearch(activeBookingId);
-      if (!restarted) {
-        setToastMessage(
-          language === 'tl'
-            ? 'Hindi masimulan muli ang paghahanap. Pakisubukang muli.'
-            : 'We could not restart the search. Please try again.'
-        );
+      if (!restarted.ok) {
+        setToastMessage(describeRetryRefusal(restarted.errorCode, language));
         return;
       }
       setBooking((prev) => prev ? { ...prev, booking_status: 'Searching Driver' as any } : prev);
@@ -1341,6 +1337,10 @@ export const TripMonitoring: React.FC = () => {
                   variant="outlined"
                   fullWidth
                   onClick={() => {
+                    // Rule 7.4, cancel without penalty: close the booking in the database too (it never strikes or flags the passenger), only while
+                    // it is STILL No Driver Found (this screen may be out of date), and leave at once; if the close cannot be saved the booking
+                    // simply stays No Driver Found, which is not open either.
+                    if (activeBookingId) void cancelBooking(activeBookingId, 'No driver found', 'No Driver Found');
                     sessionStorage.removeItem('current_active_booking_id');
                     navigate('/dashboard');
                   }}

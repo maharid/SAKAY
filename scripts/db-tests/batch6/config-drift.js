@@ -53,7 +53,21 @@ const PAIRS = {
   trip_progress_cap_pct: ['TRIP_PROGRESS_CAP_PERCENT', 1],
   trip_progress_floor_pct: ['TRIP_PROGRESS_FLOOR_PERCENT', 1],
 };
-const DB_ONLY = ['sweep_batch_limit'];            // how many searches one sweep advances: an implementation detail, not a policy number
+// Phase B (2026-10-11): the Retry freshness (D-4), the Coverage Gap (PI-11, D-3), the decline history (Rule 7.9) and the routing-engine request (D-1, F6.10)
+Object.assign(PAIRS, {
+  retry_max_age_minutes: ['DISPATCH_RETRY_MAX_AGE_MINUTES', 1],
+  coverage_gap_count: ['COVERAGE_GAP_COUNT', 1],
+  coverage_gap_window_hours: ['COVERAGE_GAP_WINDOW_HOURS', 1],
+  decline_history_days: ['DISPATCH_DECLINE_HISTORY_DAYS', 1],
+  osrm_timeout_ms: ['OSRM_TIMEOUT_MS', 1],
+  osrm_cache_seconds: ['OSRM_CACHE_SECONDS', 1],
+  osrm_failure_limit: ['OSRM_FAILURE_LIMIT', 1],
+  osrm_breaker_seconds: ['OSRM_BREAKER_SECONDS', 1],
+  osrm_max_candidates: ['OSRM_MAX_CANDIDATES', 1],
+});
+// sweep_batch_limit: how many searches one sweep advances; osrm_calls_per_transaction: a safety budget; cron_log_retention_days: housekeeping.
+// Implementation details, not policy numbers.
+const DB_ONLY = ['sweep_batch_limit', 'osrm_calls_per_transaction', 'cron_log_retention_days'];
 
 (async () => {
   const s = await setup();
@@ -81,6 +95,33 @@ const DB_ONLY = ['sweep_batch_limit'];            // how many searches one sweep
       check(`one second earlier it is still ${steps[i - 1].km} km`, before === steps[i - 1].km * 1000, before);
     }
   }
+
+  // The defaults of the two editable settings are ONE function in the database (dispatch_setting_default) and equal the app's constants.
+  check('the default of the offer window is 15 s in the database and in the app config',
+    (await one(`SELECT public.dispatch_setting_default('offer_window_seconds') v`)).v === tsNumber('DRIVER_OFFER_TIMEOUT_SECONDS'));
+  check('the default of the Tier 3 maximum is 600 s (10 minutes, Appendix B / Section 30 criterion 8) in the database and in the app config',
+    (await one(`SELECT public.dispatch_setting_default('tier3_max_seconds') v`)).v === 600 && tsNumber('DISPATCH_TIER3_MAX_SECONDS') === 600);
+  check('an unknown setting has no default', (await one(`SELECT public.dispatch_setting_default('nope') v`)).v === null);
+
+  // The routing servers: the database's two (_osrm_base_url) are the app config's two (OSRM_BASE_URLS), in the same order, and no other source file
+  // writes a routing server's address (the road distance of the apps and the database's ETA use the same list).
+  const tsServers = tsList('OSRM_BASE_URLS');
+  const dbServers = (await q(`SELECT n, public._osrm_base_url(n) u FROM generate_series(1, ${tsServers.length + 1}) n ORDER BY n`)).map((r) => r.u);
+  check(`the ${tsServers.length} routing servers are the same, in the same order, in the database and in the app config`,
+    tsServers.length === 2 && JSON.stringify(dbServers) === JSON.stringify([...tsServers, null]), { tsServers, dbServers });
+  const sourceFiles = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name === 'dist') continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(ts|tsx)$/.test(entry.name)) sourceFiles.push(full);
+    }
+  };
+  const root = path.join(__dirname, '..', '..', '..');
+  for (const dir of ['apps', 'packages', 'server/src']) walk(path.join(root, dir));
+  const hardCoded = sourceFiles.filter((f) => /router\.project-osrm\.org|routing\.openstreetmap\.de/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(root, f).replace(/\\/g, '/'));
+  check('only the app config names a routing server (the duplicate getOSRMRoute of the passenger app is gone)', JSON.stringify(hardCoded) === JSON.stringify(['packages/shared/src/config/policyConfig.ts']), hardCoded);
 
   // The reason lists: the screens' choices must be what the database accepts, nothing more and nothing less.
   const declineReasons = tsList('DISPATCH_DECLINE_REASONS');
