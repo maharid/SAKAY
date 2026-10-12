@@ -99,6 +99,26 @@ const { setup, ID, DRIVERS, attempt, check, summary, PICKUP } = require('../b6fi
   check('equal ETA: D2 (400 m by road) before D1 (900 m by road)', o.length === 1 && o[0].driver_id === ID.D2 && o[0].eta_source === 'osrm', o);
   await reset(b);
 
+  console.log('   the shortest ETA wins over the shortest road distance when they disagree (criterion 1 before criterion 2)');
+  await s.online('D1', 300); await s.online('D2', 500);
+  await mode('ok', osrmBody([60, 90], [900, 400]));
+  b = await s.bookAs('P1');
+  o = await s.offers(b.booking_id);
+  check('D1 (60 s, 900 m by road) is offered before D2 (90 s, 400 m by road): the ETA decides, the distance only breaks a tie',
+    o.length === 1 && o[0].driver_id === ID.D1 && o[0].eta_seconds === 60 && o[0].eta_source === 'osrm', o);
+  await reset(b);
+
+  console.log('   everything equal: the lowest driver id wins, even though the other driver is nearer by straight line (criterion 4b)');
+  await s.online('D1', 500); await s.online('D2', 300);
+  await internal(`UPDATE driver_online_session SET started_at = now() - interval '1 hour' WHERE driver_id IN ('${ID.D1}', '${ID.D2}') AND ended_at IS NULL;
+                  UPDATE driver_toda_affiliation SET lgu_verified_at = '2026-01-01T00:00:00Z' WHERE affiliation_id IN ('${s.AFF.D1_T1}', '${s.AFF.D2_T1}')`);
+  await mode('ok', osrmBody([100, 100], [500, 500]));
+  b = await s.bookAs('P1');
+  o = await s.offers(b.booking_id);
+  check('D1 (lower id, 500 m by straight line) is offered before D2 (300 m): equal ETA, road distance, available time and approval',
+    o.length === 1 && ID.D1 < ID.D2 && o[0].driver_id === ID.D1 && o[0].eta_seconds === 100 && o[0].eta_source === 'osrm', o);
+  await reset(b);
+
   console.log('   one driver the engine cannot route: the whole ranking uses the estimate (two scales are never mixed)');
   await s.online('D1', 300); await s.online('D2', 500);
   await mode('ok', JSON.stringify({ code: 'Ok', durations: [[120], [null]], distances: [[500], [null]] }));
