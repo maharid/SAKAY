@@ -30,7 +30,11 @@ const { AFF } = require('../b4fixtures');
   check('rls_booking_is_mine: true for the owner, false for another passenger and for a driver',
     (await h(ID.P_AUTH, 'rls_booking_is_mine', B1.booking_id)) === true && (await h(ID.P2_AUTH, 'rls_booking_is_mine', B1.booking_id)) === false
     && (await h(ID.D_AUTH, 'rls_booking_is_mine', B1.booking_id)) === false);
-  await offer(B1.booking_id, ID.D1);
+  // The database offered B1 to D1 by itself when the booking was made (D1 is the nearest). A second unanswered offer for the same booking cannot
+  // exist (20261019000001: one Pending offer per booking), so an offer is added by hand only if the engine made none.
+  if ((await q(`SELECT 1 FROM dispatch_attempt WHERE booking_id = '${B1.booking_id}' AND driver_id = '${ID.D1}' AND response_status = 'Pending'`)).length === 0) {
+    await offer(B1.booking_id, ID.D1);
+  }
   check('rls_driver_has_pending_offer: only the driver who was offered it', (await h(ID.D_AUTH, 'rls_driver_has_pending_offer', B1.booking_id)) === true
     && (await h(ID.D2_AUTH, 'rls_driver_has_pending_offer', B1.booking_id)) === false);
   check('the helpers of the old offer model (rls_booking_open_and_mine, rls_driver_can_claim_booking) are gone: the apps no longer write offers or claim a booking',

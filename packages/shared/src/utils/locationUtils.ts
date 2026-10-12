@@ -1,3 +1,5 @@
+import { OSRM_BASE_URLS } from '../config/policyConfig';
+
 /**
  * Calculates planar coordinate distance in kilometers (standard equirectangular projection)
  */
@@ -49,10 +51,10 @@ export const getOSRMRoute = async (
   dropoffLat: number,
   dropoffLng: number
 ): Promise<RouteResult> => {
-  const endpoints = [
-    `https://router.project-osrm.org/route/v1/driving/${pickupLng},${pickupLat};${dropoffLng},${dropoffLat}?overview=full&geometries=geojson`,
-    `https://routing.openstreetmap.de/routed-car/route/v1/driving/${pickupLng},${pickupLat};${dropoffLng},${dropoffLat}?overview=full&geometries=geojson`,
-  ];
+  // The same two servers, in the same order, as the database's own ETA request (policyConfig OSRM_BASE_URLS, mirrored in _osrm_base_url()).
+  const endpoints = OSRM_BASE_URLS.map(
+    (base) => `${base}/route/v1/driving/${pickupLng},${pickupLat};${dropoffLng},${dropoffLat}?overview=full&geometries=geojson`
+  );
 
   for (const url of endpoints) {
     try {

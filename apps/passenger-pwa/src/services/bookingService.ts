@@ -274,21 +274,23 @@ export const getBooking = (bookingId: string): BookingRecord | null => {
 };
 
 /**
- * Cancels a booking
+ * Cancels a booking. `onlyIfStatus` makes the cancel conditional: the database changes the row only while the booking is STILL in that
+ * status (one UPDATE with a WHERE, so there is no read-then-write). A screen that is out of date (a second tab, a booking that has been
+ * retried or accepted since) can therefore never cancel a booking that moved on.
  */
-export const cancelBooking = async (bookingId: string, reason?: string): Promise<boolean> => {
+export const cancelBooking = async (bookingId: string, reason?: string, onlyIfStatus?: string): Promise<boolean> => {
   // The database is the truth, and it is written FIRST and whether or not this tab has the booking in its own store (a reload, or
   // another tab, does not). Only when the booking really is cancelled does this return true.
   try {
-    const { data, error } = await supabase
+    const cancelQuery = supabase
       .from('booking')
       .update({
         booking_status: 'Cancelled',
         cancellation_reason: reason || 'Cancelled by user',
         cancelled_by: 'passenger',
       })
-      .eq('booking_id', bookingId)
-      .select('booking_id');
+      .eq('booking_id', bookingId);
+    const { data, error } = await (onlyIfStatus ? cancelQuery.eq('booking_status', onlyIfStatus) : cancelQuery).select('booking_id');
     if (error || !data || data.length === 0) {
       console.warn('[bookingService] cancelBooking was not saved:', error?.message);
       return false;

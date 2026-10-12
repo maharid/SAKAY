@@ -100,17 +100,13 @@ export const DriverMobileAppShell: React.FC = () => {
     '/profile',
   ].includes(currentPath);
 
-  // Routes where we should enable the DriverSessionProvider (authenticated routes)
-  const isDriverPortal = [
-    '/driver/home',
-    '/driver/earnings',
-    '/driver/notifications',
-    '/driver/history',
-    '/driver/profile',
-    '/driver/settings',
-    '/driver/navigation',
-    '/driver/active-trip'
-  ].includes(currentPath);
+  // The offer screen and the presence notices (the Rule 7.6 reminder, why the system set the driver Offline) belong to the signed-in DRIVER, not to a list
+  // of routes: an offer can reach a driver who is Online on ANY screen (trip details, change password, terms...). With a list, a route that was missing
+  // left the offer invisible while its alert still rang, and the unanswered offer counted toward Rules 7.6 / 7.7. Nothing shows without a signed-in
+  // driver, and nothing shows unless the database holds an offer or a notice for them. Re-read on every render, so signing in or out (which navigates)
+  // is picked up immediately.
+  const signedInDriverId = localStorage.getItem('sakay_driver_id');
+  const isDriverPortal = Boolean(signedInDriverId);
 
   // The red dot means there IS something unread: a notice the database holds for this driver that this phone has not opened yet. With
   // nothing to read there is no dot (it used to be on until two sample notices had been opened).
@@ -304,9 +300,6 @@ export const DriverMobileAppShell: React.FC = () => {
 
   // The provider stays mounted for as long as a driver is signed in, on every screen. Mounting it only on
   // some routes reset the Online state and restarted GPS each time the driver opened another page.
-  // Re-read on every render, so signing in or out (which navigates) is picked up immediately.
-  const signedInDriverId = localStorage.getItem('sakay_driver_id');
-
   return (
     <DriverSessionProvider driverId={signedInDriverId} onSessionSuperseded={invalidateLocalSession}>
       {content}

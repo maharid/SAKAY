@@ -51,7 +51,7 @@ import { useDispatchStatus } from "../../hooks/useDispatchStatus";
 import { useServiceArea } from "../../hooks/useServiceArea";
 import { isOutsideServiceArea, outsideServiceAreaMessage } from "../../../../services/serviceAreaService";
 import { supabase } from "../../../../services/supabaseClient";
-import { retryDriverSearch } from "../../../../services/dispatchService";
+import { describeRetryRefusal, retryDriverSearch } from "../../../../services/dispatchService";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import {
   DEFAULT_CALAPAN_CENTER,
@@ -555,24 +555,25 @@ const NewTrip: React.FC = () => {
     if (!activeBooking?.booking_id) return;
     setSearchError("");
     const restarted = await retryDriverSearch(activeBooking.booking_id);
-    if (restarted) {
+    if (restarted.ok) {
       await refreshSearch();
     } else {
-      setSearchError(
-        language === "tl"
-          ? "Hindi masimulan muli ang paghahanap. Pakisubukang muli."
-          : "We could not restart the search. Please try again."
-      );
+      setSearchError(describeRetryRefusal(restarted.errorCode, language));
     }
   };
 
   const handleRetrySearch = () => retryFlight.run(restartDriverSearch);
 
-  // No Driver Found -> Cancel: the booking is not open any more and stays No Driver Found (no charge, no penalty), so this only leaves the screen
+  // No Driver Found -> Cancel (Rule 7.4, without penalty): the screen is left at once and the booking is closed in the database too. The database
+  // never strikes or flags a passenger for it, and the close happens only while the booking is STILL No Driver Found (this screen may be out of
+  // date: it must never cancel a booking that was retried or accepted since). If the close cannot be saved the booking simply stays No Driver
+  // Found, which is not open either, so leaving is never held up.
   const handleLeaveNoDriverFound = () => {
+    const bookingId = activeBooking?.booking_id;
     setIsSearching(false);
     setActiveBooking(null);
     setSearchError("");
+    if (bookingId) void cancelBooking(bookingId, "No driver found", "No Driver Found");
   };
 
   const handleCancelBooking = () => {

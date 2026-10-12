@@ -117,13 +117,26 @@ export function requestResumeBookings(): Promise<PresenceResult> {
   return call('driver_resume_bookings');
 }
 
+/**
+ * A heartbeat nobody answers within this long counts as failed. The presence engine sends one at a time, so a single request that hangs would
+ * otherwise stop every later beat, and the driver would stay "Online" on the screen while the server heard nothing.
+ */
+const HEARTBEAT_TIMEOUT_MS = 10_000;
+
 /** The one location publisher. A missing fix still proves the app is alive. */
 export function sendHeartbeat(fix: PositionFix | null): Promise<PresenceResult> {
-  return call('driver_heartbeat', {
+  const request = call('driver_heartbeat', {
     p_latitude: fix ? fix.latitude : null,
     p_longitude: fix ? fix.longitude : null,
     p_accuracy_m: fix ? fix.accuracy : null,
     p_session_token: loginSessionToken(),
+  });
+  return new Promise<PresenceResult>((resolve) => {
+    const timer = setTimeout(() => resolve({ success: false, error_code: 'ERR_TIMEOUT', error: 'The server did not answer in time.' }), HEARTBEAT_TIMEOUT_MS);
+    request.then((result) => {
+      clearTimeout(timer);
+      resolve(result);
+    });
   });
 }
 

@@ -51,7 +51,7 @@ const { setup, ID, check, summary } = require('../b6fixtures');
 
   // ------------------------------------------------------------------------------------------------------------------------------
   console.log('\nR4: when the search ends there is no radius');
-  await s.rewind(b.booking_id, 120);
+  await s.rewind(b.booking_id, 330);                 // 4:35 + 5:30 = 10:05 into the live search: past the 10-minute maximum
   await s.sweep();
   st = await s.statusOf('P1', b.booking_id);
   check('past the maximum time the booking is No Driver Found and no radius is reported', st.booking_status === 'No Driver Found' && st.phase === 'ended' && st.radius_m === null, st);

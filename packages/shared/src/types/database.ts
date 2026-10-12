@@ -206,9 +206,24 @@ export interface DispatchAttempt {
   driver_id: string;
   dispatch_method: string;
   driver_rank?: number;
-  response_status: 'Pending' | 'Accepted' | 'Declined' | 'Timed Out';
+  /** The words the database accepts (a CHECK since 20261019000001): an ignored or withdrawn offer is 'Expired' ('Timed Out' was never written by the engine) */
+  response_status: 'Pending' | 'Accepted' | 'Declined' | 'Expired';
   notification_sent_at: string;
   responded_at?: string;
+  /** The search cycle and the tier the offer was made in: 1 Priority TODA / 600 m, 2 any accredited TODA / 2 km, 3 live search */
+  cycle?: number;
+  tier?: 1 | 2 | 3;
+  expires_at?: string;
+  /** What the offer was ranked by; eta_source says whether it is the routing engine's figure or the labelled straight-line estimate */
+  eta_seconds?: number;
+  eta_source?: 'osrm' | 'straight_line_estimate';
+  distance_m?: number;
+  decline_reason?: 'vehicle_issue' | 'personal_emergency' | 'safety_concern' | 'end_of_shift' | 'other';
+  /** The driver's last published fix when the offer was ranked (the inputs of the ranking, for an explanation afterwards) */
+  driver_lat?: number;
+  driver_lng?: number;
+  gps_accuracy_m?: number;
+  gps_age_seconds?: number;
 }
 
 export interface SharedTripMatch {

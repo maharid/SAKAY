@@ -27,7 +27,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
-import { DriverForegroundReminder } from '../../../common/components/DriverPresenceNotices';
+import { DriverForegroundReminder, DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
 import PauseBookingsControl from './PauseBookingsControl';
 import { supabase } from '../../../services/supabaseClient';
 import { checkDriverDocumentaryRestriction, fetchAccreditedTodas, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
@@ -52,7 +52,7 @@ export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile, liveFix, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, sessionMissing } = useDriverSession();
+  const { profile, setProfile, liveFix, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, locationIssue, sessionMissing } = useDriverSession();
 
   // The map: what covers it (the driver card along the top, the bottom sheet and the recenter button above it), the direction the phone reports
   // for the current position, and whether that position is still refreshing
@@ -839,6 +839,9 @@ export const DriverAvailabilityHome: React.FC = () => {
 
         {/* Rule 17.6: persistent reminder while Online */}
         {isOnline && <DriverForegroundReminder />}
+
+        {/* Online but the server is not accepting this phone's position: dispatch cannot see the driver (F4.6 / F4.7), so say so */}
+        {isOnline && <DriverLocationNotice issue={locationIssue} />}
 
         {/* Only the real blocker is shown: suspension and documents have their own banners above */}
         {!isOnline && isDriverVerifiedInDb && !accountRestriction?.restricted && !documentsBlock && affiliations.length > 0 && selectableAffiliations.length === 0 && (

@@ -1,11 +1,13 @@
 import React from 'react';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import ScreenLockPortraitIcon from '@mui/icons-material/ScreenLockPortrait';
-import { DRIVER_AUTO_OFFLINE_AFTER_UNANSWERED } from '@sakay/shared';
+import LocationDisabledIcon from '@mui/icons-material/LocationDisabled';
+import { DRIVER_AUTO_OFFLINE_AFTER_UNANSWERED, LOCATION_MAX_ACCURACY_METERS } from '@sakay/shared';
 
 import { useLanguage } from '../../utils/LanguageContext';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
 import type { PresenceEndReason } from '../../services/driverPresenceService';
+import type { LocationIssue } from '../../utils/locationIssue';
 
 /** Persistent reminder while Online (Rule 17.6). Shown on the Home screen. */
 export const DriverForegroundReminder: React.FC = () => {
@@ -22,6 +24,40 @@ export const DriverForegroundReminder: React.FC = () => {
           ? 'Panatilihing bukas ang SAKAY at naka-on ang screen habang Online.'
           : 'Keep SAKAY open and the screen on while Online.'}
       </Typography>
+    </Alert>
+  );
+};
+
+/**
+ * Shown on the Home screen while Online when the server is NOT getting a usable position from this phone: it refuses one worse than 100 m (or
+ * none), or the heartbeat is not answered at all. Dispatch only sees a driver with a fresh, accurate position, so the driver would be Online
+ * yet invisible, with no offers and no explanation.
+ */
+export const DriverLocationNotice: React.FC<{ issue: LocationIssue | null }> = ({ issue }) => {
+  const { language } = useLanguage();
+  if (!issue) return null;
+  const tl = language === 'tl';
+  const accuracy = issue.accuracyM !== null ? ` (±${issue.accuracyM} m, ${tl ? 'dapat hindi lalampas sa' : 'it must be within'} ${LOCATION_MAX_ACCURACY_METERS} m)` : '';
+  const detail = issue.detail ? ` (${issue.detail})` : '';
+  const text = issue.reason === 'no_connection'
+    ? (tl
+        ? `Hindi maipadala ng SAKAY ang lokasyon mo sa server${detail}. Hindi ka makikita ng sistema kaya hindi ka makakatanggap ng booking. Suriin ang internet o i-reload ang page.`
+        : `SAKAY cannot send your position to the server${detail}. The system cannot see you, so you will not receive bookings. Check your internet connection or reload the page.`)
+    : issue.reason === 'low_accuracy'
+    ? (tl
+        ? `Hindi sapat ang linaw ng lokasyon ng device mo${accuracy}. Hindi ka makikita ng sistema kaya hindi ka makakatanggap ng booking. Humanap ng mas malinaw na GPS signal.`
+        : `Your location is not accurate enough${accuracy}. The system cannot see you, so you will not receive bookings. Move to a place with a clearer GPS signal.`)
+    : (tl
+        ? 'Walang kasalukuyang lokasyon mula sa device mo. Hindi ka makikita ng sistema kaya hindi ka makakatanggap ng booking. I-on ang Location at hintaying makakuha ng signal.'
+        : 'No current location is coming from your device. The system cannot see you, so you will not receive bookings. Turn Location on and wait for a signal.');
+  return (
+    <Alert
+      severity="warning"
+      role="alert"
+      icon={<LocationDisabledIcon fontSize="small" />}
+      sx={{ borderRadius: '12px', fontSize: '12px', alignItems: 'center', py: 0.25 }}
+    >
+      <Typography sx={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.35 }}>{text}</Typography>
     </Alert>
   );
 };

@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { supabase } from '../services/supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
 import { DRIVER_OFFER_TIMEOUT_SECONDS, getCachedDevicePosition, type DispatchDeclineReason, type LocationCoords } from '@sakay/shared';
 import type { DriverProfile } from '../mockData/driverMockData';
 import { useDriverPresenceEngine } from '../hooks/useDriverPresenceEngine';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { closeOfferAlert, installOfferAlertUnlock, playOfferAlert, startOfferTitleFlash, unlockOfferAlert } from '../utils/offerAlert';
 import type { PresenceOutcome, PresenceView } from '../hooks/useDriverPresenceEngine';
 import type { PresenceEndReason } from '../services/driverPresenceService';
+import type { LocationIssue } from '../utils/locationIssue';
 
 /** Fallback poll for new offers when the realtime channel misses an event (it also keeps the searches moving, see get_my_pending_offer). */
 const OFFER_POLL_INTERVAL_MS = 3000;
@@ -76,6 +79,8 @@ interface DriverSessionContextType {
   enableLocation: () => void;
   /** Location was revoked: show the re-authorization prompt before going Online again (Rule 17.7). */
   locationReauthRequired: boolean;
+  /** The server is not getting a usable position from this phone (too inaccurate, none, or the heartbeat is not answered), so dispatch cannot see the driver although the screen says Online. null = fine. */
+  locationIssue: LocationIssue | null;
   /** No Supabase login session (e.g. the demo login): the database refuses Online until the driver signs in properly. */
   sessionMissing: boolean;
   /** Why the system ended the Online session (shown once). */
@@ -184,28 +189,29 @@ export const DriverSessionProvider: React.FC<{
     setProfile((prev) => ({ ...prev, currentLat: fix.latitude, currentLng: fix.longitude }));
   }, [fix]);
 
+  // The alert for a new offer (Rule 7.3): one shared, unlocked audio context and a vibration (utils/offerAlert.ts).
   const playIncomingAlert = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
-      }
-      if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-      }
-    } catch {}
+    playOfferAlert();
   };
+
+  // The browser lets a page make sound only after a touch: unlock it on the first touch anywhere and give the context back when the driver signs out.
+  useEffect(() => {
+    const removeUnlock = installOfferAlertUnlock();
+    return () => {
+      removeUnlock();
+      closeOfferAlert();
+    };
+  }, []);
+
+  // While Online the phone is asked to keep the screen on, so an offer can reach the driver (a locked screen suspends the page).
+  useScreenWakeLock(isOnline);
+
+  // The Go Online tap is a touch: it unlocks the audio before anything else happens.
+  const engineGoOnline = engine.goOnline;
+  const goOnline = useCallback(() => {
+    unlockOfferAlert();
+    return engineGoOnline();
+  }, [engineGoOnline]);
 
   // ── Offers ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   // The DATABASE makes the offers, times them out and moves on to the next driver. This screen only shows the one offer this driver holds
@@ -254,12 +260,16 @@ export const DriverSessionProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingRequest, countdown]);
 
-  // Audible alert on a new offer (Rule 7.3), repeated while it is open, with vibration where the phone has it.
+  // Audible alert on a new offer (Rule 7.3), repeated while it is open, with vibration where the phone has it, and the page title flashing.
   useEffect(() => {
     if (!currentAttemptId) return;
     playIncomingAlert();
     const repeat = setInterval(playIncomingAlert, OFFER_ALERT_REPEAT_MS);
-    return () => clearInterval(repeat);
+    const stopTitleFlash = startOfferTitleFlash('Bagong booking! (New booking!)');
+    return () => {
+      clearInterval(repeat);
+      stopTitleFlash();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentAttemptId]);
 
@@ -358,13 +368,14 @@ export const DriverSessionProvider: React.FC<{
         handleDeclineRequest,
         playIncomingAlert,
         presence,
-        goOnline: engine.goOnline,
+        goOnline,
         goOffline: engine.goOffline,
         pauseBookings: engine.pauseBookings,
         resumeBookings: engine.resumeBookings,
         refreshPresence: engine.refresh,
         enableLocation: engine.enableLocation,
         locationReauthRequired: engine.locationReauthRequired,
+        locationIssue: engine.locationIssue,
         sessionMissing: engine.sessionMissing,
         offlineNotice: engine.offlineNotice,
         dismissOfflineNotice: engine.dismissOfflineNotice,

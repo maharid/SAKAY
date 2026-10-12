@@ -162,7 +162,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   console.log('\nS17 no driver found, then Retry');
   await s.goOffline(D1.uid); await s.goOffline(D2.uid);
   const c4 = await s.bookAs('P1');
-  await s.rewind(c4.booking_id, 301);
+  await s.rewind(c4.booking_id, 601);                // the live search runs 10 minutes (Appendix B)
   await s.sweep();
   const c4b = await s.booking(c4.booking_id);
   check('nobody accepted within the maximum search time: the database ends it with No Driver Found (no app involved)', c4b.booking_status === 'No Driver Found' && c4b.dispatch_ended_reason === 'no_driver_found', c4b);
