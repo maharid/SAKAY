@@ -122,6 +122,7 @@ const { setup, check, summary } = require('../b5fixtures');
   let r = await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`UPDATE public.booking SET estimated_fare = estimated_fare, pickup_latitude = pickup_latitude WHERE booking_id = $1`, [B.booking_id])));
   check('writing the same values back is not a change and is allowed', r.ok, err(r));
   await setStatus(ID.D_AUTH, B.booking_id, 'Driver Arrived');      // the driver arrives first (the database refuses a trip that starts before that)
+  await attempt(() => as(ID.D_AUTH, (tx) => tx.query(`SELECT public.driver_confirm_passenger($1)`, [B.booking_id])));   // ... and checks the passenger's first name (Rule 11.1, Batch 8)
   r = await attempt(() => as(ID.D_AUTH, (tx) => tx.query(`UPDATE public.booking SET booking_status = 'Trip Ongoing', trip_started_at = now() WHERE booking_id = $1 RETURNING booking_status`, [B.booking_id])));
   check('what the apps legitimately write (status, trip_started_at) still works', r.ok && r.value.rows[0].booking_status === 'Trip Ongoing', err(r));
   r = await attempt(() => svc((tx) => tx.query(`UPDATE public.booking SET pickup_address = 'Corrected by an administrator tool' WHERE booking_id = $1 RETURNING pickup_address`, [B.booking_id])));

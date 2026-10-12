@@ -49,6 +49,8 @@ const PAIRS = {
   no_show_extension_seconds: ['NO_SHOW_EXTENSION_SECONDS', 1],
   no_show_radius_m: ['PICKUP_ZONE_RADIUS_METERS', 1],
   zone_max_accuracy_m: ['PICKUP_ZONE_MAX_ACCURACY_METERS', 1],
+  arrival_zone_tolerance_m: ['PICKUP_ZONE_TOLERANCE_METERS', 1],
+  arrival_zone_tolerance_seconds: ['PICKUP_ZONE_TOLERANCE_SECONDS', 1],
   trip_finish_min_progress_pct: ['TRIP_FINISH_MIN_PROGRESS_PERCENT', 1],
   trip_progress_near_destination_m: ['TRIP_PROGRESS_NEAR_DESTINATION_METERS', 1],
   trip_progress_cap_pct: ['TRIP_PROGRESS_CAP_PERCENT', 1],

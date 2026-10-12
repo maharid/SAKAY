@@ -47,6 +47,7 @@ import PassengerNavigationDrawer from "../Dashboard/PassengerNavigationDrawer";
 import TulongDialog from "../Dashboard/TulongDialog";
 import NotificationsDialog from "../Dashboard/NotificationsDialog";
 import DriverSearchPanel, { type DriverSearchOutcome } from "../DriverSearch/DriverSearchPanel";
+import ChangePickupDialog from "../DriverSearch/ChangePickupDialog";
 import { useDispatchStatus } from "../../hooks/useDispatchStatus";
 import { useServiceArea } from "../../hooks/useServiceArea";
 import { isOutsideServiceArea, outsideServiceAreaMessage } from "../../../../services/serviceAreaService";
@@ -89,6 +90,8 @@ const NewTrip: React.FC = () => {
   const [validationError, setValidationError] = useState<string>("");
   const [cancelModalOpen, setCancelModalOpen] = useState<boolean>(false);
   const [cancelling, setCancelling] = useState<boolean>(false);
+  // Rule 29.9: the pickup can be changed while the search is running
+  const [changePickupOpen, setChangePickupOpen] = useState<boolean>(false);
 
   // Dialog States for Controls
   const [notesDialogOpen, setNotesDialogOpen] = useState<boolean>(false);
@@ -723,6 +726,7 @@ const NewTrip: React.FC = () => {
               })}
               onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
               onRetry={handleRetrySearch}
+              onChangePickup={searchOutcome === "searching" && activeBooking ? () => setChangePickupOpen(true) : undefined}
             />
           </Box>
         ) : (
@@ -1413,7 +1417,30 @@ const NewTrip: React.FC = () => {
         onConfirmCancel={handleConfirmCancelBooking}
         language={language}
         loading={cancelling}
+        phase="searching"
       />
+
+      {/* Rule 29.9: change the pickup before a driver accepts (the database re-quotes the fare and starts the search over) */}
+      {activeBooking && (
+        <ChangePickupDialog
+          open={changePickupOpen}
+          language={language}
+          bookingId={activeBooking.booking_id}
+          passengers={passengers}
+          tripType={tripType}
+          dropoff={{ lat: dropoff.lat, lng: dropoff.lng }}
+          currentFare={estimatedFare}
+          serviceArea={serviceArea}
+          onClose={() => setChangePickupOpen(false)}
+          onChanged={(place) => {
+            const updated = { address: place.address, lat: place.lat, lng: place.lng, isCustom: true };
+            setPickup(updated);
+            sessionStorage.setItem("trip_pickup", JSON.stringify(updated));
+            setRecenterTrigger((prev) => prev + 1);
+            void refreshSearch();
+          }}
+        />
+      )}
     </Box>
   );
 };

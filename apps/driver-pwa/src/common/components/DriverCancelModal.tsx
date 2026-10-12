@@ -260,8 +260,8 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
               {effectiveLanguage === "tl" ? "PAALALA:" : "REMINDER:"}
             </Box>{" "}
             {effectiveLanguage === "tl"
-              ? "Ang pag-cancel pagkatapos tumanggap ay may strike: 1 kung wala ka pang 50 m na naibiyahe papunta sa pasahero, 2 kung mayroon na. Ibabalik ang booking sa paghahanap ng ibang drayber."
-              : "Cancelling after you accepted adds a strike: 1 if you have not yet travelled 50 m toward the passenger, 2 if you have. The booking goes back to the search for another driver."}
+              ? "Ang pag-cancel pagkatapos tumanggap ay may strike: 1 kung wala ka pang 50 m na naibiyahe papunta sa pasahero, 2 kung mayroon na. Ibabalik ang booking sa paghahanap ng ibang drayber. Nasa pickup ka na at wala pa ang pasahero? Huwag magkansela: hintayin ang oras, saka pindutin ang \"Hindi sumakay ang pasahero\". Kung nasira ang sasakyan mo, piliin ang \"Nasiraan ng sasakyan\": pansamantala ang strike at maaari itong alisin ng TODA Administrator sa loob ng 48 oras."
+              : "Cancelling after you accepted adds a strike: 1 if you have not yet travelled 50 m toward the passenger, 2 if you have. The booking goes back to the search for another driver. Already at the pickup and the passenger has not come? Do not cancel: wait for the timer, then tap \"Passenger did not board\". If your vehicle broke down, choose \"Vehicle breakdown\": that strike is provisional and your TODA Administrator may waive it within 48 hours."}
           </Typography>
         </Box>
 

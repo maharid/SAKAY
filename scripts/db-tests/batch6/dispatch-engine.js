@@ -157,7 +157,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.online('D1', 300);
   b = await s.bookAs('P1');
   let mine = await s.myOffer('D1');
-  check('get_my_pending_offer returns the offer with what the screen needs', !!mine && mine.booking_id === b.booking_id && mine.passenger_name === 'Pax One'
+  check('get_my_pending_offer returns the offer with what the screen needs', !!mine && mine.booking_id === b.booking_id && mine.passenger_first_name === 'Pax' && mine.passenger_name === undefined
     && Number(mine.estimated_fare) > 0 && mine.seconds_remaining >= 14 && mine.seconds_remaining <= 15 && mine.eta_seconds === 70, mine);
   await s.rewind(b.booking_id, 8);
   mine = await s.myOffer('D1');

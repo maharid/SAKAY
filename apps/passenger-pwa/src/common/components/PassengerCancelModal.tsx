@@ -7,7 +7,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useLanguage } from "../../utils/LanguageContext";
-import { activateWithKeyboard } from "@sakay/shared";
+import { PASSENGER_CANCEL_GRACE_SECONDS, activateWithKeyboard } from "@sakay/shared";
 
 export interface PassengerCancelModalProps {
   open: boolean;
@@ -15,6 +15,8 @@ export interface PassengerCancelModalProps {
   onConfirmCancel: (reasonText: string) => void | Promise<void>;
   language?: "tl" | "en";
   loading?: boolean;
+  /** Where the booking is, so the reminder tells the truth about the strike (Rules 12.1 / 12.2): still searching, driver accepted (on the way), driver arrived */
+  phase?: "searching" | "accepted" | "arrived";
 }
 
 interface CancelOption {
@@ -52,6 +54,25 @@ const CANCEL_OPTIONS: CancelOption[] = [
 ];
 
 /**
+ * What cancelling costs, in the words of Rules 12.1 / 12.2: nothing before a driver accepts, nothing within the grace minute after the acceptance while the driver
+ * has not reached the pickup, one strike after that or once the driver has arrived. (The database decides; this only tells the passenger first.)
+ */
+const reminderText = (phase: "searching" | "accepted" | "arrived", language: "tl" | "en"): string => {
+  const minutes = Math.max(1, Math.round(PASSENGER_CANCEL_GRACE_SECONDS / 60));
+  if (phase === "searching") {
+    return language === "tl" ? "Libre ang pagkansela hangga't wala pang drayber na tumatanggap." : "Free to cancel until a driver accepts.";
+  }
+  if (phase === "arrived") {
+    return language === "tl"
+      ? "Nakarating na ang drayber sa pickup. Ang pag-cancel ngayon ay may 1 strike."
+      : "Your driver has arrived at the pickup. Cancelling now adds 1 strike.";
+  }
+  return language === "tl"
+    ? `Libre ang pagkansela sa loob ng ${minutes} minuto matapos tumanggap ang drayber, hangga't hindi pa siya nakararating sa pickup. Pagkatapos nito, o kapag nakarating na siya, 1 strike ang idadagdag.`
+    : `Free to cancel for ${minutes} minute after your driver accepts, as long as they have not reached the pickup. After that, or once they have arrived, cancelling adds 1 strike.`;
+};
+
+/**
  * PassengerCancelModal - Refined aesthetic cancel booking modal for Passenger PWA
  * Features balanced typography sizing, smooth option highlights, and Apple/SAKAY styling.
  */
@@ -61,6 +82,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
   onConfirmCancel,
   language: propLanguage,
   loading = false,
+  phase = "accepted",
 }) => {
   const { language: contextLanguage } = useLanguage();
   const effectiveLanguage = propLanguage || contextLanguage || "tl";
@@ -279,9 +301,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
             <Box component="span" sx={{ fontWeight: 700, color: "#475569" }}>
               {effectiveLanguage === "tl" ? "PAALALA:" : "REMINDER:"}
             </Box>{" "}
-            {effectiveLanguage === "tl"
-              ? "Ang pag-cancel ay maaaring makaapekto sa iyong passenger rating."
-              : "Cancelling your booking increases your cancellation rate."}
+            {reminderText(phase, effectiveLanguage)}
           </Typography>
         </Box>
 

@@ -23,8 +23,7 @@ const KM_PER_DEG_LAT = 110.574;
 (async () => {
   const s = await setup();
   const { q, one, internal, as, rpc, PICKUP } = s;
-  const driverSets = (key, bookingId, status) =>
-    attempt(() => as(DRIVERS[key].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2 WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
+  const driverSets = s.driverSets;
   const paxSets = (pax, bookingId, status) =>
     attempt(() => as(s.PAX[pax].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2 WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
   const bookAndAccept = async (key = 'D1', pax = 'P1') => {

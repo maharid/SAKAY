@@ -3,7 +3,9 @@
 //   node scripts/dispatchFingerprintCheck.js [first migration prefix]        (default 20261015: the first Batch 6 migration; it also covers Batch 7's
 //                                                                              20261021000001, which replaces dispatch_constant, booking_identity_guard, booking_timers_sweep,
 //                                                                              driver_report_delay, booking_status_guard and strike_on_passenger_cancellation, and adds the
-//                                                                              connectivity / reconciliation functions)
+//                                                                              connectivity / reconciliation functions; and Batch 8's 20261023000001, which replaces
+//                                                                              dispatch_constant, the two guards, the sweeps, the arrival / no-show / cancellation functions
+//                                                                              and adds the cancellation decision, the pickup change and the first-name check: 77 functions)
 //
 // How it works: the whole migration chain is built on the local emulator (PGlite, never Supabase), every function that those migrations define or
 // replace is fingerprinted (md5 of its body, line endings ignored), and the fingerprints are written INTO the query. Run on the hosted project, the

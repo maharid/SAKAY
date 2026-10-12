@@ -11,7 +11,10 @@ const DASH = '—';
 const DAMAGED = 'â€”';        // what the dash became on the hosted project
 
 (async () => {
-  const s = await setup();
+  // The repair file is a one-time fix of the hosted project, so it is tested where it belongs: on the chain as it was when the repair was written. Since
+  // Batch 8 (20261023000001) booking_timers_sweep() holds the dash as a Unicode escape, so there is nothing left to damage and the repair is obsolete
+  // (its own self-check would refuse to run on the later function); S6 below proves the later function still writes the real dash.
+  const s = await setup('20261022000001_batch7_repair_notice_title_encoding.sql');
   const { db, q, one, internal } = s;
   const fn = async () => one(`SELECT md5(replace(p.prosrc, E'\\r', '')) AS fp, p.prosrc AS src, p.proacl::text AS acl, p.prosecdef AS secdef, p.proconfig::text AS cfg
                                 FROM pg_proc p WHERE p.proname = 'booking_timers_sweep' AND p.pronamespace = 'public'::regnamespace`);

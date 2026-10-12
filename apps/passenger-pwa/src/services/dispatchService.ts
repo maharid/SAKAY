@@ -90,3 +90,53 @@ export const describeRetryRefusal = (errorCode: string | null, language: string)
   }
   return tl ? 'Hindi masimulan muli ang paghahanap. Pakisubukang muli.' : 'We could not restart the search. Please try again.';
 };
+
+/** What the database answered to a pickup change (Rule 29.9). expectedFare is the fare it quotes for the new pickup when the one that was sent was not it. */
+export interface PickupChangeOutcome {
+  ok: boolean;
+  errorCode: string | null;
+  expectedFare: number | null;
+}
+
+/**
+ * Rule 29.9: the pickup may be changed ONLY while the search is still running and no driver has accepted. The database quotes the fare again from the new
+ * route (the passenger confirms the figure he was shown: a different figure comes back as ERR_FARE_MISMATCH with expected_fare), checks the service area,
+ * withdraws the offers that are out and starts the search over. After acceptance it refuses (ERR_PICKUP_LOCKED): cancel (free, if the driver has not arrived
+ * and the grace minute has not passed) and book again.
+ */
+export const changeBookingPickup = async (
+  bookingId: string,
+  place: { address: string; lat: number; lng: number },
+  distanceKm: number,
+  expectedFare: number
+): Promise<PickupChangeOutcome> => {
+  const { data, error } = await supabase.rpc('passenger_update_pickup', {
+    p_booking_id: bookingId,
+    p_latitude: place.lat,
+    p_longitude: place.lng,
+    p_address: place.address,
+    p_distance_km: distanceKm,
+    p_expected_fare: expectedFare,
+  });
+  const row = data as { success?: boolean; error_code?: string; expected_fare?: number | string } | null;
+  if (!error && row?.success) return { ok: true, errorCode: null, expectedFare: null };
+  const expected = row?.expected_fare !== undefined && row.expected_fare !== null ? Number(row.expected_fare) : null;
+  return { ok: false, errorCode: row?.error_code ?? null, expectedFare: Number.isFinite(expected as number) ? expected : null };
+};
+
+/** What to tell the passenger when a pickup change was refused (Tagalog or English). */
+export const describePickupRefusal = (errorCode: string | null, language: string): string => {
+  const tl = language === 'tl';
+  if (errorCode === 'ERR_PICKUP_LOCKED') {
+    return tl
+      ? 'Hindi na mababago ang pickup dahil may drayber nang tumanggap. Maaari kang magkansela at mag-book muli.'
+      : 'The pickup can no longer be changed because a driver has accepted. You can cancel and book again.';
+  }
+  if (errorCode === 'ERR_OUT_OF_SERVICE_AREA') {
+    return tl ? 'Nasa labas ng Calapan City ang pickup na ito. Pumili ng pickup sa loob ng lungsod.' : 'This pickup is outside Calapan City. Please choose a pickup inside the city.';
+  }
+  if (errorCode === 'ERR_FARE_MISMATCH') {
+    return tl ? 'Nagbago ang pamasahe para sa bagong pickup. Pakisuri ang bagong halaga bago kumpirmahin.' : 'The fare for the new pickup is different. Please review it before confirming.';
+  }
+  return tl ? 'Hindi mabago ang pickup ngayon. Pakisubukang muli.' : 'The pickup could not be changed right now. Please try again.';
+};

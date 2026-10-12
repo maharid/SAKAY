@@ -20,8 +20,9 @@ const PAX = {
   P2: { id: ID.P2, uid: ID.P2_AUTH },
 };
 
-async function setup() {
-  const t = await base.setup();
+// `until`: the last migration to apply (default: the whole chain)
+async function setup(until = null) {
+  const t = await base.setup(until);
   const { db, as, svc, one, q, internal } = t;
 
   // TODA One's terminal is next to the pickup (so it is the Priority TODA); TODA Two's is far away. D3 gets a verified affiliation (TODA Two).
@@ -85,6 +86,12 @@ async function setup() {
     await sweep();
   };
 
+  // The driver moves the booking along exactly as the Driver app does (a plain UPDATE of booking_status). Before an arrival or the start of the trip
+  // he is given what a driver at the pickup has (see prepareDriverStep in b5fixtures.js); `extra` is more SQL for the SET list.
+  const driverSets = async (key, bookingId, status, extra = '') => {
+    await t.prepareDriverStep(DRIVERS[key].uid, bookingId, status);
+    return attempt(() => as(DRIVERS[key].uid, (tx) => tx.query(`UPDATE booking SET booking_status=$2${extra} WHERE booking_id=$1 RETURNING *`, [bookingId, status])));
+  };
   const cancelAs = (uid, bookingId, reason = 'Changed my mind') =>
     as(uid, (tx) => tx.query(`UPDATE booking SET booking_status='Cancelled', cancellation_reason=$2, cancelled_by='passenger' WHERE booking_id=$1 RETURNING *`, [bookingId, reason]));
   // End a booking so the passenger can book again.
@@ -95,7 +102,7 @@ async function setup() {
   const reachDestination = (bookingId) => t.arrivalFix(bookingId);
 
   return { ...t, DRIVERS, PAX, AFF, north, online, moveTo, reachDestination, bookAs, offers, pendingOffer, booking, rpcAs, accept, decline, myOffer, statusOf, retry,
-           driverCancel, sweep, rewind, expireOffer, cancelAs, finish, strikes, ID, attempt, check, summary, asUser, PICKUP };
+           driverCancel, sweep, rewind, expireOffer, driverSets, cancelAs, finish, strikes, ID, attempt, check, summary, asUser, PICKUP };
 }
 
 module.exports = { setup, ID, AFF, DRIVERS, PAX, north, attempt, check, summary, asUser, PICKUP };
