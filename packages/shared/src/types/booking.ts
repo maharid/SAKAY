@@ -36,6 +36,21 @@ export interface BookingRecord {
   fare_breakdown?: FareBreakdown | null;
   /** Set when the final fare was computed and locked */
   fare_locked_at?: string | null;
+  /** Rules 18.3 / 18.4 (Batch 9): Unpaid, Paid (Confirm Fare AND Payment Received), Payment Disputed, Waived. Written only by the database. */
+  payment_status?: 'Unpaid' | 'Paid' | 'Payment Disputed' | 'Waived';
+  confirm_fare_at?: string | null;
+  fare_discrepancy_at?: string | null;
+  payment_received_at?: string | null;
+  /** The trip was finished by the confirmation timeout without the passenger's answer ("Paid - fare unconfirmed") */
+  fare_unconfirmed?: boolean;
+  /** Rules 13.2 - 13.7: how and where the trip ended early (null when it ended at the destination) */
+  early_end_kind?: 'PERSONAL' | 'SAFETY' | 'DRIVER' | null;
+  early_end_reason?: string | null;
+  early_end_requested_at?: string | null;
+  early_end_at?: string | null;
+  early_end_latitude?: number | null;
+  early_end_longitude?: number | null;
+  early_end_accuracy_m?: number | null;
   /** DISPLAY ONLY (the pairing banner). Never a source of money: Batch 10 replaces it with real match data. */
   proportionate_fare?: number;
   paired_booking_count?: number;

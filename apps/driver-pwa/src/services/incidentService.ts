@@ -5,24 +5,29 @@
  * only a trip they drove; anything else is refused by the database, not by this screen.
  */
 import { supabase } from './supabaseClient';
-import { uploadIncidentEvidence } from '@sakay/shared';
+import { uploadIncidentEvidence, BOOKING_OPEN_STATUSES } from '@sakay/shared';
 
-/** A completed trip the driver can report about. */
+/** A trip the driver can report about: a completed one, or (for an emergency only, Rule 16.5) the one in progress. */
 export interface ReportableTrip {
   bookingId: string;
   label: string;
   dateLabel: string;
+  /** The trip is not completed yet: only an emergency report may name it */
+  inProgress: boolean;
 }
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
 
-/** The driver's completed trips, newest first (policy 16.5: a report is made after the trip). The database only returns trips they took part in. */
+/**
+ * The driver's completed trips, newest first (policy 16.5: a report is made after the trip), and the trip in progress, marked inProgress: the screen lists it for
+ * the emergency categories only, and the database refuses any other report about it. The database only returns trips they took part in.
+ */
 export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
   const { data, error } = await supabase
     .from('booking')
-    .select('booking_id, pickup_address, dropoff_address, created_at')
-    .eq('booking_status', 'Completed')
+    .select('booking_id, booking_status, pickup_address, dropoff_address, created_at')
+    .in('booking_status', ['Completed', ...BOOKING_OPEN_STATUSES])
     .not('driver_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -31,6 +36,7 @@ export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
     bookingId: b.booking_id as string,
     label: `${b.pickup_address || 'Pickup'} > ${b.dropoff_address || 'Drop-off'}`,
     dateLabel: formatDate(b.created_at as string),
+    inProgress: b.booking_status !== 'Completed',
   }));
 }
 

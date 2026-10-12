@@ -46,7 +46,8 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const other = await attempt(() => s.bookAs('P2'));
   check('another passenger is not affected', other.ok === true, other.error);
   if (other.ok) await s.finish(other.value.booking_id);
-  await paxSets('P1', b.booking_id, 'Completed');
+  await s.rpcAs(s.PAX.P1.uid, 'public.passenger_confirm_fare($1)', [b.booking_id]);                      // Batch 9: Confirm Fare, then the driver's Payment Received
+  await s.rpcAs(DRIVERS.D1.uid, 'public.driver_confirm_payment_received($1)', [b.booking_id]);
   const afterDone = await attempt(() => s.bookAs('P1'));
   check('after Completed the passenger can book again', afterDone.ok === true, afterDone.error);
   if (afterDone.ok) await s.cancelAs(ID.P_AUTH, afterDone.value.booking_id);
@@ -91,20 +92,21 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const dc = await driverSets('D1', b.booking_id, 'Cancelled', `, cancelled_by='passenger'`);
   check('the driver cannot cancel with a plain update (he uses driver_cancel_booking, which records the reason)', !dc.ok && /ERR_USE_DRIVER_CANCEL/.test(dc.error), dc);
   const pArr = await paxSets('P1', b.booking_id, 'Arrived at Destination', `, arrived_at='2020-01-01T00:00:00Z'`);
-  check('the passenger may say "we have arrived" (Slide to Finish Trip); the pickup arrival time is NOT overwritten by the phone',
-    pArr.ok && pArr.value.rows[0].booking_status === 'Arrived at Destination' && Math.abs(new Date(pArr.value.rows[0].arrived_at) - Date.now()) < 60000
-    && pArr.value.rows[0].fare_locked_at !== null, pArr.ok ? pArr.value.rows[0].arrived_at : pArr.error);
-  await internal(`UPDATE booking SET booking_status = 'Trip Ongoing', fare_locked_at = NULL, actual_fare = NULL, actual_distance_km = NULL WHERE booking_id='${b.booking_id}'`);
+  check('Batch 9 (D9-6): the passenger can no longer end the trip by writing the status (End Trip (Early) is a request the driver acts on); nothing was written and the arrival time is untouched',
+    !pArr.ok && /ERR_USE_EARLY_END/.test(pArr.error) && Math.abs(new Date((await one(`SELECT arrived_at FROM booking WHERE booking_id='${b.booking_id}'`)).arrived_at) - Date.now()) < 60000, pArr);
   await s.reachDestination(b.booking_id);
   const t4 = await driverSets('D1', b.booking_id, 'Arrived at Destination');
   check('arriving at the destination locks the final fare', t4.ok && t4.value.rows[0].fare_locked_at !== null && t4.value.rows[0].actual_fare !== null, t4.ok ? t4.value.rows[0] : t4.error);
   const pc2 = await paxSets('P1', b.booking_id, 'Cancelled');
   check('and after that the passenger cannot cancel either', !pc2.ok && /ERR_BOOKING_TRANSITION/.test(pc2.error), pc2);
-  const early = await driverSets('D1', b.booking_id, 'Completed');
-  check('Rule 16.6: the driver cannot end the trip before the passenger\'s confirmation time is over', !early.ok && /ERR_WAIT_FOR_PASSENGER/.test(early.error), early);
+  const writeDone = await driverSets('D1', b.booking_id, 'Completed');
+  check('Batch 9: the driver cannot complete the trip by writing the status (Payment Received is the only way)', !writeDone.ok && /ERR_USE_PAYMENT_RECEIVED/.test(writeDone.error), writeDone);
+  const early = await s.rpcAs(DRIVERS.D1.uid, 'public.driver_confirm_payment_received($1)', [b.booking_id]);
+  check('Rules 16.6 / 18.3: Payment Received waits for the passenger\'s answer or for the confirmation time', early.success === false && early.error_code === 'ERR_WAIT_FOR_PASSENGER', early);
   await internal(`UPDATE booking SET fare_locked_at = fare_locked_at - interval '125 seconds' WHERE booking_id='${b.booking_id}'`);
-  const done = await driverSets('D1', b.booking_id, 'Completed');
-  check('after 2 minutes without an answer the driver may end it (Completed without passenger acknowledgement)', done.ok && done.value.rows[0].booking_status === 'Completed' && done.value.rows[0].trip_completed_at !== null, done);
+  const done = await s.rpcAs(DRIVERS.D1.uid, 'public.driver_confirm_payment_received($1)', [b.booking_id]);
+  const doneRow = await s.booking(b.booking_id);
+  check('after 2 minutes without an answer the driver may finish it (Completed without passenger acknowledgement, recorded as unconfirmed)', done.success === true && doneRow.booking_status === 'Completed' && doneRow.trip_completed_at !== null && doneRow.fare_unconfirmed === true, done);
   const back = await paxSets('P1', b.booking_id, 'In Transit');
   const back2 = await driverSets('D1', b.booking_id, 'Trip Ongoing');
   check('a Completed booking cannot be reopened by anyone on it', !back.ok && !back2.ok, { back, back2 });
@@ -116,8 +118,12 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await walkToTrip('D1', b.booking_id);
   await s.reachDestination(b.booking_id);
   await driverSets('D1', b.booking_id, 'Arrived at Destination');
-  const confirm = await paxSets('P1', b.booking_id, 'Completed', `, trip_completed_at='2020-01-01T00:00:00Z'`);
-  check('the passenger confirms at the destination: Completed, the time the server\'s', confirm.ok && confirm.value.rows[0].booking_status === 'Completed' && Math.abs(new Date(confirm.value.rows[0].trip_completed_at) - Date.now()) < 60000, confirm);
+  const forgeDone = await paxSets('P1', b.booking_id, 'Completed', `, trip_completed_at='2020-01-01T00:00:00Z'`);
+  check('the passenger cannot complete the trip, with or without a time of her own (Batch 9: Confirm Fare, then the driver\'s Payment Received)', !forgeDone.ok && /ERR_USE_CONFIRM_FARE/.test(forgeDone.error), forgeDone);
+  await s.rpcAs(s.PAX.P1.uid, 'public.passenger_confirm_fare($1)', [b.booking_id]);
+  await s.rpcAs(DRIVERS.D1.uid, 'public.driver_confirm_payment_received($1)', [b.booking_id]);
+  const confirm = await s.booking(b.booking_id);
+  check('the passenger confirms the fare and the driver taps Payment Received: Completed, the time the server\'s', confirm.booking_status === 'Completed' && Math.abs(new Date(confirm.trip_completed_at) - Date.now()) < 60000, confirm);
   await reset(null);
   await s.online('D1', 300);
   b = await bookAndAccept('D1', 'P1');

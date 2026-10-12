@@ -18,7 +18,7 @@ import { DriverVerificationCard } from '../components/dashboard/DriverVerificati
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
 import { RecentIncidentReportsCard } from '../components/dashboard/RecentIncidentReportsCard';
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
-import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline } from '../services/adminApiService';
+import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, fetchFareDisputes } from '../services/adminApiService';
 
 /** A review flag still waiting for an administrator: the database says Open or Under Review (it never says "Pending"). */
 const isOpenFlag = (f: any): boolean => f.status === 'Open' || f.status === 'Under Review';
@@ -48,6 +48,25 @@ const describeFlagDetails = (flag: any): string[] => {
       'Possible service-zone boundary adjustment (Rule 17.5).',
     ].filter(Boolean);
   }
+  if (flag?.flag_type === 'PASSENGER_EARLY_END_PATTERN' || flag?.flag_type === 'PASSENGER_SAFETY_END_PATTERN') {
+    return [
+      d.count + ' ' + (d.kind === 'SAFETY' ? 'Safety Concern' : 'personal') + ' early terminations in ' + d.window_days + ' days.',
+      d.note ?? '',
+      d.kind === 'SAFETY' ? 'Review the trips and the reasons; there is no strike for a Safety Concern pattern.' : 'Confirming issues 1 strike, PAX_FARE_AVOIDANCE (Rule 13.6). The TODA Administrator may investigate the trips first.',
+    ].filter(Boolean);
+  }
+  if (flag?.flag_type === 'DRIVER_EARLY_STOP_REVIEW') {
+    return [
+      'The driver ended booking ' + d.booking_id + ' before the destination. Reason: ' + d.reason + (d.valid_reason ? ' (a valid reason: no strike).' : '.'),
+      d.valid_reason ? '' : 'Confirming issues DRV_EARLY_STOP (1 strike, Rule 13.7).',
+    ].filter(Boolean);
+  }
+  if (flag?.flag_type === 'PAYMENT_STUCK_RECONCILIATION') {
+    return ['Booking ' + d.booking_id + ' has been at the destination for 30 minutes without the driver tapping Payment Received. Contact both parties and close it as Paid or Waived.'];
+  }
+  if (flag?.flag_type === 'DRIVER_CHANGE_REFUSAL_PATTERN') {
+    return [d.count + ' passengers reported that this driver refused to provide change in ' + d.window_days + ' days (Rule 18.7). Review the reports; there is no automatic strike.'];
+  }
   if (flag?.flag_type === 'TRIP_MANUAL_RECONCILIATION') {
     return ['Booking ' + d.booking_id + ' has been without a driver location for 30 minutes. Close it from Live Trips after contacting both parties.'];
   }
@@ -70,6 +89,8 @@ export const DashboardPage: React.FC = () => {
   const [flagResolutionText, setFlagResolutionText] = useState('');
   const [flagDialogOpen, setFlagDialogOpen] = useState(false);
   const [flagError, setFlagError] = useState<string | null>(null);
+  // Rules 13.5 / 18.4 / 18.6: fare disputes waiting for an administrator (the panel is on Live Trips)
+  const [disputeCount, setDisputeCount] = useState<{ waiting: number; overdue: number }>({ waiting: 0, overdue: 0 });
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +106,13 @@ export const DashboardPage: React.FC = () => {
       .finally(() => {
         if (isMounted) setIsLoading(false);
       });
+
+    fetchFareDisputes()
+      .then((rows) => {
+        const waiting = rows.filter((r) => r.status !== 'Resolved');
+        if (isMounted) setDisputeCount({ waiting: waiting.length, overdue: waiting.filter((r) => r.overdue).length });
+      })
+      .catch((err) => console.warn('[DashboardPage] Failed to fetch fare disputes:', err));
 
     fetchAdminReviewFlags()
       .then((flags) => {
@@ -127,6 +155,21 @@ export const DashboardPage: React.FC = () => {
       return;
     }
     setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Confirmed: 2 strikes (Rule 9.6)' } : f)));
+    setFlagDialogOpen(false);
+    setSelectedFlag(null);
+    setFlagResolutionText('');
+    setFlagError(null);
+  };
+
+  // Rules 13.6 / 13.7: the LGU Administrator confirms the strike a review flag points at
+  const handleConfirmViolation = async () => {
+    if (!selectedFlag) return;
+    const message = await confirmFlaggedViolation(selectedFlag.flag_id, selectedFlag.details?.booking_id ?? null, flagResolutionText);
+    if (message) {
+      setFlagError(message);
+      return;
+    }
+    setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Violation confirmed' } : f)));
     setFlagDialogOpen(false);
     setSelectedFlag(null);
     setFlagResolutionText('');
@@ -271,6 +314,21 @@ export const DashboardPage: React.FC = () => {
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
+        </Box>
+      )}
+
+      {disputeCount.waiting > 0 && (
+        <Box
+          role="status"
+          sx={{ mb: 3.5, p: '14px 18px', borderRadius: 'var(--mac-radius-lg)', border: '1px solid #FDBA74', backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}
+        >
+          <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#9A3412' }}>
+            {disputeCount.waiting} fare dispute{disputeCount.waiting === 1 ? '' : 's'} waiting for an administrator
+            {disputeCount.overdue > 0 ? ' (' + disputeCount.overdue + ' overdue)' : ''}
+          </Typography>
+          <Button onClick={() => navigate('/live-trips')} sx={{ textTransform: 'none', fontWeight: 600, color: '#9A3412' }}>
+            Open Live Trips
+          </Button>
         </Box>
       )}
 
@@ -635,6 +693,17 @@ export const DashboardPage: React.FC = () => {
               sx={{ textTransform: 'none', fontWeight: 600 }}
             >
               Confirm: 2 strikes
+            </Button>
+          )}
+          {(selectedFlag?.flag_type === 'PASSENGER_EARLY_END_PATTERN' || (selectedFlag?.flag_type === 'DRIVER_EARLY_STOP_REVIEW' && selectedFlag?.details?.valid_reason === false)) && (
+            <Button
+              onClick={handleConfirmViolation}
+              variant="contained"
+              color="error"
+              disabled={flagResolutionText.trim().length < 10}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Confirm: 1 strike
             </Button>
           )}
           <Button

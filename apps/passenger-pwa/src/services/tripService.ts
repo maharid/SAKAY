@@ -4,7 +4,7 @@
  */
 
 import { supabase } from "./supabaseClient";
-import type { FareBreakdown } from "@sakay/shared";
+import type { EarlyEndKind, FareBreakdown, PaymentStatus } from "@sakay/shared";
 
 export interface HistoryTrip {
   id: string;
@@ -26,6 +26,14 @@ export interface HistoryTrip {
   dateString?: string;
   isLiveRecord: boolean;
   status?: "Completed" | "Cancelled";
+  /** The receipt (Rules 16.2 / 18.3, Batch 9): how the trip was paid, when, and whether it ended before the destination. All written by the database. */
+  paymentStatus?: PaymentStatus;
+  fareUnconfirmed?: boolean;
+  confirmFareAt?: string | null;
+  paymentReceivedAt?: string | null;
+  tripCompletedAt?: string | null;
+  earlyEndKind?: EarlyEndKind | null;
+  earlyEndReason?: string | null;
 }
 
 const LOCAL_HISTORY_KEY = "sakay_passenger_trip_history";
@@ -87,6 +95,13 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         fare_breakdown,
         is_shared_trip,
         booking_status,
+        payment_status,
+        fare_unconfirmed,
+        confirm_fare_at,
+        payment_received_at,
+        trip_completed_at,
+        early_end_kind,
+        early_end_reason,
         created_at
       `)
       .eq("passenger_id", profile.passenger_id)
@@ -132,6 +147,13 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         bodyNumber: driver?.franchise_number || "",
         isLiveRecord: true,
         status: b.booking_status,
+        paymentStatus: b.payment_status ?? undefined,
+        fareUnconfirmed: Boolean(b.fare_unconfirmed),
+        confirmFareAt: b.confirm_fare_at ?? null,
+        paymentReceivedAt: b.payment_received_at ?? null,
+        tripCompletedAt: b.trip_completed_at ?? null,
+        earlyEndKind: b.early_end_kind ?? null,
+        earlyEndReason: b.early_end_reason ?? null,
       } as HistoryTrip;
     });
   } catch (err) {

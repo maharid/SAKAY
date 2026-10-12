@@ -260,12 +260,17 @@ export interface OpenBooking {
 export const fetchOpenBooking = async (): Promise<OpenBooking | null> => {
   const { data, error } = await supabase
     .from('booking')
-    .select('booking_id, booking_status, pickup_address, dropoff_address')
+    .select('booking_id, booking_status, pickup_address, dropoff_address, confirm_fare_at, fare_discrepancy_at')
     .in('booking_status', [...BOOKING_OPEN_STATUSES])
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return error || !data ? null : (data as OpenBooking);
+    .limit(5);
+  if (error || !data) return null;
+  // PI-15: a passenger who confirmed the fare (or documented a discrepancy) has nothing left to do at the destination: the database no longer counts that trip as
+  // open (_passenger_open_booking_conflict), so neither does the app. The driver's Payment Received finishes it.
+  const open = (data as Array<OpenBooking & { confirm_fare_at?: string | null; fare_discrepancy_at?: string | null }>).find(
+    (b) => !(b.booking_status === 'Arrived at Destination' && (b.confirm_fare_at || b.fare_discrepancy_at))
+  );
+  return open ? { booking_id: open.booking_id, booking_status: open.booking_status, pickup_address: open.pickup_address, dropoff_address: open.dropoff_address } : null;
 };
 
 export const getBooking = (bookingId: string): BookingRecord | null => {

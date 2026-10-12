@@ -22,7 +22,7 @@ import { fetchReportableTrips, submitIncidentReport, type ReportableTrip } from 
 import { useLanguage } from '../../../utils/LanguageContext';
 import PageHeader from '../../../common/components/PageHeader';
 import { RegisterInput } from '../../../common/components/RegisterInput';
-import { activateWithKeyboard } from '@sakay/shared';
+import { activateWithKeyboard, isEmergencyIncident } from '@sakay/shared';
 
 /** The floating-label select used by this form (same look as RegisterInput). */
 interface FloatingSelectProps {
@@ -131,7 +131,8 @@ export const IncidentReporting: React.FC = () => {
         if (!alive) return;
         setTrips(list);
         const fromScreen = navState?.bookingId;
-        setSelectedBookingId(fromScreen && list.some((t) => t.bookingId === fromScreen) ? fromScreen : list.length === 1 ? list[0].bookingId : '');
+        const completed = list.filter((t) => !t.inProgress);
+        setSelectedBookingId(fromScreen && list.some((t) => t.bookingId === fromScreen) ? fromScreen : completed.length === 1 ? completed[0].bookingId : '');
       })
       .catch((err) => alive && setError(err instanceof Error ? err.message : String(err)))
       .finally(() => alive && setTripsLoading(false));
@@ -139,6 +140,12 @@ export const IncidentReporting: React.FC = () => {
       alive = false;
     };
   }, [navState?.bookingId]);
+
+  // Rule 16.5: a report is about a completed trip; the trip in progress is listed only for an emergency (Emergency, Safety Concern, Accident)
+  const visibleTrips = trips.filter((t) => !t.inProgress || isEmergencyIncident(incidentType));
+  useEffect(() => {
+    setSelectedBookingId((current) => (current && !trips.some((t) => t.bookingId === current && (!t.inProgress || isEmergencyIncident(incidentType))) ? '' : current));
+  }, [incidentType, trips]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -158,12 +165,17 @@ export const IncidentReporting: React.FC = () => {
   };
 
   const incidentCategories = [
+    { value: 'Emergency', labelTl: 'Emergency (habang nasa biyahe)', labelEn: 'Emergency (during the trip)' },
+    { value: 'Safety Concern', labelTl: 'Alalahanin sa Kaligtasan (habang nasa biyahe)', labelEn: 'Safety Concern (during the trip)' },
+    { value: 'Accident', labelTl: 'Aksidente (habang nasa biyahe)', labelEn: 'Accident (during the trip)' },
     { value: 'Overcharging Attempt', labelTl: 'Pagtatangkang Maningil nang Sobra (Overcharging)', labelEn: 'Overcharging Attempt' },
     { value: 'Rude Behavior', labelTl: 'Bastos o Hindi Magalang na Pag-uugali', labelEn: 'Rude Behavior' },
     { value: 'Unsafe Driving', labelTl: 'Mapanganib na Pagmamaneho', labelEn: 'Unsafe Driving' },
     { value: 'Reckless Driving', labelTl: 'Kaskaserong Pagpapatakbo', labelEn: 'Reckless Driving' },
     { value: 'Route Deviation', labelTl: 'Paglihis sa Karaniwang Ruta', labelEn: 'Route Deviation' },
     { value: 'Passenger Misconduct', labelTl: 'Hindi Angkop na Asal ng Pasahero', labelEn: 'Passenger Misconduct' },
+    { value: 'Change Refusal', labelTl: 'Sinadyang Hindi Pagbibigay ng Sukli', labelEn: 'Refused to Provide Change' },
+    { value: 'Counterfeit Currency', labelTl: 'Peke o Pinaghihinalaang Pekeng Pera', labelEn: 'Counterfeit Currency (referred to the TODA / police)' },
     { value: 'Lost Item', labelTl: 'Naiwang Gamit sa Tricycle', labelEn: 'Lost Item in Tricycle' },
     { value: 'Others', labelTl: 'Iba Pang Reklamo', labelEn: 'Other Issues' },
   ];
@@ -220,10 +232,10 @@ export const IncidentReporting: React.FC = () => {
           label={language === 'tl' ? 'Biyaheng Inirereklamo' : 'Trip You Are Reporting'}
           value={selectedBookingId}
           onChange={setSelectedBookingId}
-          disabled={tripsLoading || trips.length === 0}
-          options={trips.map((t) => ({ value: t.bookingId, label: `${t.dateLabel} • ${t.label}` }))}
+          disabled={tripsLoading || visibleTrips.length === 0}
+          options={visibleTrips.map((t) => ({ value: t.bookingId, label: `${t.dateLabel} • ${t.label}${t.inProgress ? (language === 'tl' ? ' (kasalukuyan)' : ' (in progress)') : ''}` }))}
         />
-        {!tripsLoading && trips.length === 0 && (
+        {!tripsLoading && visibleTrips.length === 0 && (
           <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl'
               ? 'Makakapag-ulat ka lamang tungkol sa biyaheng natapos na. Wala ka pang natapos na biyahe.'
@@ -237,6 +249,14 @@ export const IncidentReporting: React.FC = () => {
           onChange={setIncidentType}
           options={incidentCategories.map((cat) => ({ value: cat.value, label: language === 'tl' ? cat.labelTl : cat.labelEn }))}
         />
+        {/* Rule 18.8: counterfeit money is not decided by the app: the report goes to the TODA Administrator, who refers it to the police when it is needed */}
+        {incidentType === 'Counterfeit Currency' && (
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl'
+              ? 'Hindi pinapasya ng app ang tungkol sa pekeng pera. Ipapadala ang ulat sa TODA Administrator, na magrerekomenda ng pulisya kung kailangan.'
+              : 'The app does not decide about counterfeit money. The report goes to the TODA Administrator, who refers it to the police where appropriate.'}
+          </Alert>
+        )}
 
         {/* Detailed Narrative Input */}
         <RegisterInput

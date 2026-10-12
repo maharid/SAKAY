@@ -13,7 +13,8 @@
  * ============================================================================
  */
 
-import { adminActionMessage, mapReconciliationTrips, reconcileTripArgs } from '@sakay/shared';
+import { adminActionMessage, confirmFlaggedViolationArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
+import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
@@ -2413,6 +2414,28 @@ export async function fetchTripsNeedingReconciliation(): Promise<ReconciliationT
 export async function reconcileTrip(input: ReconcileInput): Promise<string | null> {
   const { error } = await supabase.rpc('admin_reconcile_trip', reconcileTripArgs(input));
   return error ? adminActionMessage(error.message, 'The trip could not be closed.') : null;
+}
+
+/** Batch 9: the fare disputes (the LGU Administrator sees all of them): the escalated ones, and those with no TODA, are this administrator's to decide. */
+export async function fetchFareDisputes(): Promise<FareDisputeRow[]> {
+  const { data, error } = await supabase.rpc('get_fare_disputes', fareDisputesArgs(null, 100));
+  if (error) {
+    console.warn('[adminApiService] fetchFareDisputes warning:', error.message);
+    return [];
+  }
+  return parseFareDisputes(data);
+}
+
+/** Rules 13.5 / 18.4 / 18.6: decides a dispute, with the strike when one is confirmed (the passenger strikes are the LGU Administrator's). Resolves to null when accepted, else the database's explanation. */
+export async function resolveFareDispute(decision: FareDisputeDecision): Promise<string | null> {
+  const { error } = await supabase.rpc('resolve_fare_dispute', resolveFareDisputeArgs(decision));
+  return error ? adminActionMessage(error.message, 'The decision could not be recorded.') : null;
+}
+
+/** Rules 13.6 / 13.7: the LGU Administrator confirms the violation a review flag points at (PAX_FARE_AVOIDANCE, DRV_EARLY_STOP). Resolves to null when accepted, else the database's explanation. */
+export async function confirmFlaggedViolation(flagId: string, bookingId: string | null, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_confirm_flagged_violation', confirmFlaggedViolationArgs(flagId, bookingId, reason));
+  return error ? adminActionMessage(error.message, 'The violation could not be confirmed.') : null;
 }
 
 /** Rule 9.6: the LGU Administrator confirms a TODA Administrator's report of a deliberate offline: 2 strikes, no appeal under Rule 9.4. */

@@ -23,7 +23,8 @@ import {
 import { parseDriverRoster } from '../utils/rosterParser';
 import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import type { RejectionReasonCode } from '@sakay/shared';
-import { adminActionMessage, deliberateOfflineArgs, mapReconciliationTrips, reconcileTripArgs } from '@sakay/shared';
+import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
+import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { DeliberateOfflineInput, ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
@@ -1571,6 +1572,32 @@ export async function reconcileTrip(input: ReconcileInput): Promise<string | nul
 export async function reportDeliberateOffline(input: DeliberateOfflineInput): Promise<string | null> {
   const { error } = await supabase.rpc('report_deliberate_offline', deliberateOfflineArgs(input));
   return error ? adminActionMessage(error.message, 'The report could not be sent.') : null;
+}
+
+// ============================================================================
+// BATCH 9: FARE DISPUTES (RULES 13.5, 18.4, 18.6)
+// ============================================================================
+
+/** The fare disputes of this TODA's drivers (all of them, so an escalated one stays visible). The database decides who may read what. */
+export async function fetchFareDisputes(): Promise<FareDisputeRow[]> {
+  const { data, error } = await supabase.rpc('get_fare_disputes', fareDisputesArgs(null, 100));
+  if (error) {
+    console.warn('[todaApiService] fetchFareDisputes:', error.message);
+    return [];
+  }
+  return parseFareDisputes(data);
+}
+
+/** Rule 18.4: passes a dispute to the LGU Administrator. Resolves to null when accepted, else the database's explanation. */
+export async function escalateFareDispute(disputeId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('escalate_fare_dispute', escalateFareDisputeArgs(disputeId, reason));
+  return error ? adminActionMessage(error.message, 'The dispute could not be escalated.') : null;
+}
+
+/** Rules 13.5 / 18.4 / 18.6: decides a dispute (the fare, the payment, and the strike when one is confirmed). Resolves to null when accepted, else the database's explanation. */
+export async function resolveFareDispute(decision: FareDisputeDecision): Promise<string | null> {
+  const { error } = await supabase.rpc('resolve_fare_dispute', resolveFareDisputeArgs(decision));
+  return error ? adminActionMessage(error.message, 'The decision could not be recorded.') : null;
 }
 
 export interface GpsArea {

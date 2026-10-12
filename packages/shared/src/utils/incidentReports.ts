@@ -8,6 +8,13 @@
 import { INCIDENT_EVIDENCE_BUCKET } from './incidentEvidence';
 import { ownedObjectPath } from './storageUrls';
 
+/**
+ * Rule 16.5 (decision D9-12, provisional until Batch 11 defines the emergency incidents): a report is made after the trip is completed, EXCEPT these
+ * categories, which may be reported while the trip is still in progress. incident_report_guard (migration 20261024000001) holds the same list.
+ */
+export const EMERGENCY_INCIDENT_CATEGORIES = ['Emergency', 'Safety Concern', 'Accident'] as const;
+export const isEmergencyIncident = (category: string): boolean => (EMERGENCY_INCIDENT_CATEGORIES as readonly string[]).includes(category);
+
 /** The photo limit the screens apply. The database separately refuses more than 3 files or a file outside the reporter's folder. */
 export const INCIDENT_EVIDENCE_MAX_BYTES = 5 * 1024 * 1024;
 

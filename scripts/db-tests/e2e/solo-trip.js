@@ -1,7 +1,7 @@
 // End to end: ONE SOLO TRIP, start to finish, exactly as the apps do it now, as each real user under row security.
 //   the passenger books -> the DATABASE starts the search and offers it to the nearest eligible driver -> the driver sees the offer and accepts
 //   (one atomic call) -> the passenger sees the driver -> the driver goes to the pickup, arrives, starts the trip, arrives at the destination
-//   (the database locks the final fare) -> the passenger confirms payment (Completed) -> both rate -> history and earnings -> the next booking
+//   (the database locks the final fare) -> the passenger confirms the fare and the driver taps Payment Received (Paid, Completed) -> both rate -> history and earnings -> the next booking
 //   is allowed.
 // Also: cancellation by the passenger (before and after acceptance), cancellation by the driver (the booking goes back to the search), a
 // declined offer then a second driver, "No Driver Found" and Retry. Whole migration chain, local emulator only (never Supabase).
@@ -87,9 +87,13 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const arrRow = await s.booking(b.booking_id);
   check('the fare is locked with a breakdown', !!arrRow.fare_locked_at && arrRow.fare_breakdown?.final?.basis === 'solo', arrRow.fare_breakdown);
 
-  console.log('\nS9 the passenger confirms payment: Completed');
-  const done = await attempt(() => as(P.uid, (tx) => tx.query(`UPDATE public.booking SET booking_status='Completed' WHERE booking_id=$1 RETURNING booking_status, actual_fare, trip_completed_at`, [b.booking_id])));
-  check('the booking is Completed, the fare unchanged, the completion time the server\'s', done.ok && done.value.rows[0].booking_status === 'Completed' && Number(done.value.rows[0].actual_fare) === Number(qt.solo_fare) && done.value.rows[0].trip_completed_at !== null, done);
+  console.log('\nS9 the passenger confirms the fare, the driver taps Payment Received: Paid and Completed (Batch 9)');
+  const conf = await attempt(() => as(P.uid, (tx) => tx.query(`SELECT public.passenger_confirm_fare($1) AS r`, [b.booking_id])));
+  check('Confirm Fare is recorded and does not complete the trip by itself', conf.ok && conf.value.rows[0].r.success === true && (await s.booking(b.booking_id)).booking_status === 'Arrived at Destination', conf);
+  const done = await attempt(() => as(D1.uid, (tx) => tx.query(`SELECT public.driver_confirm_payment_received($1) AS r`, [b.booking_id])));
+  const doneRow = await s.booking(b.booking_id);
+  check('Payment Received: the booking is Completed and Paid, the fare unchanged, the completion time the server\'s',
+    done.ok && done.value.rows[0].r.success === true && doneRow.booking_status === 'Completed' && doneRow.payment_status === 'Paid' && Number(doneRow.actual_fare) === Number(qt.solo_fare) && doneRow.trip_completed_at !== null, { done, doneRow });
   const dp = await s.presence(D1.uid);
   check('D1 has no open booking and is Available again', dp.availability_status === 'Available' && dp.open_booking === false, dp);
 

@@ -12,6 +12,8 @@ export type { FloatingLabelInputProps } from './components/FloatingLabelInput';
 export { QuickMessageDialog } from './components/QuickMessageDialog';
 export { ConnectionLostBanner } from './components/ConnectionLostBanner';
 export { TripReconciliationPanel, DELIBERATE_OFFLINE_EVIDENCE } from './components/TripReconciliationPanel';
+export { FareDisputesPanel } from './components/FareDisputesPanel';
+export type { FareDisputesPanelProps } from './components/FareDisputesPanel';
 export type {
   TripReconciliationPanelProps,
   ReconciliationTrip,
@@ -35,6 +37,7 @@ export * from './utils/incidentEvidence';
 export * from './utils/incidentReports';
 export * from './utils/transportAnalytics';
 export * from './utils/tripProgress';
+export * from './utils/tripEnd';
 export * from './utils/serverDeadlineClock';
 export * from './utils/markerGlide';
 export * from './utils/tripDetails';
@@ -45,6 +48,7 @@ export * from './utils/heading';
 export * from './utils/mapMarkers';
 export * from './utils/searchRadius';
 export * from './hooks/useServerCountdown';
+export * from './hooks/useTripEndState';
 export * from './hooks/useInFlight';
 export * from './hooks/useSheetHandle';
 export * from './hooks/useMeasuredSize';

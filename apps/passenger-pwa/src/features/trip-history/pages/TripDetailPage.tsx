@@ -14,7 +14,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import Rating from "@mui/material/Rating";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso } from "@sakay/shared";
+import { formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso, describePayment, earlyEndReasonLabel } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -37,6 +37,7 @@ export const TripDetailPage: React.FC = () => {
   // The driver's number is shown only when the server gave it (while the trip is live); never an invented one.
   const driverPhone: string = stateTrip?.driverPhone || "";
   const price = stateTrip?.price || "₱110.00";
+  const manilaTime = (iso: string) => new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
   const status = stateTrip?.status || "Completed";
 
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
@@ -378,6 +379,40 @@ export const TripDetailPage: React.FC = () => {
               sx={{ backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
             />
           </Box>
+
+          {/* The receipt (Rules 16.2 / 18.3): the payment as the database recorded it, the moments, and how the trip ended. Nothing here is typed on a phone. */}
+          {status === "Completed" && stateTrip?.paymentStatus && (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, pt: 1.25, borderTop: "1px dashed #E2E8F0" }}>
+              <FareLine label={language === "tl" ? "Resibo bilang" : "Receipt no."} amount={formatShortBookingId(tripId)} />
+              <FareLine
+                label={language === "tl" ? "Bayad" : "Payment"}
+                amount={describePayment({ paymentStatus: stateTrip.paymentStatus, fareUnconfirmed: Boolean(stateTrip.fareUnconfirmed) }, language === "tl" ? "tl" : "en")}
+              />
+              {stateTrip.confirmFareAt && <FareLine label={language === "tl" ? "Kinumpirma ang pamasahe" : "Fare confirmed"} amount={manilaTime(stateTrip.confirmFareAt)} />}
+              {stateTrip.paymentReceivedAt && <FareLine label={language === "tl" ? "Natanggap ang bayad" : "Payment received"} amount={manilaTime(stateTrip.paymentReceivedAt)} />}
+              {stateTrip.tripCompletedAt && <FareLine label={language === "tl" ? "Natapos ang biyahe" : "Trip completed"} amount={manilaTime(stateTrip.tripCompletedAt)} />}
+              {stateTrip.earlyEndKind && (
+                <FareLine
+                  label={language === "tl" ? "Tinapos nang maaga" : "Ended early"}
+                  detail={
+                    stateTrip.earlyEndKind === "SAFETY"
+                      ? language === "tl" ? "Pansamantalang pamasahe habang hinihintay ang pagsusuri" : "Provisional fare until it is reviewed"
+                      : stateTrip.earlyEndKind === "DRIVER"
+                      ? language === "tl" ? "Layong nalakbay lamang ang sinisingil" : "Only the distance travelled is charged"
+                      : language === "tl" ? "Ang mas mataas sa pamasahe noong nag-book at sa layong nalakbay" : "The greater of the booked fare and the distance travelled"
+                  }
+                  amount={earlyEndReasonLabel(stateTrip.earlyEndReason, language === "tl" ? "tl" : "en")}
+                />
+              )}
+              {(stateTrip.fareBreakdown as FareBreakdown | null | undefined)?.resolution && (
+                <FareLine
+                  label={language === "tl" ? "Pamasahe pagkatapos ng pagsusuri" : "Fare after review"}
+                  detail={language === "tl" ? `Dati: ${formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.previous_fare)}` : `Before: ${formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.previous_fare)}`}
+                  amount={formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.final_fare)}
+                />
+              )}
+            </Box>
+          )}
         </Paper>
 
         {/* Driver Card & Actions */}

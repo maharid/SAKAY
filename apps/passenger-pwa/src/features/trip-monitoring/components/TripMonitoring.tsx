@@ -12,8 +12,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  MenuItem,
   Alert,
   AlertTitle,
 } from '@mui/material';
@@ -22,11 +20,8 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
 import StarIcon from '@mui/icons-material/Star';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import TimerIcon from '@mui/icons-material/Timer';
 import LinearProgress from '@mui/material/LinearProgress';
-import CircularProgress from '@mui/material/CircularProgress';
 import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
@@ -43,25 +38,32 @@ import {
   calculateTripProgressPercent,
   fetchServerTripProgress,
   useInFlight,
-  formatPeso,
   QuickMessageDialog,
   MapControlButton,
   MapControlStack,
   searchRadiusFromStatus,
-  COMPLETION_CONFIRM_TIMEOUT_SECONDS,
   PASSENGER_STALE_LOCATION_DIM_SECONDS,
-  formatCountdown,
+  useTripEndState,
+  requestEarlyEnd,
+  withdrawEarlyEnd,
+  confirmFare,
+  reportFareDiscrepancy,
+  requestSafetyFareReview,
+  type PassengerEarlyEndReason,
   reportNetworkOutcome,
   reportNetworkResult,
 } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
-import { submitIncidentReport } from '../../../services/incidentService';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { describeRetryRefusal, retryDriverSearch } from '../../../services/dispatchService';
 import { useArrivalWait } from '../hooks/useArrivalWait';
 import { usePassengerLocation } from '../hooks/usePassengerLocation';
 import { useDispatchStatus } from '../../ride-booking/hooks/useDispatchStatus';
 import ArrivalWaitCard from './ArrivalWaitCard';
+import EndTripEarlyDialog from './EndTripEarlyDialog';
+import FareConfirmationCard from './FareConfirmationCard';
+import FareDiscrepancyDialog from './FareDiscrepancyDialog';
+import TripCompletedDialog from './TripCompletedDialog';
 import DriverLastUpdated from './DriverLastUpdated';
 import { useDriverLiveStatus } from '../hooks/useDriverLiveStatus';
 
@@ -87,120 +89,6 @@ const BROADCAST_FLOWING_MS = 6_000;
  */
 const TRIP_MAP_INSETS = { top: 64, right: 64, bottom: 12, left: 12 };
 
-const SlideToFinish: React.FC<{ onFinish: () => void; language: string; disabled?: boolean }> = ({
-  onFinish,
-  language,
-  disabled = false,
-}) => {
-  const [slidePos, setSlidePos] = useState(0);
-  const isDragging = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleStart = () => {
-    if (disabled) return;
-    isDragging.current = true;
-  };
-
-  // A person who cannot drag (keyboard, switch, screen reader) finishes with Enter or Space on the same control.
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (disabled || (e.key !== 'Enter' && e.key !== ' ')) return;
-    e.preventDefault();
-    onFinish();
-  };
-
-  const handleMove = (clientX: number) => {
-    if (disabled || !isDragging.current || !containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const maxOffset = rect.width - 52;
-    const offset = Math.max(0, Math.min(clientX - rect.left - 24, maxOffset));
-    setSlidePos(offset);
-
-    if (offset >= maxOffset * 0.85) {
-      isDragging.current = false;
-      setSlidePos(maxOffset);
-      onFinish();
-    }
-  };
-
-  const handleEnd = () => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    setSlidePos(0);
-  };
-
-  return (
-    <Box
-      ref={containerRef}
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-disabled={disabled}
-      aria-label={language === 'tl' ? 'I-slide o pindutin ang Enter para tapusin ang biyahe' : 'Slide, or press Enter, to finish the trip'}
-      onKeyDown={handleKey}
-      onMouseDown={handleStart}
-      onMouseMove={(e) => handleMove(e.clientX)}
-      onMouseUp={handleEnd}
-      onMouseLeave={handleEnd}
-      onTouchStart={handleStart}
-      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-      onTouchEnd={handleEnd}
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: '52px',
-        backgroundColor: disabled ? '#F1F5F9' : '#FFF7ED',
-        border: disabled ? '1.5px solid #CBD5E1' : '1.5px solid #FFD6B3',
-        borderRadius: '999px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        cursor: disabled ? 'not-allowed' : 'grab',
-        userSelect: 'none',
-        touchAction: 'none',
-        mt: 1.5,
-      }}
-    >
-      <Typography
-        sx={{
-          // The knob sits over the left 52px of the track: the words stay clear of it and wrap to a second line rather than slide under it
-          pl: '56px',
-          pr: '16px',
-          textAlign: 'center',
-          lineHeight: 1.2,
-          fontSize: '13px',
-          fontWeight: 700,
-          color: disabled ? '#64748B' : '#FF6600',
-          fontFamily: 'Poppins, sans-serif',
-          pointerEvents: 'none',
-          opacity: disabled ? 1 : Math.max(0.2, 1 - slidePos / 140),
-        }}
-      >
-        {disabled
-          ? (language === 'tl' ? 'Naghihintay na simulan ang biyahe...' : 'Waiting for trip to start...')
-          : (language === 'tl' ? 'I-slide para Tapusin ang Biyahe >>>' : 'Slide to Finish Trip >>>')}
-      </Typography>
-
-      <Box
-        sx={{
-          position: 'absolute',
-          left: 4 + (disabled ? 0 : slidePos),
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          backgroundColor: disabled ? '#94A3B8' : '#FF6600',
-          color: '#FFFFFF',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: disabled ? 'none' : '0 4px 12px rgba(255, 102, 0, 0.4)',
-          transition: isDragging.current ? 'none' : 'left 0.25s ease',
-        }}
-      >
-        <CheckCircleIcon sx={{ fontSize: 24 }} />
-      </Box>
-    </Box>
-  );
-};
 
 export const TripMonitoring: React.FC = () => {
   const navigate = useNavigate();
@@ -280,27 +168,6 @@ export const TripMonitoring: React.FC = () => {
   // Asks the database for the booking's state right now (the poll below, on demand): set by the effect that owns the poll.
   const pollNowRef = useRef<(() => Promise<void>) | null>(null);
 
-  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState<boolean>(() => {
-    return localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
-  });
-
-  useEffect(() => {
-    setIsPaymentConfirmed(localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true');
-  }, [activeBookingId]);
-
-  const [paymentTimerNow, setPaymentTimerNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    if (booking?.booking_status !== 'Arrived at Destination' || isPaymentConfirmed) return;
-    const interval = setInterval(() => {
-      setPaymentTimerNow(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [booking?.booking_status, isPaymentConfirmed]);
-
-  const fareLockedAtMs = booking?.fare_locked_at ? Date.parse(booking.fare_locked_at) : null;
-  const paymentSecondsLeft = fareLockedAtMs
-    ? Math.max(0, COMPLETION_CONFIRM_TIMEOUT_SECONDS - Math.floor((paymentTimerNow - fareLockedAtMs) / 1000))
-    : COMPLETION_CONFIRM_TIMEOUT_SECONDS;
 
   const handleCopyBookingId = () => {
     if (activeBookingId) {
@@ -313,123 +180,18 @@ export const TripMonitoring: React.FC = () => {
     }
   };
 
-  // Workflow Step 12: Trip Completion & Fare Confirmation State
-  const [completionFareModalOpen, setCompletionFareModalOpen] = useState(false);
-  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
-  const [disputedAmount, setDisputedAmount] = useState('');
-  const [disputeCategory, setDisputeCategory] = useState('Overcharging Attempt');
-  const [disputeReason, setDisputeReason] = useState('');
-  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
-  const [disputeError, setDisputeError] = useState<string | null>(null);
-  const [disputeSending, setDisputeSending] = useState(false);
+  // The end of the trip (Rules 13, 16, 18): what the passenger taps is a call to the database and what the screen shows is what the database answers
+  // (get_trip_end_state). Nothing is kept on the phone and nothing is broadcast: the old payment_confirmed_* keys and channels are gone.
+  const [endEarlyOpen, setEndEarlyOpen] = useState(false);
+  const [discrepancyMode, setDiscrepancyMode] = useState<'discrepancy' | 'safety' | null>(null);
+  const [discrepancyError, setDiscrepancyError] = useState<string | null>(null);
+  const [completedDialogOpen, setCompletedDialogOpen] = useState(false);
 
-  // One request at a time: a second tap while the first is being saved must not write again (the database would refuse it and the toast would lie).
-  const finishFlight = useInFlight();
-  const paidFlight = useInFlight();
+  // One request at a time: a second tap while the first is being saved must not write again (the database would treat it as a no-op, and the toast would lie).
+  const earlyFlight = useInFlight();
+  const confirmFlight = useInFlight();
+  const reportFlight = useInFlight();
   const cancelFlight = useInFlight();
-
-  const markArrivedAtDestination = async () => {
-    try {
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
-        // The database computes and locks the final fare when the trip first arrives (Rule 6.2); read it back
-        // so the figure on screen is the binding one, not the estimate.
-        const { data, error } = await supabase
-          .from('booking')
-          .update({ booking_status: 'Arrived at Destination' })
-          .eq('booking_id', activeBookingId)
-          .select('actual_fare, actual_distance_km, fare_breakdown')
-          .maybeSingle();
-        if (error || !data) {
-          // The database said no (for example the driver already ended the trip): show what is true, not a completion screen.
-          setToastMessage(
-            language === 'tl'
-              ? 'Hindi naitala ang pagdating. Pakisubukang muli.'
-              : 'We could not record the arrival. Please try again.'
-          );
-          fetchBookingFromDb();
-          return;
-        }
-        setBooking((prev) =>
-          prev
-            ? {
-                ...prev,
-                actual_fare: data.actual_fare !== null && data.actual_fare !== undefined ? Number(data.actual_fare) : prev.actual_fare,
-                actual_distance_km: data.actual_distance_km ?? prev.actual_distance_km,
-                fare_breakdown: data.fare_breakdown ?? prev.fare_breakdown,
-              }
-            : prev
-        );
-      }
-      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
-
-      const channel = supabase.channel(`booking_sync_${activeBookingId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: 'passenger_finished',
-        payload: { bookingId: activeBookingId, passenger_finished: true },
-      });
-    } catch (err) {
-      console.warn('[TripMonitoring] markPassengerFinished error:', err);
-    }
-    setCompletionFareModalOpen(true);
-  };
-
-  const handlePassengerFinishTrip = () => finishFlight.run(markArrivedAtDestination);
-
-  const confirmPassengerPayment = async () => {
-    try {
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBookingId)) {
-        // The passenger confirms payment; the final fare is NOT sent from here (Rule 6.2): the database
-        // already computed it when the trip arrived, and rejects any client that tries to write it.
-        const { error } = await supabase
-          .from('booking')
-          .update({ booking_status: 'Completed' })
-          .eq('booking_id', activeBookingId);
-        if (error) throw error;
-      }
-      localStorage.setItem(`payment_confirmed_${activeBookingId}`, 'true');
-      localStorage.setItem(`passenger_finished_${activeBookingId}`, 'true');
-      setIsPaymentConfirmed(true);
-
-      const driverChannel = supabase.channel(`driver_sync_${activeBookingId}`);
-      await driverChannel.send({
-        type: 'broadcast',
-        event: 'payment_confirmed',
-        payload: { bookingId: activeBookingId, payment_confirmed: true },
-      });
-
-      const channel = supabase.channel(`booking_sync_${activeBookingId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: 'payment_confirmed',
-        payload: { bookingId: activeBookingId, payment_confirmed: true },
-      });
-
-      const tripChannel = supabase.channel(`passenger_trip_${activeBookingId}`);
-      await tripChannel.send({
-        type: 'broadcast',
-        event: 'payment_confirmed',
-        payload: { bookingId: activeBookingId, payment_confirmed: true },
-      });
-
-      updateBookingState(activeBookingId, {
-        booking_status: 'Completed',
-        actual_fare: booking?.actual_fare ?? undefined,
-      });
-    } catch (err) {
-      console.warn('[TripMonitoring] handlePassengerPaid error:', err);
-      setToastMessage(
-        language === 'tl'
-          ? 'Hindi nakumpirma ang bayad. Pakisubukang muli.'
-          : 'We could not confirm the payment. Please try again.'
-      );
-      return;
-    }
-    setCompletionFareModalOpen(true);
-  };
-
-
-  const handlePassengerPaid = () => paidFlight.run(confirmPassengerPayment);
 
   // Driver Location Telemetry
   // `known`: the position is the driver's real one (a fallback point is only used for the distance text, never drawn as the driver)
@@ -563,7 +325,7 @@ export const TripMonitoring: React.FC = () => {
             };
             updateBookingState(activeBookingId, updated);
             if (mappedStatus === 'Completed') {
-              setCompletionFareModalOpen(true);
+              setCompletedDialogOpen(true);
             }
             return updated;
           });
@@ -634,10 +396,6 @@ export const TripMonitoring: React.FC = () => {
           }
 
           setBooking((prev) => {
-            const isPaidLocally = isPaymentConfirmed || localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
-            if (isPaidLocally && (d.booking_status === 'Arrived at Destination' || prev?.booking_status === 'Completed')) {
-              return prev; // Never let stale polling revert a completed payment
-            }
             if (prev?.booking_status === d.booking_status) return prev; // No change
             
             const mappedStatus = mapBookingStatus(d.booking_status);
@@ -653,7 +411,7 @@ export const TripMonitoring: React.FC = () => {
             updateBookingState(activeBookingId, merged);
 
             if (mappedStatus === 'Completed') {
-              setCompletionFareModalOpen(true);
+              setCompletedDialogOpen(true);
             }
             return merged;
           });
@@ -697,10 +455,6 @@ export const TripMonitoring: React.FC = () => {
 
             setBooking((prev) => {
               const mappedStatus = mapBookingStatus(row.booking_status);
-              const isPaidLocally = isPaymentConfirmed || localStorage.getItem(`payment_confirmed_${activeBookingId}`) === 'true';
-              if (isPaidLocally && (mappedStatus === 'Arrived at Destination' || prev?.booking_status === 'Completed')) {
-                return prev;
-              }
 
               const merged: BookingRecord = {
                 ...(prev || ({} as any)),
@@ -714,7 +468,7 @@ export const TripMonitoring: React.FC = () => {
               updateBookingState(activeBookingId, merged);
 
               if (mappedStatus === 'Completed') {
-                setCompletionFareModalOpen(true);
+                setCompletedDialogOpen(true);
               }
               return merged;
             });
@@ -741,6 +495,81 @@ export const TripMonitoring: React.FC = () => {
 
   const status = booking?.booking_status || 'Searching Driver';
   const isTripActive = status !== 'Completed' && status !== 'Cancelled';
+
+  // The end of the trip as the database has it (Rules 16.6 / 18.2 / 18.3): the fare, who has answered, the one confirmation timer, the payment and the dispute.
+  const tripEndActive = UUID_PATTERN.test(activeBookingId) && (status === 'Trip Ongoing' || status === 'Arrived at Destination' || status === 'Completed');
+  const tripEnd = useTripEndState(supabase, activeBookingId, tripEndActive);
+  const endState = tripEnd.state;
+  // End Trip (Early) was asked for and the driver has not ended the trip yet (Rule 13.2)
+  const earlyRequested = status === 'Trip Ongoing' && Boolean(endState?.earlyEnd && endState.earlyEnd.kind !== 'DRIVER' && endState.earlyEnd.requestedAt);
+  const say = (tl: string, en: string) => (language === 'tl' ? tl : en);
+
+  const handleRequestEarlyEnd = (reason: PassengerEarlyEndReason, note: string) =>
+    earlyFlight.run(async () => {
+      const r = await requestEarlyEnd(supabase, activeBookingId, reason, note || null);
+      if (!r.ok) {
+        setToastMessage(r.error ?? say('Hindi naipadala ang hiling. Pakisubukang muli.', 'The request could not be sent. Please try again.'));
+        return;
+      }
+      setEndEarlyOpen(false);
+      setToastMessage(
+        r.data?.at_gate
+          ? say('Nasa destinasyon ka na: ang drayber ang magtatapos ng biyahe.', 'You are at the destination: the driver ends the trip.')
+          : say('Naipadala sa drayber ang hiling mo.', 'Your request was sent to the driver.')
+      );
+      await tripEnd.refresh();
+    });
+
+  const handleWithdrawEarlyEnd = () =>
+    earlyFlight.run(async () => {
+      const r = await withdrawEarlyEnd(supabase, activeBookingId);
+      if (!r.ok) setToastMessage(r.error ?? say('Hindi na-withdraw ang hiling.', 'The request could not be withdrawn.'));
+      await tripEnd.refresh();
+    });
+
+  // Rule 18.2: Confirm Fare. The trip is NOT paid or completed by it: that needs the driver's Payment Received as well (Rule 18.3).
+  const handleConfirmFare = () =>
+    confirmFlight.run(async () => {
+      const r = await confirmFare(supabase, activeBookingId);
+      if (!r.ok) setToastMessage(r.error ?? say('Hindi nakumpirma ang pamasahe. Pakisubukang muli.', 'We could not confirm the fare. Please try again.'));
+      await tripEnd.refresh();
+    });
+
+  const closeDiscrepancyDialog = () => {
+    setDiscrepancyMode(null);
+    setDiscrepancyError(null);
+    if (status === 'Completed') setCompletedDialogOpen(true);
+  };
+  const handleSubmitDiscrepancy = (claimedAmount: number | null, reason: string) =>
+    reportFlight.run(async () => {
+      setDiscrepancyError(null);
+      const r =
+        discrepancyMode === 'safety'
+          ? await requestSafetyFareReview(supabase, activeBookingId, reason)
+          : await reportFareDiscrepancy(supabase, activeBookingId, claimedAmount ?? 0, reason);
+      if (!r.ok) {
+        setDiscrepancyError(r.error ?? say('Hindi naisumite. Pakisubukang muli.', 'It could not be submitted. Please try again.'));
+        return;
+      }
+      closeDiscrepancyDialog();
+      setToastMessage(
+        discrepancyMode === 'safety'
+          ? say('Naisumite ang hiling mo sa TODA Administrator.', 'Your request was sent to the TODA Administrator.')
+          : say('Naisumite ang ulat. Susuriin ito ng TODA Administrator.', 'Your report was submitted. The TODA Administrator will review it.')
+      );
+      await tripEnd.refresh();
+    });
+
+  const handleRateDriver = () => {
+    setCompletedDialogOpen(false);
+    sessionStorage.removeItem('current_active_booking_id');
+    sessionStorage.removeItem('trip_dropoff');
+    sessionStorage.removeItem('trip_pickup');
+    sessionStorage.removeItem('trip_notes');
+    const fare = endState?.actualFare ?? booking?.actual_fare ?? booking?.estimated_fare ?? 0;
+    updateBookingState(activeBookingId, { booking_status: 'Completed', actual_fare: fare });
+    navigate('/feedback', { replace: true, state: { booking: { ...booking, booking_status: 'Completed', actual_fare: fare } } });
+  };
 
   // The map: the passenger's own position (only on this phone), the search area while a driver is being looked for, and the two camera controls
   const mapRef = useRef<MapViewHandle>(null);
@@ -1137,76 +966,15 @@ export const TripMonitoring: React.FC = () => {
             <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} />
           )}
 
-          {status === 'Arrived at Destination' && !isPaymentConfirmed && (
-            <Box
-              sx={{
-                p: '12px 14px',
-                borderRadius: '16px',
-                backgroundColor: paymentSecondsLeft === 0 ? '#FEF2F2' : '#FFFBEB',
-                border: `1.5px solid ${paymentSecondsLeft === 0 ? '#FCA5A5' : '#FCD34D'}`,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 1,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <TimerIcon aria-hidden sx={{ color: paymentSecondsLeft === 0 ? '#B91C1C' : '#B45309', fontSize: 20, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', lineHeight: 1.3 }}>
-                  {language === 'tl' ? 'Pakibayaran ang drayber' : 'Please pay the driver'}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography
-                  role="timer"
-                  aria-live="off"
-                  sx={{
-                    fontSize: paymentSecondsLeft === 0 ? '22px' : '32px',
-                    fontWeight: 700,
-                    color: paymentSecondsLeft === 0 ? '#B91C1C' : '#92400E',
-                    lineHeight: 1.1,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {paymentSecondsLeft === 0
-                    ? (language === 'tl' ? 'Tapos na ang oras' : 'Time is up')
-                    : formatCountdown(paymentSecondsLeft)}
-                </Typography>
-              </Box>
-              <Typography sx={{ fontSize: '13px', color: paymentSecondsLeft === 0 ? '#991B1B' : '#78350F', fontWeight: 500, lineHeight: 1.45, mt: 0.25 }}>
-                {language === 'tl'
-                  ? 'Ibigay ang opisyal na pamasahe sa drayber at pindutin ang "Nabayaran ko na" sa ibaba bago matapos ang oras.'
-                  : 'Pay the driver the official fare and tap "I Paid" below before the time runs out.'}
-              </Typography>
-            </Box>
-          )}
-
-          {status === 'Arrived at Destination' && isPaymentConfirmed && (
-            <Box
-              role="status"
-              sx={{
-                p: '14px 16px',
-                borderRadius: '16px',
-                backgroundColor: '#F0FDF4',
-                border: '1.5px solid #86EFAC',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-              }}
-            >
-              <CircularProgress size={22} sx={{ color: '#16A34A', flexShrink: 0 }} />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#166534', lineHeight: 1.3 }}>
-                  {language === 'tl'
-                    ? 'Nabayaran na • Naghihintay ng kumpirmasyon ng drayber'
-                    : 'Paid • Waiting for driver confirmation'}
-                </Typography>
-                <Typography sx={{ fontSize: '12px', color: '#15803D', mt: 0.25, lineHeight: 1.4 }}>
-                  {language === 'tl'
-                    ? 'Ipinadala na sa drayber ang iyong kumpirmasyon ng bayad. Hinihintay na lang matapos ang biyahe.'
-                    : 'Your payment confirmation has been sent to the driver. Waiting to complete the trip.'}
-                </Typography>
-              </Box>
-            </Box>
+          {status === 'Arrived at Destination' && (
+            <FareConfirmationCard
+              language={language}
+              state={endState}
+              fallbackFare={passengerPayableFare}
+              secondsLeft={tripEnd.secondsLeft}
+              expired={tripEnd.expired}
+              ordinance={fareOrdinance}
+            />
           )}
 
           {status === 'No Driver Found' ? (
@@ -1347,32 +1115,65 @@ export const TripMonitoring: React.FC = () => {
                 </Button>
               </Box>
             ) : status === 'Arrived at Destination' ? (
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={handlePassengerPaid}
-                disabled={paidFlight.busy || isPaymentConfirmed}
-                sx={{
-                  minHeight: 52,
-                  borderRadius: '16px',
-                  '&.Mui-disabled': { backgroundColor: '#15803D', color: '#FFFFFF', opacity: 0.75 },
-                  backgroundColor: '#15803D',
-                  fontWeight: 700,
-                  fontSize: '16px',
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': { backgroundColor: '#166534', boxShadow: 'none' },
-                }}
-              >
-                {paidFlight.busy
-                  ? (language === 'tl' ? 'Kinukumpirma...' : 'Confirming...')
-                  : isPaymentConfirmed
-                  ? (language === 'tl' ? 'Nabayaran na • Naghihintay ng kumpirmasyon' : 'Paid • Waiting for confirmation')
-                  : (language === 'tl' ? 'Nabayaran ko na' : 'I Paid')}
-              </Button>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={handleConfirmFare}
+                  disabled={confirmFlight.busy || Boolean(endState?.confirmFareAt) || Boolean(endState?.fareDiscrepancyAt) || (endState !== null && !endState.canConfirmFare)}
+                  sx={{
+                    minHeight: 52,
+                    borderRadius: '16px',
+                    '&.Mui-disabled': { backgroundColor: '#15803D', color: '#FFFFFF', opacity: 0.6 },
+                    backgroundColor: '#15803D',
+                    fontWeight: 700,
+                    fontSize: '16px',
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                    '&:hover': { backgroundColor: '#166534', boxShadow: 'none' },
+                  }}
+                >
+                  {confirmFlight.busy
+                    ? say('Kinukumpirma...', 'Confirming...')
+                    : endState?.confirmFareAt
+                    ? say('Nakumpirma na ang pamasahe', 'Fare confirmed')
+                    : say('Kumpirmahin ang Pamasahe', 'Confirm Fare')}
+                </Button>
+                {!endState?.confirmFareAt && !endState?.fareDiscrepancyAt && (
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    color="error"
+                    onClick={() => setDiscrepancyMode('discrepancy')}
+                    startIcon={<ReportProblemIcon />}
+                    sx={{ minHeight: 44, borderRadius: '14px', fontWeight: 600, fontSize: '13px', textTransform: 'none', borderColor: '#CBD5E1', color: '#B91C1C', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' } }}
+                  >
+                    {say('I-report ang Pamasahe', 'Report Fare Discrepancy')}
+                  </Button>
+                )}
+              </Box>
             ) : status === 'Trip Ongoing' ? (
-              /* A trip in progress cannot be cancelled (it ends instead, Rule 13) */
-              <SlideToFinish onFinish={handlePassengerFinishTrip} language={language} disabled={finishFlight.busy} />
+              /* Rule 13.2: a trip in progress is not cancelled; the passenger asks to END it early (a request the driver acts on) */
+              earlyRequested ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center' }}>
+                  <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>
+                    {say('Naipadala sa drayber ang hiling: hinihintay na tapusin niya ang biyahe.', 'Request sent: waiting for the driver to end the trip.')}
+                  </Typography>
+                  <Button variant="text" disabled={earlyFlight.busy} onClick={handleWithdrawEarlyEnd} sx={{ textTransform: 'none', fontWeight: 600, color: '#64748B' }}>
+                    {say('Bawiin ang hiling', 'Withdraw the request')}
+                  </Button>
+                </Box>
+              ) : (
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  disabled={earlyFlight.busy}
+                  onClick={() => setEndEarlyOpen(true)}
+                  sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 700, fontSize: '15px', color: '#B45309', borderColor: '#FDBA74', '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#FB923C' } }}
+                >
+                  {say('Tapusin nang Maaga ang Biyahe', 'End Trip (Early)')}
+                </Button>
+              )
             ) : (
               /* Before the trip starts the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
               <Button
@@ -1453,232 +1254,37 @@ export const TripMonitoring: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 7. Arrived at Destination! Modal with Expanded Padding, Spacing, and Centered Tariff */}
-      <Dialog
-        open={completionFareModalOpen}
-        fullWidth
-        maxWidth="xs"
-        aria-labelledby="fare-check-title"
-        slotProps={{ paper: { sx: { borderRadius: '24px', m: 2, width: 'calc(100% - 32px)', p: { xs: 2.5, sm: 3 }, textAlign: 'center' } } }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-          <CheckCircleIcon aria-hidden sx={{ fontSize: 44, color: '#15803D' }} />
-        </Box>
-        <Typography id="fare-check-title" component="h2" sx={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.3, color: '#0F172A', mb: 0.5 }}>
-          {language === 'tl' ? 'Nakarating na sa destinasyon' : 'Arrived at destination'}
-        </Typography>
-        <Typography sx={{ fontSize: '13px', lineHeight: 1.45, color: '#64748B', mb: 2 }}>
-          {language === 'tl' ? 'Suriin ang siningil ng drayber.' : 'Check the fare the driver charged.'}
-        </Typography>
+      {/* 7. End Trip (Early): the request to the driver (Rule 13.2) */}
+      <EndTripEarlyDialog open={endEarlyOpen} language={language} busy={earlyFlight.busy} onClose={() => setEndEarlyOpen(false)} onConfirm={handleRequestEarlyEnd} />
 
-        <Paper elevation={0} sx={{ p: 2, borderRadius: '16px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', mb: 2.5, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#64748B', textAlign: 'center', display: 'block' }}>
-            {language === 'tl' ? 'Opisyal na pamasahe' : 'Official tariff fare'}
-          </Typography>
-          <Typography sx={{ fontSize: '30px', fontWeight: 700, lineHeight: 1.2, color: '#FF6600', my: 0.75, textAlign: 'center', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-            {formatPeso(passengerPayableFare)}
-          </Typography>
-          <Typography sx={{ fontSize: '12px', lineHeight: 1.4, color: '#64748B', textAlign: 'center', display: 'block' }}>
-            {fareOrdinance
-              ? (language === 'tl' ? `Batay sa ${fareOrdinance}` : `Based on ${fareOrdinance}`)
-              : (language === 'tl' ? 'Batay sa opisyal na taripa ng Lungsod ng Calapan' : 'Based on the official Calapan City tariff')}
-          </Typography>
-        </Paper>
+      {/* 8. Report Fare Discrepancy (Rule 18.4), and the review of a Safety Concern early end (Rule 13.5) */}
+      <FareDiscrepancyDialog
+        open={discrepancyMode !== null}
+        mode={discrepancyMode ?? 'discrepancy'}
+        language={language}
+        systemFare={endState?.actualFare ?? passengerPayableFare}
+        busy={reportFlight.busy}
+        error={discrepancyError}
+        onClose={closeDiscrepancyDialog}
+        onSubmit={handleSubmitDiscrepancy}
+      />
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={() => {
-              setCompletionFareModalOpen(false);
-              sessionStorage.removeItem('current_active_booking_id');
-              sessionStorage.removeItem('trip_dropoff');
-              sessionStorage.removeItem('trip_pickup');
-              sessionStorage.removeItem('trip_notes');
-              updateBookingState(activeBookingId, {
-                booking_status: 'Completed',
-                actual_fare: passengerPayableFare,
-              });
-              navigate('/feedback', {
-                replace: true,
-                state: {
-                  booking: {
-                    ...booking,
-                    booking_status: 'Completed',
-                    actual_fare: passengerPayableFare,
-                  },
-                },
-              });
-            }}
-            sx={{
-              minHeight: 52,
-              borderRadius: '14px',
-              backgroundColor: '#15803D',
-              fontWeight: 700,
-              fontSize: '15px',
-              lineHeight: 1.25,
-              textTransform: 'none',
-              boxShadow: 'none',
-              '&:hover': { backgroundColor: '#166534', boxShadow: 'none' },
-            }}
-          >
-            {language === 'tl' ? `Nagbayad ako ng ${formatPeso(passengerPayableFare)}` : `I paid ${formatPeso(passengerPayableFare)}`}
-          </Button>
-
-          <Button
-            variant="outlined"
-            fullWidth
-            color="error"
-            onClick={() => {
-              setCompletionFareModalOpen(false);
-              setDisputeModalOpen(true);
-            }}
-            startIcon={<ReportProblemIcon />}
-            sx={{
-              minHeight: 44,
-              borderRadius: '14px',
-              fontWeight: 600,
-              fontSize: '13px',
-              lineHeight: 1.25,
-              textTransform: 'none',
-              borderColor: '#CBD5E1',
-              color: '#B91C1C',
-              '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' },
-            }}
-          >
-            {language === 'tl' ? 'Hindi tugma ang halaga' : "The amount doesn't match"}
-          </Button>
-        </Box>
-      </Dialog>
-
-      {/* 8. LGU Fare Dispute & Incident Form Dialog */}
-      <Dialog
-        open={disputeModalOpen}
-        onClose={() => setDisputeModalOpen(false)}
-        fullWidth
-        maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '24px', p: 1.5 } } }}
-      >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
-          <ReportProblemIcon sx={{ color: '#EF4444' }} />
-          <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#0F172A' }}>
-            {language === 'tl' ? 'Isumite ang Reklamo sa LGU' : 'Submit Dispute to City LGU'}
-          </Typography>
-        </DialogTitle>
-
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
-          {disputeSubmitted ? (
-            <Alert severity="success" sx={{ borderRadius: '12px' }}>
-              {language === 'tl'
-                ? `Naisumite na ang iyong reklamo sa City LGU Transport Board (Incident #${activeBookingId}). Iimbestigahan ito agad.`
-                : `Your complaint has been submitted to the City LGU Transport Board (Incident #${activeBookingId}). It will be investigated promptly.`}
-            </Alert>
-          ) : (
-            <>
-              <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
-                {language === 'tl'
-                  ? 'Ipapadala ang ulat na ito sa City LGU Administrator sa ilalim ng Complaint & Incident Management.'
-                  : 'This report is sent directly to the City LGU Administrator under Complaint & Incident Management.'}
-              </Typography>
-
-              {disputeError && (
-                <Alert severity="error" sx={{ borderRadius: '12px' }}>{disputeError}</Alert>
-              )}
-
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label={language === 'tl' ? "Uri ng Reklamo" : "Dispute Category"}
-                value={disputeCategory}
-                onChange={(e) => setDisputeCategory(e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-              >
-                <MenuItem value="Overcharging Attempt">
-                  {language === 'tl' ? 'Overcharging (Sobra ang singil sa pamasahe)' : 'Overcharging (Exceeded official tariff)'}
-                </MenuItem>
-                <MenuItem value="Refusal to Follow Tariff">
-                  {language === 'tl' ? 'Refusal to Follow Tariff (Hindi sumunod sa taripa)' : 'Refusal to Follow Tariff (Arbitrary pricing)'}
-                </MenuItem>
-                <MenuItem value="Unauthorized Route">
-                  {language === 'tl' ? 'Unauthorized Route (Maling ruta)' : 'Unauthorized Route (Unscheduled detour)'}
-                </MenuItem>
-                <MenuItem value="Rude Behavior">
-                  {language === 'tl' ? 'Rude Behavior (Hindi magandang asal)' : 'Rude Behavior / Harassment'}
-                </MenuItem>
-              </TextField>
-
-              <TextField
-                fullWidth
-                size="small"
-                label={language === 'tl' ? "Halagang Siningil ng Drayber (₱)" : "Amount Charged by Driver (₱)"}
-                type="number"
-                placeholder={language === 'tl' ? "Hal. 50" : "e.g. 50"}
-                value={disputedAmount}
-                onChange={(e) => setDisputedAmount(e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-              />
-
-              <TextField
-                fullWidth
-                size="small"
-                multiline
-                rows={3}
-                label={language === 'tl' ? "Paliwanag o Detalye" : "Explanation or Details"}
-                placeholder={language === 'tl' ? "Pakilarawan ang nangyari..." : "Please describe what happened..."}
-                value={disputeReason}
-                onChange={(e) => setDisputeReason(e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-              />
-            </>
-          )}
-        </DialogContent>
-
-        {!disputeSubmitted && (
-          <DialogActions sx={{ p: '12px 18px 18px', gap: 1 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={() => setDisputeModalOpen(false)}
-              sx={{ borderRadius: '12px', textTransform: 'none' }}
-            >
-              {language === 'tl' ? 'Kanselahin' : 'Cancel'}
-            </Button>
-            <Button
-              variant="contained"
-              fullWidth
-              color="error"
-              disabled={disputeSending || !activeBookingId}
-              onClick={async () => {
-                setDisputeError(null);
-                setDisputeSending(true);
-                try {
-                  // The database takes the driver, the TODA and the reporter from the booking; only the facts of the complaint are sent.
-                  await submitIncidentReport({
-                    bookingId: activeBookingId as string,
-                    category: disputeCategory || 'Overcharging Attempt',
-                    description: `Disputed Fare. Expected: ₱${passengerPayableFare.toFixed(2)}, Actual: ₱${disputedAmount || passengerPayableFare}. Details: ${disputeReason}`,
-                  });
-                } catch (err) {
-                  setDisputeError(err instanceof Error ? err.message : String(err));
-                  setDisputeSending(false);
-                  return;
-                }
-                setDisputeSending(false);
-
-                setDisputeSubmitted(true);
-                setTimeout(() => {
-                  setDisputeModalOpen(false);
-                  navigate('/dashboard', { replace: true });
-                }, 2000);
-              }}
-              sx={{ borderRadius: '12px', fontWeight: 700, textTransform: 'none' }}
-            >
-              {language === 'tl' ? 'Isumite sa LGU' : 'Submit to LGU'}
-            </Button>
-          </DialogActions>
-        )}
-      </Dialog>
+      {/* 9. The trip is over: the driver tapped Payment Received (Rule 18.3) */}
+      <TripCompletedDialog
+        open={completedDialogOpen}
+        language={language}
+        fare={endState?.actualFare ?? passengerPayableFare}
+        state={endState}
+        onRate={handleRateDriver}
+        onReport={() => {
+          setCompletedDialogOpen(false);
+          setDiscrepancyMode('discrepancy');
+        }}
+        onAskReview={() => {
+          setCompletedDialogOpen(false);
+          setDiscrepancyMode('safety');
+        }}
+      />
 
       {/* Bidirectional Driver Cancellation Realtime Notification Modal */}
       <Dialog

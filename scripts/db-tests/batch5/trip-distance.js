@@ -230,8 +230,11 @@ const { setup, check, summary } = require('../b5fixtures');
   await logTrack(Z.booking_id, ID.D1, { n: 100 });
   const first = await setStatus(ID.D_AUTH, Z.booking_id, 'Arrived at Destination');
   await logTrack(Z.booking_id, ID.D1, { n: 100, startAt: '2026-10-07T02:00:00Z', stepDeg: 0.001 });   // more rows after the fact
-  const second = await setStatus(ID.P_AUTH, Z.booking_id, 'Completed');
-  check('rows that arrive after finalization (or a second status change) do not change the billed fare, the distance or the ledger',
+  await attempt(() => as(ID.P_AUTH, (tx) => tx.query(`SELECT public.passenger_confirm_fare($1)`, [Z.booking_id])));      // Batch 9: Confirm Fare, then Payment Received
+  await attempt(() => as(ID.D_AUTH, (tx) => tx.query(`SELECT public.driver_confirm_payment_received($1)`, [Z.booking_id])));
+  const second = await getBooking(Z.booking_id);
+  check('rows that arrive after finalization (or the completion of the trip) do not change the billed fare, the distance or the ledger',
+    second.booking_status === 'Completed' &&
     num(second.actual_fare) === num(first.actual_fare) && second.actual_distance_km === first.actual_distance_km
       && (await q(`SELECT 1 FROM public.fare_adjustment_history WHERE booking_id = $1`, [Z.booking_id])).length === 1);
 
