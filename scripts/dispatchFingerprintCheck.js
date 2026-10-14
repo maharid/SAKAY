@@ -8,7 +8,11 @@
 //                                                                              and adds the cancellation decision, the pickup change and the first-name check; and Batch 9's
 //                                                                              20261024000001, which replaces dispatch_constant, the booking status / fare / progress guards,
 //                                                                              the incident guard, dispatch_sweep and the open-booking check, and adds the trip-end, payment,
-//                                                                              fare-dispute and completed-trip functions: 105 functions in 15 files)
+//                                                                              fare-dispute and completed-trip functions; and Batch 10's 20261025000001, which replaces
+//                                                                              _dispatch_advance, dispatch_sweep, booking_identity_guard, booking_fare_update_guard,
+//                                                                              admin_confirm_flagged_violation, _trip_track_summary (two optional arguments), the cancellation
+//                                                                              hook, block_driver_double_booking and _log_trip_fix, and adds the ride-sharing matching,
+//                                                                              approvals, disclosure, settlement and passenger-count functions: 133 functions in 16 files)
 //
 // How it works: the whole migration chain is built on the local emulator (PGlite, never Supabase), every function that those migrations define or
 // replace is fingerprinted (md5 of its body, line endings ignored), and the fingerprints are written INTO the query. Run on the hosted project, the

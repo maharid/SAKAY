@@ -19,6 +19,7 @@ import { fetchDriverNotifications } from '../../services/driverApiService';
 import { DriverSessionProvider } from '../../contexts/DriverSessionContext';
 import { ConnectionLostBanner } from '@sakay/shared';
 import { DriverIncomingRequestModal } from '../components/DriverIncomingRequestModal';
+import { DriverSharedRequestModal } from '../components/DriverSharedRequestModal';
 import DriverPresenceNotices from '../components/DriverPresenceNotices';
 import SakayToast from '../components/SakayToast';
 
@@ -294,6 +295,9 @@ export const DriverMobileAppShell: React.FC = () => {
 
           {/* Global Incoming Request Modal */}
           {isDriverPortal && <DriverIncomingRequestModal />}
+
+          {/* Rule 14.3: an Additional Shared Passenger Request, while a Shared Trip is under way */}
+          {isDriverPortal && <DriverSharedRequestModal />}
 
           {/* Rule 7.6 reminder, and why the system set the driver Offline (7.7, 17.7) */}
           {isDriverPortal && <DriverPresenceNotices />}

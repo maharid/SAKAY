@@ -86,7 +86,34 @@ export type FareDistanceBasis =
   | 'estimate_is_greater_than_actual'
   | 'straight_line_to_early_point_no_track';
 
-export type FareBasis = 'solo' | 'unmatched_solo' | 'matched_estimate_pending_segments';
+/**
+ * How the final fare was reached. 'shared_allocated' (Batch 10): a matched Shared leg settled by allocate_shared_fares() from where each booking boarded and
+ * alighted along the vehicle's route; 'matched_estimate_pending_segments': a matched leg whose route could not be measured (the accepted estimate stands).
+ */
+export type FareBasis = 'solo' | 'unmatched_solo' | 'matched_estimate_pending_segments' | 'shared_allocated';
+
+/** The legs a matched Shared booking was settled on (Batch 10; booking.fare_breakdown.final.shared_leg). Positions are km along the vehicle's route. */
+export interface SharedLegBreakdown {
+  fare: number;
+  raw_fare: number;
+  /** What the allocation gave before the booking's own Solo (Maximum Unmatched) fare capped it */
+  allocated_fare: number;
+  capped_at_solo: boolean;
+  solo_cap: number;
+  route_km: number;
+  pool_fare: number;
+  per_km_cost: number;
+  passenger_count: number;
+  board_km: number;
+  alight_km: number;
+  other_passenger_count: number;
+  other_board_km: number | null;
+  other_alight_km: number | null;
+  /** True when the other leg was still on board: its end is its remaining estimated distance (the first leg to end is locked with that estimate) */
+  other_projected: boolean;
+  segments: Array<{ from_km: number; to_km: number; length_km: number; passengers_on_board: number; type: 'common' | 'exclusive'; cost: number }>;
+  components: FareComponents;
+}
 
 /** Rules 13.4 / 13.5 / 13.7: how and where the trip ended early, recorded by the database when the driver ended it (booking.fare_breakdown.final.early_end). */
 export interface FareEarlyEndBreakdown {
@@ -136,6 +163,8 @@ export interface FareFinalBreakdown {
   finalized_at: string;
   /** Present only when the trip ended before the destination (Batch 9) */
   early_end?: FareEarlyEndBreakdown;
+  /** Present only for a matched Shared leg that was settled by the allocation (Batch 10) */
+  shared_leg?: SharedLegBreakdown;
 }
 
 /** booking.fare_breakdown: the rule snapshot, the estimate, and (once the trip arrived) the final fare. */

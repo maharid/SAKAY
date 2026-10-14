@@ -79,8 +79,8 @@ const SharedFareNotice: React.FC<SharedFareNoticeProps> = ({
   ];
 
   const summary = tl
-    ? `Hahanapan ng kapares hanggang ${RIDE_SHARING_CUTOFF_PERCENT}% ng biyahe. Kung wala, ang Solo fare ang babayaran mo.`
-    : `We look for a match until ${RIDE_SHARING_CUTOFF_PERCENT}% of the trip is done. If there is none, you pay the Solo fare.`;
+    ? `Hahanapan ng kapares habang wala pang ${RIDE_SHARING_CUTOFF_PERCENT}% ng biyahe ang natatapos. Kung wala, ang Solo fare ang babayaran mo.`
+    : `We look for a match while less than ${RIDE_SHARING_CUTOFF_PERCENT}% of the trip is done. If there is none, you pay the Solo fare.`;
 
   // The full conditions (unchanged in meaning), including the two fares under their rule names
   const details = tl

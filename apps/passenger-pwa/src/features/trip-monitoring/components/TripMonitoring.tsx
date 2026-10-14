@@ -44,6 +44,8 @@ import {
   searchRadiusFromStatus,
   PASSENGER_STALE_LOCATION_DIM_SECONDS,
   useTripEndState,
+  useSharedMatch,
+  SharedMatchPanel,
   requestEarlyEnd,
   withdrawEarlyEnd,
   confirmFare,
@@ -500,6 +502,9 @@ export const TripMonitoring: React.FC = () => {
   const tripEndActive = UUID_PATTERN.test(activeBookingId) && (status === 'Trip Ongoing' || status === 'Arrived at Destination' || status === 'Completed');
   const tripEnd = useTripEndState(supabase, activeBookingId, tripEndActive);
   const endState = tripEnd.state;
+  // Ride-sharing (Section 14): whether a second passenger is being asked or is on the way, and the first passenger's Accept / Decline Shared Match (Rule 14.5).
+  // The database answers; a booking that is not Shared is never asked.
+  const sharedMatch = useSharedMatch(supabase, activeBookingId, UUID_PATTERN.test(activeBookingId) && Boolean(booking?.is_shared_trip) && isTripActive && status !== 'Arrived at Destination');
   // End Trip (Early) was asked for and the driver has not ended the trip yet (Rule 13.2)
   const earlyRequested = status === 'Trip Ongoing' && Boolean(endState?.earlyEnd && endState.earlyEnd.kind !== 'DRIVER' && endState.earlyEnd.requestedAt);
   const say = (tl: string, en: string) => (language === 'tl' ? tl : en);
@@ -751,6 +756,8 @@ export const TripMonitoring: React.FC = () => {
     fareBasis,
     counterpartName: booking?.driver_name,
     counterpartRating: driverRating,
+    sharedPaired: sharedMatch.view ? sharedMatch.view.state === 'matched' : null,
+    sharedMatchingOpen: sharedMatch.view ? sharedMatch.view.matchingOpen : null,
   });
 
   return (
@@ -1037,6 +1044,9 @@ export const TripMonitoring: React.FC = () => {
               )}
             </Box>
           )}
+
+          {/* Ride-sharing (Rules 14.2.1, 14.5): the Accept / Decline Shared Match question, and the limited facts about the passenger who shares */}
+          <SharedMatchPanel view={sharedMatch.view} language={language} secondsLeft={sharedMatch.secondsLeft} busy={sharedMatch.busy} errorMessage={sharedMatch.error} onRespond={(accept) => void sharedMatch.respond(accept)} />
 
           {/* Trip details: collapsed by default, one tap away at every stage */}
           <TripDetailsPanel view={tripDetails} language={language} />

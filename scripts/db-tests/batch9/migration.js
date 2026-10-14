@@ -20,7 +20,8 @@ const PREVIOUS = '20261023000001_batch8_arrival_noshow_cancellation.sql';
   const replaced = ['dispatch_constant', 'booking_status_guard', 'booking_fare_update_guard', 'booking_trip_progress_guard', 'incident_report_guard', 'dispatch_sweep', '_passenger_open_booking_conflict'];
   check('it replaces exactly the seven functions of the plan (each copied from its newest definition), and the earlier files are untouched', replaced.every((n) => unique.includes(n)));
   const gitDirty = require('child_process').spawnSync('git', ['status', '--porcelain', '--', 'supabase/migrations'], { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8' }).stdout;
-  check('no earlier migration file is modified in the working tree (only the new Batch 9 file is new)', gitDirty.split('\n').filter(Boolean).every((l) => /20261024000001_batch9_trip_end_payment_disputes\.sql$/.test(l)), gitDirty);
+  // (a later batch adds its own NEW file next to it: only a MODIFIED or deleted file, other than this one, counts)
+  check('no earlier migration file is modified in the working tree (only the new Batch 9 file, and later new files, are new)', gitDirty.split('\n').filter(Boolean).every((l) => /20261024000001_batch9_trip_end_payment_disputes\.sql$/.test(l) || ((l.match(/^\?\? supabase\/migrations\/(\d{14})_/) || [])[1] > '20261024000001')), gitDirty);
 
   console.log('\nS2 the trips of the old one-tap flow, and the trips in flight at the deploy, on a database at the Batch 8 state');
   const old = await setup(PREVIOUS);
@@ -42,8 +43,8 @@ const PREVIOUS = '20261023000001_batch8_arrival_noshow_cancellation.sql';
   const stateOk = await attempt(() => old.internal(`UPDATE booking SET payment_status = 'Paid', payment_received_at = NULL WHERE booking_id = '${inFlight}'`));
   check('the new CHECK is in force on the migrated data', !stateOk.ok && /booking_paid_needs_both_check/.test(stateOk.error), stateOk);
 
-  console.log('\nS3 safe to run twice (on the whole chain)');
-  const s = await setup();
+  console.log('\nS3 safe to run twice (on the chain up to this migration: a later batch replaces some of its functions, and running this file again would put the old ones back)');
+  const s = await setup('20261024000001_batch9_trip_end_payment_disputes.sql');
   const { q, one, internal, db } = s;
   const fingerprints = async () => Object.fromEntries((await q(`SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS fn,
       md5(replace(p.prosrc, E'\\r', '')) || ':' || COALESCE(p.proacl::text, '') AS fp FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY($1::text[])`, [unique])).map((r) => [r.fn, r.fp]));

@@ -47,6 +47,7 @@ const TEXT = {
     sharedWaiting: `Matching continues while less than ${RIDE_SHARING_CUTOFF_PERCENT}% of the trip is done. If no one is matched, the Solo fare applies.`,
     sharedMatched: 'Another commuter is sharing this ride, so the fare is split.',
     sharedUnmatched: 'No one was matched, so the Solo fare applies.',
+    sharedEnded: 'Matching has ended for this trip. It goes on as a Solo trip and the Solo fare applies.',
     phases: {
       searching: 'Finding a driver',
       assigned: 'Heading to the pickup point',
@@ -79,6 +80,7 @@ const TEXT = {
     sharedWaiting: `Tuloy ang paghahanap ng kasabay hangga't wala pang ${RIDE_SHARING_CUTOFF_PERCENT}% ng biyahe ang tapos. Kung walang makapares, Solo fare ang sisingilin.`,
     sharedMatched: 'May kasabay na commuter sa biyaheng ito, kaya hati ang pamasahe.',
     sharedUnmatched: 'Walang nakapares, kaya Solo fare ang sisingilin.',
+    sharedEnded: 'Tapos na ang paghahanap ng kasabay. Tuloy ang biyahe bilang Solo trip at Solo fare ang sisingilin.',
     phases: {
       searching: 'Naghahanap ng drayber',
       assigned: 'Papunta sa pickup',
@@ -126,7 +128,15 @@ const TripDetailsPanel: React.FC<TripDetailsPanelProps> = ({ view, language, def
 
   const fareLabel = view.fare?.kind === 'final' ? t.finalFare : t.estimatedFare;
   const sharedNote =
-    view.sharedOutcome === 'matched' ? t.sharedMatched : view.sharedOutcome === 'unmatched' ? t.sharedUnmatched : view.sharedOutcome === 'waiting' ? t.sharedWaiting : null;
+    view.sharedOutcome === 'matched'
+      ? t.sharedMatched
+      : view.sharedOutcome === 'unmatched'
+      ? t.sharedUnmatched
+      : view.sharedOutcome === 'ended'
+      ? t.sharedEnded
+      : view.sharedOutcome === 'waiting'
+      ? t.sharedWaiting
+      : null;
   const vehicleText = view.vehicle
     ? [view.vehicle.franchiseNo && `${t.franchise} ${view.vehicle.franchiseNo}`, view.vehicle.plateNo && `${t.plate} ${view.vehicle.plateNo}`, view.vehicle.todaName]
         .filter(Boolean)
