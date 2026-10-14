@@ -35,6 +35,10 @@ import {
   formatPeso,
   searchRadiusFromStatus,
   useSafeAreaInsets,
+  SHARED_BOOKING_MAX_PASSENGERS,
+  FARE_SEAT_CAPACITY,
+  SharedMatchPanel,
+  useSharedMatch,
 } from "@sakay/shared";
 
 import MapView from "../../../../common/components/MapView";
@@ -205,6 +209,8 @@ const NewTrip: React.FC = () => {
   const { status: searchStatus, refresh: refreshSearch } = useDispatchStatus(activeBooking?.booking_id);
   const searchOutcome: DriverSearchOutcome = searchStatus?.bookingStatus === "No Driver Found" ? "noDriver" : "searching";
   const searching = isSearching && searchStatus?.bookingStatus !== "Cancelled";
+  // Ride-sharing (Rule 14.2.1): while a Shared booking is searching, a driver on a trip nearby may be asked to take it; the database says so (nothing is shown otherwise)
+  const sharedMatch = useSharedMatch(supabase, activeBooking?.booking_id, searching && searchOutcome === "searching" && tripType === "Shared");
   // How far the database is looking right now (null once the search ended, or when it does not say): the map draws exactly this, nothing invented
   const searchRadiusMeters = searching ? searchRadiusFromStatus(searchStatus) : null;
 
@@ -727,6 +733,7 @@ const NewTrip: React.FC = () => {
               onCancel={searchOutcome === "noDriver" ? handleLeaveNoDriverFound : handleCancelBooking}
               onRetry={handleRetrySearch}
               onChangePickup={searchOutcome === "searching" && activeBooking ? () => setChangePickupOpen(true) : undefined}
+              sharedMatch={<SharedMatchPanel view={sharedMatch.view} language={language} secondsLeft={sharedMatch.secondsLeft} busy={sharedMatch.busy} errorMessage={sharedMatch.error} onRespond={(accept) => void sharedMatch.respond(accept)} />}
             />
           </Box>
         ) : (
@@ -932,11 +939,11 @@ const NewTrip: React.FC = () => {
                 language={language}
                 tripType={tripType}
                 passengers={passengers}
-                maxPassengers={tripType === "Shared" ? 2 : 4}
+                maxPassengers={tripType === "Shared" ? SHARED_BOOKING_MAX_PASSENGERS : FARE_SEAT_CAPACITY}
                 note={noteText}
                 onTripTypeChange={(next) => {
                   setTripType(next);
-                  if (next === "Shared" && passengers > 2) setPassengers(2);
+                  if (next === "Shared" && passengers > SHARED_BOOKING_MAX_PASSENGERS) setPassengers(SHARED_BOOKING_MAX_PASSENGERS);
                 }}
                 onPassengersChange={setPassengers}
                 onOpenNote={() => {
@@ -1376,8 +1383,8 @@ const NewTrip: React.FC = () => {
               </Typography>
               <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.secondary, color: "#64748B", mt: 0.5 }}>
                 {language === "tl"
-                  ? "Makatipid ng pamasahe sa pamamagitan ng pag-share ng tricycle sa ibang pasaherong pareho ang ruta (hanggang 2 pasahero bawat booking)."
-                  : "Save on fare by carpooling with passengers heading the same way (up to 2 passengers per booking)."}
+                  ? `Makatipid ng pamasahe sa pamamagitan ng pag-share ng tricycle sa ibang pasaherong pareho ang ruta (hanggang ${SHARED_BOOKING_MAX_PASSENGERS} pasahero bawat booking; 4 pasahero, mag-Solo).`
+                  : `Save on fare by carpooling with passengers heading the same way (up to ${SHARED_BOOKING_MAX_PASSENGERS} passengers per booking; a party of 4 books Solo).`}
               </Typography>
             </Paper>
           </Box>

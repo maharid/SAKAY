@@ -5,7 +5,7 @@
 
 import { supabase } from './supabaseClient';
 import type { BookingRecord } from '@sakay/shared';
-import { BOOKING_OPEN_STATUSES, describeFareError, describeRestriction, parseFareError, parseRestrictionError } from '@sakay/shared';
+import { BOOKING_OPEN_STATUSES, FARE_SEAT_CAPACITY, SHARED_BOOKING_MAX_PASSENGERS, describeFareError, describeRestriction, parseFareError, parseRestrictionError } from '@sakay/shared';
 import { saveTripToHistory } from './tripService';
 
 export type { BookingRecord };
@@ -149,7 +149,7 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     is_shared_trip: Boolean(payload.is_shared_trip),
     passenger_count: Math.min(
       Math.max(Number(payload.passenger_count) || 1, 1),
-      payload.is_shared_trip ? 3 : 4
+      payload.is_shared_trip ? SHARED_BOOKING_MAX_PASSENGERS : FARE_SEAT_CAPACITY
     ),
     booking_type: 'Immediate',
     booking_status: 'Pending',

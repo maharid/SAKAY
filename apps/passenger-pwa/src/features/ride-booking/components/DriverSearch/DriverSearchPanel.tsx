@@ -27,6 +27,8 @@ interface DriverSearchPanelProps {
   onRetry: () => void;
   /** Rule 29.9: the pickup may be changed while the search is running (offered only then; the database refuses once a driver has accepted) */
   onChangePickup?: () => void;
+  /** Ride-sharing (Rule 14.2.1): what a Shared booking is told while a driver on a trip nearby is being asked to take it (SharedMatchPanel) */
+  sharedMatch?: React.ReactNode;
 }
 
 const FONT = "Poppins, sans-serif";
@@ -60,6 +62,7 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
   onCancel,
   onRetry,
   onChangePickup,
+  sharedMatch,
 }) => {
   const isTagalog = language === "tl";
   const elapsedSeconds = useSearchClock(startedAt);
@@ -204,6 +207,8 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
           "& .MuiLinearProgress-bar": { backgroundColor: "#FF6600", borderRadius: 3 },
         }}
       />
+
+      {sharedMatch}
 
       {tripDetails}
 

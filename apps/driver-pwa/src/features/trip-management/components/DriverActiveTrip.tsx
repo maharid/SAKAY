@@ -55,6 +55,8 @@ import { DriverFeedbackModal } from '../../feedback/components/DriverFeedbackMod
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
 import { DriverCancelModal } from '../../../common/components/DriverCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
+import SharedLegSwitcher from '../../../common/components/SharedLegSwitcher';
+import PassengerCountReportDialog from '../../../common/components/PassengerCountReportDialog';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from './EnRouteNotices';
@@ -78,6 +80,7 @@ export const DriverActiveTrip: React.FC = () => {
   const [exitGuardOpen, setExitGuardOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
+  const [countReportOpen, setCountReportOpen] = useState(false);
 
   // Bidirectional Passenger Cancelled Alert State
   const [passengerCancelledAlertOpen, setPassengerCancelledAlertOpen] = useState(false);
@@ -667,6 +670,12 @@ export const DriverActiveTrip: React.FC = () => {
                 <PersonIcon aria-hidden sx={{ fontSize: 14, color: '#64748B' }} />
                 {booking?.passenger_count || 1} {tl ? 'pasahero' : (booking?.passenger_count || 1) === 1 ? 'passenger' : 'passengers'}
               </Typography>
+              {/* Rules 14.7 / 29.17: a different number of passengers than the booking declared is reported BEFORE the trip is finished */}
+              {booking && ['Accepted', 'Assigned', 'Driver Assigned', 'Driver En Route', 'Heading to Passenger', 'In Transit', 'Driver Arrived', 'Arrived at Pickup', 'Trip Ongoing', 'Ongoing'].includes(booking.booking_status) && (
+                <Button size="small" onClick={() => setCountReportOpen(true)} sx={{ p: 0, minHeight: 0, minWidth: 0, textTransform: 'none', fontSize: '11px', fontWeight: 700, color: '#B45309', justifyContent: 'flex-start' }}>
+                  {tl ? 'Iba ang bilang? Iulat' : 'Different number? Report it'}
+                </Button>
+              )}
             </Box>
           </Box>
 
@@ -736,6 +745,8 @@ export const DriverActiveTrip: React.FC = () => {
         )}
 
         <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px solid #F1F5F9' }}>
+          {/* On a Shared Trip the driver carries two bookings, one per passenger: this bar goes from one leg to the other (it shows nothing on an ordinary trip) */}
+          <SharedLegSwitcher bookingId={bookingId} />
           <TripDetailsPanel view={tripDetails} language={language} variant="plain" />
         </Box>
       </Paper>
@@ -919,6 +930,13 @@ export const DriverActiveTrip: React.FC = () => {
       />
 
       <SakayToast message={toastMessage} severity="warning" onClose={() => setToastMessage(null)} />
+      <PassengerCountReportDialog
+        open={countReportOpen}
+        bookingId={bookingId}
+        declaredCount={booking?.passenger_count || 1}
+        onClose={() => setCountReportOpen(false)}
+        onReported={(message) => setToastMessage(message)}
+      />
 
       <BookingGivenAwayDialog
         open={clocks.bookingGone}

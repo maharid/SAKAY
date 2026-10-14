@@ -416,10 +416,36 @@ export const FUTURE_REQUEST_SLACK_SECONDS = 300;
 export const RATE_BACKDATE_SLACK_SECONDS = 120;
 
 /**
- * Ride-sharing cutoff shown to the passenger before they confirm (Rule 6.5, PI-10): matching continues while
- * less than this percent of the original trip is completed. DISPLAY ONLY here; Batch 10 enforces it.
+ * Ride-sharing cutoff shown to the passenger before they confirm (Rule 6.5, PI-10 Option A): matching continues while the on-board progress is
+ * STRICTLY LESS than this percent. The database enforces it (shared_trip_constant('cutoff_progress_pct'), migration 20261025000001); this copy is for
+ * the screens and the drift test (scripts/db-tests/batch10/config-drift.js) keeps both equal.
  */
 export const RIDE_SHARING_CUTOFF_PERCENT = 50;
+
+// ----------------------------------------------------------------------------
+// Ride-sharing (Batch 10): the matching of Section 14. Code constants inside public.shared_trip_constant(); the copies here are for the screens and
+// the drift test fails if either side changes alone. The tricycle's 4 seats are FARE_SEAT_CAPACITY (one source); the driver's response window is
+// DRIVER_OFFER_TIMEOUT_SECONDS (+ DISPATCH_OFFER_GRACE_SECONDS).
+// ----------------------------------------------------------------------------
+/** Rule 14.1: a Shared Trip is at most this many independently booked parties */
+export const SHARED_TRIP_MAX_BOOKINGS = 2;
+/** F10.3: the second pickup is within this distance (straight line, metres) of the first party's next stop */
+export const SHARED_TRIP_PICKUP_SEPARATION_METERS = 600;
+/** F10.4: nobody's added in-vehicle distance exceeds this percent of their own solo route ... */
+export const SHARED_TRIP_DETOUR_MAX_PERCENT = 30;
+/** ... or this many metres */
+export const SHARED_TRIP_DETOUR_MAX_METERS = 1000;
+/** F10.5: when both trips are longer than SHARED_TRIP_BEARING_MIN_TRIP_METERS their destination bearings differ by at most this many degrees */
+export const SHARED_TRIP_BEARING_MAX_DEGREES = 45;
+export const SHARED_TRIP_BEARING_MIN_TRIP_METERS = 500;
+/** F10.6: the first passenger's window to Accept or Decline Shared Match; no answer counts as a Decline (no strike) */
+export const SHARED_TRIP_PASSENGER_RESPONSE_SECONDS = 20;
+/** F10.7: declines or timeouts of Shared requests in the window that raise a review flag for the driver (review only; a strike needs an administrator) */
+export const SHARED_TRIP_DECLINE_FLAG_COUNT = 3;
+export const SHARED_TRIP_DECLINE_FLAG_WINDOW_HOURS = 24;
+/** Decision N4: the most passengers one Shared booking may declare: a seat must stay free for the second booking (4 passengers book Solo). The database
+ * still accepts 1 - 4 and never matches a booking of 4. */
+export const SHARED_BOOKING_MAX_PASSENGERS = FARE_SEAT_CAPACITY - 1;
 
 // ============================================================================
 // 9. UNIFIED POLICY CONSTANTS OBJECT
@@ -445,6 +471,18 @@ export const POLICY_CONSTANTS = {
     FUTURE_REQUEST_SLACK_SECONDS,
     RATE_BACKDATE_SLACK_SECONDS,
     RIDE_SHARING_CUTOFF_PERCENT,
+  },
+  SHARED_TRIP: {
+    SHARED_TRIP_MAX_BOOKINGS,
+    SHARED_TRIP_PICKUP_SEPARATION_METERS,
+    SHARED_TRIP_DETOUR_MAX_PERCENT,
+    SHARED_TRIP_DETOUR_MAX_METERS,
+    SHARED_TRIP_BEARING_MAX_DEGREES,
+    SHARED_TRIP_BEARING_MIN_TRIP_METERS,
+    SHARED_TRIP_PASSENGER_RESPONSE_SECONDS,
+    SHARED_TRIP_DECLINE_FLAG_COUNT,
+    SHARED_TRIP_DECLINE_FLAG_WINDOW_HOURS,
+    SHARED_BOOKING_MAX_PASSENGERS,
   },
   DISPATCH: {
     DRIVER_OFFER_TIMEOUT_SECONDS,

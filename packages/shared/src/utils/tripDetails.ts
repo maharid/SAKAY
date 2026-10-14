@@ -52,8 +52,12 @@ export interface TripDetailsInput {
   actualFare?: number | null;
   /** Set once the database locked the final fare */
   fareLockedAt?: string | null;
-  /** fare_breakdown.final.basis: 'solo' | 'matched_estimate_pending_segments' | 'unmatched_solo' (known only once the fare is locked) */
+  /** fare_breakdown.final.basis: 'solo' | 'matched_estimate_pending_segments' | 'shared_allocated' | 'unmatched_solo' (known only once the fare is locked) */
   fareBasis?: string | null;
+  /** get_shared_match_state (Batch 10): a second passenger is sharing this trip now (a confirmed pairing) */
+  sharedPaired?: boolean | null;
+  /** get_shared_match_state (Batch 10): the system is still looking for a second passenger (Rule 6.5: until the cutoff). false once matching closed. */
+  sharedMatchingOpen?: boolean | null;
   /** The OTHER party: the driver for the passenger's screen, the passenger for the driver's */
   counterpartName?: string | null;
   counterpartRating?: number | null;
@@ -64,8 +68,11 @@ export interface TripDetailsInput {
 }
 
 export type FareKind = 'estimate' | 'final';
-/** waiting: a shared booking nobody has been matched to yet; matched / unmatched: the database's answer once the fare is locked */
-export type SharedOutcome = 'waiting' | 'matched' | 'unmatched';
+/**
+ * waiting: a shared booking nobody has been matched to yet and matching is still open; ended: matching closed (the cutoff, or the passenger declined) and the trip
+ * goes on as a Solo trip; matched / unmatched: a confirmed pairing, or the database's answer once the fare is locked
+ */
+export type SharedOutcome = 'waiting' | 'ended' | 'matched' | 'unmatched';
 
 export interface TripDetailsView {
   phase: BookingPhase;
@@ -109,8 +116,19 @@ export function buildTripDetails(input: TripDetailsInput): TripDetailsView | nul
   const tripOver = phase === 'at_destination' || phase === 'completed';
   let sharedOutcome: SharedOutcome | null = null;
   if (shared && phase !== 'cancelled' && phase !== 'no_driver') {
+    const onTheWay = phase === 'assigned' || phase === 'arrived' || phase === 'ongoing';
     sharedOutcome =
-      locked && input.fareBasis === 'matched_estimate_pending_segments' ? 'matched' : locked && input.fareBasis === 'unmatched_solo' ? 'unmatched' : tripOver ? null : 'waiting';
+      locked && (input.fareBasis === 'matched_estimate_pending_segments' || input.fareBasis === 'shared_allocated')
+        ? 'matched'
+        : locked && input.fareBasis === 'unmatched_solo'
+        ? 'unmatched'
+        : tripOver
+        ? null
+        : input.sharedPaired === true && onTheWay
+        ? 'matched'
+        : onTheWay && input.sharedMatchingOpen === false
+        ? 'ended'
+        : 'waiting';
   }
 
   // Who is on the other end exists only once a driver has accepted, and goes away when the booking ends without a trip.

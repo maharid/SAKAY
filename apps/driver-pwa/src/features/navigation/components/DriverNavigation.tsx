@@ -24,6 +24,7 @@ import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
 import SakayToast from '../../../common/components/SakayToast';
+import SharedLegSwitcher from '../../../common/components/SharedLegSwitcher';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
@@ -214,6 +215,9 @@ export const DriverNavigation: React.FC = () => {
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#E3ECEF', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <SakayToast message={toastMessage} severity="warning" onClose={() => setToastMessage(null)} />
+
+      {/* Shared Trip (Section 14): the second passenger's leg is one tap away; nothing is shown on an ordinary trip */}
+      <SharedLegSwitcher bookingId={bookingId} top={`calc(var(--safe-area-top) + ${banner.height + 24}px)`} />
 
       <BookingGivenAwayDialog open={clocks.bookingGone} language={language} onClose={() => navigate('/driver/home', { replace: true })} />
 

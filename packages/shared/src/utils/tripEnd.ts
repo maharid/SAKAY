@@ -169,6 +169,9 @@ async function call(client: RpcCapableClient, fn: string, args: Record<string, u
   }
 }
 
+/** The same call for the other functions that talk to a database function with a JSON answer (the shared-trip calls of sharedMatch.ts) */
+export const callRpc = call;
+
 // ---- the passenger (Rules 13.2, 18.2, 18.4, 13.5) -------------------------------------------------------------------------------------------------------
 /** End Trip (Early): a REQUEST that unlocks the driver's End Trip (decision D9-6). Two taps, or a tap after the driver ended the trip, change nothing. */
 export const requestEarlyEnd = (client: RpcCapableClient, bookingId: string, reasonCode: PassengerEarlyEndReason, note?: string | null) =>
