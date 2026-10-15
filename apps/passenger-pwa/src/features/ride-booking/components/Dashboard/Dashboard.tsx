@@ -11,7 +11,7 @@ import Alert from "@mui/material/Alert";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import { supabase } from "../../../../services/supabaseClient";
-import { SIGNED_URL_TTL, signedStorageUrl, useSafeAreaInsets } from "@sakay/shared";
+import { CalamityBanner, SIGNED_URL_TTL, signedStorageUrl, useActiveCalamity, useSafeAreaInsets } from "@sakay/shared";
 import MapView from "../../../../common/components/MapView";
 import HomeHeader from "./HomeHeader";
 import HomeBottomSheet from "./HomeBottomSheet";
@@ -265,6 +265,8 @@ const Dashboard: React.FC = () => {
   // What covers the map: the header (and the active-trip pill under it) along the top, the sheet and the Recenter button above it along the
   // bottom. The camera centres on the passenger inside what is left, and re-frames when the sheet opens or closes.
   const safeArea = useSafeAreaInsets();
+  // Rules 15.4 / 29.6: the calamity the LGU Administrator declared, for a banner while it lasts
+  const calamity = useActiveCalamity(supabase);
   const mapInsets = useMemo(
     () => ({ top: safeArea.top + (isTripInProgress ? 140 : 76), right: 24, bottom: safeArea.bottom + sheetHeight + 64, left: 24 }),
     [safeArea.top, safeArea.bottom, sheetHeight, isTripInProgress]
@@ -304,9 +306,12 @@ const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
+    // an announcement is for everybody or for passengers (not the ones meant for drivers or TODA administrators), and only a published one
     void supabase
       .from("announcement")
       .select("*")
+      .or("target_audience.is.null,target_audience.in.(All,Passenger)")
+      .neq("is_published", false)
       .order("created_at", { ascending: false })
       .limit(20)
       .then(({ data }) => {
@@ -333,6 +338,40 @@ const Dashboard: React.FC = () => {
           return [...defaultItems, ...fetched];
         });
       });
+  }, []);
+
+  // The notices (Abiso) the database wrote for this passenger: the report outcomes, the strikes, the trip notices (row security returns only their own)
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("notification")
+        .select("notification_id, title, message, notification_type, sent_at")
+        .order("sent_at", { ascending: false })
+        .limit(30);
+      if (!alive || error || !data) return;
+      let readIds: string[] = [];
+      try {
+        readIds = JSON.parse(localStorage.getItem("sakay_read_notifications") || "[]");
+      } catch {}
+      const items: NotificationItem[] = data.map((n: { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }) => ({
+        id: "db:" + n.notification_id,
+        titleTl: n.title,
+        titleEn: n.title,
+        bodyTl: n.message,
+        bodyEn: n.message,
+        createdAt: n.sent_at,
+        isRead: readIds.includes("db:" + n.notification_id),
+        category: /TRIP|DRIVER|EARLY|FARE|PAYMENT|ARRIV|WAIT/.test(n.notification_type || "") ? "trips" : "advisories",
+      }));
+      setNotifications((prev) => [...prev.filter((p) => !p.id.startsWith("db:")), ...items]);
+    };
+    void load();
+    const timer = setInterval(() => void load(), 60000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const handleMarkAsRead = (id: string) => {
@@ -381,6 +420,13 @@ const Dashboard: React.FC = () => {
         onOpenTulong={() => setTulongOpen(true)}
         hasUnread={hasUnreadNotifications}
       />
+
+      {/* Rules 15.4 / 29.6: the calamity banner */}
+      {calamity.active && (
+        <Box sx={{ position: "absolute", left: 16, right: 16, top: safeArea.top + (isTripInProgress ? 140 : 76) + 8, zIndex: 20, maxHeight: "38%", overflowY: "auto" }}>
+          <CalamityBanner calamity={calamity} language={language === "tl" ? "tl" : "en"} audience="passenger" />
+        </Box>
+      )}
 
       {/* Active Ongoing Trip Banner Pill */}
       {isTripInProgress && activeBookingId && (

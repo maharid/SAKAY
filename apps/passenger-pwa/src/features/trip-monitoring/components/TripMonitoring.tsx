@@ -63,6 +63,7 @@ import { usePassengerLocation } from '../hooks/usePassengerLocation';
 import { useDispatchStatus } from '../../ride-booking/hooks/useDispatchStatus';
 import ArrivalWaitCard from './ArrivalWaitCard';
 import EndTripEarlyDialog from './EndTripEarlyDialog';
+import TripSafetyActions from './TripSafetyActions';
 import FareConfirmationCard from './FareConfirmationCard';
 import FareDiscrepancyDialog from './FareDiscrepancyDialog';
 import TripCompletedDialog from './TripCompletedDialog';
@@ -497,6 +498,8 @@ export const TripMonitoring: React.FC = () => {
 
   const status = booking?.booking_status || 'Searching Driver';
   const isTripActive = status !== 'Completed' && status !== 'Cancelled';
+  // Rules 26.1 / 26.2: Share Live Trip and the Urgent Safety Report are offered while a driver is on the trip
+  const safetyActive = isTripActive && Boolean(booking?.driver_id) && status !== 'Searching Driver' && status !== 'No Driver Found' && status !== 'Pending';
 
   // The end of the trip as the database has it (Rules 16.6 / 18.2 / 18.3): the fare, who has answered, the one confirmation timer, the payment and the dispute.
   const tripEndActive = UUID_PATTERN.test(activeBookingId) && (status === 'Trip Ongoing' || status === 'Arrived at Destination' || status === 'Completed');
@@ -1097,6 +1100,15 @@ export const TripMonitoring: React.FC = () => {
         {/* The action for this stage, always in reach */}
         {status !== 'Completed' && status !== 'Cancelled' && (
           <Box sx={{ flexShrink: 0, px: '20px', pt: 1.25, pb: 'calc(var(--safe-area-bottom) + 16px)', borderTop: '1px solid #F1F5F9', backgroundColor: '#FFFFFF' }}>
+            <TripSafetyActions
+              bookingId={activeBookingId}
+              language={language === 'tl' ? 'tl' : 'en'}
+              active={safetyActive && UUID_PATTERN.test(activeBookingId)}
+              pickup={booking?.pickup_address || null}
+              dropoff={booking?.dropoff_address || null}
+              onEndTripEarly={status === 'Trip Ongoing' && !earlyRequested ? () => setEndEarlyOpen(true) : undefined}
+              onMessage={setToastMessage}
+            />
             {status === 'No Driver Found' ? (
               <Box sx={{ display: 'flex', gap: 1.5 }}>
                 <Button

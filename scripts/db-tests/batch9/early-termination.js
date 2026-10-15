@@ -176,7 +176,9 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b9fixtures')
   check('the approved point and time are recorded, the ledger has the row', bk.early_end_latitude !== null && bk.early_end_at !== null && lg.length === 1 && lg[0].reason_code === 'EARLY_TERMINATION'
     && Number(lg[0].previous_fare) === 65 && Number(lg[0].new_fare) === 60 && lg[0].details.kind === 'DRIVER', lg);
   check('no automatic strike for the driver (a breakdown is also a waived reason), the passenger is not struck, and it is not a cancellation',
-    (await s.ledgerStrikes(ID.D1)).length === 0 && (await s.ledgerStrikes(ID.P1)).length === 0 && bk.cancelled_at === null);
+    (await s.ledgerStrikes(ID.D1)).filter((x) => x.points_active > 0).length === 0 && (await s.ledgerStrikes(ID.P1)).length === 0 && bk.cancelled_at === null);
+  // Batch 11 (PI-11B): a breakdown is a safe reason - the event is recorded in the ledger, waived, and not counted
+  check('the breakdown is recorded as a waived event (AUTO_WAIVED, 0 points), not as a strike', JSON.stringify((await s.ledgerStrikes(ID.D1)).map((x) => `${x.status}:${x.points_active}`)) === '["AUTO_WAIVED:0"]');
   const fl = await s.flags('DRIVER_EARLY_STOP_REVIEW', ID.D1);
   check('a TODA review flag is raised (Rule 13.7: review for a possible incident or violation), naming the booking and that the reason is valid',
     fl.length === 1 && fl[0].assigned_role === 'toda_admin' && fl[0].details.booking_id === b.booking_id && fl[0].details.valid_reason === true, fl);
@@ -189,7 +191,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b9fixtures')
   let conf = await attempt(() => s.todaCall('admin_confirm_flagged_violation($1,$2,$3,$4)', [fl[0].flag_id, b.booking_id, 'Confirmed after review of the reasons', null]));
   check('DRV_EARLY_STOP is refused for a breakdown', !conf.ok && /ERR_VALID_REASON/.test(conf.error), conf);
   await s.todaCall('resolve_admin_review_flag($1,$2,$3)', [fl[0].flag_id, 'Dismissed', 'A breakdown: no violation']);
-  await s.reset();
+  await s.clearStrikes(); await s.reset();
 
   b = await tripAt1km();
   r = await s.drvCall('D1', 'driver_stop_trip_early($1,$2,$3)', [b.booking_id, 'passenger_dispute', 'We argued about the fare, I stopped']);

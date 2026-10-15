@@ -176,7 +176,8 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   const cancel1 = await s.driverCancel('D1', b.booking_id, 'personal_emergency', 'family matter');
   b = await s.booking(b.booking_id);
   check('before travelling 50 m toward the pickup: 1 strike, "before travel" (Rule 12.3)', cancel1.success === true && cancel1.strike_code === 'DRV_CANCEL_BEFORE_TRAVEL' && cancel1.en_route === false && cancel1.outcome === 'redispatched', cancel1);
-  check('the strike is in the ledger', (await s.strikes(ID.D1)).map((x) => `${x.violation_code}:${x.points_active}`).join() === 'DRV_CANCEL_BEFORE_TRAVEL:1');
+  // Batch 11 (PI-11B): a personal emergency is a safe reason - the event is recorded in the ledger as AUTO_WAIVED (0 points) and flagged for the TODA to verify; nothing is counted
+  check('the event is in the ledger, waived (a safe reason: recorded, not counted)', (await s.strikes(ID.D1)).map((x) => `${x.violation_code}:${x.status}:${x.points_active}`).join() === 'DRV_CANCEL_BEFORE_TRAVEL:AUTO_WAIVED:0');
   check('the booking is back in the SAME search: Pending, no driver, no TODA, no acceptance, same cycle, Tier 1, one failed driver counted',
     b.booking_status === 'Pending' && b.driver_id === null && b.toda_id === null && b.accepted_at === null && b.accept_latitude === null
     && b.dispatch_cycle === 1 && b.dispatch_tier === 1 && b.accepted_driver_cancel_count === 1 && b.dispatch_ended_reason === null, b);
@@ -193,7 +194,7 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.moveTo('D2', 400);                                          // from 500 m to 400 m: 100 m of progress
   const cancel2 = await s.driverCancel('D2', b.booking_id, 'vehicle_breakdown');
   check('after 50 m or more toward the pickup: 2 strikes, "en route" (Rule 12.4)', cancel2.success === true && cancel2.strike_code === 'DRV_CANCEL_EN_ROUTE' && cancel2.en_route === true, cancel2);
-  check('two strike points in the ledger for D2', (await s.strikes(ID.D2)).map((x) => `${x.violation_code}:${x.points_active}`).join() === 'DRV_CANCEL_EN_ROUTE:2');
+  check('the en-route event is in the ledger for D2, waived: a breakdown is a safe reason (PI-11B), so no points count', (await s.strikes(ID.D2)).map((x) => `${x.violation_code}:${x.status}:${x.points_active}`).join() === 'DRV_CANCEL_EN_ROUTE:AUTO_WAIVED:0');
   check('a first en-route cancellation raises no review flag yet', (await q(`SELECT 1 FROM admin_review_flag WHERE flag_type='DRIVER_REPEATED_CANCELLATIONS' AND subject_id='${ID.D2}'`)).length === 0);
   b = await s.booking(b.booking_id);
   check('the search continues (two failed drivers counted); nobody else is online, so it waits', b.booking_status === 'Pending' && b.accepted_driver_cancel_count === 2 && b.dispatch_tier === 3, b);

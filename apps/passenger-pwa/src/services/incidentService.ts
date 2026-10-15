@@ -11,7 +11,7 @@
  */
 
 import { supabase } from './supabaseClient';
-import { signIncidentEvidence, uploadIncidentEvidence, INCIDENT_EVIDENCE_MAX_BYTES, BOOKING_OPEN_STATUSES } from '@sakay/shared';
+import { signIncidentEvidence, uploadIncidentEvidenceFiles, INCIDENT_EVIDENCE_MAX_BYTES, BOOKING_OPEN_STATUSES } from '@sakay/shared';
 import type { IncidentEvidenceFile } from '@sakay/shared';
 
 export { INCIDENT_EVIDENCE_MAX_BYTES };
@@ -33,13 +33,18 @@ export interface IncidentReportItem {
   evidencePaths: string[];
 }
 
-/** A trip the passenger can report about: a completed one, or (for an emergency only, Rule 16.5) the one in progress. */
+/**
+ * A trip the passenger can report about: a completed one, or (for an emergency incident only, Rule 16.5) the one in progress or one the passenger had to walk away from
+ * (a cancelled booking that had a driver: a passenger who fled an unsafe situation reports it, Rule 26.4).
+ */
 export interface ReportableTrip {
   bookingId: string;
   label: string;
   dateLabel: string;
-  /** The trip is not completed yet: only an emergency report may name it */
-  inProgress: boolean;
+  /** The trip is not completed: only an emergency incident (an emergency or a serious allegation) may name it */
+  emergencyOnly: boolean;
+  /** in progress, or cancelled (for the label of the list) */
+  state: 'in_progress' | 'cancelled' | 'completed';
 }
 
 interface IncidentRow {
@@ -100,7 +105,7 @@ export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
   const { data, error } = await supabase
     .from('booking')
     .select('booking_id, booking_status, pickup_address, dropoff_address, created_at')
-    .in('booking_status', ['Completed', ...BOOKING_OPEN_STATUSES])
+    .in('booking_status', ['Completed', 'Cancelled', ...BOOKING_OPEN_STATUSES])
     .not('driver_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -109,7 +114,8 @@ export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
     bookingId: b.booking_id as string,
     label: `${b.pickup_address || 'Pickup'} > ${b.dropoff_address || 'Drop-off'}`,
     dateLabel: formatDate(b.created_at as string),
-    inProgress: b.booking_status !== 'Completed',
+    emergencyOnly: b.booking_status !== 'Completed',
+    state: b.booking_status === 'Completed' ? 'completed' : b.booking_status === 'Cancelled' ? 'cancelled' : 'in_progress',
   }));
 }
 
@@ -118,10 +124,10 @@ export async function submitIncidentReport(input: {
   bookingId: string;
   category: string;
   description: string;
-  file?: File | null;
+  /** up to 3 photos (F11.2: JPEG, PNG or WebP, 5 MB each) */
+  files?: File[];
 }): Promise<{ incidentId: string }> {
-  const evidencePaths: string[] = [];
-  if (input.file) evidencePaths.push(await uploadIncidentEvidence(supabase, input.file));
+  const evidencePaths = await uploadIncidentEvidenceFiles(supabase, input.files ?? []);
 
   const { data, error } = await supabase
     .from('incident_report')

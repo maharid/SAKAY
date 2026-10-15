@@ -21,9 +21,10 @@ function standIn(mode) {
     req.on('end', () => {
       // ---- Supabase REST
       if (req.method === 'GET' && url === '/rest/v1/') {
-        return send(200, { paths: locked ? { '/': {}, '/rpc/list_accredited_todas': {} } : { '/': {}, '/passenger': {}, '/driver': {}, '/rpc/get_assigned_driver_details': {}, '/rpc/list_accredited_todas': {} } });
+        return send(200, { paths: locked ? { '/': {}, '/rpc/list_accredited_todas': {}, '/rpc/get_shared_trip_view': {} } : { '/': {}, '/passenger': {}, '/driver': {}, '/rpc/get_assigned_driver_details': {}, '/rpc/list_accredited_todas': {}, '/rpc/get_shared_trip_view': {} } });
       }
       if (url === '/rest/v1/rpc/list_accredited_todas') return send(200, [DIRECTORY_ROW]);
+      if (url === '/rest/v1/rpc/get_shared_trip_view') return send(200, { found: false });   // Batch 11: the page of a Share Live Trip link; a guess learns nothing
       if (url.startsWith('/rest/v1/rpc/')) return locked ? send(404, { code: 'PGRST202' }) : send(200, []);
       if (url.startsWith('/rest/v1/')) {
         if (locked) return send(401, { code: '42501', message: 'permission denied' });
@@ -59,7 +60,8 @@ const runScript = (port) => new Promise((resolve) => {
   const l = await runScript(lockedPort);
   lockedSrv.close();
   check('reports nothing exposed and exits 0', l.status === 0 && /NOTHING IS EXPOSED/.test(l.out), l.out.slice(-500));
-  check('...the API root lists no table and only the directory function', /the API root lists no table to anon/.test(l.out) && /no function to anon except list_accredited_todas/.test(l.out));
+  check('...the API root lists no table and only the directory function', /the API root lists no table to anon/.test(l.out) && /no function to anon except list_accredited_todas and get_shared_trip_view/.test(l.out));
+  check('...a guessed Share Live Trip token answers {"found": false} and nothing else (Batch 11)', /a guessed Share Live Trip token answers/.test(l.out));
   check('...every table of the repo is refused', /anon cannot read any of the \d+ tables/.test(l.out));
   check('...every bucket is private and cannot be listed', BUCKETS.every((b) => new RegExp(`bucket ${b} serves nothing by public address`).test(l.out)) && BUCKETS.every((b) => new RegExp(`bucket ${b} cannot be listed anonymously`).test(l.out)));
   check('...the directory still answers and returns only directory columns', /the TODA directory answers anon/.test(l.out) && /only directory columns/.test(l.out));

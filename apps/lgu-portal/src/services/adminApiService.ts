@@ -24,6 +24,26 @@ import {
   peakHourDistribution, pickupHotspots, serviceUtilization,
 } from '@sakay/shared';
 import type { BarangayDemandRow, DriverUtilizationSummary, Hotspot, PeakHourPoint, ServiceUtilization, TrendPoint } from '@sakay/shared';
+import {
+  TODA_INCIDENT_REPORT_FLAG_THRESHOLD,
+  TODA_INCIDENT_REPORT_WINDOW_DAYS,
+  decideIncident as decideIncidentReport,
+  declareCalamity as declareCalamityReport,
+  endCalamity as endCalamityReport,
+  escalateIncident as escalateIncidentReport,
+  fetchActiveCalamity,
+  incidentClocks,
+  endTripForSafety,
+  startIncidentReview,
+  updateLostItem,
+  type SafetyEnd,
+  type ActiveCalamity,
+  type CalamityInput,
+  type IncidentDecision,
+  type IncidentRecord,
+  type LostItemStatus,
+  type TripEndResult,
+} from '@sakay/shared';
 import type { ApplicationReviewAffiliation, ApplicationReviewDocument, ApplicationStatus, ReviewDocumentType } from '@sakay/shared';
 import {
   FareMatrixRecord,
@@ -117,7 +137,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       supabase.from('booking').select('*', { count: 'exact', head: true }).eq('booking_status', 'Completed'),
       supabase.from('booking').select('*', { count: 'exact', head: true }).in('booking_status', ['Accepted', 'In Transit', 'Arrived at Pickup', 'Trip Ongoing', 'Arrived at Destination', 'Driver Assigned', 'Driver En Route', 'Driver Arrived', 'Heading to Passenger']),
       supabase.from('incident_report').select('*', { count: 'exact', head: true }),
-      supabase.from('incident_report').select('*', { count: 'exact', head: true }).neq('status', 'Resolved'),
+      supabase.from('incident_report').select('*', { count: 'exact', head: true }).is('outcome', null).neq('status', 'Cancelled'),
       supabase.from('incident_report').select('*').order('created_at', { ascending: false }).limit(5),
       supabase.from('incident_report').select('*, driver:driver_id(toda_id), booking:booking_id(toda_id)'),
     ]);
@@ -147,7 +167,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       timestamp: inc.created_at
         ? new Date(inc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : 'Recent',
-      severity: inc.severity || 'Medium',
+      severity: inc.priority === 'Serious' ? 'High' : inc.priority === 'Emergency' ? 'Medium' : 'Low',
       description: inc.description || '',
       iconType: (inc.category || '').toLowerCase().includes('charge')
         ? 'overcharging'
@@ -168,9 +188,11 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       memberCount: toda.registered_tricycle_count || toda.active_driver_count || 0,
     }));
 
-    // Check for flagged TODAs with 3+ confirmed incidents
+    // Rule 2.5: a TODA with 3 or more UPHELD reports about its drivers within 60 days is flagged (the database raises the same flag in check_toda_excess_incidents)
     const todaIncidentsMap: Record<string, number> = {};
+    const windowStart = Date.now() - TODA_INCIDENT_REPORT_WINDOW_DAYS * 86_400_000;
     (incidentReportsRes.data || []).forEach((inc: any) => {
+      if (inc.outcome !== 'UPHELD' || inc.subject_type !== 'driver' || !inc.resolved_at || Date.parse(inc.resolved_at) < windowStart) return;
       const associatedTodaId = inc.reported_toda_id || inc.driver?.toda_id || inc.booking?.toda_id;
       if (associatedTodaId) {
         todaIncidentsMap[associatedTodaId] = (todaIncidentsMap[associatedTodaId] || 0) + 1;
@@ -180,7 +202,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     const flaggedTodas: Array<{ id: string; name: string; incidentCount: number }> = [];
     allTodas.forEach((t: any) => {
       const count = todaIncidentsMap[t.toda_id] || 0;
-      if (count >= 3) {
+      if (count >= TODA_INCIDENT_REPORT_FLAG_THRESHOLD) {
         flaggedTodas.push({
           id: t.toda_id,
           name: t.toda_name,
@@ -1741,11 +1763,33 @@ export async function issuePassengerStrike(passengerId: string, violationCode: s
 // 6. INCIDENTS & ANNOUNCEMENTS SERVICES
 // ============================================================================
 
+/** What the audit log says happened to each report (the review timeline): who did what, when */
+async function incidentTimeline(ids: string[]): Promise<Map<string, IncidentReportRecord['statusHistory']>> {
+  const out = new Map<string, IncidentReportRecord['statusHistory']>();
+  if (ids.length === 0) return out;
+  const { data } = await supabase
+    .from('audit_log')
+    .select('target_id, action_type, details, actor_role, performed_at')
+    .in('target_id', ids)
+    .in('action_type', ['URGENT_SAFETY_REPORT_FILED', 'INCIDENT_REVIEW_STARTED', 'INCIDENT_ESCALATED', 'INCIDENT_RECLASSIFIED_SERIOUS', 'INCIDENT_DECIDED', 'INCIDENT_LOST_ITEM_UPDATED', 'VICTIM_STRIKES_WAIVED'])
+    .order('performed_at', { ascending: true });
+  for (const row of data ?? []) {
+    const list = out.get(row.target_id) ?? [];
+    list.push({
+      step: String(row.details ?? row.action_type).slice(0, 220),
+      timestamp: row.performed_at ? new Date(row.performed_at).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      actor: row.actor_role === 'lgu_admin' ? 'LGU Administrator' : row.actor_role === 'toda_admin' ? 'TODA Administrator' : row.actor_role === 'system' ? 'System' : String(row.actor_role ?? ''),
+    });
+    out.set(row.target_id, list);
+  }
+  return out;
+}
+
 export async function fetchIncidents(): Promise<IncidentReportRecord[]> {
   try {
     let { data, error } = await supabase
       .from('incident_report')
-      .select('*, driver:driver_id(full_name, plate_number, toda:toda_id(toda_name)), passenger:passenger_id(full_name)')
+      .select('*, driver:driver_id(full_name, plate_number, contact_number, toda:toda_id(toda_name)), passenger:passenger_id(full_name, contact_number), booking:booking_id(pickup_address, dropoff_address)')
       .order('created_at', { ascending: false });
 
     if (error || !data) {
@@ -1757,30 +1801,48 @@ export async function fetchIncidents(): Promise<IncidentReportRecord[]> {
     }
     if (!data) return [];
 
-    // Every row is a real report in the database (filed by a passenger or driver through the apps). Nothing is merged in from a browser.
+    const timeline = await incidentTimeline(data.map((i: any) => i.incident_id));
+    // Rule 8.7 / 19: reports about the same driver within the last 30 days (the supervisory warning of the detail screen)
+    const since = Date.now() - 30 * 86_400_000;
+    const perDriver = new Map<string, number>();
+    data.forEach((i: any) => {
+      if (i.driver_id && i.subject_type === 'driver' && Date.parse(i.created_at) >= since) perDriver.set(i.driver_id, (perDriver.get(i.driver_id) ?? 0) + 1);
+    });
+
+    // Every row is a real report in the database (filed by a passenger or driver through the apps, or by the system for a safety stop). Nothing is merged in from a browser.
     return await Promise.all(
       data.map(async (i: any): Promise<IncidentReportRecord> => {
+        const record = i as IncidentRecord;
         const withdrawn = i.status === 'Cancelled';
+        const status: IncidentReportRecord['status'] =
+          withdrawn || record.outcome === 'NOT_UPHELD' || i.status === 'Dismissed' ? 'Dismissed' : record.outcome ? 'Resolved' : i.status === 'Under Investigation' ? 'Under Investigation' : 'Pending Review';
         return {
           id: i.incident_id,
           bookingId: i.booking_id || 'N/A',
           tripId: i.booking_id || 'N/A',
           reportedBy: (i.reported_by as any) || 'Passenger',
-          reporterName: i.passenger?.full_name || 'Passenger',
+          reporterName: i.reported_by === 'Driver' ? (i.driver?.full_name || 'Driver') : i.reported_by === 'System' ? 'SAKAY (recorded by the system)' : (i.passenger?.full_name || 'Passenger'),
           driverName: i.driver?.full_name || 'Driver',
           todaName: i.driver?.toda?.toda_name || 'N/A',
           vehiclePlate: i.driver?.plate_number || 'N/A',
           passengerName: i.passenger?.full_name || 'Passenger',
           submittedDate: i.created_at ? new Date(i.created_at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila' }) : 'Recent',
           submittedTime: i.created_at ? new Date(i.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' }) : '',
-          category: (i.category as any) || 'Others',
+          category: i.category || 'Others',
           // A report the passenger withdrew shows as Dismissed with the reason in the findings.
-          status: (i.status === 'Resolved' ? 'Resolved' : i.status === 'Dismissed' || withdrawn ? 'Dismissed' : i.status === 'Under Investigation' ? 'Under Investigation' : 'Pending Review') as any,
+          status,
           description: i.description || '',
           findings: withdrawn ? `Withdrawn by the reporter: ${i.cancellation_reason || 'no reason given'}` : (i.resolution_notes || i.resolution || ''),
           evidenceFiles: await signIncidentEvidence(supabase, i.evidence_paths),
-          relatedIncidentsCount: 0,
-          statusHistory: [],
+          relatedIncidentsCount: i.driver_id ? perDriver.get(i.driver_id) ?? 0 : 0,
+          statusHistory: timeline.get(i.incident_id) ?? [],
+          routing: record.routing,
+          priority: record.priority,
+          overdue: incidentClocks(record).overdue,
+          route: `${i.booking?.pickup_address || '-'}  >  ${i.booking?.dropoff_address || '-'}`,
+          passengerPhone: i.passenger?.contact_number || undefined,
+          driverPhone: i.driver?.contact_number || undefined,
+          record,
         };
       })
     );
@@ -1790,29 +1852,35 @@ export async function fetchIncidents(): Promise<IncidentReportRecord[]> {
   }
 }
 
-export async function updateIncidentStatus(incidentId: string, status: string, notes?: string) {
-  const updatePayload: Record<string, any> = {
-    status,
-    resolution: notes || null,
-    resolution_notes: notes || null,
-  };
-  if (status === 'Resolved') {
-    updatePayload.resolved_at = new Date().toISOString();
-  }
+// ---- reviewing a report (Section 19): every action is ONE database function (migration 20261026000001): who may act, the strike, the audit entry and the notices are the database's.
+// The LGU Administrator no longer writes a report from the browser. Each answers null when the database accepted it, else the database's own sentence (shown as it is).
+const incidentSentence = (r: TripEndResult): string | null => (r.ok ? null : r.error ?? 'The action could not be saved. Please try again.');
+export async function startIncident(incidentId: string): Promise<string | null> {
+  return incidentSentence(await startIncidentReview(supabase, incidentId));
+}
+/** Take a report over from the TODA, or reclassify it as serious (Rule 19.8) */
+export async function escalateIncident(incidentId: string, reason: string, serious: boolean): Promise<string | null> {
+  return incidentSentence(await escalateIncidentReport(supabase, incidentId, reason, serious));
+}
+/** Rules 19.4, 19.5, 26.4: the outcome (never automatic) and the strike the administrator confirms, issued as this administrator */
+export async function decideIncident(decision: IncidentDecision): Promise<string | null> {
+  return incidentSentence(await decideIncidentReport(supabase, decision));
+}
+/** Rules 29.20 - 29.22, 26.3: the LGU Administrator ends a trip for safety (a detained or incapacitated driver, an accident, a passenger in danger); nobody is struck */
+export async function endTripSafely(end: SafetyEnd): Promise<string | null> {
+  return incidentSentence(await endTripForSafety(supabase, end));
+}
+export async function updateLostItemReport(incidentId: string, status: Exclude<LostItemStatus, 'Open'>, note: string): Promise<string | null> {
+  return incidentSentence(await updateLostItem(supabase, incidentId, status, note));
+}
 
-  const { data, error } = await supabase
-    .from('incident_report')
-    .update(updatePayload)
-    .eq('incident_id', incidentId)
-    .select();
-  if (error) throw error;
-  await recordAdminAuditAction({
-    actionType: 'INCIDENT_STATUS_UPDATED',
-    targetId: incidentId,
-    details: `Updated incident report to status '${status}'. Notes: ${notes || 'None'}`,
-    category: 'Verification',
-  });
-  return { success: true, data };
+// ---- the calamity (Rules 15.4, 29.6): ONE administrative action = the announcement + the strike pause, recorded by one audit entry
+export const fetchCalamity = (): Promise<ActiveCalamity> => fetchActiveCalamity(supabase);
+export async function declareCalamity(input: CalamityInput): Promise<string | null> {
+  return incidentSentence(await declareCalamityReport(supabase, input));
+}
+export async function endCalamity(note: string): Promise<string | null> {
+  return incidentSentence(await endCalamityReport(supabase, note));
 }
 
 export async function fetchAnnouncements(): Promise<AnnouncementRecord[]> {

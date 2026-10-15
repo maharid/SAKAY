@@ -22,10 +22,15 @@ export const PASSENGER_EARLY_END_REASONS = [
 ] as const;
 export type PassengerEarlyEndReason = (typeof PASSENGER_EARLY_END_REASONS)[number]['code'];
 
-/** Rules 13.7 / 29.3: why the driver ends the trip early. The first three are never struck (decision D9-8). */
+/**
+ * Rules 13.7 / 15.2 / 26.3 / 29.3 / 29.21 / 29.23: why the driver ends the trip early. The valid ones are never struck (decisions D9-8, PI-11B): the stop is recorded as an event
+ * with no points, the TODA Administrator verifies it, and an emergency, an accident, a medical emergency or a safety concern is also recorded as an incident for review.
+ */
 export const DRIVER_EARLY_STOP_REASONS = [
-  { code: 'vehicle_breakdown', en: 'Vehicle trouble', tl: 'May sira ang tricycle', valid: true },
+  { code: 'vehicle_breakdown', en: 'Vehicle trouble (breakdown, flat tire)', tl: 'May sira ang tricycle (flat tire, atbp.)', valid: true },
+  { code: 'accident', en: 'Accident', tl: 'Aksidente', valid: true },
   { code: 'emergency', en: 'Emergency', tl: 'Emergency', valid: true },
+  { code: 'medical_emergency', en: 'The passenger needs medical help', tl: 'Kailangan ng medikal na tulong ng pasahero', valid: true },
   { code: 'safety_concern', en: 'Safety concern', tl: 'May alalahanin sa kaligtasan', valid: true },
   { code: 'passenger_dispute', en: 'Dispute with the passenger', tl: 'Hindi pagkakasundo sa pasahero', valid: false },
   { code: 'other', en: 'Another reason', tl: 'Ibang dahilan', valid: false },

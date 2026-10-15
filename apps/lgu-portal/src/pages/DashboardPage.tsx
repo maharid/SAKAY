@@ -70,6 +70,22 @@ const describeFlagDetails = (flag: any): string[] => {
   if (flag?.flag_type === 'TRIP_MANUAL_RECONCILIATION') {
     return ['Booking ' + d.booking_id + ' has been without a driver location for 30 minutes. Close it from Live Trips after contacting both parties.'];
   }
+  // Batch 11 (Sections 15, 19, 26; Rules 2.5, 29.19, 29.20, 29.22)
+  if (flag?.flag_type === 'TODA_EXCESS_INCIDENTS') {
+    return [d.upheld_reports + ' incident reports about drivers of this TODA were upheld in ' + d.window_days + ' days (the threshold is ' + d.threshold + ', Rule 2.5). Supervisory review; nothing is imposed automatically.'];
+  }
+  if (flag?.flag_type === 'DRIVER_DETENTION_LGU_REVIEW' || flag?.flag_type === 'DRIVER_DETENTION_TODA_REVIEW') {
+    return ['The driver was detained or arrested during booking ' + d.booking_id + ' (Rule 29.20). The account is on hold until BOTH the TODA and the LGU reviews are resolved; then reinstate it from the driver record.', d.note ? 'How it was confirmed: ' + d.note : ''].filter(Boolean);
+  }
+  if (flag?.flag_type === 'DRIVER_INCAPACITATED_REVIEW') {
+    return ['The driver became ill during booking ' + d.booking_id + ' (Rule 29.22). No strike is issued pending the review.', d.note ? 'How it was confirmed: ' + d.note : ''].filter(Boolean);
+  }
+  if (flag?.flag_type === 'DRIVER_SAFE_REASON_REVIEW' || flag?.flag_type === 'DRIVER_SAFE_REASON_PATTERN') {
+    return ['The driver cancelled or stopped for a reason that is not struck (a breakdown, an accident, an emergency, a safety concern, a road closure, an unsafe request). The TODA Administrator of the driver verifies it; no strike was issued.', d.events_in_window ? d.events_in_window + ' such events in ' + d.window_days + ' days.' : ''].filter(Boolean);
+  }
+  if (flag?.flag_type === 'LOST_ITEM_UNCLAIMED_REVIEW') {
+    return ['A lost-item report has had no contact and no result for 14 days (Rule 29.19). The TODA Administrator arranges the contact or closes it as Unclaimed.'];
+  }
   return [];
 };
 

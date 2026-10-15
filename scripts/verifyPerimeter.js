@@ -95,8 +95,9 @@ async function checkRest() {
     const rpcPaths = Object.keys(root.json.paths).filter((p) => p.startsWith('/rpc/')).map((p) => p.slice(5));
     if (tablePaths.length === 0) ok('the API root lists no table to anon');
     else bad(`the API root lists ${tablePaths.length} table(s) to anon: ${tablePaths.slice(0, 8).join(', ')}${tablePaths.length > 8 ? ', ...' : ''}`);
-    const extraRpc = rpcPaths.filter((n) => n !== 'list_accredited_todas');
-    if (extraRpc.length === 0) ok('the API root lists no function to anon except list_accredited_todas');
+    // Batch 11 adds get_shared_trip_view: the page of a Share Live Trip link has no account behind it (a 128-bit token, one whitelisted answer)
+    const extraRpc = rpcPaths.filter((n) => n !== 'list_accredited_todas' && n !== 'get_shared_trip_view');
+    if (extraRpc.length === 0) ok('the API root lists no function to anon except list_accredited_todas and get_shared_trip_view');
     else bad(`the API root lists ${extraRpc.length} function(s) to anon: ${extraRpc.slice(0, 8).join(', ')}${extraRpc.length > 8 ? ', ...' : ''}`);
   } else {
     ok(`the API root is not served to anon (HTTP ${root.status})`);
@@ -134,6 +135,12 @@ async function checkRpc() {
       else bad(`the directory returns unexpected columns: ${keys}`);
     }
   } else bad(`the TODA directory does not answer anon (HTTP ${dir.status}); the registration pickers need it`);
+
+  // Batch 11: a guess at a Share Live Trip link learns nothing (the same {"found": false} for every bad token)
+  const share = await http('POST', `${BASE}/rest/v1/rpc/get_shared_trip_view`, { headers: HEAD, body: { p_token: randomUuid().replace(/-/g, '') } });
+  if (share.status === 200 && share.json && share.json.found === false && Object.keys(share.json).length === 1) ok('a guessed Share Live Trip token answers {"found": false} and nothing else');
+  else if (share.status === 404) warn('get_shared_trip_view is not on this project yet (Batch 11 migration not applied)');
+  else bad(`the Share Live Trip function answered a guess with HTTP ${share.status}: ${share.text.slice(0, 80)}`);
 
   const probes = [
     ['get_assigned_driver_details', { p_booking_id: randomUuid() }],

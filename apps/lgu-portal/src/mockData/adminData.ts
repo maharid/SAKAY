@@ -264,18 +264,9 @@ export interface IncidentReportRecord {
   id: string;
   bookingId: string;
   tripId: string;
-  category:
-    | 'Overcharging Attempt'
-    | 'Unsafe Driving'
-    | 'Rude Behavior'
-    | 'Harassment'
-    | 'Vehicle Issue'
-    | 'Route Deviation'
-    | 'Reckless Driving'
-    | 'Passenger Misconduct'
-    | 'Lost Item'
-    | 'Others';
-  reportedBy: 'Passenger' | 'Driver';
+  /** the category as the database stores it (the list of Rule 19.1 and the ones of Batches 9 and 11: INCIDENT_CATEGORIES in the shared package) */
+  category: string;
+  reportedBy: 'Passenger' | 'Driver' | 'System';
   reporterName: string;
   driverName: string;
   todaName: string;
@@ -297,6 +288,14 @@ export interface IncidentReportRecord {
     timestamp: string;
     actor: string;
   }[];
+  /** Batch 11: who has the report (Rule 19.3), how urgent it is, whether a clock ran out, the trip, the parties' numbers, and the whole row for the review panel */
+  routing?: 'TODA' | 'LGU';
+  priority?: 'Standard' | 'Emergency' | 'Serious';
+  overdue?: boolean;
+  route?: string;
+  passengerPhone?: string;
+  driverPhone?: string;
+  record?: import('@sakay/shared').IncidentRecord;
 }
 
 export interface LguAdminRecord {

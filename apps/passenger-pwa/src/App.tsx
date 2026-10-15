@@ -32,6 +32,7 @@ import TripDetailPage from "./features/trip-history/pages/TripDetailPage";
 import { TripMonitoring } from "./features/trip-monitoring/components/TripMonitoring";
 import { PassengerFeedback } from "./features/feedback/components/PassengerFeedback";
 import { IncidentReporting } from "./features/incident-reporting/components/IncidentReporting";
+import SharedTripView from "./features/share-trip/pages/SharedTripView";
 import NotFoundPage from "./common/components/NotFoundPage";
 
 function App() {
@@ -74,6 +75,8 @@ function App() {
               <Route path="/trip-monitoring" element={<TripMonitoring />} />
               <Route path="/feedback" element={<PassengerFeedback />} />
               <Route path="/incident-report" element={<IncidentReporting />} />
+              {/* Rule 26.1: the page of a Share Live Trip link - no sign-in (it is not one of the guarded paths of MobileAppShell) */}
+              <Route path="/share/:token" element={<SharedTripView />} />
               <Route path="/history" element={<PassengerHistory />} />
               <Route path="/trip-details/:id" element={<TripDetailPage />} />
               <Route path="/trip-details" element={<TripDetailPage />} />

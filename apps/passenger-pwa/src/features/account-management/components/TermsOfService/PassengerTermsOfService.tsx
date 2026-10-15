@@ -183,13 +183,14 @@ export const PassengerTermsOfService: React.FC = () => {
             {/* Section 6 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
-                6. Kaligtasan, Tulong SOS, at Pag-uulat ng Insidente
+                6. Kaligtasan, Pagbabahagi ng Biyahe, at Pag-uulat ng Insidente
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 May karapatan ang bawat pasahero sa ligtas at maayos na biyahe:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
-                <li>Maaari mong gamitin ang "Tulong" SOS button habang may aktibong biyahe kung may panganib o emergency.</li>
+                <li>Habang may aktibong biyahe, maaari mong ibahagi ang biyahe mo ("Share Live Trip") sa pamilya o kaibigan gamit ang SMS, Messenger o iba pang app ng telepono mo, at magpadala ng "Urgent Safety Report" sa mga administrator. Walang tawag, mensahe o listahan ng emergency contact sa loob ng SAKAY: kung nasa agarang panganib ka, tumawag sa 911 gamit ang telepono mo.</li>
+                <li>Kung gusto mong tapusin ang biyahe dahil sa panganib, magpadala muna ng Urgent Safety Report, saka gamitin ang "End Trip (Early)" kapag ligtas nang nakahinto ang sasakyan. Susuriin ng administrator ang ganitong kaso.</li>
                 <li>Maaari kang mag-file ng pormal na ulat ng insidente ukol sa paniningil ng labis, mapanganib na pagmamaneho, naiwang gamit, o bastos na pag-uugali direkta sa TODA at Calapan LGU CPSD.</li>
               </Box>
             </Box>
@@ -301,13 +302,14 @@ export const PassengerTermsOfService: React.FC = () => {
             {/* Section 6 */}
             <Box>
               <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 0.75 }}>
-                6. Safety, Emergency SOS, and Incident Reporting
+                6. Safety, Sharing Your Trip, and Incident Reporting
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1 }}>
                 You have the right to a secure, fair, and professional ride:
               </Typography>
               <Box component="ul" sx={{ m: 0, pl: 2.5, color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
-                <li>Use the built-in "Tulong" Emergency SOS feature during active transit if you encounter distress or emergency.</li>
+                <li>During an active trip you can share it ("Share Live Trip") with family or friends through your phone's own sharing (SMS, Messenger or another app) and send an "Urgent Safety Report" to the administrators. SAKAY has no in-app emergency calling, messaging or emergency-contact list: if you are in immediate danger, call 911 with your phone.</li>
+                <li>If you want to end the trip because you feel unsafe, send an Urgent Safety Report first, then use "End Trip (Early)" once the vehicle has safely stopped. An administrator reviews such cases.</li>
                 <li>You can lodge formal complaints regarding overcharging, reckless driving, lost items, or discourtesy directly to the TODA and Calapan LGU CPSD.</li>
               </Box>
             </Box>

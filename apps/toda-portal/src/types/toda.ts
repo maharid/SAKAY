@@ -223,8 +223,19 @@ export interface TodaIncident {
   category: string;
   description: string;
   submittedAt: string;
-  status: 'Pending Review' | 'Under Investigation' | 'Resolved (TODA Level)' | 'Escalated to LGU' | 'Dismissed';
+  status: 'Pending Review' | 'Under Investigation' | 'Resolved (TODA Level)' | 'Resolved' | 'Escalated to LGU' | 'Dismissed';
   findings?: string;
+  /** Rule 19.3 / 19.8: who has the report now, and how urgent it is (the database decides both) */
+  routing?: 'TODA' | 'LGU';
+  priority?: 'Standard' | 'Emergency' | 'Serious';
+  overdue?: boolean;
+  /** the trip: where it went, and the two parties' contacts (the TODA Administrator arranges a lost-item return, Rule 29.19) */
+  route?: string;
+  passengerName?: string;
+  passengerPhone?: string;
+  driverPhone?: string;
+  /** every column of the report as the database holds it (the review panel reads the outcome, the clocks, the lost-item state from it) */
+  record?: import('@sakay/shared').IncidentRecord;
   /** photos the reporter attached (short-lived signed links) */
   evidenceFiles?: { name: string; url: string }[];
   escalationReason?: string;

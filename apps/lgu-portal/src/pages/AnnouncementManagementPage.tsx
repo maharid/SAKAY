@@ -33,6 +33,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { CalamityPanel } from '../components/admin/CalamityPanel';
 import { TableEmptyState } from '../components/common/TableEmptyState';
 import {
   fetchAnnouncements,
@@ -268,6 +269,13 @@ export const AnnouncementManagementPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+      {/* 0. Rules 15.4 / 29.6: declaring a calamity (the announcement and the strike pause, one audited action) */}
+      <CalamityPanel
+        onChanged={async () => {
+          setAnnouncements((await fetchAnnouncements()) || []);
+        }}
+      />
+
       {/* 1. Summary Cards */}
       <Box
         sx={{

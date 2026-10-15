@@ -9,19 +9,19 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import PageHeader from '../../../common/components/PageHeader';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { fetchReportableTrips, submitIncidentReport, type ReportableTrip } from '../../../services/incidentService';
-import { activateWithKeyboard, isEmergencyIncident, useInFlight } from '@sakay/shared';
+import {
+  activateWithKeyboard,
+  evidenceFileProblem,
+  incidentCategoriesFor,
+  incidentCategoryClass,
+  INCIDENT_EVIDENCE_MAX_BYTES,
+  INCIDENT_EVIDENCE_MAX_FILES, INCIDENT_LOST_ITEM_FILE_DAYS,
+  isEmergencyIncident,
+  useInFlight,
+} from '@sakay/shared';
 
-/** What a driver can report about a trip. These are the labels the TODA and LGU already review (the passenger's list, the ones that apply to a driver). */
-const CATEGORIES = [
-  { value: 'Emergency', tl: 'Emergency (habang nasa biyahe)', en: 'Emergency (during the trip)' },
-  { value: 'Safety Concern', tl: 'Alalahanin sa Kaligtasan (habang nasa biyahe)', en: 'Safety Concern (during the trip)' },
-  { value: 'Accident', tl: 'Aksidente (habang nasa biyahe)', en: 'Accident (during the trip)' },
-  { value: 'Passenger Misconduct', tl: 'Hindi Angkop na Asal ng Pasahero', en: 'Passenger Misconduct' },
-  { value: 'Rude Behavior', tl: 'Bastos o Hindi Magalang na Pag-uugali', en: 'Rude Behavior' },
-  { value: 'Counterfeit Currency', tl: 'Peke o Pinaghihinalaang Pekeng Pera', en: 'Counterfeit Currency (referred to the TODA / police)' },
-  { value: 'Lost Item', tl: 'Naiwang Gamit sa Tricycle', en: 'Lost Item in Tricycle' },
-  { value: 'Others', tl: 'Iba Pang Reklamo', en: 'Other Issues' },
-];
+/** What a driver can report about a trip: the categories that fit a driver, from the one shared list (Rule 19.1; the emergency and serious ones come first) */
+const CATEGORIES = incidentCategoriesFor('Driver');
 
 const FONT = 'Poppins, sans-serif';
 const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '14px', backgroundColor: '#FFFFFF', fontFamily: FONT, fontSize: '14px' } };
@@ -44,7 +44,8 @@ export const DriverIncidentReporting: React.FC = () => {
   const [bookingId, setBookingId] = useState('');
   const [category, setCategory] = useState('Passenger Misconduct');
   const [description, setDescription] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const flight = useInFlight();
@@ -57,7 +58,7 @@ export const DriverIncidentReporting: React.FC = () => {
         if (!alive) return;
         setTrips(list);
         const fromScreen = navState?.bookingId;
-        const completed = list.filter((t) => !t.inProgress);
+        const completed = list.filter((t) => !t.emergencyOnly);
         setBookingId(fromScreen && list.some((t) => t.bookingId === fromScreen) ? fromScreen : completed.length === 1 ? completed[0].bookingId : '');
       })
       .catch((err) => alive && setError(err instanceof Error ? err.message : String(err)))
@@ -67,11 +68,40 @@ export const DriverIncidentReporting: React.FC = () => {
     };
   }, [navState?.bookingId]);
 
-  // Rule 16.5: a report is about a completed trip; the trip in progress is listed only for an emergency (Emergency, Safety Concern, Accident)
-  const visibleTrips = trips.filter((t) => !t.inProgress || isEmergencyIncident(category));
+  // Rule 16.5: a report is about a completed trip; the trip in progress (or one the driver had to give up) is listed only for an emergency incident
+  // (an emergency, a safety concern, an accident, or an assault, harassment, threat or crime)
+  const visibleTrips = trips.filter((t) => !t.emergencyOnly || isEmergencyIncident(category));
   useEffect(() => {
-    setBookingId((current) => (current && !trips.some((t) => t.bookingId === current && (!t.inProgress || isEmergencyIncident(category))) ? '' : current));
+    setBookingId((current) => (current && !trips.some((t) => t.bookingId === current && (!t.emergencyOnly || isEmergencyIncident(category))) ? '' : current));
   }, [category, trips]);
+  const categoryClass = incidentCategoryClass(category);
+
+  const addFiles = (picked: File[]) => {
+    if (fileInput.current) fileInput.current.value = '';
+    if (picked.length === 0) return;
+    const room = Math.max(0, INCIDENT_EVIDENCE_MAX_FILES - files.length);
+    const accepted: File[] = [];
+    let problem: string | null = picked.length > room ? (tl ? `Hanggang ${INCIDENT_EVIDENCE_MAX_FILES} larawan lamang.` : `At most ${INCIDENT_EVIDENCE_MAX_FILES} photos.`) : null;
+    for (const file of picked.slice(0, room)) {
+      const why = evidenceFileProblem(file);
+      if (why) problem = why;
+      else accepted.push(file);
+    }
+    setError(problem);
+    if (accepted.length > 0) {
+      setFiles((prev) => [...prev, ...accepted]);
+      setPreviews((prev) => [...prev, ...accepted.map((a) => URL.createObjectURL(a))]);
+    }
+  };
+  const removeFile = (index: number) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    URL.revokeObjectURL(previews[index]);
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+    setError(null);
+  };
+  // the previews are blob addresses: let them go when the screen does
+  useEffect(() => () => previews.forEach((p) => URL.revokeObjectURL(p)), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canSubmit = Boolean(bookingId) && description.trim().length > 0 && !flight.busy && !submitted;
 
@@ -81,7 +111,7 @@ export const DriverIncidentReporting: React.FC = () => {
     flight.run(async () => {
       setError(null);
       try {
-        await submitIncidentReport({ bookingId, category, description, file });
+        await submitIncidentReport({ bookingId, category, description, files });
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
         return;
@@ -103,8 +133,8 @@ export const DriverIncidentReporting: React.FC = () => {
       >
         <Typography sx={{ fontSize: '13px', color: '#475569', fontFamily: FONT, lineHeight: 1.45 }}>
           {tl
-            ? 'Ipinapadala ang ulat sa TODA at sa LGU para suriin. Para sa biyaheng minaneho mo lamang ito.'
-            : 'The report goes to your TODA and the LGU for review. You can report only a trip you drove.'}
+            ? 'Unang susuriin ng TODA Administrator mo ang ulat, at ipapasa sa LGU kung kailangan. Ang pananakit, panliligalig, pagbabanta o krimen ay diretso sa LGU. Para sa biyaheng minaneho mo lamang ito.'
+            : 'Your TODA Administrator reviews the report first, and it goes to the LGU when needed. Assault, harassment, threats and crime go straight to the LGU. You can report only a trip you drove.'}
         </Typography>
 
         <TextField
@@ -119,7 +149,7 @@ export const DriverIncidentReporting: React.FC = () => {
           {visibleTrips.map((t) => (
             <MenuItem key={t.bookingId} value={t.bookingId} sx={{ fontSize: '13px', fontFamily: FONT, whiteSpace: 'normal' }}>
               {t.dateLabel} • {t.label}
-              {t.inProgress ? (tl ? ' (kasalukuyan)' : ' (in progress)') : ''}
+              {t.state === 'in_progress' ? (tl ? ' (kasalukuyan)' : ' (in progress)') : t.state === 'cancelled' ? (tl ? ' (nakansela)' : ' (cancelled)') : ''}
             </MenuItem>
           ))}
         </TextField>
@@ -136,6 +166,27 @@ export const DriverIncidentReporting: React.FC = () => {
             </MenuItem>
           ))}
         </TextField>
+        {categoryClass === 'SERIOUS' && (
+          <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
+            {tl
+              ? 'Diretso ito sa LGU Administrator para sa agarang pagsusuri (Rule 19.8). Kung nasa agarang panganib ka, tumawag sa 911 gamit ang telepono mo.'
+              : 'This goes straight to the LGU Administrator for an immediate review (Rule 19.8). If you are in immediate danger, call 911 with your phone.'}
+          </Alert>
+        )}
+        {categoryClass === 'EMERGENCY' && (
+          <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
+            {tl
+              ? 'Agad itong susuriin at walang itatalagang may kasalanan hangga\'t hindi napapatunayan. Maaari itong isumite habang nasa biyahe.'
+              : 'It is reviewed as a priority and nobody is assigned fault unless it is established. You can send it during the trip.'}
+          </Alert>
+        )}
+        {categoryClass === 'LOST_ITEM' && (
+          <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
+            {tl
+              ? `Iulat sa loob ng ${INCIDENT_LOST_ITEM_FILE_DAYS} araw pagkatapos ng biyahe. Ikokonekta ng TODA Administrator ang pasahero at ikaw para maibalik ang gamit. Walang strike para sa sinuman.`
+              : `Report it within ${INCIDENT_LOST_ITEM_FILE_DAYS} days of the trip. The TODA Administrator will connect the passenger and you to return the item. Nobody is struck for a lost item.`}
+          </Alert>
+        )}
         {/* Rule 18.8: counterfeit money is not decided by the app: the report goes to the TODA Administrator, who refers it to the police where it is needed */}
         {category === 'Counterfeit Currency' && (
           <Alert severity="info" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
@@ -160,50 +211,61 @@ export const DriverIncidentReporting: React.FC = () => {
 
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
           ref={fileInput}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => addFiles(Array.from(e.target.files ?? []))}
           style={{ display: 'none' }}
-          aria-label={tl ? 'Larawan' : 'Photo'}
+          aria-label={tl ? 'Mga larawan' : 'Photos'}
         />
         <Paper
           elevation={0}
-          role="button"
-          tabIndex={0}
-          onKeyDown={activateWithKeyboard}
-          onClick={() => fileInput.current?.click()}
           sx={{
             p: 1.75,
             borderRadius: '16px',
-            border: file ? '1.5px solid #10B981' : '1.5px dashed #CBD5E1',
-            backgroundColor: file ? '#ECFDF5' : '#FFFFFF',
+            border: files.length > 0 ? '1.5px solid #10B981' : '1.5px dashed #CBD5E1',
+            backgroundColor: files.length > 0 ? '#ECFDF5' : '#FFFFFF',
             display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            cursor: 'pointer',
+            flexDirection: 'column',
+            gap: 1.25,
           }}
         >
-          {file ? <CheckCircleIcon sx={{ color: '#10B981' }} /> : <UploadFileIcon sx={{ color: '#64748B' }} />}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography noWrap sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: FONT }}>
-              {file ? file.name : tl ? 'Magdagdag ng larawan (opsyonal)' : 'Add a photo (optional)'}
-            </Typography>
-            <Typography sx={{ fontSize: '12px', color: '#475569', fontFamily: FONT }}>
-              {tl ? 'Isang larawan, hanggang 5 MB' : 'One photo, up to 5 MB'}
-            </Typography>
+          <Box
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateWithKeyboard}
+            onClick={() => files.length < INCIDENT_EVIDENCE_MAX_FILES && fileInput.current?.click()}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: files.length < INCIDENT_EVIDENCE_MAX_FILES ? 'pointer' : 'default', opacity: files.length < INCIDENT_EVIDENCE_MAX_FILES ? 1 : 0.6 }}
+          >
+            {files.length > 0 ? <CheckCircleIcon sx={{ color: '#10B981' }} /> : <UploadFileIcon sx={{ color: '#64748B' }} />}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography noWrap sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: FONT }}>
+                {files.length === 0
+                  ? tl ? 'Magdagdag ng larawan (opsyonal)' : 'Add a photo (optional)'
+                  : tl ? `${files.length} sa ${INCIDENT_EVIDENCE_MAX_FILES} larawan` : `${files.length} of ${INCIDENT_EVIDENCE_MAX_FILES} photos`}
+              </Typography>
+              <Typography sx={{ fontSize: '12px', color: '#475569', fontFamily: FONT }}>
+                {tl
+                  ? `Hanggang ${INCIDENT_EVIDENCE_MAX_FILES} larawan (JPEG, PNG o WebP), ${INCIDENT_EVIDENCE_MAX_BYTES / (1024 * 1024)} MB bawat isa`
+                  : `Up to ${INCIDENT_EVIDENCE_MAX_FILES} photos (JPEG, PNG or WebP), ${INCIDENT_EVIDENCE_MAX_BYTES / (1024 * 1024)} MB each`}
+              </Typography>
+            </Box>
           </Box>
-          {file && (
-            <IconButton
-              aria-label={tl ? 'Alisin ang larawan' : 'Remove the photo'}
-              onClick={(e) => {
-                e.stopPropagation();
-                setFile(null);
-                if (fileInput.current) fileInput.current.value = '';
-              }}
-              sx={{ color: '#B91C1C', width: 44, height: 44 }}
-            >
-              <DeleteOutlinedIcon />
-            </IconButton>
+          {previews.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {previews.map((src, i) => (
+                <Box key={src} sx={{ position: 'relative' }}>
+                  <Box component="img" src={src} alt={tl ? `Larawan ${i + 1}` : `Photo ${i + 1}`} sx={{ width: 64, height: 64, borderRadius: '10px', objectFit: 'cover', border: '1px solid #A7F3D0' }} />
+                  <IconButton
+                    aria-label={tl ? `Alisin ang larawan ${i + 1}` : `Remove photo ${i + 1}`}
+                    onClick={removeFile(i)}
+                    sx={{ position: 'absolute', top: -12, right: -12, color: '#B91C1C', width: 44, height: 44, '& svg': { backgroundColor: '#FFFFFF', borderRadius: '50%', border: '1px solid #FECACA', padding: '3px', fontSize: 28 } }}
+                  >
+                    <DeleteOutlinedIcon />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
           )}
         </Paper>
 

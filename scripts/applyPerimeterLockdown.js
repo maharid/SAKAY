@@ -465,8 +465,8 @@ async function verifyS2(h) {
   const bad = await q(`select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f','p')
                          and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
                          and (has_function_privilege('anon', p.oid, 'EXECUTE') or exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0 and a.privilege_type = 'EXECUTE'))
-                         and p.proname <> 'list_accredited_todas'`);
-  must(bad.length === 0, `no public function is executable by anon or PUBLIC except list_accredited_todas (${bad.length} found${bad.length ? ': ' + bad.slice(0, 6).map((x) => x.proname).join(', ') : ''})`);
+                         and p.proname not in ('list_accredited_todas', 'get_shared_trip_view')`);   // Batch 11 adds get_shared_trip_view: the page of a Share Live Trip link (a hashed 128-bit token, one whitelisted answer)
+  must(bad.length === 0, `no public function is executable by anon or PUBLIC except list_accredited_todas and get_shared_trip_view (${bad.length} found${bad.length ? ': ' + bad.slice(0, 6).map((x) => x.proname).join(', ') : ''})`);
   const dir = await one(`select has_function_privilege('anon', 'public.list_accredited_todas()', 'EXECUTE') as a`);
   must(dir.a === true, 'list_accredited_todas() is still callable by anon');
   const only = await q(`select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('activate_passenger_otp','check_otp_lockout','increment_failed_otp','reset_failed_otp','check_toda_excess_incidents')

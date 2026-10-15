@@ -24,7 +24,10 @@ const CANCEL_LABELS: Record<DriverCancelReason, { tl: string; en: string }> = {
   passenger_unreachable: { tl: "Hindi maabot ang pasahero", en: "Passenger unreachable" },
   wrong_pickup_location: { tl: "Mali o hindi maabot ang pickup", en: "Wrong or unreachable pickup location" },
   safety_concern: { tl: "Alalahanin sa kaligtasan", en: "Safety concern" },
-  road_closure_or_traffic: { tl: "Trapik o sarado ang daan", en: "Heavy traffic or road closure" },
+  road_closure_or_traffic: { tl: "Sarado ang daan / sakuna (bagyo, baha)", en: "Road closed / calamity (typhoon, flood)" },
+  accident: { tl: "Aksidente", en: "Accident" },
+  unsafe_or_illegal_request: { tl: "Hiniling ng pasahero ang mapanganib o ilegal", en: "Passenger asked for something unsafe or illegal" },
+  prohibited_item: { tl: "Bawal o sobrang laking bagahe", en: "Prohibited or oversized baggage" },
   other: { tl: "Iba pa", en: "Other reason" },
 };
 
@@ -260,8 +263,8 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
               {effectiveLanguage === "tl" ? "PAALALA:" : "REMINDER:"}
             </Box>{" "}
             {effectiveLanguage === "tl"
-              ? "Ang pag-cancel pagkatapos tumanggap ay may strike: 1 kung wala ka pang 50 m na naibiyahe papunta sa pasahero, 2 kung mayroon na. Ibabalik ang booking sa paghahanap ng ibang drayber. Nasa pickup ka na at wala pa ang pasahero? Huwag magkansela: hintayin ang oras, saka pindutin ang \"Hindi sumakay ang pasahero\". Kung nasira ang sasakyan mo, piliin ang \"Nasiraan ng sasakyan\": pansamantala ang strike at maaari itong alisin ng TODA Administrator sa loob ng 48 oras."
-              : "Cancelling after you accepted adds a strike: 1 if you have not yet travelled 50 m toward the passenger, 2 if you have. The booking goes back to the search for another driver. Already at the pickup and the passenger has not come? Do not cancel: wait for the timer, then tap \"Passenger did not board\". If your vehicle broke down, choose \"Vehicle breakdown\": that strike is provisional and your TODA Administrator may waive it within 48 hours."}
+              ? "Ang pag-cancel pagkatapos tumanggap ay may strike: 1 kung wala ka pang 50 m na naibiyahe papunta sa pasahero, 2 kung mayroon na. Ibabalik ang booking sa paghahanap ng ibang drayber. Nasa pickup ka na at wala pa ang pasahero? Huwag magkansela: hintayin ang oras, saka pindutin ang \"Hindi sumakay ang pasahero\". Walang strike kung ang dahilan ay: nasiraan ng sasakyan, aksidente, emergency, alalahanin sa kaligtasan, sarado ang daan o sakuna, o hiniling ng pasahero ang mapanganib, ilegal o bawal na bagahe. Itatala ito at titingnan ng TODA Administrator mo; kung mali ang dahilan, maaari itong magkaroon ng strike."
+              : "Cancelling after you accepted adds a strike: 1 if you have not yet travelled 50 m toward the passenger, 2 if you have. The booking goes back to the search for another driver. Already at the pickup and the passenger has not come? Do not cancel: wait for the timer, then tap \"Passenger did not board\". No strike when the reason is a breakdown, an accident, an emergency, a safety concern, a road closure or calamity, or a passenger who asked for something unsafe, illegal or a prohibited item: it is recorded and your TODA Administrator verifies it; a reason that was misused can still be struck."}
           </Typography>
         </Box>
 

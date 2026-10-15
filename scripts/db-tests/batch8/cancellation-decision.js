@@ -1,6 +1,6 @@
 // Batch 8 (20261023000001), part 2: every cancellation goes through ONE decision (_cancellation_decision). Rules 10.4, 12.1 - 12.9, 29.8, 15.1 (Vehicle Breakdown),
 // decisions PI-02 (the redispatch priority of Rule 12.4), D8-X3 (two counters), D8-X2 / D8-X6 (GPS decides what "arrived" and "travelled" mean), D8-X7 (a Vehicle
-// Breakdown strike is provisional), X12 (a shared-trip party cancels: only that party is evaluated). Required tests T1, T2, T4, T5 of the batch prompt.
+// Breakdown strike is provisional; replaced in Batch 11 by decision PI-11B: a safe reason is an AUTO_WAIVED event with a TODA verification flag), X12 (a shared-trip party cancels: only that party is evaluated). Required tests T1, T2, T4, T5 of the batch prompt.
 // The database holds every deadline, so the suite moves the stored timestamps back instead of waiting. Whole migration chain on the local emulator (never Supabase).
 const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures');
 
@@ -86,7 +86,8 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
 
   // ------------------------------------------------------------------------------------------------------------------------------
   console.log('\nS2 Rules 12.3 / 12.4 / 29.8 (T2): the driver cancels - net GPS progress toward the pickup, less the error of both fixes, decides the strike');
-  const driverCancelAt = async (accNow, fromM, toM, accStart = 15, reason = 'personal_emergency') => {
+  // Batch 11 (PI-11B): a personal emergency is a safe reason now (waived, 0 points); the ladder of Rules 12.3 / 12.4 is tested with a reason that counts
+  const driverCancelAt = async (accNow, fromM, toM, accStart = 15, reason = 'other') => {
     await s.online('D1', fromM, accStart);
     const bk = await bookAndAccept('D1', 'P1');
     await s.moveTo('D1', toM, accNow);
@@ -142,15 +143,20 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   check('he drove 200 m away and 210 m back: net 10 m toward the pickup - 1 strike', out.strike_code === 'DRV_CANCEL_BEFORE_TRAVEL', out);
   await clearStrikes(); await reset(await s.booking(b.booking_id));
 
-  console.log('   Rule 15.1: a Vehicle Breakdown strike is PROVISIONAL (the TODA Administrator may waive it within 48 hours)');
+  console.log('   Rules 15.1, 15.5, 29.6 (Batch 11, PI-11B): a Vehicle Breakdown (and the other safe reasons) is recorded but not counted: AUTO_WAIVED, with a TODA verification flag');
   t = await driverCancelAt(5, 300, 220, 5, 'vehicle_breakdown');
   let lg = await ledger(ID.D1);
   const hours = lg[0] && lg[0].provisional_until ? (new Date(lg[0].provisional_until).getTime() - Date.now()) / 3600000 : null;
-  check('the strike is PROVISIONAL, with a 48-hour waiver window, and the answer says so', t.out.provisional === true && lg.length === 1 && lg[0].status === 'PROVISIONAL' && lg[0].points_active === 2 && near(hours, 47.5, 48.1), { out: t.out, lg });
+  check('the event is recorded AUTO_WAIVED (0 points, no 48-hour window: nothing was counted), exempt reason VEHICLE_BREAKDOWN, and the answer says so', t.out.waived === true && t.out.provisional === false && t.out.exempt_reason === 'VEHICLE_BREAKDOWN' && lg.length === 1 && lg[0].status === 'AUTO_WAIVED' && lg[0].points_active === 0 && hours === null, { out: t.out, lg });
+  check('...and the TODA Administrator of the driver has a DRIVER_SAFE_REASON_REVIEW flag to verify it', (await flags('DRIVER_SAFE_REASON_REVIEW', ID.D1)).length === 1);
   await clearStrikes(); await reset(await s.booking(t.bk.booking_id));
   t = await driverCancelAt(5, 300, 220, 5, 'road_closure_or_traffic');
   lg = await ledger(ID.D1);
-  check('any other reason is an ordinary (ACTIVE) strike', lg.length === 1 && lg[0].status === 'ACTIVE', lg);
+  check('a road closure is a safe reason too: waived as force majeure, not counted', lg.length === 1 && lg[0].status === 'AUTO_WAIVED' && lg[0].points_active === 0 && t.out.exempt_reason === 'FORCE_MAJEURE', { lg, out: t.out });
+  await clearStrikes(); await reset(await s.booking(t.bk.booking_id));
+  t = await driverCancelAt(5, 300, 220, 5, 'other');
+  lg = await ledger(ID.D1);
+  check('any other reason is an ordinary (ACTIVE) strike', lg.length === 1 && lg[0].status === 'ACTIVE' && lg[0].points_active === 2, lg);
   await clearStrikes(); await reset(await s.booking(t.bk.booking_id));
   const badReason = await s.driverCancel('D1', b.booking_id, 'bored');
   check('a reason outside the list is refused', badReason.success === false && badReason.error_code === 'ERR_CANCEL_REASON_REQUIRED', badReason);
