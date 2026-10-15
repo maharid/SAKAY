@@ -18,7 +18,8 @@ const FILE = path.join(__dirname, '..', '..', '..', 'supabase', 'migrations', '2
   check('no DELETE or TRUNCATE of data', !/^\s*(DELETE\s+FROM|TRUNCATE)\b/im.test(sql));
   check('every function is SECURITY DEFINER with a pinned search_path unless it is a pure helper', [...sql.matchAll(/CREATE OR REPLACE FUNCTION public\.([a-z0-9_]+)\([\s\S]*?\n(?:\$\$|\$fn\$)(?:\s+LANGUAGE[^\n]*)?;/g)].length > 20);
 
-  const s = await setup();
+  // on the chain up to this migration: a later batch replaces some of its functions (Batch 11: admin_confirm_flagged_violation), and running this file again would put the old ones back
+  const s = await setup('20261025000001_batch10_ride_sharing.sql');
   const { q, one, internal, db } = s;
 
   console.log('\nS2 it runs twice on the same database without changing a function, a privilege or the data');

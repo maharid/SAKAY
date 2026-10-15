@@ -12,7 +12,6 @@ import fareMatrixRoutes from './routes/fareMatrixRoutes';
 import todaRoutes from './routes/todaRoutes';
 import driverRoutes from './routes/driverRoutes';
 import passengerRoutes from './routes/passengerRoutes';
-import incidentRoutes from './routes/incidentRoutes';
 import announcementRoutes from './routes/announcementRoutes';
 import auditLogRoutes from './routes/auditLogRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
@@ -22,6 +21,9 @@ import ocrRoutes from './routes/ocrRoutes';
 import schedulerRoutes from './routes/schedulerRoutes';
 import rosterRoutes from './routes/rosterRoutes';
 import driverNotifyRoutes, { todaDriverNotifyRouter } from './routes/driverNotifyRoutes';
+// ./routes/incidentRoutes is intentionally NOT mounted any more (Batch 11): it only held in-memory sample reports and a status patch that changed nothing real, and no client calls it.
+// Incident reports are read by the portals from the database under row security and reviewed through the database functions (incident_start_review, incident_escalate, incident_decide,
+// incident_lost_item_update): who may act, the strike and the audit entry are the database's, not this server's. The file is kept; do not mount it again.
 // ./routes/todaPortalRoutes is intentionally NOT mounted: it only returns hard-coded sample data, is not scoped to any TODA and no
 // client calls it. (The file is kept; mount it again only after it reads the signed-in administrator's own TODA from the database.)
 
@@ -101,7 +103,6 @@ export function createApp(deps: AppDeps = {}): express.Express {
   app.use('/api/admin/todas', todaRoutes);
   app.use('/api/admin/drivers', driverRoutes);
   app.use('/api/admin/passengers', passengerRoutes);
-  app.use('/api/admin/incidents', incidentRoutes);
   app.use('/api/admin/announcements', announcementRoutes);
   app.use('/api/admin/audit-logs', auditLogRoutes);
   app.use('/api/admin/dashboard', dashboardRoutes);

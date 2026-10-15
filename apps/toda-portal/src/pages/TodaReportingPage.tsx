@@ -32,19 +32,20 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
-import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { BookingVolumeReport } from '../components/reports/BookingVolumeReport';
 import { DriverActivityReport } from '../components/reports/DriverActivityReport';
 import type { ActivityDriver } from '../components/reports/DriverActivityReport';
 import { downloadCsv, reportFileName } from '../utils/csvDownload';
-import type { BookingLike } from '@sakay/shared';
+import { IncidentReviewPanel, incidentClocks, type BookingLike, type IncidentRecord } from '@sakay/shared';
 import {
   fetchTodaDrivers,
   fetchTodaOperationsTrips,
   fetchTodaIncidents,
   fetchTodaProfile,
-  escalateIncidentToLgu,
-  submitIncidentRemarks,
+  startIncident,
+  escalateIncident,
+  decideIncident,
+  updateLostItemReport,
   recordTodaAuditAction,
 } from '../services/todaApiService';
 
@@ -62,11 +63,12 @@ export const TodaReportingPage: React.FC = () => {
   // Incident Filters
   const [incidentSearch, setIncidentSearch] = useState('');
   const [incidentStatusFilter, setIncidentStatusFilter] = useState('All');
+  const [incidentPriorityFilter, setIncidentPriorityFilter] = useState('All');
 
   // Incident Review Modals & Dialogs
-  const [selectedIncident, setSelectedIncident] = useState<TodaIncident | null>(null);
-  const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
-  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  // read from the list, so the panel shows what the database says after every action
+  const selectedIncident = incidents.find((i) => i.id === selectedIncidentId) ?? null;
 
   // The raw booking rows and the TODA's registered drivers feed the volume and driver-activity reports
   const [rawTrips, setRawTrips] = useState<BookingLike[]>([]);
@@ -119,28 +121,44 @@ export const TodaReportingPage: React.FC = () => {
         };
       });
 
-      const mappedIncidents: TodaIncident[] = (incData || []).map((inc: any) => ({
-        id: inc.incident_id,
-        incidentCode: (inc.incident_id || '').slice(0, 8).toUpperCase(),
-        bookingId: inc.booking_id || inc.trip_id || 'BKG-001',
-        driverName: inc.driver?.full_name || inc.driver_name || 'Driver',
-        vehiclePlate: inc.driver?.plate_number || inc.vehicle_plate || 'N/A',
-        category: inc.category || 'Service Quality',
-        description: inc.description || '',
-        reporterName: inc.passenger?.full_name || inc.passenger_name || (inc.reported_by === 'Driver' ? 'Driver' : 'Passenger'),
-        reporterRole: (inc.reported_by || 'Passenger') as any,
-        submittedAt: inc.created_at ? new Date(inc.created_at).toLocaleDateString('en-US') : 'Recent',
-        status: (inc.status === 'Resolved'
-          ? 'Resolved (TODA Level)'
-          : inc.status === 'Under Investigation'
-          ? (String(inc.resolution_notes || inc.resolution || '').startsWith('[Escalated to LGU') ? 'Escalated to LGU' : 'Under Investigation')
-          : inc.status === 'Dismissed' || inc.status === 'Cancelled'
-          ? 'Dismissed'
-          : 'Pending Review') as any,
-        findings: inc.status === 'Cancelled' ? `Withdrawn by the reporter: ${inc.cancellation_reason || 'no reason given'}` : (inc.resolution_notes || inc.resolution || undefined),
-        tripId: inc.booking_id || inc.trip_id || 'TRIP-001',
-        evidenceFiles: inc.evidence_files ?? [],
-      }));
+      const mappedIncidents: TodaIncident[] = (incData || []).map((inc: any) => {
+        const record = inc as IncidentRecord;
+        const withLgu = record.routing === 'LGU';
+        const status: TodaIncident['status'] =
+          record.status === 'Cancelled' || record.outcome === 'NOT_UPHELD' || record.status === 'Dismissed'
+            ? 'Dismissed'
+            : record.outcome
+            ? record.decided_by_role === 'toda_admin' ? 'Resolved (TODA Level)' : 'Resolved'
+            : withLgu
+            ? 'Escalated to LGU'
+            : record.status === 'Under Investigation'
+            ? 'Under Investigation'
+            : 'Pending Review';
+        return {
+          id: inc.incident_id,
+          incidentCode: (inc.incident_id || '').slice(0, 8).toUpperCase(),
+          bookingId: inc.booking_id || inc.trip_id || 'BKG-001',
+          driverName: inc.driver?.full_name || inc.driver_name || 'Driver',
+          vehiclePlate: inc.driver?.plate_number || inc.vehicle_plate || 'N/A',
+          category: inc.category || 'Service Quality',
+          description: inc.description || '',
+          reporterName: inc.passenger?.full_name || inc.passenger_name || (inc.reported_by === 'Driver' ? 'Driver' : 'Passenger'),
+          reporterRole: (inc.reported_by || 'Passenger') as any,
+          submittedAt: inc.created_at ? new Date(inc.created_at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila' }) : 'Recent',
+          status,
+          findings: inc.status === 'Cancelled' ? `Withdrawn by the reporter: ${inc.cancellation_reason || 'no reason given'}` : (inc.resolution_notes || inc.resolution || undefined),
+          tripId: inc.booking_id || inc.trip_id || 'TRIP-001',
+          evidenceFiles: inc.evidence_files ?? [],
+          routing: record.routing,
+          priority: record.priority,
+          overdue: incidentClocks(record).overdue,
+          route: `${inc.booking?.pickup_address || '-'}  >  ${inc.booking?.dropoff_address || '-'}`,
+          passengerName: inc.passenger?.full_name || undefined,
+          passengerPhone: inc.passenger?.contact_number || undefined,
+          driverPhone: inc.driver?.contact_number || undefined,
+          record,
+        };
+      });
 
       setBookings(mappedBookings);
       setIncidents(mappedIncidents);
@@ -180,7 +198,8 @@ export const TodaReportingPage: React.FC = () => {
       inc.description.toLowerCase().includes(incidentSearch.toLowerCase());
 
     const matchesStatus = incidentStatusFilter === 'All' || inc.status === incidentStatusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesPriority = incidentPriorityFilter === 'All' || inc.priority === incidentPriorityFilter;
+    return matchesSearch && matchesStatus && matchesPriority;
   });
 
   const modeOptions: FilterOption[] = [
@@ -195,8 +214,16 @@ export const TodaReportingPage: React.FC = () => {
     { label: 'Pending Review', value: 'Pending Review' },
     { label: 'Under Investigation', value: 'Under Investigation' },
     { label: 'Resolved (TODA Level)', value: 'Resolved (TODA Level)' },
+    { label: 'Resolved (LGU)', value: 'Resolved' },
     { label: 'Escalated to LGU', value: 'Escalated to LGU' },
     { label: 'Dismissed', value: 'Dismissed' },
+  ];
+
+  const incidentPriorityOptions: FilterOption[] = [
+    { label: 'All Priorities', value: 'All' },
+    { label: 'Serious (with the LGU)', value: 'Serious' },
+    { label: 'Emergency', value: 'Emergency' },
+    { label: 'Standard', value: 'Standard' },
   ];
 
   // Export a report as a CSV file (opens in Excel) and record it in the audit log
@@ -224,41 +251,17 @@ export const TodaReportingPage: React.FC = () => {
     const name = 'Incident Summary';
     downloadCsv(
       reportFileName(name),
-      ['Incident Code', 'Driver', 'Vehicle Plate', 'Reported By', 'Category', 'Date', 'Status', 'Description'],
-      filteredIncidents.map((i) => [i.incidentCode || i.id.slice(0, 8), i.driverName, i.vehiclePlate, `${i.reporterName} (${i.reporterRole})`, i.category, i.submittedAt, i.status, i.description])
+      ['Incident Code', 'Driver', 'Vehicle Plate', 'Reported By', 'Category', 'Priority', 'With', 'Date', 'Status', 'Outcome', 'Strike', 'Description'],
+      filteredIncidents.map((i) => [i.incidentCode || i.id.slice(0, 8), i.driverName, i.vehiclePlate, `${i.reporterName} (${i.reporterRole})`, i.category, i.priority ?? '', i.routing ?? '', i.submittedAt, i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.description])
     );
     recordExport(name);
   };
 
-  // Incident Handlers
-  const handleResolveIncident = async () => {
-    if (!selectedIncident) return;
-
-    await submitIncidentRemarks(selectedIncident.id, 'Resolved at TODA administration level.', 'Resolved');
-
-    setIncidents((prev) =>
-      prev.map((i) =>
-        i.id === selectedIncident.id ? { ...i, status: 'Resolved (TODA Level)' } : i
-      )
-    );
-
-    setResolveDialogOpen(false);
-    setSelectedIncident(null);
-  };
-
-  const handleEscalateIncident = async () => {
-    if (!selectedIncident) return;
-
-    await escalateIncidentToLgu(selectedIncident.id, 'Escalated from TODA portal review.');
-
-    setIncidents((prev) =>
-      prev.map((i) =>
-        i.id === selectedIncident.id ? { ...i, status: 'Escalated to LGU' } : i
-      )
-    );
-
-    setEscalateDialogOpen(false);
-    setSelectedIncident(null);
+  // Incident handlers: each one is ONE database function (who may act, the strike, the audit entry and the notices are the database's); the list is read again afterwards
+  const afterAction = (task: () => Promise<string | null>) => async (): Promise<string | null> => {
+    const problem = await task();
+    if (!problem) await loadData();
+    return problem;
   };
 
   return (
@@ -498,10 +501,18 @@ export const TodaReportingPage: React.FC = () => {
                 options: incidentStatusOptions,
                 onChange: setIncidentStatusFilter,
               },
+              {
+                id: 'priority',
+                label: 'Priority',
+                value: incidentPriorityFilter,
+                options: incidentPriorityOptions,
+                onChange: setIncidentPriorityFilter,
+              },
             ]}
             onResetFilters={() => {
               setIncidentSearch('');
               setIncidentStatusFilter('All');
+              setIncidentPriorityFilter('All');
             }}
           />
 
@@ -521,6 +532,7 @@ export const TodaReportingPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>INCIDENT ID</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>INVOLVED DRIVER</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>COMPLAINT CATEGORY</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>PRIORITY</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>DATE SUBMITTED</TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>STATUS</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>ACTIONS</TableCell>
@@ -529,14 +541,14 @@ export const TodaReportingPage: React.FC = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                       <CircularProgress size={28} sx={{ color: 'var(--sakay-orange)', mb: 1 }} />
                       <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : filteredIncidents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                       <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Incident Reports Found</Typography>
                       <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
                         There are currently no passenger complaints recorded.
@@ -568,6 +580,12 @@ export const TodaReportingPage: React.FC = () => {
                         </Typography>
                       </TableCell>
 
+                      <TableCell sx={{ py: 2, px: 3 }}>
+                        <Typography sx={{ fontSize: '13px', fontWeight: 700, color: inc.priority === 'Serious' ? '#991B1B' : inc.priority === 'Emergency' ? '#9A3412' : 'var(--mac-text-muted)' }}>{inc.priority ?? 'Standard'}</Typography>
+                        {inc.overdue && <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B91C1C' }}>Overdue</Typography>}
+                        {inc.routing === 'LGU' && <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>With the LGU</Typography>}
+                      </TableCell>
+
                       <TableCell sx={{ py: 2, px: 3, fontSize: '14px', color: 'var(--mac-text-secondary)' }}>
                         {inc.submittedAt}
                       </TableCell>
@@ -581,7 +599,7 @@ export const TodaReportingPage: React.FC = () => {
                           variant="outlined"
                           size="small"
                           startIcon={<VisibilityIcon fontSize="small" />}
-                          onClick={() => setSelectedIncident(inc)}
+                          onClick={() => setSelectedIncidentId(inc.id)}
                           sx={{
                             height: 36,
                             px: 2,
@@ -612,13 +630,13 @@ export const TodaReportingPage: React.FC = () => {
       )}
 
       {/* Incident Review Detail Modal */}
-      {selectedIncident && (
+      {selectedIncident && selectedIncident.record && (
         <MacCenterModal
           open={Boolean(selectedIncident)}
-          onClose={() => setSelectedIncident(null)}
+          onClose={() => setSelectedIncidentId(null)}
           title={`Incident Report #${selectedIncident.incidentCode || selectedIncident.id.slice(0, 8).toUpperCase()}`}
           subtitle={`Category: ${selectedIncident.category} • Submitted by ${selectedIncident.reporterName}`}
-          maxWidth={640}
+          maxWidth={680}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
@@ -628,6 +646,35 @@ export const TodaReportingPage: React.FC = () => {
               <Typography sx={{ fontSize: '14.5px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
                 {selectedIncident.description || 'No detailed description provided.'}
               </Typography>
+            </Box>
+
+            <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
+                The trip (Rule 19.2)
+              </Typography>
+              <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+                Trip {selectedIncident.tripId.slice(0, 8).toUpperCase()} · {selectedIncident.route}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap', mt: 1.5 }}>
+                {[
+                  { label: 'Passenger', name: selectedIncident.passengerName, phone: selectedIncident.passengerPhone },
+                  { label: `Driver (${selectedIncident.vehiclePlate})`, name: selectedIncident.driverName, phone: selectedIncident.driverPhone },
+                ].map((p) => (
+                  <Box key={p.label} sx={{ minWidth: 180 }}>
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>{p.label}</Typography>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 600 }}>{p.name || '-'}</Typography>
+                    {p.phone ? (
+                      <Typography sx={{ fontSize: '13px' }}>
+                        <a href={`tel:${p.phone}`} style={{ color: '#2563EB', fontWeight: 600 }}>{p.phone}</a>
+                        {' · '}
+                        <a href={`sms:${p.phone}`} style={{ color: '#2563EB' }}>SMS</a>
+                      </Typography>
+                    ) : (
+                      <Typography sx={{ fontSize: '13px', color: '#94A3B8' }}>no number on record</Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
             </Box>
 
             {(selectedIncident.evidenceFiles?.length ?? 0) > 0 && (
@@ -654,45 +701,19 @@ export const TodaReportingPage: React.FC = () => {
               </Box>
             )}
 
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, pt: 2, borderTop: '1px solid var(--mac-border-color)' }}>
-              <Button
-                variant="outlined"
-                onClick={() => setEscalateDialogOpen(true)}
-                sx={{ textTransform: 'none', borderColor: '#DC2626', color: '#DC2626' }}
-              >
-                Escalate to City LGU
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => setResolveDialogOpen(true)}
-                sx={{ textTransform: 'none', backgroundColor: '#059669', color: '#FFFFFF' }}
-              >
-                Mark Resolved (TODA Level)
-              </Button>
+            <Box sx={{ pt: 2, borderTop: '1px solid var(--mac-border-color)' }}>
+              <IncidentReviewPanel
+                role="toda_admin"
+                incident={selectedIncident.record}
+                onStart={afterAction(() => startIncident(selectedIncident.id))}
+                onEscalate={(reason, serious) => afterAction(() => escalateIncident(selectedIncident.id, reason, serious))()}
+                onDecide={(d) => afterAction(() => decideIncident({ incidentId: selectedIncident.id, ...d }))()}
+                onLostItem={(status, note) => afterAction(() => updateLostItemReport(selectedIncident.id, status, note))()}
+              />
             </Box>
           </Box>
         </MacCenterModal>
       )}
-
-      {/* Confirmation Dialogs */}
-      <MacConfirmDialog
-        open={resolveDialogOpen}
-        onClose={() => setResolveDialogOpen(false)}
-        onConfirm={handleResolveIncident}
-        title="Resolve Incident at TODA Level?"
-        message="This will mark the complaint as resolved internally by the TODA administration board."
-        confirmLabel="Confirm Resolution"
-      />
-
-      <MacConfirmDialog
-        open={escalateDialogOpen}
-        onClose={() => setEscalateDialogOpen(false)}
-        onConfirm={handleEscalateIncident}
-        title="Escalate Incident to City LGU?"
-        message="This will forward the complaint to the Calapan City Transportation Board for formal municipal investigation."
-        confirmLabel="Escalate to LGU"
-        confirmVariant="danger"
-      />
     </Box>
   );
 };

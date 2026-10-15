@@ -209,7 +209,7 @@ export const PICKUP_ZONE_TOLERANCE_METERS = 5;
 export const PICKUP_ZONE_TOLERANCE_SECONDS = 15;
 
 /** Rule 8.4: what a driver may report to explain standing still on the way (the database accepts exactly these) */
-export const DRIVER_DELAY_REASONS = ['traffic', 'road_closure'] as const;
+export const DRIVER_DELAY_REASONS = ['traffic', 'road_closure', 'police_checkpoint'] as const;
 export type DriverDelayReason = (typeof DRIVER_DELAY_REASONS)[number];
 
 /** Rule 9.5: what the driver may say about an interrupted trip when he is connected again (the database accepts exactly these) */
@@ -224,7 +224,7 @@ export type ExemptionCauseCode = (typeof EXEMPTION_CAUSE_CODES)[number];
 export const DISPATCH_DECLINE_REASONS = ['vehicle_issue', 'personal_emergency', 'safety_concern', 'end_of_shift', 'other'] as const;
 export type DispatchDeclineReason = (typeof DISPATCH_DECLINE_REASONS)[number];
 
-/** Rules 12.3 / 12.4 / 15.1: why a driver may cancel an accepted booking (the database accepts exactly these) */
+/** Rules 12.3 / 12.4 / 15.1 / 29.13 / 29.14: why a driver may cancel an accepted booking (the database accepts exactly these) */
 export const DRIVER_CANCEL_REASONS = [
   'vehicle_breakdown',
   'personal_emergency',
@@ -232,9 +232,25 @@ export const DRIVER_CANCEL_REASONS = [
   'wrong_pickup_location',
   'safety_concern',
   'road_closure_or_traffic',
+  'accident',
+  'unsafe_or_illegal_request',
+  'prohibited_item',
   'other',
 ] as const;
 export type DriverCancelReason = (typeof DRIVER_CANCEL_REASONS)[number];
+/**
+ * Decision PI-11B: these reasons are NOT struck. The cancellation is recorded as an event with no points, the driver's TODA Administrator verifies it, and a
+ * pattern (3 in 30 days) is flagged. The others (passenger_unreachable, wrong_pickup_location, other) still strike. [DB _safe_reason_exempt()]
+ */
+export const DRIVER_CANCEL_SAFE_REASONS = [
+  'vehicle_breakdown',
+  'personal_emergency',
+  'safety_concern',
+  'road_closure_or_traffic',
+  'accident',
+  'unsafe_or_illegal_request',
+  'prohibited_item',
+] as const;
 
 // ============================================================================
 // 3. TELEMETRY & GPS MONITORING INTERVALS (Rule 17.1)
@@ -447,6 +463,34 @@ export const SHARED_TRIP_DECLINE_FLAG_WINDOW_HOURS = 24;
  * still accepts 1 - 4 and never matches a booking of 4. */
 export const SHARED_BOOKING_MAX_PASSENGERS = FARE_SEAT_CAPACITY - 1;
 
+// ----------------------------------------------------------------------------
+// Incident reporting, emergency and safety (Batch 11): Sections 15, 19, 26. Code constants inside public.incident_constant(); the copies here are for the
+// screens and the drift test (scripts/db-tests/batch11/config-drift.js) fails if either side changes alone. The business-day arithmetic is the database's.
+// ----------------------------------------------------------------------------
+/** F11.1: a safety report (an emergency, an Urgent Safety Report, a serious allegation) gets its first administrator action within this many hours ... */
+export const INCIDENT_SAFETY_FIRST_ACTION_HOURS = 4;
+/** ... and its decision within this many business days */
+export const INCIDENT_SAFETY_DECISION_BUSINESS_DAYS = 3;
+/** F11.1: a standard report is reviewed first by the driver's TODA Administrator within this many business days ... */
+export const INCIDENT_STANDARD_FIRST_REVIEW_BUSINESS_DAYS = 2;
+/** ... and the LGU Administrator decides an escalated report within this many business days after the escalation */
+export const INCIDENT_LGU_DECISION_BUSINESS_DAYS = 3;
+/** F11.1: the TODA Administrator arranges the contact for a lost item within this many business days */
+export const INCIDENT_LOST_ITEM_CONTACT_BUSINESS_DAYS = 1;
+/** F11.2: photos per report, bytes per photo (the screens and the bucket agree: JPEG, PNG or WebP) */
+export const INCIDENT_EVIDENCE_MAX_FILES = 3;
+export const INCIDENT_EVIDENCE_MAX_BYTES = 5 * 1024 * 1024;
+export const INCIDENT_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+/** F11.3: a Share Live Trip link lives until the trip ends plus this many minutes, and never longer than this many hours from its creation */
+export const SHARE_LINK_BUFFER_MINUTES = 15;
+export const SHARE_LINK_MAX_HOURS = 4;
+/** F11.4: a Lost Item report is filed within this many days of the trip; with no response after the second number the TODA is shown it and may close it as Unclaimed */
+export const INCIDENT_LOST_ITEM_FILE_DAYS = 7;
+export const INCIDENT_LOST_ITEM_UNCLAIMED_DAYS = 14;
+/** Decision PI-11B: safe-reason cancellations or stops in the window that raise the repeat-pattern flag (review only) */
+export const SAFE_REASON_FLAG_COUNT = 3;
+export const SAFE_REASON_FLAG_WINDOW_DAYS = 30;
+
 // ============================================================================
 // 9. UNIFIED POLICY CONSTANTS OBJECT
 // ============================================================================
@@ -581,6 +625,23 @@ export const POLICY_CONSTANTS = {
     DRIVER_PAUSE_MAX_MINUTES,
     LOCATION_MAX_ACCURACY_METERS,
     LOCATION_MAX_AGE_SECONDS,
+  },
+  INCIDENTS: {
+    INCIDENT_SAFETY_FIRST_ACTION_HOURS,
+    INCIDENT_SAFETY_DECISION_BUSINESS_DAYS,
+    INCIDENT_STANDARD_FIRST_REVIEW_BUSINESS_DAYS,
+    INCIDENT_LGU_DECISION_BUSINESS_DAYS,
+    INCIDENT_LOST_ITEM_CONTACT_BUSINESS_DAYS,
+    INCIDENT_EVIDENCE_MAX_FILES,
+    INCIDENT_EVIDENCE_MAX_BYTES,
+    SHARE_LINK_BUFFER_MINUTES,
+    SHARE_LINK_MAX_HOURS,
+    INCIDENT_LOST_ITEM_FILE_DAYS,
+    INCIDENT_LOST_ITEM_UNCLAIMED_DAYS,
+    SAFE_REASON_FLAG_COUNT,
+    SAFE_REASON_FLAG_WINDOW_DAYS,
+    TODA_INCIDENT_REPORT_FLAG_THRESHOLD,
+    TODA_INCIDENT_REPORT_WINDOW_DAYS,
   },
 } as const;
 

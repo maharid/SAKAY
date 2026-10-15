@@ -34,11 +34,15 @@ import {
   fetchFareDisputes,
   escalateFareDispute,
   resolveFareDispute,
+  endTripSafely,
+  fetchTodaReviewFlags,
+  resolveTodaReviewFlag,
+  confirmTodaFlaggedViolation,
 } from '../services/todaApiService';
 import type { GpsArea } from '../services/todaApiService';
 import { GpsAreasCard } from '../components/admin/GpsAreasCard';
-import { FareDisputesPanel, TripReconciliationPanel } from '@sakay/shared';
-import type { FareDisputeRow, ReconciliationTrip } from '@sakay/shared';
+import { FareDisputesPanel, ReviewFlagsPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
+import type { FareDisputeRow, ReconciliationTrip, ReviewFlagRow } from '@sakay/shared';
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { driverActivity, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike } from '@sakay/shared';
@@ -124,13 +128,18 @@ export const TodaOperationsPage: React.FC = () => {
   // Rules 13.5 / 18.4 / 18.6: the fare disputes of this TODA's drivers wait here for a decision within 2 business days (or an escalation to the LGU Administrator)
   const [fareDisputes, setFareDisputes] = useState<FareDisputeRow[]>([]);
   const loadFareDisputes = async () => setFareDisputes(await fetchFareDisputes());
+  // The events the system recorded without a strike (a breakdown, an accident, a lost item nobody claimed, a detention ...): the TODA Administrator verifies them (PI-11B)
+  const [reviewFlags, setReviewFlags] = useState<ReviewFlagRow[]>([]);
+  const loadReviewFlags = async () => setReviewFlags(await fetchTodaReviewFlags());
   useEffect(() => {
     loadReconciliation();
     loadGpsAreas();
     loadFareDisputes();
+    loadReviewFlags();
     const timer = setInterval(() => {
       loadReconciliation();
       loadFareDisputes();
+      loadReviewFlags();
     }, 15000);
     return () => clearInterval(timer);
   }, [targetTodaId]);
@@ -152,6 +161,11 @@ export const TodaOperationsPage: React.FC = () => {
   const registeredDrivers = activityById.size;
   const activeDrivers30 = [...activityById.values()].filter((r) => r.activeInWindow).length;
   const activeTrips = bookings.filter((b) => b.status === 'In Progress');
+  // Rules 29.20 - 29.22: the trips of this TODA's drivers that are on, with a driver on them (a booking still searching has nothing to end)
+  const SEARCHING = ['Pending', 'Searching Driver', 'No Driver Found'];
+  const safetyTrips = rawTrips
+    .filter((t: any) => t.driver_id && t.booking_status && !SEARCHING.includes(t.booking_status) && t.booking_status !== 'Completed' && !String(t.booking_status).includes('Cancel'))
+    .map((t: any) => ({ bookingId: t.booking_id as string, label: `${t.driver?.full_name ?? 'Driver'} (${t.driver?.plate_number ?? '-'}) · ${t.pickup_address ?? '-'} > ${t.dropoff_address ?? '-'} · ${t.booking_status}` }));
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
@@ -175,6 +189,30 @@ export const TodaOperationsPage: React.FC = () => {
           return message;
         }}
         onReportDeliberateOffline={reportDeliberateOffline}
+      />
+
+      <ReviewFlagsPanel
+        flags={reviewFlags}
+        driverNames={Object.fromEntries(drivers.map((d) => [d.id, d.name]))}
+        onResolve={async (flagId, status, note) => {
+          const message = await resolveTodaReviewFlag(flagId, status, note);
+          if (!message) await loadReviewFlags();
+          return message;
+        }}
+        onConfirm={async (flagId, bookingId, reason) => {
+          const message = await confirmTodaFlaggedViolation(flagId, bookingId, reason);
+          if (!message) await loadReviewFlags();
+          return message;
+        }}
+      />
+
+      <SafetyEndTripPanel
+        trips={safetyTrips}
+        onEnd={async (end) => {
+          const message = await endTripSafely(end);
+          if (!message) loadData();
+          return message;
+        }}
       />
 
       <FareDisputesPanel

@@ -1,54 +1,64 @@
 import React, { useState } from 'react';
-import { Box, Typography, TextField, Button, Chip } from '@mui/material';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import PersonIcon from '@mui/icons-material/Person';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import { Box, Typography } from '@mui/material';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import RouteIcon from '@mui/icons-material/Route';
 import DescriptionIcon from '@mui/icons-material/Description';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import HistoryIcon from '@mui/icons-material/History';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
+import { IncidentReviewPanel } from '@sakay/shared';
 import { IncidentReportRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
 import { ActionButton } from './ActionButton';
-import { MacConfirmDialog } from './MacConfirmDialog';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { startIncident, escalateIncident, decideIncident, updateLostItemReport } from '../../services/adminApiService';
 
 interface IncidentDetailModalProps {
   open: boolean;
   onClose: () => void;
   incident: IncidentReportRecord | null;
-  onStatusUpdate?: (incidentId: string, newStatus: 'Under Investigation' | 'Resolved' | 'Dismissed', findings?: string) => void;
+  /** The list is read again after every action (the database's answer is what the screen then shows) */
+  onChanged: () => void | Promise<void>;
   onViewLinkedTrip?: (tripId: string) => void;
 }
 
-export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
-  open,
-  onClose,
-  incident,
-  onStatusUpdate,
-  onViewLinkedTrip,
-}) => {
-  const [findingsText, setFindingsText] = useState(incident?.findings || '');
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+const Section: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
+  <Box sx={{ mb: 4 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+      {icon}
+      <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{title}</Typography>
+    </Box>
+    {children}
+  </Box>
+);
 
-  // Dialog confirmation states
-  const [investigateDialogOpen, setInvestigateDialogOpen] = useState(false);
-  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
-  const [dismissDialogOpen, setDismissDialogOpen] = useState(false);
+const Party: React.FC<{ label: string; name: string; phone?: string }> = ({ label, name, phone }) => (
+  <Box>
+    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '3px' }}>{label}</Typography>
+    <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{name}</Typography>
+    {phone ? (
+      <Typography sx={{ fontSize: '11px' }}>
+        <a href={`tel:${phone}`} style={{ color: '#2563EB', fontWeight: 600 }}>{phone}</a>
+        {' · '}
+        <a href={`sms:${phone}`} style={{ color: '#2563EB' }}>SMS</a>
+      </Typography>
+    ) : (
+      <Typography sx={{ fontSize: '10.5px', color: 'var(--mac-text-muted)' }}>no number on record</Typography>
+    )}
+  </Box>
+);
+
+export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({ open, onClose, incident, onChanged, onViewLinkedTrip }) => {
+  const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
 
   if (!incident) return null;
 
-  const handleConfirmStatusChange = (targetStatus: 'Under Investigation' | 'Resolved' | 'Dismissed', reason?: string) => {
-    const finalFindings = reason || findingsText;
-    if (onStatusUpdate) {
-      onStatusUpdate(incident.id, targetStatus, finalFindings);
-    }
-    setInvestigateDialogOpen(false);
-    setResolveDialogOpen(false);
-    setDismissDialogOpen(false);
+  // every action is ONE database function; the list is read again afterwards
+  const after = (task: () => Promise<string | null>) => async (): Promise<string | null> => {
+    const problem = await task();
+    if (!problem) await onChanged();
+    return problem;
   };
 
   return (
@@ -81,7 +91,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                 Supervisory Review Warning: Driver Has {incident.relatedIncidentsCount} Related Complaints
               </Typography>
               <Typography sx={{ fontSize: '10.4px', color: '#C2410C' }}>
-                Driver {incident.driverName} ({incident.todaName}) has accumulated 3 or more incident reports within the past 30 days.
+                Driver {incident.driverName} ({incident.todaName}) has {incident.relatedIncidentsCount} incident reports about them within the past 30 days.
               </Typography>
             </Box>
           </Box>
@@ -119,29 +129,13 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         </Box>
 
         {/* Section 2: Full Written Description */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
-            <DescriptionIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              Full Written Description
-            </Typography>
+        <Section icon={<DescriptionIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />} title="Full Written Description">
+          <Box sx={{ backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
+            <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>"{incident.description}"</Typography>
           </Box>
+        </Section>
 
-          <Box
-            sx={{
-              backgroundColor: '#F5F5F7',
-              padding: '20px',
-              borderRadius: '12px',
-              border: '1px solid var(--mac-border-color)',
-            }}
-          >
-            <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
-              "{incident.description}"
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Section 3: Supporting Evidence Attachments */}
+        {/* Section 3: Supporting Evidence Attachments (Rule 19.2: up to 3 photos; the links are short-lived) */}
         <Box sx={{ mb: 4 }}>
           <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 2, letterSpacing: '0.3px' }}>
             Submitted Supporting Evidence ({incident.evidenceFiles.length})
@@ -152,236 +146,87 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               {incident.evidenceFiles.map((file, idx) => (
                 <Box
                   key={idx}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '14px 18px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--mac-border-color)',
-                    backgroundColor: '#FFFFFF',
-                  }}
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--mac-border-color)', backgroundColor: '#FFFFFF' }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: '19.3' }} />
                     <Box>
-                      <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                        {file.name}
-                      </Typography>
-                      <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                        Attachment Format: {file.type.toUpperCase()}
-                      </Typography>
+                      <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{file.name}</Typography>
+                      <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)', mt: '2px' }}>Attachment Format: {file.type.toUpperCase()}</Typography>
                     </Box>
                   </Box>
-                  <ActionButton label="View Evidence" showArrow={false} onClick={() => setSelectedDoc(file.name)} sx={{ height: 34, fontSize: '10.4px' }} />
+                  <ActionButton label="View Evidence" showArrow={false} onClick={() => setSelectedPhoto(idx)} sx={{ height: 34, fontSize: '10.4px' }} />
                 </Box>
               ))}
             </Box>
           ) : (
             <Box sx={{ padding: '16px 20px', backgroundColor: '#F5F5F7', borderRadius: '10px' }}>
-              <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', fontStyle: 'italic' }}>
-                No supporting photo or video evidence was attached to this incident report.
-              </Typography>
+              <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', fontStyle: 'italic' }}>No supporting photo evidence was attached to this incident report.</Typography>
             </Box>
           )}
         </Box>
 
-        {/* Section 4: Linked Trip Card */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
-            <RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              Linked Trip Details
-            </Typography>
-          </Box>
-
+        {/* Section 4: Linked Trip Card (Rule 19.2: the trip, the parties, the route, the time) */}
+        <Section icon={<RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />} title="Linked Trip Details">
           <Box sx={{ backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                Trip Ref: {incident.tripId} (Booking {incident.bookingId})
-              </Typography>
-              {onViewLinkedTrip && (
-                <ActionButton
-                  label="View Linked Trip"
-                  onClick={() => onViewLinkedTrip(incident.tripId)}
-                  sx={{ height: 32, fontSize: '10px' }}
-                />
-              )}
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Trip Ref: {incident.tripId.slice(0, 8).toUpperCase()}</Typography>
+              {onViewLinkedTrip && <ActionButton label="View Linked Trip" onClick={() => onViewLinkedTrip(incident.tripId)} sx={{ height: 32, fontSize: '10px' }} />}
             </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-              <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '3px' }}>Driver</Typography>
-                <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{incident.driverName} ({incident.vehiclePlate})</Typography>
-              </Box>
+            <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-primary)', mb: 2 }}>{incident.route ?? '-'}</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+              <Party label="Driver" name={`${incident.driverName} (${incident.vehiclePlate})`} phone={incident.driverPhone} />
+              <Party label="Passenger" name={incident.passengerName} phone={incident.passengerPhone} />
               <Box>
                 <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Affiliation</Typography>
                 <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{incident.todaName}</Typography>
               </Box>
             </Box>
           </Box>
-        </Box>
+        </Section>
 
-        {/* Section 5: Status History Audit Trail */}
+        {/* Section 5: Status History Audit Trail (what the audit log recorded: every action, who, when) */}
         {incident.statusHistory && incident.statusHistory.length > 0 && (
-          <Box sx={{ mb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
-              <HistoryIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                Review Timeline & Audit Trail
-              </Typography>
-            </Box>
-
+          <Section icon={<HistoryIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />} title="Review Timeline & Audit Trail">
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, backgroundColor: '#F5F5F7', padding: '18px 20px', borderRadius: '12px' }}>
               {incident.statusHistory.map((step, idx) => (
                 <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <CheckCircleIcon sx={{ color: 'var(--sakay-orange)', fontSize: '14.4' }} />
                   <Box>
-                    <Typography sx={{ fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      {step.step}
-                    </Typography>
-                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
-                      {step.timestamp} • {step.actor}
-                    </Typography>
+                    <Typography sx={{ fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{step.step}</Typography>
+                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>{step.timestamp} • {step.actor}</Typography>
                   </Box>
                 </Box>
               ))}
             </Box>
-          </Box>
+          </Section>
         )}
 
-        {/* Section 6: Official Findings & Action Taken */}
-        <Box sx={{ mb: 4 }}>
-          <TextField
-            multiline
-            rows={3}
-            fullWidth
-            label="Official LGU Investigation Findings & Action Taken"
-            placeholder="Record official investigation findings, witness notes, or administrative action rationale..."
-            value={findingsText}
-            onChange={(e) => setFindingsText(e.target.value)}
-            slotProps={{
-              input: {
-                sx: {
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  fontSize: '13px',
-                  '& fieldset': { borderColor: '#E5E5EA' },
-                  '&:hover fieldset': { borderColor: '#C7C7CC' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-                },
-              },
-            }}
-          />
-        </Box>
-
-        {/* Section 7: Workflow Action Buttons */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, pt: 1 }}>
-          {incident.status === 'Pending Review' && (
-            <Button
-              onClick={() => setInvestigateDialogOpen(true)}
-              sx={{
-                height: 40,
-                padding: '0 20px',
-                borderRadius: '9px',
-                textTransform: 'none',
-                fontSize: '10.8px',
-                fontWeight: 600,
-                backgroundColor: '#1565C0',
-                color: '#FFFFFF',
-                '&:hover': { backgroundColor: '#0D47A1' },
-              }}
-            >
-              Mark Under Investigation
-            </Button>
-          )}
-
-          {incident.status !== 'Dismissed' && (
-            <Button
-              onClick={() => setDismissDialogOpen(true)}
-              sx={{
-                height: 40,
-                padding: '0 20px',
-                borderRadius: '9px',
-                textTransform: 'none',
-                fontSize: '10.8px',
-                fontWeight: 600,
-                borderColor: 'var(--mac-border-color)',
-                color: 'var(--mac-text-secondary)',
-                '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-              }}
-              variant="outlined"
-            >
-              Dismiss Report
-            </Button>
-          )}
-
-          {incident.status !== 'Resolved' && (
-            <Button
-              onClick={() => setResolveDialogOpen(true)}
-              sx={{
-                height: 40,
-                padding: '0 22px',
-                borderRadius: '9px',
-                textTransform: 'none',
-                fontSize: '10.8px',
-                fontWeight: 600,
-                backgroundColor: 'var(--sakay-orange)',
-                color: '#FFFFFF',
-                boxShadow: 'var(--mac-shadow-subtle)',
-                '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
-              }}
-            >
-              Resolve Incident
-            </Button>
+        {/* Section 6: the review (Rules 19.3, 19.4, 19.5, 19.8, 26.4): start, escalate / reclassify, the outcome and the strike, the lost-item contact */}
+        <Box sx={{ pt: 2, borderTop: '1px solid var(--mac-border-color)' }}>
+          {incident.record && (
+            <IncidentReviewPanel
+              role="lgu_admin"
+              incident={incident.record}
+              onStart={after(() => startIncident(incident.id))}
+              onEscalate={(reason, serious) => after(() => escalateIncident(incident.id, reason, serious))()}
+              onDecide={(d) => after(() => decideIncident({ incidentId: incident.id, ...d }))()}
+              onLostItem={(status, note) => after(() => updateLostItemReport(incident.id, status, note))()}
+            />
           )}
         </Box>
       </MacCenterModal>
 
-      {/* Document Inspection Popover */}
-      {selectedDoc && (
+      {/* Evidence viewer: the photos of this report (signed again when it opens) */}
+      {selectedPhoto !== null && (
         <DocumentPreviewModal
-          open={Boolean(selectedDoc)}
-          onClose={() => setSelectedDoc(null)}
-          documentName={selectedDoc}
+          open
+          onClose={() => setSelectedPhoto(null)}
+          documentName={incident.evidenceFiles[selectedPhoto]?.name ?? 'Evidence'}
           documentType="Evidence Attachment"
+          urls={[...incident.evidenceFiles.slice(selectedPhoto), ...incident.evidenceFiles.slice(0, selectedPhoto)].map((f) => f.url)}
         />
       )}
-
-      {/* Confirmation Dialogs */}
-      <MacConfirmDialog
-        open={investigateDialogOpen}
-        onClose={() => setInvestigateDialogOpen(false)}
-        title="Mark Incident Under Investigation?"
-        message={`Assign incident #${incident.id} for formal investigation. The status will be updated to Under Investigation.`}
-        confirmLabel="Confirm Assignment"
-        confirmVariant="orange"
-        onConfirm={() => handleConfirmStatusChange('Under Investigation')}
-      />
-
-      <MacConfirmDialog
-        open={resolveDialogOpen}
-        onClose={() => setResolveDialogOpen(false)}
-        title="Resolve Incident Report?"
-        message={`Mark incident #${incident.id} as Resolved. Record any findings below.`}
-        confirmLabel="Resolve Incident"
-        confirmVariant="orange"
-        requireReason
-        reasonPlaceholder="Specify resolution findings or sanctions issued..."
-        onConfirm={(reason) => handleConfirmStatusChange('Resolved', reason)}
-      />
-
-      <MacConfirmDialog
-        open={dismissDialogOpen}
-        onClose={() => setDismissDialogOpen(false)}
-        title="Dismiss Incident Report?"
-        message={`Dismiss incident #${incident.id} as unfounded or invalid.`}
-        confirmLabel="Dismiss Report"
-        confirmVariant="danger"
-        requireReason
-        reasonPlaceholder="Specify reason for dismissal..."
-        onConfirm={(reason) => handleConfirmStatusChange('Dismissed', reason)}
-      />
     </>
   );
 };

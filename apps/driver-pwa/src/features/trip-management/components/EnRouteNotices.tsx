@@ -15,7 +15,7 @@ interface EnRouteNoticesProps {
 /**
  * What the system tells (and lets) a driver on the way to the pickup:
  *  - the Rule 8.2 warning when he has not started moving toward the passenger (the booking is cancelled for him a minute later), and
- *  - the two delays he may report (Rule 8.4: traffic, a road closure) so that standing still for a while on the way is not taken for a stall.
+ *  - the three delays he may report (Rule 8.4: traffic, a road closure; Rule 29.12: a police checkpoint or inspection) so that standing still for a while on the way is not taken for a stall.
  */
 const EnRouteNotices: React.FC<EnRouteNoticesProps> = ({ bookingId, language, stallWarnedAt, onMessage }) => {
   const [sending, setSending] = useState<DriverDelayReason | null>(null);
@@ -63,6 +63,7 @@ const EnRouteNotices: React.FC<EnRouteNoticesProps> = ({ bookingId, language, st
         <Box sx={{ display: 'flex', gap: 1 }}>
           {delayButton('traffic', language === 'tl' ? 'Trapiko' : 'Heavy traffic')}
           {delayButton('road_closure', language === 'tl' ? 'Sarado ang daan' : 'Road closed')}
+          {delayButton('police_checkpoint', language === 'tl' ? 'Checkpoint' : 'Police checkpoint')}
         </Box>
       </Box>
     </Box>

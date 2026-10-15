@@ -42,6 +42,8 @@ import {
   parseRestrictionError,
   type AccountRestriction,
   activateWithKeyboard,
+  CalamityBanner,
+  useActiveCalamity,
   useMeasuredSize,
   useSafeAreaInsets,
   useStaleSignal,
@@ -62,6 +64,8 @@ export const DriverAvailabilityHome: React.FC = () => {
   // for the current position, and whether that position is still refreshing
   const safeArea = useSafeAreaInsets();
   const [headerCardRef, headerCard] = useMeasuredSize<HTMLDivElement>();
+  // Rules 15.4 / 29.6: the calamity the LGU Administrator declared, for a banner while it lasts
+  const calamity = useActiveCalamity(supabase);
   const fixIsCurrent = liveFix !== null && liveFix.latitude === profile.currentLat && liveFix.longitude === profile.currentLng;
   const driverHeading = fixIsCurrent ? liveFix.heading ?? null : null;
   const driverSpeed = fixIsCurrent ? liveFix.speed ?? null : null;
@@ -532,6 +536,12 @@ export const DriverAvailabilityHome: React.FC = () => {
         onClose={handleToastClose}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       />
+
+      {calamity.active && (
+        <Box sx={{ position: 'absolute', left: '16px', right: '16px', top: `calc(var(--safe-area-top) + 12px + ${headerCard.height + 8}px)`, zIndex: 19, maxHeight: '34%', overflowY: 'auto' }}>
+          <CalamityBanner calamity={calamity} language={language === 'tl' ? 'tl' : 'en'} audience="driver" />
+        </Box>
+      )}
 
       <Paper
         ref={headerCardRef}

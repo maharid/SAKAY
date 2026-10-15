@@ -430,7 +430,8 @@ export async function fetchDriverNotifications(): Promise<any[]> {
     const isUuid = (v: string | null): v is string => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
     const [announcementsRes, notifsRes] = await Promise.all([
-      supabase.from('announcement').select('*').order('created_at', { ascending: false }).limit(20),
+      // an announcement is for everybody or for drivers (not the ones meant for passengers or TODA administrators), and only a published one
+      supabase.from('announcement').select('*').or('target_audience.is.null,target_audience.in.(All,Driver)').neq('is_published', false).order('created_at', { ascending: false }).limit(20),
       isUuid(driverId)
         ? supabase.from('notification').select('*').or(`recipient_id.eq.${driverId},driver_id.eq.${driverId}`).order('sent_at', { ascending: false }).limit(20)
         : Promise.resolve({ data: [] as any[], error: null }),

@@ -11,9 +11,10 @@ interface DriverEarlyStopDialogProps {
 }
 
 /**
- * Rules 13.7 / 29.3: the DRIVER ends the trip before the destination (vehicle trouble, a safety concern, an emergency, a dispute with the passenger). The passenger
- * pays only for the distance travelled; the TODA Administrator reviews every early stop, and a strike (DRV_EARLY_STOP) is only ever confirmed by the
- * administrator and never for a breakdown, a safety concern or an emergency (decision D9-8).
+ * Rules 13.7 / 15.2 / 26.3 / 29.3 / 29.21 / 29.23: the DRIVER ends the trip before the destination (vehicle trouble or a flat tire, an accident, an emergency, a passenger who needs a doctor,
+ * a safety concern, a dispute with the passenger). The passenger pays only for the distance travelled; the TODA Administrator reviews every early stop, and a strike (DRV_EARLY_STOP) is only
+ * ever confirmed by the administrator and never for the valid reasons (decisions D9-8, PI-11B): those are recorded as an event with no points, and an emergency, an accident, a medical
+ * emergency or a safety concern is also recorded as an incident for review.
  */
 const DriverEarlyStopDialog: React.FC<DriverEarlyStopDialogProps> = ({ open, language, busy, onClose, onConfirm }) => {
   const tl = language === 'tl';
@@ -38,7 +39,7 @@ const DriverEarlyStopDialog: React.FC<DriverEarlyStopDialogProps> = ({ open, lan
         <Box sx={{ p: '10px 12px', borderRadius: '12px', backgroundColor: valid ? '#F0FDF4' : '#FFFBEB', border: `1px solid ${valid ? '#86EFAC' : '#FCD34D'}` }}>
           <Typography sx={{ fontSize: '12px', lineHeight: 1.45, color: valid ? '#166534' : '#78350F', fontFamily: 'Poppins, sans-serif' }}>
             {valid
-              ? tl ? 'Walang parusa para sa ganitong dahilan.' : 'No penalty for this kind of reason.'
+              ? tl ? 'Walang strike para sa ganitong dahilan. Itatala ito at titingnan ng TODA Administrator.' : 'No strike for this kind of reason. It is recorded and your TODA Administrator verifies it.'
               : tl ? 'Maaaring may parusa kung makumpirma ng TODA Administrator na walang makatwirang dahilan.' : 'A penalty is possible if the TODA Administrator confirms there was no valid reason.'}
           </Typography>
         </Box>

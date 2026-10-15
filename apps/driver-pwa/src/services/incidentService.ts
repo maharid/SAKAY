@@ -5,15 +5,19 @@
  * only a trip they drove; anything else is refused by the database, not by this screen.
  */
 import { supabase } from './supabaseClient';
-import { uploadIncidentEvidence, BOOKING_OPEN_STATUSES } from '@sakay/shared';
+import { uploadIncidentEvidenceFiles, BOOKING_OPEN_STATUSES } from '@sakay/shared';
 
-/** A trip the driver can report about: a completed one, or (for an emergency only, Rule 16.5) the one in progress. */
+/**
+ * A trip the driver can report about: a completed one, or (for an emergency incident only, Rule 16.5) the one in progress or one he had to give up (a cancelled
+ * booking he had accepted, for a breakdown, an accident, an unsafe request).
+ */
 export interface ReportableTrip {
   bookingId: string;
   label: string;
   dateLabel: string;
-  /** The trip is not completed yet: only an emergency report may name it */
-  inProgress: boolean;
+  /** The trip is not completed: only an emergency incident (an emergency or a serious allegation) may name it */
+  emergencyOnly: boolean;
+  state: 'in_progress' | 'cancelled' | 'completed';
 }
 
 const formatDate = (iso: string): string =>
@@ -27,7 +31,7 @@ export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
   const { data, error } = await supabase
     .from('booking')
     .select('booking_id, booking_status, pickup_address, dropoff_address, created_at')
-    .in('booking_status', ['Completed', ...BOOKING_OPEN_STATUSES])
+    .in('booking_status', ['Completed', 'Cancelled', ...BOOKING_OPEN_STATUSES])
     .not('driver_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -36,7 +40,8 @@ export async function fetchReportableTrips(): Promise<ReportableTrip[]> {
     bookingId: b.booking_id as string,
     label: `${b.pickup_address || 'Pickup'} > ${b.dropoff_address || 'Drop-off'}`,
     dateLabel: formatDate(b.created_at as string),
-    inProgress: b.booking_status !== 'Completed',
+    emergencyOnly: b.booking_status !== 'Completed',
+    state: b.booking_status === 'Completed' ? 'completed' : b.booking_status === 'Cancelled' ? 'cancelled' : 'in_progress',
   }));
 }
 
@@ -45,10 +50,10 @@ export async function submitIncidentReport(input: {
   bookingId: string;
   category: string;
   description: string;
-  file?: File | null;
+  /** up to 3 photos (F11.2: JPEG, PNG or WebP, 5 MB each) */
+  files?: File[];
 }): Promise<{ incidentId: string }> {
-  const evidencePaths: string[] = [];
-  if (input.file) evidencePaths.push(await uploadIncidentEvidence(supabase, input.file));
+  const evidencePaths = await uploadIncidentEvidenceFiles(supabase, input.files ?? []);
 
   const { data, error } = await supabase
     .from('incident_report')

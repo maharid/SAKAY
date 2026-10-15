@@ -37,7 +37,13 @@ function loadTs(file) {
       }
     },
   });
+  // Batch 11 replaced these two functions (two more early-stop reasons: accident, medical_emergency): they are read from the database as it is now, not from the Batch 9 file
+  const live = {};
+  for (const [n, sig] of [['driver_stop_trip_early', 'public.driver_stop_trip_early(uuid,text,text)'], ['_early_stop_reason_is_valid', 'public._early_stop_reason_is_valid(text)']]) {
+    live[n] = (await q(`SELECT pg_get_functiondef('${sig}'::regprocedure) AS d`))[0].d;
+  }
   const fnBody = (name) => {
+    if (live[name]) return live[name];
     const i = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${name}(`);
     const j = sql.indexOf('\n$$;', i);
     if (i < 0 || j < 0) throw new Error('function not found in the migration: ' + name);
@@ -71,15 +77,16 @@ function loadTs(file) {
   check('End Trip (Early): the passenger\'s reasons', paxTs.length === 4 && JSON.stringify(paxTs) === JSON.stringify(paxSql), { paxTs, paxSql });
   const drvTs = tsCodes('DRIVER_EARLY_STOP_REASONS').sort();
   const drvSql = sqlList(fnBody('driver_stop_trip_early'), /p_reason_code NOT IN \(([^)]*)\)/);
-  check('the driver\'s early-stop reasons', drvTs.length === 5 && JSON.stringify(drvTs) === JSON.stringify(drvSql), { drvTs, drvSql });
+  check('the driver\'s early-stop reasons', drvTs.length === 7 && JSON.stringify(drvTs) === JSON.stringify(drvSql), { drvTs, drvSql });
   const validTs = tsCodes('DRIVER_EARLY_STOP_REASONS', 'valid').filter(([, v]) => v).map(([c]) => c).sort();
   const validSql = sqlList(fnBody('_early_stop_reason_is_valid'), /IN \(([^)]*)\)/);
-  check('the reasons that are never struck (a breakdown, a safety concern, an emergency) are the same on both sides', JSON.stringify(validTs) === JSON.stringify(validSql) && validTs.length === 3, { validTs, validSql });
+  check('the reasons that are never struck (a breakdown, a safety concern, an emergency) are the same on both sides', JSON.stringify(validTs) === JSON.stringify(validSql) && validTs.length === 5, { validTs, validSql });
   const safetyTs = tsCodes('PASSENGER_EARLY_END_REASONS', 'safety').filter(([, v]) => v).map(([c]) => c);
   check('only safety_concern is the Safety Concern exception (the function turns that one code into the SAFETY kind)', JSON.stringify(safetyTs) === JSON.stringify(['safety_concern']) && /p_reason_code = 'safety_concern' THEN 'SAFETY'/.test(fnBody('passenger_request_early_end')), safetyTs);
-  const emergencyTs = [...(fs.readFileSync(path.join(SHARED, 'incidentReports.ts'), 'utf8').match(/EMERGENCY_INCIDENT_CATEGORIES = \[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
-  const emergencySql = sqlList(fnBody('incident_report_guard'), /NEW\.category NOT IN \(([^)]*)\)/);
-  check('Rule 16.5: the emergency categories the forms allow during a trip are the ones the incident guard allows', emergencyTs.length === 3 && JSON.stringify(emergencyTs) === JSON.stringify(emergencySql), { emergencyTs, emergencySql });
+  // Batch 11 (PI-11A): the guard asks one list, _incident_category_class(); what a person may file during a trip is the EMERGENCY and SERIOUS categories
+  const emergencyTs = [...loadTs(path.join(SHARED, 'incidentReports.ts')).EMERGENCY_INCIDENT_CATEGORIES].sort();
+  const emergencySql = (await q(`SELECT c FROM unnest(ARRAY['Emergency','Medical Emergency','Safety Concern','Accident','Physical Assault','Harassment','Threat','Criminal Activity','Rude Behavior','Unsafe Driving','Lost Item','Others']) AS c WHERE public._incident_category_class(c) IN ('EMERGENCY','SERIOUS')`)).map((r) => r.c).sort();
+  check('Rule 16.5: the emergency categories the forms allow during a trip are the ones the incident guard allows', emergencyTs.length === 8 && JSON.stringify(emergencyTs) === JSON.stringify(emergencySql), { emergencyTs, emergencySql });
   const resolveBody = fnBody('resolve_fare_dispute');
   const outcomesTs = JSON.stringify(Object.fromEntries([...tsSource.match(/export const FARE_DISPUTE_OUTCOMES = \{([\s\S]*?)\} as const;/)[1].matchAll(/(\w+): \[([^\]]*)\]/g)].map((m) => [m[1], [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]).sort()])));
   const sqlFare = sqlList(resolveBody, /v_d\.kind IN \('FARE_DISCREPANCY', 'SAFETY_REVIEW'\) AND p_outcome IN \(([^)]*)\)/);

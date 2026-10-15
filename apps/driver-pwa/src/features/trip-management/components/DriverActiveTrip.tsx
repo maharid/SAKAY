@@ -65,6 +65,7 @@ import { DriverLocationNotice } from '../../../common/components/DriverPresenceN
 import { useTripConnectivity } from '../../../hooks/useTripConnectivity';
 import ArrivalWaitPanel from './ArrivalWaitPanel';
 import DriverEarlyStopDialog from './DriverEarlyStopDialog';
+import DriverEmergencyReport from './DriverEmergencyReport';
 import PaymentReceivedPanel from './PaymentReceivedPanel';
 import PassengerCheckCard from './PassengerCheckCard';
 import { arrivalZoneHint } from '../../../utils/arrivalHint';
@@ -894,6 +895,9 @@ export const DriverActiveTrip: React.FC = () => {
             {tl ? 'Ikansel ang booking' : 'Cancel booking'}
           </Button>
         )}
+
+        {/* Rules 16.5, 26.2, 26.3: an emergency during the trip (an accident, a passenger who needs a doctor, a threat): one tap, filed as an emergency incident */}
+        {booking && !isArrived && <DriverEmergencyReport bookingId={bookingId} language={language} />}
       </Paper>
 
       {/* Driver ↔ Passenger Communication Modal */}

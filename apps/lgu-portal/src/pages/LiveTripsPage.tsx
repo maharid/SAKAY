@@ -34,8 +34,8 @@ import { ActionButton } from '../components/admin/ActionButton';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
 import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip, fetchFareDisputes, resolveFareDispute } from '../services/adminApiService';
-import { FareDisputesPanel, TripReconciliationPanel } from '@sakay/shared';
+import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip, fetchFareDisputes, resolveFareDispute, endTripSafely } from '../services/adminApiService';
+import { FareDisputesPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
 import type { FareDisputeRow } from '@sakay/shared';
 import type { ReconciliationTrip } from '@sakay/shared';
 
@@ -212,6 +212,11 @@ export const LiveTripsPage: React.FC = () => {
     });
   }, [activeTrips]);
 
+  // Rules 29.20 - 29.22: the live trips with a driver on them (a booking still searching has nothing to end)
+  const safetyTrips = bookings
+    .filter((b) => b.driverId && !['Pending', 'Searching Driver', 'No Driver Found', 'Completed'].includes(b.status) && !b.status.includes('Cancel'))
+    .map((b) => ({ bookingId: b.bookingId, label: `${b.driverName} (${b.vehiclePlate}) · ${b.pickupArea} > ${b.destinationArea} · ${b.status}` }));
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
       <TripReconciliationPanel
@@ -223,6 +228,15 @@ export const LiveTripsPage: React.FC = () => {
             await loadReconciliation();
             loadTrips();
           }
+          return message;
+        }}
+      />
+
+      <SafetyEndTripPanel
+        trips={safetyTrips}
+        onEnd={async (end) => {
+          const message = await endTripSafely(end);
+          if (!message) loadTrips();
           return message;
         }}
       />

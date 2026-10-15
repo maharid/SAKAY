@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -18,15 +18,18 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
+import { INCIDENT_CATEGORIES, downloadCsv, reportFileName } from '@sakay/shared';
 import { IncidentReportRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { IncidentDetailModal } from '../components/admin/IncidentDetailModal';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchIncidents, updateIncidentStatus, recordAdminAuditAction } from '../services/adminApiService';
+import { fetchIncidents, recordAdminAuditAction } from '../services/adminApiService';
+
+const PRIORITY_RANK: Record<string, number> = { Serious: 0, Emergency: 1, Standard: 2 };
 
 /**
  * ============================================================================
@@ -34,10 +37,10 @@ import { fetchIncidents, updateIncidentStatus, recordAdminAuditAction } from '..
  * ============================================================================
  * Checklist Scope:
  *   ● Manage Incident Reports
- *     ○ View submitted incident reports
- *     ○ Review incident details
- *     ○ View related trip information
- *     ○ Update incident status
+ *     ○ View submitted incident reports (the serious ones, Rule 19.8, and the escalated ones come to the LGU; the others are with the driver's TODA, Rule 19.3)
+ *     ○ Review incident details, the evidence photos, the trip, the review timeline
+ *     ○ Record the outcome: upheld (with the strike), not upheld, fabricated; every action is a database function with its own audit entry
+ *     ○ Filter by type, status, priority, who has it, TODA; export (CSV)
  * ============================================================================
  */
 export const IncidentReportsPage: React.FC = () => {
@@ -46,7 +49,12 @@ export const IncidentReportsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [selectedIncident, setSelectedIncident] = useState<IncidentReportRecord | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState('All');
+  const [routingFilter, setRoutingFilter] = useState('All');
+  const [todaFilter, setTodaFilter] = useState('All');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // read from the list, so the detail screen shows what the database says after every action
+  const selectedIncident = incidents.find((i) => i.id === selectedId) ?? null;
 
   const loadIncidents = async () => {
     setIsLoading(true);
@@ -64,8 +72,23 @@ export const IncidentReportsPage: React.FC = () => {
     loadIncidents();
   }, []);
 
+  // The most urgent first: serious, then emergency, then the overdue, then the newest
+  const sorted = useMemo(
+    () =>
+      [...incidents].sort((a, b) => {
+        const open = (x: IncidentReportRecord) => (x.status === 'Resolved' || x.status === 'Dismissed' ? 1 : 0);
+        return (
+          open(a) - open(b) ||
+          (PRIORITY_RANK[a.priority ?? 'Standard'] ?? 2) - (PRIORITY_RANK[b.priority ?? 'Standard'] ?? 2) ||
+          Number(Boolean(b.overdue)) - Number(Boolean(a.overdue)) ||
+          Date.parse(b.record?.created_at ?? '') - Date.parse(a.record?.created_at ?? '')
+        );
+      }),
+    [incidents]
+  );
+
   // Filter logic
-  const filteredIncidents = incidents.filter((inc) => {
+  const filteredIncidents = sorted.filter((inc) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       inc.id.toLowerCase().includes(q) ||
@@ -76,14 +99,18 @@ export const IncidentReportsPage: React.FC = () => {
 
     const matchesStatus = statusFilter === 'All' || inc.status === statusFilter;
     const matchesCategory = categoryFilter === 'All' || inc.category === categoryFilter;
+    const matchesPriority = priorityFilter === 'All' || inc.priority === priorityFilter;
+    const matchesRouting = routingFilter === 'All' || (routingFilter === 'Overdue' ? Boolean(inc.overdue) : inc.routing === routingFilter);
+    const matchesToda = todaFilter === 'All' || inc.todaName === todaFilter;
 
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesRouting && matchesToda;
   });
 
   const pendingCount = incidents.filter((i) => i.status === 'Pending Review').length;
   const investigationCount = incidents.filter((i) => i.status === 'Under Investigation').length;
   const resolvedCount = incidents.filter((i) => i.status === 'Resolved').length;
   const dismissedCount = incidents.filter((i) => i.status === 'Dismissed').length;
+  const overdueCount = incidents.filter((i) => i.overdue).length;
 
   const statusOptions: FilterOption[] = [
     { label: 'All Incident Statuses', value: 'All' },
@@ -93,41 +120,47 @@ export const IncidentReportsPage: React.FC = () => {
     { label: 'Dismissed', value: 'Dismissed' },
   ];
 
+  // Rule 19.1 and the ones of Batches 9 and 11: the one shared list (the database stores exactly these)
   const categoryOptions: FilterOption[] = [
     { label: 'All Incident Categories', value: 'All' },
-    { label: 'Overcharging Attempt', value: 'Overcharging Attempt' },
-    { label: 'Unsafe Driving', value: 'Unsafe Driving' },
-    { label: 'Rude Behavior', value: 'Rude Behavior' },
-    { label: 'Harassment', value: 'Harassment' },
-    { label: 'Vehicle Issue', value: 'Vehicle Issue' },
-    { label: 'Route Deviation', value: 'Route Deviation' },
-    { label: 'Reckless Driving', value: 'Reckless Driving' },
-    { label: 'Passenger Misconduct', value: 'Passenger Misconduct' },
-    { label: 'Lost Item', value: 'Lost Item' },
-    { label: 'Others', value: 'Others' },
+    ...INCIDENT_CATEGORIES.map((c) => ({ label: c.value, value: c.value })),
+  ];
+  const priorityOptions: FilterOption[] = [
+    { label: 'All Priorities', value: 'All' },
+    { label: 'Serious (Rule 19.8)', value: 'Serious' },
+    { label: 'Emergency', value: 'Emergency' },
+    { label: 'Standard', value: 'Standard' },
+  ];
+  const routingOptions: FilterOption[] = [
+    { label: 'Everything', value: 'All' },
+    { label: 'With the LGU Administrator', value: 'LGU' },
+    { label: 'With a TODA Administrator', value: 'TODA' },
+    { label: 'Overdue (a clock ran out)', value: 'Overdue' },
+  ];
+  const todaOptions: FilterOption[] = [
+    { label: 'All TODAs', value: 'All' },
+    ...Array.from(new Set(incidents.map((i) => i.todaName).filter((n) => n && n !== 'N/A'))).sort().map((n) => ({ label: n, value: n })),
   ];
 
-  const handleStatusUpdate = async (
-    incidentId: string,
-    newStatus: 'Under Investigation' | 'Resolved' | 'Dismissed',
-    findings?: string
-  ) => {
-    try {
-      await updateIncidentStatus(incidentId, newStatus, findings);
-      setIncidents((prev) =>
-        prev.map((inc) =>
-          inc.id === incidentId
-            ? { ...inc, status: newStatus, findings: findings || inc.findings }
-            : inc
-        )
-      );
-      if (selectedIncident && selectedIncident.id === incidentId) {
-        setSelectedIncident((prev) => (prev ? { ...prev, status: newStatus, findings: findings || prev.findings } : null));
-      }
-    } catch (err) {
-      console.error('[IncidentReports] Status update error:', err);
-    }
+  const exportCsv = () => {
+    const name = 'Incident Reports';
+    downloadCsv(
+      reportFileName(name),
+      ['Incident ID', 'Trip', 'Category', 'Priority', 'With', 'Status', 'Outcome', 'Strike', 'Reported by', 'Reporter', 'Driver', 'TODA', 'Plate', 'Submitted', 'Findings'],
+      filteredIncidents.map((i) => [
+        i.id, i.tripId, i.category, i.priority ?? '', i.routing ?? '', i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.reportedBy, i.reporterName, i.driverName, i.todaName, i.vehiclePlate,
+        `${i.submittedDate} ${i.submittedTime}`, i.findings ?? '',
+      ])
+    );
+    void recordAdminAuditAction({ actionType: 'REPORT_EXPORTED', targetId: 'REPORT', targetName: name, details: `Exported ${name} (CSV): ${filteredIncidents.length} report(s).`, category: 'Operations' });
   };
+
+  const cards = [
+    { key: 'Pending Review', label: 'Pending Review', count: pendingCount, note: `Not reviewed yet${overdueCount ? ` · ${overdueCount} overdue` : ''}`, color: 'var(--sakay-orange)', Icon: ReportProblemIcon },
+    { key: 'Under Investigation', label: 'Under Investigation', count: investigationCount, note: 'Being reviewed by a TODA or by the LGU', color: '#1565C0', Icon: HourglassEmptyIcon },
+    { key: 'Resolved', label: 'Resolved Reports', count: resolvedCount, note: 'Outcome recorded, sanctions finalized', color: '#2E7D32', Icon: CheckCircleIcon },
+    { key: 'Dismissed', label: 'Dismissed', count: dismissedCount, note: 'Not upheld, or withdrawn by the reporter', color: '#757575', Icon: CancelIcon },
+  ];
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
@@ -140,109 +173,28 @@ export const IncidentReportsPage: React.FC = () => {
           mb: 4,
         }}
       >
-        <Card
-          onClick={() => setStatusFilter(statusFilter === 'Pending Review' ? 'All' : 'Pending Review')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: statusFilter === 'Pending Review' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-          }}
-        >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Pending Review
-              </Typography>
-              <ReportProblemIcon sx={{ color: 'var(--sakay-orange)', fontSize: '16' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
-              {pendingCount}
-            </Typography>
-            <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>
-              Awaiting initial LGU triage
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card
-          onClick={() => setStatusFilter(statusFilter === 'Under Investigation' ? 'All' : 'Under Investigation')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: statusFilter === 'Under Investigation' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-          }}
-        >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Under Investigation
-              </Typography>
-              <HourglassEmptyIcon sx={{ color: '#1565C0', fontSize: '16' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#1565C0', mb: 0.5 }}>
-              {investigationCount}
-            </Typography>
-            <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>
-              Assigned to LGU triage officer
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card
-          onClick={() => setStatusFilter(statusFilter === 'Resolved' ? 'All' : 'Resolved')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: statusFilter === 'Resolved' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-          }}
-        >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Resolved Reports
-              </Typography>
-              <CheckCircleIcon sx={{ color: '#2E7D32', fontSize: '16' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#2E7D32', mb: 0.5 }}>
-              {resolvedCount}
-            </Typography>
-            <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>
-              Sanctions or waivers finalized
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card
-          onClick={() => setStatusFilter(statusFilter === 'Dismissed' ? 'All' : 'Dismissed')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: statusFilter === 'Dismissed' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-          }}
-        >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Dismissed
-              </Typography>
-              <CancelIcon sx={{ color: '#757575', fontSize: '16' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#757575', mb: 0.5 }}>
-              {dismissedCount}
-            </Typography>
-            <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>
-              Unfounded or duplicate reports
-            </Typography>
-          </CardContent>
-        </Card>
+        {cards.map(({ key, label, count, note, color, Icon }) => (
+          <Card
+            key={key}
+            onClick={() => setStatusFilter(statusFilter === key ? 'All' : key)}
+            sx={{
+              cursor: 'pointer',
+              borderRadius: 'var(--mac-radius-lg)',
+              border: statusFilter === key ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
+              boxShadow: 'var(--mac-shadow-card)',
+              backgroundColor: '#FFFFFF',
+            }}
+          >
+            <CardContent sx={{ p: '20px 22px !important' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
+                <Icon sx={{ color, fontSize: '16' }} />
+              </Box>
+              <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: key === 'Pending Review' ? 'var(--mac-text-primary)' : color, mb: 0.5 }}>{count}</Typography>
+              <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>{note}</Typography>
+            </CardContent>
+          </Card>
+        ))}
       </Box>
 
       {/* 2. Filter Toolbar */}
@@ -251,26 +203,30 @@ export const IncidentReportsPage: React.FC = () => {
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search incident ID, driver name, complainant, or category..."
         selectFilters={[
-          {
-            id: 'status',
-            label: 'Incident Status',
-            value: statusFilter,
-            options: statusOptions,
-            onChange: setStatusFilter,
-          },
-          {
-            id: 'category',
-            label: 'Category',
-            value: categoryFilter,
-            options: categoryOptions,
-            onChange: setCategoryFilter,
-          },
+          { id: 'status', label: 'Incident Status', value: statusFilter, options: statusOptions, onChange: setStatusFilter },
+          { id: 'category', label: 'Category', value: categoryFilter, options: categoryOptions, onChange: setCategoryFilter },
+          { id: 'priority', label: 'Priority', value: priorityFilter, options: priorityOptions, onChange: setPriorityFilter },
+          { id: 'routing', label: 'Who has it', value: routingFilter, options: routingOptions, onChange: setRoutingFilter },
+          { id: 'toda', label: 'TODA', value: todaFilter, options: todaOptions, onChange: setTodaFilter },
         ]}
         onResetFilters={() => {
           setSearchQuery('');
           setStatusFilter('All');
           setCategoryFilter('All');
+          setPriorityFilter('All');
+          setRoutingFilter('All');
+          setTodaFilter('All');
         }}
+        actionButton={
+          <Button
+            onClick={exportCsv}
+            disabled={filteredIncidents.length === 0}
+            startIcon={<FileDownloadIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '12px', height: 40, borderRadius: '10px', border: '1px solid var(--mac-border-color)', color: 'var(--mac-text-secondary)', px: 2 }}
+          >
+            Export (CSV)
+          </Button>
+        }
       />
 
       {/* 3. Incidents Table */}
@@ -288,24 +244,10 @@ export const IncidentReportsPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                Incident ID & Category
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                Reported Entity / Driver
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                Complainant
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                Submitted Date
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                Status
-              </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                Actions
-              </TableCell>
+              {['Incident ID & Category', 'Reported Entity / Driver', 'Complainant', 'Submitted Date', 'Status'].map((h) => (
+                <TableCell key={h} sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>{h}</TableCell>
+              ))}
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -313,9 +255,7 @@ export const IncidentReportsPage: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                   <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>
-                    Loading incident reports...
-                  </Typography>
+                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
                 </TableCell>
               </TableRow>
             ) : filteredIncidents.length > 0 ? (
@@ -328,20 +268,18 @@ export const IncidentReportsPage: React.FC = () => {
                   }}
                 >
                   <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: '11.6px', color: 'var(--mac-text-primary)' }}>
-                      {inc.id}
-                    </Typography>
-                    <Typography sx={{ fontSize: '10px', color: 'var(--sakay-orange)', fontWeight: 600, mt: '3px' }}>
-                      {inc.category}
-                    </Typography>
+                    <Typography sx={{ fontWeight: 700, fontSize: '11.6px', color: 'var(--mac-text-primary)' }}>{inc.id}</Typography>
+                    <Typography sx={{ fontSize: '10px', color: 'var(--sakay-orange)', fontWeight: 600, mt: '3px' }}>{inc.category}</Typography>
+                    {inc.priority && inc.priority !== 'Standard' && (
+                      <Typography sx={{ fontSize: '10px', fontWeight: 700, mt: '2px', color: inc.priority === 'Serious' ? '#991B1B' : '#9A3412' }}>
+                        {inc.priority === 'Serious' ? 'SERIOUS (Rule 19.8)' : 'EMERGENCY'}
+                      </Typography>
+                    )}
+                    {inc.overdue && <Typography sx={{ fontSize: '10px', fontWeight: 700, mt: '2px', color: '#B91C1C' }}>OVERDUE</Typography>}
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      {inc.driverName}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)' }}>
-                      {inc.todaName}
-                    </Typography>
+                    <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{inc.driverName}</Typography>
+                    <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)' }}>{inc.todaName}</Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
                     <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-primary)' }}>
@@ -349,22 +287,19 @@ export const IncidentReportsPage: React.FC = () => {
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-primary)' }}>
-                      {inc.submittedDate}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)' }}>
-                      {inc.submittedTime}
-                    </Typography>
+                    <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-primary)' }}>{inc.submittedDate}</Typography>
+                    <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)' }}>{inc.submittedTime}</Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
                     <StatusBadge status={inc.status as any} />
+                    <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)', mt: '3px' }}>{inc.routing === 'LGU' ? 'With the LGU' : 'With the TODA'}</Typography>
                   </TableCell>
                   <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
                     <ActionButton
                       label="Investigate"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedIncident(inc);
+                        setSelectedId(inc.id);
                       }}
                     />
                   </TableCell>
@@ -376,9 +311,9 @@ export const IncidentReportsPage: React.FC = () => {
                 icon={<ReportProblemIcon />}
                 title="No incident reports found"
                 description={
-                  searchQuery || statusFilter !== 'All'
+                  searchQuery || statusFilter !== 'All' || priorityFilter !== 'All' || routingFilter !== 'All' || todaFilter !== 'All' || categoryFilter !== 'All'
                     ? 'No reports match your active search or filter criteria.'
-                    : 'Incident reports submitted by passengers or flagged by the system will appear here for review.'
+                    : 'Incident reports submitted by passengers or drivers (or recorded by the system for a safety stop) will appear here for review.'
                 }
                 onRefresh={loadIncidents}
                 isRefreshing={isLoading}
@@ -388,16 +323,15 @@ export const IncidentReportsPage: React.FC = () => {
         </Table>
       </TableContainer>
 
-      {/* 4. Centered Widescreen Incident Detail & Triage Modal */}
+      {/* 4. Centered Widescreen Incident Detail & Review Modal */}
       {selectedIncident && (
         <IncidentDetailModal
           open={Boolean(selectedIncident)}
-          onClose={() => setSelectedIncident(null)}
+          onClose={() => setSelectedId(null)}
           incident={selectedIncident}
-          onStatusUpdate={handleStatusUpdate}
+          onChanged={loadIncidents}
         />
       )}
     </Box>
   );
 };
-

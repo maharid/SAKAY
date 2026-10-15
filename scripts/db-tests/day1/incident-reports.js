@@ -84,18 +84,25 @@ const { ID, seed } = require('../fixtures');
   check('a TODA administrator of another TODA cannot change it', t2try.ok && t2try.value.rowCount === 0, t2try);
   const tres = await as(ID.T_AUTH, (tx) => attempt(() => tx.query(
     `UPDATE incident_report SET status='Resolved', resolution='Talked to the driver', resolution_notes='Talked to the driver' WHERE incident_id='${r1.value}'`)));
-  check('the TODA administrator resolves it', tres.ok && tres.value.rowCount === 1, tres);
-  const after = (await rows(`SELECT status, reviewed_by_toda, reviewed_by_lgu, resolved_at, resolution FROM incident_report WHERE incident_id='${r1.value}'`))[0];
-  check('the TODA administrator is stamped as reviewer; resolved_at is set; the LGU reviewer is untouched',
-    after.status === 'Resolved' && after.reviewed_by_toda === tadmin && after.reviewed_by_lgu === null && after.resolved_at !== null, after);
+  // Batch 11: an administrator no longer edits a report; the review actions of the database start it and decide it (one audited path, Rules 19.3, 19.4)
+  check('a direct edit of the status by the TODA administrator is refused: use the review actions', !tres.ok && /ERR_INCIDENT_USE_REVIEW/.test(tres.error), tres);
+  const review = (uid, fn, args) => as(uid, (tx) => attempt(() => tx.query(`SELECT public.${fn}(${args.map((_, i) => `$${i + 1}`).join(',')}) AS r`, args)));
+  const started = await review(ID.T_AUTH, 'incident_start_review', [r1.value]);
+  const decided = await review(ID.T_AUTH, 'incident_decide', [r1.value, 'NOT_UPHELD', 'Talked to the driver and the passenger; nothing to uphold.', null, null]);
+  check('the TODA administrator starts the review and decides it through the database functions', started.ok && started.value.rows[0].r.success === true && decided.ok && decided.value.rows[0].r.success === true, { started, decided });
+  const after = (await rows(`SELECT status, outcome, reviewed_by_toda, reviewed_by_lgu, resolved_at FROM incident_report WHERE incident_id='${r1.value}'`))[0];
+  check('the TODA administrator is stamped as reviewer; resolved_at is set; the outcome is recorded; the LGU reviewer is untouched',
+    after.outcome === 'NOT_UPHELD' && after.reviewed_by_toda === tadmin && after.reviewed_by_lgu === null && after.resolved_at !== null, after);
   const edit = await as(ID.T_AUTH, (tx) => attempt(() => tx.query(`UPDATE incident_report SET description='changed' WHERE incident_id='${r1.value}'`)));
   check('an administrator cannot rewrite what the passenger wrote', !edit.ok && /ERR_INCIDENT_LOCKED/.test(edit.error), edit);
   const retarget = await as(ID.T_AUTH, (tx) => attempt(() => tx.query(`UPDATE incident_report SET driver_id='${ID.D3}' WHERE incident_id='${r1.value}'`)));
   check('nor point the report at another driver', !retarget.ok && /ERR_INCIDENT_LOCKED/.test(retarget.error), retarget);
 
   console.log('\nT6 LGU review');
-  const lres = await as(ID.L_AUTH, (tx) => attempt(() => tx.query(`UPDATE incident_report SET status='Under Investigation', resolution_notes='Escalated' WHERE incident_id='${drv.value}'`)));
-  check('the LGU administrator changes the status', lres.ok && lres.value.rowCount === 1, lres);
+  const lDirect = await as(ID.L_AUTH, (tx) => attempt(() => tx.query(`UPDATE incident_report SET status='Under Investigation', resolution_notes='Escalated' WHERE incident_id='${drv.value}'`)));
+  check('a direct edit of the status by the LGU administrator is refused too', !lDirect.ok && /ERR_INCIDENT_USE_REVIEW/.test(lDirect.error), lDirect);
+  const lres = await review(ID.L_AUTH, 'incident_start_review', [drv.value]);
+  check('the LGU administrator starts the review through the database function', lres.ok && lres.value.rows[0].r.success === true, lres);
   const lrow = (await rows(`SELECT status, reviewed_by_lgu, reviewed_by_toda FROM incident_report WHERE incident_id='${drv.value}'`))[0];
   check('the LGU administrator is stamped as reviewer', lrow.status === 'Under Investigation' && lrow.reviewed_by_lgu === lgu && lrow.reviewed_by_toda === null, lrow);
 

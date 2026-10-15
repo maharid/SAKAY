@@ -22,6 +22,19 @@ import {
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
 import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import {
+  decideIncident as decideIncidentReport,
+  escalateIncident as escalateIncidentReport,
+  confirmFlaggedViolationArgs,
+  endTripForSafety,
+  startIncidentReview,
+  updateLostItem,
+  type IncidentDecision,
+  type ReviewFlagRow,
+  type SafetyEnd,
+  type LostItemStatus,
+  type TripEndResult,
+} from '@sakay/shared';
 import type { RejectionReasonCode } from '@sakay/shared';
 import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
@@ -1195,56 +1208,45 @@ export async function fetchTodaIncidents(todaId?: string) {
   }
 }
 
-export async function submitIncidentRemarks(incidentId: string, remarks: string, status?: 'Resolved') {
-  // The database stamps the signed-in TODA administrator as the reviewer (reviewed_by_toda is a UUID the guard fills in).
-  const updatePayload: Record<string, any> = {
-    resolution: remarks,
-    resolution_notes: remarks,
-    ...(status ? { status } : {}),
-  };
-  const { data, error } = await supabase
-    .from('incident_report')
-    .update(updatePayload)
-    .eq('incident_id', incidentId)
-    .select()
-    .single();
+// ---- reviewing a report (Section 19): every action is ONE database function (migration 20261026000001): who may act, the strike, the audit entry and the notices are the database's.
+// A TODA administrator no longer writes a report from the browser. Each answers null when the database accepted it, else the database's own sentence (shown as it is).
+const sentence = (r: TripEndResult): string | null => (r.ok ? null : r.error ?? 'The action could not be saved. Please try again.');
 
-  if (error) throw error;
-
-  await recordTodaAuditAction({
-    actionType: 'TODA_INCIDENT_REMARKS_SUBMITTED',
-    targetId: incidentId,
-    details: `Submitted internal TODA remarks on incident: "${remarks}"`,
-    category: 'Incident',
-  });
-
-  return { success: true, data };
+/** Pending -> Under Investigation (Rule 19.3: the driver's TODA Administrator reviews first) */
+export async function startIncident(incidentId: string): Promise<string | null> {
+  return sentence(await startIncidentReview(supabase, incidentId));
+}
+/** What the TODA cannot resolve, or what could mean a suspension or deactivation, goes to the LGU Administrator; serious = reclassify as an assault / harassment / threat / crime (Rule 19.8) */
+export async function escalateIncident(incidentId: string, reason: string, serious: boolean): Promise<string | null> {
+  return sentence(await escalateIncidentReport(supabase, incidentId, reason, serious));
+}
+/** Rules 19.4, 19.5, 26.4: the outcome (never automatic) and the strike the administrator confirms, issued as this administrator */
+export async function decideIncident(decision: IncidentDecision): Promise<string | null> {
+  return sentence(await decideIncidentReport(supabase, decision));
+}
+/** The review flags waiting for this TODA's Administrator (the database's row policy returns only the ones assigned to the TODA Administrator for the TODA's own drivers) */
+export async function fetchTodaReviewFlags(): Promise<ReviewFlagRow[]> {
+  const { data, error } = await supabase.from('admin_review_flag').select('*').in('status', ['Open', 'Under Review']).eq('assigned_role', 'toda_admin').order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return data as ReviewFlagRow[];
+}
+export async function resolveTodaReviewFlag(flagId: string, status: 'Resolved' | 'Dismissed', note: string): Promise<string | null> {
+  const { error } = await supabase.rpc('resolve_admin_review_flag', { p_flag_id: flagId, p_status: status, p_resolution: note });
+  return error ? adminActionMessage(error.message, 'The flag could not be closed.') : null;
+}
+/** Rule 13.7 / PI-11B: the TODA Administrator confirms the strike the flag points at (for the booking of the event) */
+export async function confirmTodaFlaggedViolation(flagId: string, bookingId: string | null, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_confirm_flagged_violation', confirmFlaggedViolationArgs(flagId, bookingId, reason));
+  return error ? adminActionMessage(error.message, 'The strike could not be confirmed.') : null;
 }
 
-export async function escalateIncidentToLgu(incidentId: string, remarks?: string) {
-  const escalationNote = `[Escalated to LGU Transport Board] ${remarks || 'Requires City LGU investigation.'}`;
-  const updatePayload: Record<string, any> = {
-    status: 'Under Investigation',
-    resolution: escalationNote,
-    resolution_notes: escalationNote,
-  };
-  const { data, error } = await supabase
-    .from('incident_report')
-    .update(updatePayload)
-    .eq('incident_id', incidentId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  await recordTodaAuditAction({
-    actionType: 'INCIDENT_ESCALATED_TO_LGU',
-    targetId: incidentId,
-    details: `Escalated incident complaint to City LGU Administrator & Transport Board. Remarks: ${remarks || 'None'}`,
-    category: 'Incident',
-  });
-
-  return { success: true, data };
+/** Rules 29.20 - 29.22, 26.3: the driver's TODA Administrator ends a trip for safety (a detained or incapacitated driver, an accident, a passenger in danger); nobody is struck */
+export async function endTripSafely(end: SafetyEnd): Promise<string | null> {
+  return sentence(await endTripForSafety(supabase, end));
+}
+/** Rules 19.6, 29.19: the TODA-facilitated contact for a lost item, and what came of it */
+export async function updateLostItemReport(incidentId: string, status: Exclude<LostItemStatus, 'Open'>, note: string): Promise<string | null> {
+  return sentence(await updateLostItem(supabase, incidentId, status, note));
 }
 
 export async function fetchTodaAuditLogs(): Promise<TodaAuditLog[]> {
