@@ -38,6 +38,7 @@ import {
   fetchTodaReviewFlags,
   resolveTodaReviewFlag,
   confirmTodaFlaggedViolation,
+  closeUnfinishedTrip,
 } from '../services/todaApiService';
 import type { GpsArea } from '../services/todaApiService';
 import { GpsAreasCard } from '../components/admin/GpsAreasCard';
@@ -202,6 +203,14 @@ export const TodaOperationsPage: React.FC = () => {
         onConfirm={async (flagId, bookingId, reason) => {
           const message = await confirmTodaFlaggedViolation(flagId, bookingId, reason);
           if (!message) await loadReviewFlags();
+          return message;
+        }}
+        onCloseTrip={async (bookingId, paymentStatus, reason) => {
+          const message = await closeUnfinishedTrip(bookingId, paymentStatus, reason);
+          if (!message) {
+            await loadReviewFlags();
+            loadData();
+          }
           return message;
         }}
       />

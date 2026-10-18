@@ -567,6 +567,7 @@ export const LiveTripsPage: React.FC = () => {
           open={Boolean(selectedTrip)}
           onClose={() => setSelectedTrip(null)}
           trip={selectedTrip}
+          onChanged={loadTrips}
         />
       )}
     </Box>

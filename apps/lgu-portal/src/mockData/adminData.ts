@@ -243,6 +243,8 @@ export interface ActiveTripRecord {
   fareBasis?: string | null;
   /** True when the recorded distance differed from the estimate by more than the tolerance (Rule 6.2.4) */
   fareDeviation?: boolean;
+  /** Unpaid | Paid | Payment Disputed | Waived: for the correction of a completed trip (Rule 16.3) */
+  paymentStatus?: string | null;
   sharedTripDetails?: {
     matchedPassengers: number;
     cutoffPassed: boolean;

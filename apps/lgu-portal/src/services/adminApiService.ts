@@ -13,7 +13,7 @@
  * ============================================================================
  */
 
-import { adminActionMessage, closeAccountArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
+import { adminActionMessage, closeAccountArgs, closeUnfinishedTripArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
@@ -1655,6 +1655,28 @@ export async function issuePassengerStrike(passengerId: string, violationCode: s
 }
 
 // ----------------------------------------------------------------------------
+// Rule 16.3 and PI-15: the audited correction of a completed trip, and closing a trip that was left at the destination
+// ----------------------------------------------------------------------------
+
+/**
+ * Rule 16.3: corrects the fare (never above the system's) and / or the payment status of a COMPLETED trip. The route, the times and the people never change.
+ * Null when it was recorded, otherwise the database's sentence (shown as it is). The passenger and the driver are told; the before and after are in the audit log.
+ */
+export async function correctCompletedTrip(bookingId: string, newFare: number | null, paymentStatus: string | null, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_correct_completed_trip', correctCompletedTripArgs(bookingId, newFare, paymentStatus, reason));
+  return error ? adminActionMessage(error.message, 'The trip could not be corrected.') : null;
+}
+
+/**
+ * PI-15: a trip the driver never finished (waiting at the destination) is closed as Paid or Waived after the parties were contacted. The LGU Administrator may
+ * do it at any time. Null when it was closed, otherwise the database's sentence.
+ */
+export async function closeUnfinishedTrip(bookingId: string, paymentStatus: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_close_unfinished_trip', closeUnfinishedTripArgs(bookingId, paymentStatus, reason));
+  return error ? adminActionMessage(error.message, 'The trip could not be closed.') : null;
+}
+
+// ----------------------------------------------------------------------------
 // Strike appeals (Rule 25), voiding a strike and closing an account (Rule 22.2)
 // ----------------------------------------------------------------------------
 
@@ -2084,6 +2106,8 @@ export interface BookingRecordItem {
   /** How the final fare was reached, for the trip detail (rule 6.2.4: deviations are recorded) */
   fareBasis?: string | null;
   fareDeviation?: boolean;
+  /** Unpaid | Paid | Payment Disputed | Waived */
+  paymentStatus?: string | null;
   distanceKm?: number;
   createdAt: string;
   bookingTime: string;
@@ -2164,6 +2188,7 @@ export async function fetchAllBookings(filterStatus?: string): Promise<BookingRe
       finalFare: b.actual_fare !== null && b.actual_fare !== undefined ? Number(b.actual_fare) : null,
       fareBasis: b.fare_breakdown?.final?.basis ?? null,
       fareDeviation: Boolean(b.fare_breakdown?.final?.deviation),
+      paymentStatus: b.payment_status ?? null,
       distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
       createdAt: b.created_at,
       bookingTime: b.created_at ? new Date(b.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '12:00 PM',
