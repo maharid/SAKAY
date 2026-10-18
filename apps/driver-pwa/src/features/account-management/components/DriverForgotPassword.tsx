@@ -1,27 +1,48 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  IconButton,
-  Alert,
-} from '@mui/material';
+import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Box, Button, IconButton, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { usePasswordRecovery } from '@sakay/shared';
 
 import Logo from '../../../common/components/Logo';
 import PrimaryButton from '../../../common/components/PrimaryButton';
+import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
+import SakayToast from '../../../common/components/SakayToast';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { getPhoneLookupCandidates } from '../../../services/driverApiService';
 
 /**
- * Password reset is switched off for now.
- *
- * The old screen texted a code to ANY number typed into it and then accepted a fixed sandbox code, and the "new password" page after it
- * never changed a password. A safe reset needs a server-checked code tied to the account; that is the OTP redesign, and until it ships
- * this screen only tells the driver where to get help. Nothing here reads or writes data.
+ * Step 1 of password recovery for a driver: the mobile number. The server texts a 6-digit code to the number of an existing DRIVER account
+ * (and says the same thing whether or not there is one); the next screen takes the code and the new password.
  */
 export const DriverForgotPassword: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, language } = useLanguage();
+  const recovery = usePasswordRecovery('driver', language);
+  const tl = language === 'tl';
+
+  const [phone, setPhone] = useState(() => (location.state as { phone?: string } | null)?.phone ?? '');
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
+
+  const candidates = getPhoneLookupCandidates(phone);
+  const isValidPhone = candidates.phoneRaw.length === 10 && candidates.phoneRaw.startsWith('9');
+  const showPhoneError = phoneTouched && !isValidPhone;
+
+  const goToCode = (justSent: boolean) => navigate('/driver/reset-password', { state: { phone: candidates.e164, justSent } });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (recovery.busy) return;
+    if (!isValidPhone) {
+      setPhoneTouched(true);
+      return;
+    }
+    const sent = await recovery.requestCode(candidates.e164);
+    if (sent) goToCode(true);
+    else setToastOpen(true);
+  };
 
   return (
     <Box
@@ -35,6 +56,8 @@ export const DriverForgotPassword: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      <SakayToast open={toastOpen} message={recovery.message} severity="error" onClose={() => setToastOpen(false)} />
+
       {/* 1. Header with Rounded Back Button and SAKAY Logo */}
       <Box
         sx={{
@@ -48,7 +71,7 @@ export const DriverForgotPassword: React.FC = () => {
         }}
       >
         <IconButton
-          aria-label={language === "tl" ? "Bumalik" : "Back"}
+          aria-label={tl ? 'Bumalik' : 'Back'}
           onClick={() => navigate('/driver/login')}
           sx={{
             color: '#0F172A',
@@ -68,6 +91,9 @@ export const DriverForgotPassword: React.FC = () => {
 
       {/* 2. Content */}
       <Box
+        component="form"
+        onSubmit={handleSubmit}
+        noValidate
         sx={{
           flex: 1,
           overflowY: 'auto',
@@ -78,44 +104,41 @@ export const DriverForgotPassword: React.FC = () => {
         }}
       >
         <Box sx={{ mb: 3.5, mt: 1 }}>
-          <Typography
-            sx={{
-              fontSize: '24px',
-              fontWeight: 700,
-              color: '#0F172A',
-              lineHeight: 1.2,
-              letterSpacing: '-0.5px',
-            }}
-          >
+          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2, letterSpacing: '-0.5px' }}>
             {t.forgotPasswordTitle}
           </Typography>
-          <Typography
-            sx={{
-              fontSize: '15px',
-              color: '#64748B',
-              mt: 0.75,
-              fontWeight: 500,
-              lineHeight: 1.5,
-            }}
-          >
-            {language === 'tl'
-              ? 'Pansamantalang hindi available ang pag-reset ng password sa app.'
-              : 'Resetting your password in the app is temporarily unavailable.'}
+          <Typography sx={{ fontSize: '15px', color: '#64748B', mt: 0.75, fontWeight: 500, lineHeight: 1.5 }}>
+            {tl
+              ? 'Ilagay ang numero ng telepono ng iyong driver account. Magpapadala kami ng 6-digit na code sa SMS.'
+              : 'Enter the mobile number of your driver account. We will text you a 6-digit code.'}
           </Typography>
         </Box>
 
-        <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          {language === 'tl'
-            ? 'Para mabawi ang iyong account, makipag-ugnayan sa administrator ng iyong TODA o sa tanggapan ng LGU. Dalhin ang iyong valid ID at ang mobile number na ginamit mo sa pagpaparehistro.'
-            : 'To recover your account, please contact your TODA administrator or the LGU transport office. Bring a valid ID and the mobile number you registered with.'}
-        </Alert>
+        <SakayPhoneInput
+          label={tl ? 'Numero ng telepono' : 'Mobile number'}
+          value={phone}
+          onChange={(fullVal) => setPhone(fullVal)}
+          onFocus={() => setPhoneTouched(true)}
+          onBlur={() => setPhoneTouched(true)}
+          required
+          error={showPhoneError}
+          helperText={
+            showPhoneError
+              ? tl
+                ? 'Pakikumpleto ang 10-digit mobile number na nagsisimula sa 9.'
+                : 'Please enter a valid 10-digit mobile number starting with 9.'
+              : ''
+          }
+        />
 
-        {/* Space pusher to push button to bottom */}
-        <Box sx={{ flexGrow: 1 }} />
+        {/* Space pusher to push the button to the bottom */}
+        <Box sx={{ flexGrow: 1, minHeight: 24 }} />
 
         <PrimaryButton
+          type="submit"
           fullWidth
-          onClick={() => navigate('/driver/login')}
+          loading={recovery.busy}
+          disabled={!isValidPhone}
           sx={{
             height: '56px',
             borderRadius: '16px',
@@ -125,11 +148,22 @@ export const DriverForgotPassword: React.FC = () => {
             boxShadow: 'none',
             '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
             mt: 2,
-            mb: 1,
           }}
         >
-          {t.backToLogin}
+          {tl ? 'Ipadala ang Code' : 'Send Code'}
         </PrimaryButton>
+
+        {/* The code may already be on the phone (this screen was left, or the code was asked for a moment ago) */}
+        <Box sx={{ mt: 1.5, mb: 1, display: 'flex', justifyContent: 'center' }}>
+          <Button
+            type="button"
+            disabled={!isValidPhone || recovery.busy}
+            onClick={() => goToCode(false)}
+            sx={{ textTransform: 'none', fontWeight: 600, color: '#FF6600', minHeight: 44 }}
+          >
+            {tl ? 'May code na ako' : 'I already have a code'}
+          </Button>
+        </Box>
       </Box>
     </Box>
   );

@@ -19,6 +19,11 @@ export interface RegisterInputProps {
   shake?: boolean;
   multiline?: boolean;
   rows?: number;
+  /** the on-screen keyboard to open (for example "numeric" for a code) */
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  /** what the browser may fill in (for example "one-time-code", "new-password") */
+  autoComplete?: string;
+  maxLength?: number;
 }
 
 export const RegisterInput: React.FC<RegisterInputProps> = ({
@@ -38,6 +43,9 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
   shake = false,
   multiline = false,
   rows = 3,
+  inputMode,
+  autoComplete,
+  maxLength,
 }) => {
   const [focused, setFocused] = useState(false);
   const inputId = useId();
@@ -163,6 +171,9 @@ export const RegisterInput: React.FC<RegisterInputProps> = ({
               aria-required={required || undefined}
               aria-describedby={helperText ? helpId : undefined}
               type={type}
+              inputMode={inputMode}
+              autoComplete={autoComplete}
+              maxLength={maxLength}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onFocus={() => {

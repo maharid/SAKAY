@@ -54,6 +54,31 @@ export async function apiFetch(client: SessionCapableClient, path: string, init:
   }
 }
 
+/**
+ * A call to a server route that needs NO sign-in (password recovery: the person who forgot the password has no session). Nothing is attached
+ * but the JSON body, and the same time limit applies. Use apiPostJson for everything else.
+ */
+export async function apiPostPublic(
+  path: string,
+  payload: unknown,
+  init: { timeoutMs?: number } = {}
+): Promise<{ ok: boolean; status: number; data: Record<string, any> }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? 20000);
+  try {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, status: response.status, data: (data ?? {}) as Record<string, any> };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** apiFetch for a JSON body; returns the parsed reply (or an empty object when the reply was not JSON). */
 export async function apiPostJson(
   client: SessionCapableClient,
