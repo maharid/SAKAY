@@ -198,6 +198,9 @@ export interface PassengerRecord {
   strikesCount: number;
   strikeHistory: StrikeItem[];
   recentFeedback?: {
+    /** Batch 12: the rating row, so the LGU Administrator can exclude it (Rule 23.5) */
+    ratingId?: string;
+    excluded?: boolean;
     rating: number;
     category: string;
     comment: string;
@@ -355,6 +358,9 @@ export interface AuditLogRecord {
   target_name: string;
   details: string;
   performed_at: string;
+  /** Batch 12: what the record looked like before and after the action (null when the action did not change a record) */
+  before_state?: unknown;
+  after_state?: unknown;
   category: 'Authentication' | 'Verification' | 'User Oversight' | 'Fare Matrix' | 'Announcement' | 'System';
 }
 

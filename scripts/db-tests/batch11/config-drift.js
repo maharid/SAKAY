@@ -75,7 +75,9 @@ const PAIRS = {
   const tsCats = reports.INCIDENT_CATEGORIES;
   const dbClass = async (c) => (await one(`SELECT public._incident_category_class($1) AS v`, [c])).v;
   for (const c of tsCats) check(`${c.value}: class ${c.class} on both sides`, (await dbClass(c.value)) === c.class, { ts: c.class, db: await dbClass(c.value) });
-  const classBody = migration.slice(migration.indexOf('FUNCTION public._incident_category_class'), migration.indexOf('-- The strike codes an UPHELD report'));
+  // the function as the whole chain leaves it (Batch 12 added "Unregistered Person Driving" to it)
+  const classDef = (await one(`SELECT pg_get_functiondef('public._incident_category_class(text)'::regprocedure) AS d`)).d;
+  const classBody = classDef.slice(classDef.indexOf('SELECT CASE'));
   const dbCats = [...classBody.matchAll(/'([A-Za-z ]+)'/g)].map((m) => m[1]).filter((v) => !['SERIOUS', 'EMERGENCY', 'LOST_ITEM', 'STANDARD'].includes(v));
   check('the database lists no category the screens do not offer (and none is missing)', same(dbCats, tsCats.map((c) => c.value)), dbCats);
   check('a category outside the list has no class', (await dbClass('Made Up')) === null);

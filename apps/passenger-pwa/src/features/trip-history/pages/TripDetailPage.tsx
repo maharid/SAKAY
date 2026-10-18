@@ -469,9 +469,9 @@ export const TripDetailPage: React.FC = () => {
             {passengerRatingGiven ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Rating value={passengerRatingGiven.stars || 5} readOnly size="small" sx={{ color: "#FF6600" }} />
+                  <Rating value={Number(passengerRatingGiven.stars) || 0} readOnly size="small" sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
-                    {(passengerRatingGiven.stars || 5).toFixed(1)} / 5.0
+                    {(Number(passengerRatingGiven.stars) || 0).toFixed(1)} / 5.0
                   </Typography>
                 </Box>
                 {passengerRatingGiven.tags && passengerRatingGiven.tags.length > 0 && (
@@ -505,9 +505,9 @@ export const TripDetailPage: React.FC = () => {
             {driverRatingReceived ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Rating value={driverRatingReceived.stars || 5} readOnly size="small" sx={{ color: "#FF6600" }} />
+                  <Rating value={Number(driverRatingReceived.stars) || 0} readOnly size="small" sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
-                    {(driverRatingReceived.stars || 5).toFixed(1)} / 5.0
+                    {(Number(driverRatingReceived.stars) || 0).toFixed(1)} / 5.0
                   </Typography>
                 </Box>
                 {driverRatingReceived.tags && driverRatingReceived.tags.length > 0 && (

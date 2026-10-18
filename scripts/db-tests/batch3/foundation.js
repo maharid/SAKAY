@@ -15,7 +15,7 @@ const { freshDb, asUser, attempt, check, summary } = require('../tlib');
   `);
   console.log('Foundation checks');
   const cat = await db.query(`SELECT count(*)::int n, count(*) FILTER (WHERE applies_to='passenger')::int p, count(*) FILTER (WHERE applies_to='driver')::int d FROM violation_catalog`);
-  check('catalog seeded (16 passenger + 23 driver rows)', cat.rows[0].n === 39 && cat.rows[0].p === 16 && cat.rows[0].d === 23, cat.rows[0]);
+  check('catalog seeded (17 passenger + 26 driver rows: the 16 + 23 of Batch 3 and the four codes of Batch 12)', cat.rows[0].n === 43 && cat.rows[0].p === 17 && cat.rows[0].d === 26, cat.rows[0]);
   const cfg = await db.query(`SELECT config_value FROM system_policy_config WHERE config_key='strike_accrual_paused'`);
   check('pause switch seeded as not paused', cfg.rows[0]?.config_value?.paused === false, cfg.rows);
   const c = await db.query(`SELECT strike_policy_constant('suspension_1_days') a, strike_policy_constant('suspension_2_days') b, strike_policy_constant('exemption_window_hours') c, strike_policy_constant('window_days') d`);

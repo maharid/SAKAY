@@ -1052,10 +1052,18 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.8 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-              <Rating value={driver.rating} readOnly precision={0.1} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                {driver.rating} / 5
-              </Typography>
+              {driver.ratingCount > 0 ? (
+                <>
+                  <Rating value={driver.rating} readOnly precision={0.1} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
+                  <Typography sx={{ fontSize: '13.6px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+                    {driver.rating} / 5 ({driver.ratingCount} {driver.ratingCount === 1 ? 'rating' : 'ratings'})
+                  </Typography>
+                </>
+              ) : (
+                <Typography sx={{ fontSize: '13.6px', fontWeight: 700, color: 'var(--mac-text-muted)' }}>
+                  Not Yet Rated
+                </Typography>
+              )}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: driver.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6' }} />

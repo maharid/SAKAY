@@ -47,6 +47,7 @@ const TITLES: Record<string, string> = {
   DRIVER_SHARED_REQUEST_DECLINES: 'A driver declined several Shared Trip requests (Rule 14.3)',
   PAYMENT_STUCK_RECONCILIATION: 'A trip is waiting at the destination for the payment (PI-15)',
   TRIP_MANUAL_RECONCILIATION: 'A trip has been silent for 30 minutes (Rule 9.5)',
+  DRIVER_LOW_RATING_REVIEW: 'A driver\'s average rating is under 3.00 after at least 20 completed trips: review, counselling or retraining (Rule 23.3)',
 };
 
 const manila = (iso: unknown): string => {

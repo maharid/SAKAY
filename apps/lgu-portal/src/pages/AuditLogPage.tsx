@@ -12,6 +12,8 @@ import {
   Chip,
   CircularProgress,
   Button,
+  Alert,
+  TextField,
 } from '@mui/material';
 import SecurityIcon from '@mui/icons-material/Security';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -21,7 +23,8 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchAuditLogs } from '../services/adminApiService';
+import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
+import { fetchAuditLogs, exportAuditLog } from '../services/adminApiService';
 
 /**
  * ============================================================================
@@ -39,11 +42,16 @@ export const AuditLogPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
+  // Rule 28.4: the day range (Asia/Manila) is asked of the database; the export takes the same range and search text
+  const [fromDay, setFromDay] = useState('');
+  const [toDay, setToDay] = useState('');
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   const loadLogs = async () => {
     setIsLoading(true);
     try {
-      const data = await fetchAuditLogs();
+      const data = await fetchAuditLogs({ fromDay, toDay });
       setLogs(data);
     } catch (err) {
       console.error('[AuditLogPage] Failed to fetch audit logs:', err);
@@ -54,7 +62,24 @@ export const AuditLogPage: React.FC = () => {
 
   useEffect(() => {
     loadLogs();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromDay, toDay]);
+
+  const runExport = async (format: 'xlsx' | 'csv' | 'pdf') => {
+    setExporting(format);
+    setExportNote(null);
+    try {
+      const result = await exportAuditLog(format, { fromDay, toDay, search: searchQuery }, 'LGU Administrator');
+      setExportNote({
+        severity: 'success',
+        text: `${result.count} entries exported${result.truncated ? ` (the first ${AUDIT_EXPORT_MAX_ROWS}; narrow the dates to export the rest)` : ''}. The export was recorded in the audit log.`,
+      });
+    } catch (err) {
+      setExportNote({ severity: 'error', text: (err as Error).message });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const filteredLogs = logs.filter((log) => {
     const q = searchQuery.toLowerCase();
@@ -145,6 +170,23 @@ export const AuditLogPage: React.FC = () => {
           setCategoryFilter('All');
         }}
       />
+
+      {/* 2B. Date range and export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mb: 2 }}>
+        <TextField size="small" type="date" label="From (Manila)" value={fromDay} onChange={(e) => setFromDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+        <TextField size="small" type="date" label="To (Manila)" value={toDay} onChange={(e) => setToDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+        <Box sx={{ flex: 1 }} />
+        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
+        </Button>
+        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('csv')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
+        </Button>
+        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('pdf')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
+        </Button>
+      </Box>
+      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 2 }}>{exportNote.text}</Alert>}
 
       {/* 3. Audit Log Ledger Table */}
       <TableContainer
@@ -311,6 +353,14 @@ export const AuditLogPage: React.FC = () => {
                 {selectedLog.details}
               </Typography>
             </Box>
+            {(selectedLog.before_state != null || selectedLog.after_state != null) && (
+              <Box>
+                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Before / After</Typography>
+                <Typography component="pre" sx={{ fontSize: '10px', color: 'var(--mac-text-primary)', mt: '4px', m: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'monospace' }}>
+                  {JSON.stringify({ before: selectedLog.before_state ?? null, after: selectedLog.after_state ?? null }, null, 2)}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </MacCenterModal>
       )}

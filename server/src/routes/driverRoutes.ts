@@ -51,7 +51,7 @@ router.get('/', async (req: Request, res: Response) => {
           barangay_service_area: d.barangay_service_area || d.toda?.barangay || 'Calapan City',
           account_status: d.account_status || 'Pending Verification',
           availability_status: d.availability_status || 'Offline',
-          weighted_average_rating: Number(d.weighted_average_rating) || 5.0,
+          weighted_average_rating: d.weighted_average_rating == null ? null : Number(d.weighted_average_rating),   // null = Not Yet Rated (Rule 23.1)
           strikes_count: d.strikes_count ?? 0,
           created_at: d.created_at,
         }));

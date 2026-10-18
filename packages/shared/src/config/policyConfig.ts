@@ -491,6 +491,60 @@ export const INCIDENT_LOST_ITEM_UNCLAIMED_DAYS = 14;
 export const SAFE_REASON_FLAG_COUNT = 3;
 export const SAFE_REASON_FLAG_WINDOW_DAYS = 30;
 
+// ----------------------------------------------------------------------------
+// Ratings, fraud and system integrity, data privacy and recordkeeping (Batch 12): Sections 23, 27, 28. Code constants inside public.integrity_constant() and
+// public.retention_constant(); the copies here are for the screens and the drift test (scripts/db-tests/batch12/config-drift.js) fails if either side changes alone.
+// The GPS accuracy and speed limits of the detectors are NOT repeated: they are the fare's (FARE_GPS_MAX_ACCURACY_METERS, FARE_GPS_MAX_SPEED_KMH).
+// ----------------------------------------------------------------------------
+/** Rule 23.1: an Average Rating is shown as soon as an account has this many ratings; before that it reads "Not Yet Rated" (never a number, never a default) */
+export const RATING_MIN_COUNT_TO_DISPLAY = 1;
+/** F12.1 (Rules 23.3, 23.4): at least this many completed trips, and an average under this (x100) raises the review; compared exactly as sum x 100 < floor x n */
+export const INTEGRITY_RATING_REVIEW_MIN_TRIPS = 20;
+export const INTEGRITY_RATING_REVIEW_FLOOR_X100 = 300;
+/** A reviewed account is flagged again only after this many MORE completed trips */
+export const INTEGRITY_RATING_REFLAG_TRIPS = 20;
+/** F12.6 (Rule 27.1): fixes in one trip that jump faster than the fare allows make the trip suspect (this many), or alone are enough (the heavy number) ... */
+export const INTEGRITY_GPS_SPOOF_TELEPORT_FIXES = 3;
+export const INTEGRITY_GPS_SPOOF_HEAVY_FIXES = 10;
+/** ... and this many suspect trips among the driver's last N completed trips raise the flag */
+export const INTEGRITY_GPS_SPOOF_REPEAT_TRIPS = 2;
+export const INTEGRITY_GPS_SPOOF_REPEAT_WINDOW_TRIPS = 10;
+/** F12.6: the tracked distance differs from the quoted route by more than this percent AND more than this many metres */
+export const INTEGRITY_GPS_DISTANCE_MISMATCH_PCT = 40;
+export const INTEGRITY_GPS_DISTANCE_MISMATCH_M = 1000;
+/** F12.7 (Rule 27.5): a reciprocal top-rating pair, concentration, burst */
+export const INTEGRITY_RM_PAIR_TRIPS = 5;
+export const INTEGRITY_RM_PAIR_WINDOW_DAYS = 30;
+export const INTEGRITY_RM_CONC_MIN_RATINGS = 10;
+export const INTEGRITY_RM_CONC_SHARE_PCT = 60;
+export const INTEGRITY_RM_CONC_MAX_RATERS = 2;
+export const INTEGRITY_RM_CONC_MEAN_X10 = 48;
+export const INTEGRITY_RM_CONC_WINDOW_DAYS = 30;
+export const INTEGRITY_RM_BURST_COUNT = 5;
+export const INTEGRITY_RM_BURST_MINUTES = 10;
+/** Rule 27.4: the same driver and joining passenger Matched this many times in the window */
+export const INTEGRITY_COLL_MATCHES = 4;
+export const INTEGRITY_COLL_WINDOW_DAYS = 30;
+/** Rules 27.3 / 27.6: accounts created in the last days are compared with sanctioned accounts */
+export const INTEGRITY_REREG_LOOKBACK_DAYS = 14;
+/** F12.2: routine GPS fixes are removed this many days after they were recorded, unless the trip is held (an open case or a legal hold) */
+export const RETENTION_GPS_LOG_DAYS = 90;
+/** F12.5: ended driver online sessions and trip connectivity events, unless held. OTP codes are never stored. */
+export const RETENTION_SESSION_DAYS = 90;
+/** F12.3: a closed account is anonymized this many years after its closure; its strike, suspension and exemption records stay, without names */
+export const RETENTION_CLOSED_RECORDS_YEARS = 5;
+/** F12.4: a replaced identity image goes after this many days; those of a rejected application after this many days; those of a closed account after this many months */
+export const RETENTION_DOC_SUPERSEDED_DAYS = 30;
+export const RETENTION_DOC_REJECTED_DAYS = 30;
+export const RETENTION_DOC_CLOSED_MONTHS = 12;
+/** Rows removed per run of the daily retention job (it continues the next day) */
+export const RETENTION_PURGE_BATCH_ROWS = 5000;
+/** The version (a date) of the privacy notice the apps show; the consent record stores the version the person accepted. Change it when the notice changes. */
+export const PRIVACY_NOTICE_VERSION = '2026-10-18';
+/** The audit log screens page by this many rows, and an export holds at most this many (the database caps a page at 1000) */
+export const AUDIT_LOG_PAGE_SIZE = 200;
+export const AUDIT_EXPORT_MAX_ROWS = 20000;
+
 // ============================================================================
 // 9. UNIFIED POLICY CONSTANTS OBJECT
 // ============================================================================
@@ -642,6 +696,40 @@ export const POLICY_CONSTANTS = {
     SAFE_REASON_FLAG_WINDOW_DAYS,
     TODA_INCIDENT_REPORT_FLAG_THRESHOLD,
     TODA_INCIDENT_REPORT_WINDOW_DAYS,
+  },
+  RATINGS_INTEGRITY_PRIVACY: {
+    RATING_MIN_COUNT_TO_DISPLAY,
+    INTEGRITY_RATING_REVIEW_MIN_TRIPS,
+    INTEGRITY_RATING_REVIEW_FLOOR_X100,
+    INTEGRITY_RATING_REFLAG_TRIPS,
+    INTEGRITY_GPS_SPOOF_TELEPORT_FIXES,
+    INTEGRITY_GPS_SPOOF_HEAVY_FIXES,
+    INTEGRITY_GPS_SPOOF_REPEAT_TRIPS,
+    INTEGRITY_GPS_SPOOF_REPEAT_WINDOW_TRIPS,
+    INTEGRITY_GPS_DISTANCE_MISMATCH_PCT,
+    INTEGRITY_GPS_DISTANCE_MISMATCH_M,
+    INTEGRITY_RM_PAIR_TRIPS,
+    INTEGRITY_RM_PAIR_WINDOW_DAYS,
+    INTEGRITY_RM_CONC_MIN_RATINGS,
+    INTEGRITY_RM_CONC_SHARE_PCT,
+    INTEGRITY_RM_CONC_MAX_RATERS,
+    INTEGRITY_RM_CONC_MEAN_X10,
+    INTEGRITY_RM_CONC_WINDOW_DAYS,
+    INTEGRITY_RM_BURST_COUNT,
+    INTEGRITY_RM_BURST_MINUTES,
+    INTEGRITY_COLL_MATCHES,
+    INTEGRITY_COLL_WINDOW_DAYS,
+    INTEGRITY_REREG_LOOKBACK_DAYS,
+    RETENTION_GPS_LOG_DAYS,
+    RETENTION_SESSION_DAYS,
+    RETENTION_CLOSED_RECORDS_YEARS,
+    RETENTION_DOC_SUPERSEDED_DAYS,
+    RETENTION_DOC_REJECTED_DAYS,
+    RETENTION_DOC_CLOSED_MONTHS,
+    RETENTION_PURGE_BATCH_ROWS,
+    PRIVACY_NOTICE_VERSION,
+    AUDIT_LOG_PAGE_SIZE,
+    AUDIT_EXPORT_MAX_ROWS,
   },
 } as const;
 

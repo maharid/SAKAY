@@ -38,6 +38,8 @@ import {
 import type { RejectionReasonCode } from '@sakay/shared';
 import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
+import { exportAuditLogFile, fetchAuditLogPage, manilaDayStartIso, manilaNextDayStartIso } from '@sakay/shared';
+import type { AuditLogFilters, AuditRpc, XlsxLike } from '@sakay/shared';
 import type { DeliberateOfflineInput, ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
@@ -708,7 +710,7 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
                 suspensionReason: matchedDriver?.suspension_reason || undefined,
                 suspendedAt: matchedDriver?.suspended_at ? new Date(matchedDriver.suspended_at).toLocaleDateString('en-US') : undefined,
                 strikesCount: matchedDriver?.strikes_count || 0,
-                rating: Number(matchedDriver?.weighted_average_rating) || 5.0,
+                rating: Number(matchedDriver?.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
                 totalTrips: 0,
                 joinedDate: todaRecord?.created_at ? new Date(todaRecord.created_at).toLocaleDateString('en-US') : 'Recent',
                 availabilityStatus: matchedDriver?.availability_status || undefined,
@@ -739,7 +741,7 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
         suspensionReason: d.suspension_reason || undefined,
         suspendedAt: d.suspended_at ? new Date(d.suspended_at).toLocaleDateString('en-US') : undefined,
         strikesCount: d.strikes_count || 0,
-        rating: Number(d.weighted_average_rating) || 5.0,
+        rating: Number(d.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
         totalTrips: 0,
         joinedDate: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US') : 'Recent',
         availabilityStatus: d.availability_status || undefined,
@@ -1249,41 +1251,46 @@ export async function updateLostItemReport(incidentId: string, status: Exclude<L
   return sentence(await updateLostItem(supabase, incidentId, status, note));
 }
 
-export async function fetchTodaAuditLogs(): Promise<TodaAuditLog[]> {
+const auditRpc: AuditRpc = (fn, args) => supabase.rpc(fn, args);
+
+/** What the audit screen filters on, on the server: a day range in Asia/Manila and a search text */
+export interface TodaAuditQuery {
+  fromDay?: string;
+  toDay?: string;
+  search?: string;
+}
+
+const todaAuditFilters = (q: TodaAuditQuery = {}): AuditLogFilters => ({
+  from: q.fromDay ? manilaDayStartIso(q.fromDay) : null,
+  to: q.toDay ? manilaNextDayStartIso(q.toDay) : null,
+  search: q.search || null,
+});
+
+/** This TODA's entries (Rule 28.4): a TODA Administrator reads their own; the actor's name and the time come from the database, never from the browser. */
+export async function fetchTodaAuditLogs(query: TodaAuditQuery = {}): Promise<TodaAuditLog[]> {
   try {
-    const { data, error } = await supabase
-      .from('audit_log')
-      .select('*')
-      .order('performed_at', { ascending: false })
-      .limit(50);
-
-    if (error || !data) return [];
-
-    return data.map((l: any) => ({
+    const page = await fetchAuditLogPage(auditRpc, todaAuditFilters(query), 500, 0);
+    return page.rows.map((l) => ({
       id: l.log_id,
       log_id: l.log_id,
-      toda_admin_id: l.toda_admin_id || l.target_id || 'TODA_ADMIN',
-      actor_name: 'TODA Administrator',
+      toda_admin_id: l.actor_id || '',
+      actor_name: l.actor_name,
+      actor_role: l.actor_role || '',
       action_type: l.action_type,
       target_id: l.target_id || '',
       target_name: l.target_name || l.target_id || 'Entity',
       details: l.details || '',
-      performed_at: (l.performed_at || l.created_at)
-        ? new Date(l.performed_at || l.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : 'Recent',
+      performed_at: l.performed_at_manila + ' (Asia/Manila)',
+      performed_at_iso: l.performed_at,
+      before_state: l.before_state,
+      after_state: l.after_state,
       category: (l.action_type.includes('DRIVER')
         ? 'Driver Verification'
         : l.action_type.includes('INCIDENT')
         ? 'Incident'
         : l.action_type.includes('ANNOUNCEMENT')
         ? 'Announcement'
-        : 'Account') as any,
+        : 'Account') as TodaAuditLog['category'],
     }));
   } catch (err) {
     console.error('[todaApiService] fetchTodaAuditLogs error:', err);
@@ -1291,6 +1298,22 @@ export async function fetchTodaAuditLogs(): Promise<TodaAuditLog[]> {
   }
 }
 
+/** Exports every entry the filters match (up to the cap) as Excel, CSV or a PDF (the browser's print dialog: "Save as PDF"); the export is written to the audit log first. */
+export async function exportTodaAuditLog(format: 'xlsx' | 'csv' | 'pdf', query: TodaAuditQuery, generatedBy: string): Promise<{ count: number; truncated: boolean }> {
+  return exportAuditLogFile({
+    rpc: auditRpc,
+    format,
+    filters: todaAuditFilters(query),
+    generatedBy,
+    title: 'SAKAY - Audit Log (TODA Administrator)',
+    loadXlsx: async () => (await import('xlsx')) as unknown as XlsxLike,
+  });
+}
+
+/**
+ * A free-text note from a screen. The database stamps WHO (the signed-in administrator) and WHEN (the server's clock); the browser's own time is not sent. Decisions
+ * on an account, application, strike or trip outcome are NOT written here: the database function that makes the decision writes its own entry.
+ */
 export async function recordTodaAuditAction(action: {
   actionType: string;
   targetId?: string;
@@ -1303,8 +1326,8 @@ export async function recordTodaAuditAction(action: {
       {
         action_type: action.actionType,
         target_id: action.targetId || null,
+        target_name: action.targetName || null,
         details: `[TODA Admin]: ${action.details}`,
-        performed_at: new Date().toISOString(),
       },
     ]);
   } catch (err) {

@@ -12,6 +12,7 @@ import {
   Avatar,
   Chip,
   Button,
+  Alert,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -19,7 +20,8 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { TodaAuditLog } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
-import { fetchTodaAuditLogs } from '../services/todaApiService';
+import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
+import { fetchTodaAuditLogs, exportTodaAuditLog } from '../services/todaApiService';
 
 export const TodaAuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<TodaAuditLog[]>([]);
@@ -28,6 +30,35 @@ export const TodaAuditLogsPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('All');
   const [selectedLog, setSelectedLog] = useState<TodaAuditLog | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
+
+  // Days are Asia/Manila days (the database stores UTC)
+  const manilaDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+  const dayRange = (): { fromDay?: string; toDay?: string } => {
+    const now = Date.now();
+    if (dateFilter === 'Today') return { fromDay: manilaDay(new Date(now)), toDay: manilaDay(new Date(now)) };
+    if (dateFilter === 'Yesterday') return { fromDay: manilaDay(new Date(now - 86400000)), toDay: manilaDay(new Date(now - 86400000)) };
+    if (dateFilter === 'Last 7 Days') return { fromDay: manilaDay(new Date(now - 7 * 86400000)), toDay: manilaDay(new Date(now)) };
+    if (dateFilter === 'Last 30 Days') return { fromDay: manilaDay(new Date(now - 30 * 86400000)), toDay: manilaDay(new Date(now)) };
+    return {};
+  };
+
+  const runExport = async (format: 'xlsx' | 'csv' | 'pdf') => {
+    setExporting(format);
+    setExportNote(null);
+    try {
+      const result = await exportTodaAuditLog(format, { ...dayRange(), search: searchQuery }, 'TODA Administrator');
+      setExportNote({
+        severity: 'success',
+        text: `${result.count} entries exported${result.truncated ? ` (the first ${AUDIT_EXPORT_MAX_ROWS}; narrow the dates to export the rest)` : ''}. The export was recorded in the audit log.`,
+      });
+    } catch (err) {
+      setExportNote({ severity: 'error', text: (err as Error).message });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const loadLogs = () => {
     setIsLoading(true);
@@ -56,13 +87,13 @@ export const TodaAuditLogsPage: React.FC = () => {
     const matchesCategory = categoryFilter === 'All' || log.category === categoryFilter;
 
     let matchesDate = true;
-    if (dateFilter === 'Today') {
-      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-      matchesDate = log.performed_at.includes(todayStr) || log.performed_at.includes('May 12, 2026');
-    } else if (dateFilter === 'Yesterday') {
-      matchesDate = log.performed_at.includes('May 11, 2026') || log.performed_at.includes('Yesterday');
-    } else if (dateFilter === 'Last 7 Days') {
-      matchesDate = true; // Mock dataset falls within range
+    if (dateFilter !== 'All' && log.performed_at_iso) {
+      const when = new Date(log.performed_at_iso);
+      const ageDays = (Date.now() - when.getTime()) / 86400000;
+      if (dateFilter === 'Today') matchesDate = manilaDay(when) === manilaDay(new Date());
+      else if (dateFilter === 'Yesterday') matchesDate = manilaDay(when) === manilaDay(new Date(Date.now() - 86400000));
+      else if (dateFilter === 'Last 7 Days') matchesDate = ageDays <= 7;
+      else if (dateFilter === 'Last 30 Days') matchesDate = ageDays <= 30;
     }
 
     return matchesSearch && matchesCategory && matchesDate;
@@ -80,8 +111,8 @@ export const TodaAuditLogsPage: React.FC = () => {
 
   const dateOptions: FilterOption[] = [
     { label: 'All Dates (Full Log)', value: 'All' },
-    { label: 'Today (May 12)', value: 'Today' },
-    { label: 'Yesterday (May 11)', value: 'Yesterday' },
+    { label: 'Today', value: 'Today' },
+    { label: 'Yesterday', value: 'Yesterday' },
     { label: 'Last 7 Days', value: 'Last 7 Days' },
     { label: 'Last 30 Days', value: 'Last 30 Days' },
   ];
@@ -132,6 +163,20 @@ export const TodaAuditLogsPage: React.FC = () => {
           setDateFilter('All');
         }}
       />
+
+      {/* 1B. Export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 1.5, mb: 2 }}>
+        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
+        </Button>
+        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('csv')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
+        </Button>
+        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('pdf')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
+        </Button>
+      </Box>
+      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 2 }}>{exportNote.text}</Alert>}
 
       {/* 2. Audit Trail Log Table */}
       <TableContainer

@@ -18,7 +18,10 @@ import { DriverVerificationCard } from '../components/dashboard/DriverVerificati
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
 import { RecentIncidentReportsCard } from '../components/dashboard/RecentIncidentReportsCard';
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
-import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, fetchFareDisputes } from '../services/adminApiService';
+import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes } from '../services/adminApiService';
+
+/** The flags a detector raises (Rules 27.1, 27.3 - 27.6): the LGU Administrator confirms them, which records the violation against every account named */
+const INTEGRITY_FLAG_TYPES = ['GPS_SPOOFING_REVIEW', 'RATING_MANIPULATION_REVIEW', 'COLLUSIVE_MATCHING_REVIEW', 'POSSIBLE_REREGISTRATION_REVIEW'];
 
 /** A review flag still waiting for an administrator: the database says Open or Under Review (it never says "Pending"). */
 const isOpenFlag = (f: any): boolean => f.status === 'Open' || f.status === 'Under Review';
@@ -85,6 +88,23 @@ const describeFlagDetails = (flag: any): string[] => {
   }
   if (flag?.flag_type === 'LOST_ITEM_UNCLAIMED_REVIEW') {
     return ['A lost-item report has had no contact and no result for 14 days (Rule 29.19). The TODA Administrator arranges the contact or closes it as Unclaimed.'];
+  }
+  if (flag?.flag_type === 'DRIVER_LOW_RATING_REVIEW' || flag?.flag_type === 'PASSENGER_LOW_RATING_REVIEW') {
+    return [String(d.note ?? 'The average rating is under 3.00 after at least 20 completed trips.'), 'Average ' + d.average + ' from ' + d.rating_count + ' ratings over ' + d.completed_trips + ' completed trips. Ratings never change booking or dispatch (Rule 23.2).'];
+  }
+  if (flag?.flag_type === 'GPS_SPOOFING_REVIEW') {
+    const trips = Array.isArray(d.suspect_trips) ? d.suspect_trips : [];
+    return [String(d.note ?? ''), trips.length + ' suspect trip(s) among the last ' + (d.window_trips ?? 10) + ' completed trips.'].filter(Boolean).concat(trips.map((x: any) => 'Trip ' + String(x.booking_id).slice(0, 8).toUpperCase() + ': ' + x.teleport_fixes + ' impossible jumps' + (x.distance_mismatch ? ', tracked ' + x.tracked_km + ' km against the quoted ' + x.quoted_km + ' km' : '')));
+  }
+  if (flag?.flag_type === 'RATING_MANIPULATION_REVIEW') {
+    return [String(d.note ?? ''), 'Pattern: ' + String(d.pattern ?? '').replace(/_/g, ' ').toLowerCase() + ', ' + (Array.isArray(d.rating_ids) ? d.rating_ids.length : 0) + ' ratings. Confirming excludes these ratings and records 2 strikes for each account named (Rules 23.5, 27.5).'];
+  }
+  if (flag?.flag_type === 'COLLUSIVE_MATCHING_REVIEW') {
+    return [String(d.note ?? ''), d.matches + ' matches in ' + d.window_days + ' days. Confirming deactivates both accounts for review (Rule 27.4).'];
+  }
+  if (flag?.flag_type === 'POSSIBLE_REREGISTRATION_REVIEW') {
+    const linked = Array.isArray(d.linked) ? d.linked : [];
+    return [String(d.note ?? ''), 'Matched on: ' + (Array.isArray(d.basis) ? d.basis.join(', ').replace(/_/g, ' ') : '-') + '. Linked account(s): ' + linked.map((x: any) => x.type + ' ' + String(x.id).slice(0, 8) + (x.state ? ' (' + String(x.state).toLowerCase() + ')' : '')).join('; ') + '. Confirming deactivates them for review; closing them for good is a separate action on each account (Rules 27.3, 27.6).'];
   }
   return [];
 };
@@ -171,6 +191,36 @@ export const DashboardPage: React.FC = () => {
       return;
     }
     setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Confirmed: 2 strikes (Rule 9.6)' } : f)));
+    setFlagDialogOpen(false);
+    setSelectedFlag(null);
+    setFlagResolutionText('');
+    setFlagError(null);
+  };
+
+  // Rules 27.1, 27.3 - 27.6: confirm what a detector flag points at
+  const handleConfirmIntegrity = async () => {
+    if (!selectedFlag) return;
+    const message = await confirmIntegrityFlag(selectedFlag.flag_id, flagResolutionText);
+    if (message) {
+      setFlagError(message);
+      return;
+    }
+    setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Violation confirmed' } : f)));
+    setFlagDialogOpen(false);
+    setSelectedFlag(null);
+    setFlagResolutionText('');
+    setFlagError(null);
+  };
+
+  // Rule 23.4: a passenger whose average stayed under 3.00 after 20 trips may get a warning
+  const handleSendWarning = async () => {
+    if (!selectedFlag) return;
+    const message = await sendConductWarning(selectedFlag.flag_id, flagResolutionText);
+    if (message) {
+      setFlagError(message);
+      return;
+    }
+    setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Warning sent' } : f)));
     setFlagDialogOpen(false);
     setSelectedFlag(null);
     setFlagResolutionText('');
@@ -720,6 +770,28 @@ export const DashboardPage: React.FC = () => {
               sx={{ textTransform: 'none', fontWeight: 600 }}
             >
               Confirm: 1 strike
+            </Button>
+          )}
+          {INTEGRITY_FLAG_TYPES.includes(selectedFlag?.flag_type) && (
+            <Button
+              onClick={handleConfirmIntegrity}
+              variant="contained"
+              color="error"
+              disabled={flagResolutionText.trim().length < 10}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Confirm the violation
+            </Button>
+          )}
+          {selectedFlag?.flag_type === 'PASSENGER_LOW_RATING_REVIEW' && (
+            <Button
+              onClick={handleSendWarning}
+              variant="contained"
+              color="warning"
+              disabled={flagResolutionText.trim().length < 10}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Send the passenger a warning
             </Button>
           )}
           <Button

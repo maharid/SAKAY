@@ -17,7 +17,12 @@
 //                                                                              _cancellation_decision, driver_cancel_booking, driver_stop_trip_early, passenger_request_early_end,
 //                                                                              driver_report_delay, set_strike_accrual_pause, check_toda_excess_incidents, incident_report_guard
 //                                                                              and _early_stop_reason_is_valid, and adds the incident review, urgent safety report, safe-reason,
-//                                                                              end-trip-for-safety, calamity and Share Live Trip functions: 166 functions in 17 files)
+//                                                                              end-trip-for-safety, calamity and Share Live Trip functions; and Batch 12's 20261027000001,
+//                                                                              which replaces driver_insert_guard, audit_log_stamp_actor, return_toda_accreditation,
+//                                                                              deactivate_toda_accreditation, storage_can_read_driver_folder, _incident_category_class and
+//                                                                              _incident_strike_options, drops update_driver_rating, and adds the rating summary / cache /
+//                                                                              exclusion, the append-only audit log, get_audit_log / record_audit_export, the legal hold and
+//                                                                              retention jobs, the integrity detectors and the privacy acceptance functions: 213 functions in 18 files)
 //
 // How it works: the whole migration chain is built on the local emulator (PGlite, never Supabase), every function that those migrations define or
 // replace is fingerprinted (md5 of its body, line endings ignored), and the fingerprints are written INTO the query. Run on the hosted project, the

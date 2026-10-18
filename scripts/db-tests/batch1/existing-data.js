@@ -60,7 +60,7 @@ const BEFORE_BATCH1 = '20260927020000_fix_all_security_advisor_red_notices.sql';
 
     const cols = (await db.query(`SELECT count(*)::int n FROM information_schema.columns WHERE table_name='driver' AND column_name IN ('is_permanently_disqualified','strikes_count','suspended_until')`)).rows[0].n;
     const cat = (await db.query('SELECT count(*)::int n FROM violation_catalog')).rows[0].n;
-    check('Batch 1 and Batch 3 objects exist afterwards', cols === 3 && cat === 39, { cols, cat });
+    check('Batch 1 and Batch 3 objects exist afterwards (the catalog has the four Batch 12 codes too)', cols === 3 && cat === 43, { cols, cat });
 
     // The new-application guard must still be active for real requests after the backfill.
     let blocked = null;

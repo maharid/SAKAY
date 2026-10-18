@@ -159,7 +159,7 @@ export const DriverTripHistory: React.FC = () => {
             (r: any) => r.bookingId === trip.id || r.bookingId === trip.bookingCode || r.id === trip.id
           );
           // Rated once, for good: this phone's own record or the database's. The action disappears; only the result stays.
-          const ratedStars: number | null = savedRating ? Number(savedRating.stars) || 5 : trip.id in dbRatedStars ? dbRatedStars[trip.id] : null;
+          const ratedStars: number | null = savedRating && Number(savedRating.stars) > 0 ? Number(savedRating.stars) : trip.id in dbRatedStars ? dbRatedStars[trip.id] : null;
 
           return (
             <Paper

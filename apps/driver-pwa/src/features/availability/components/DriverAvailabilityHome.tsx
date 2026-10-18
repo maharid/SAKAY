@@ -47,6 +47,7 @@ import {
   useMeasuredSize,
   useSafeAreaInsets,
   useStaleSignal,
+  formatAverageRating,
 } from '@sakay/shared';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
@@ -319,7 +320,7 @@ export const DriverAvailabilityHome: React.FC = () => {
               franchiseNumber: franchiseNumber || prev.franchiseNumber,
               todaName: todaNameStr || prev.todaName,
               selectedTodaId: driverData.toda_id || prev.selectedTodaId,
-              rating: Number(driverData.weighted_average_rating) || 5.0,
+              rating: Number(driverData.weighted_average_rating) || 0,
               totalTrips: completedTripsCount || 0,
               accountStatus: driverData.account_status,
               verificationStage: 'Stage 2 Approved',
@@ -507,7 +508,8 @@ export const DriverAvailabilityHome: React.FC = () => {
   const displayName = profile.name || 'Drayber';
   const firstName = displayName.split(' ')[0] || 'Drayber';
   const initialLetter = firstName.charAt(0) || 'D';
-  const ratingNum = typeof profile.rating === 'number' ? profile.rating : 5.0;
+  // Rule 23.1: 0 / missing = Not Yet Rated (the database holds NULL until the first rating); there is no default score
+  const ratingNum = typeof profile.rating === 'number' ? profile.rating : 0;
   const tripsCount = typeof profile.totalTrips === 'number' ? profile.totalTrips : 0;
 
   return (
@@ -585,7 +587,7 @@ export const DriverAvailabilityHome: React.FC = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
               <StarIcon sx={{ fontSize: 13, color: '#FFB800' }} />
               <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
-                {ratingNum.toFixed(1)}
+                {formatAverageRating(ratingNum, undefined, language === 'tl' ? 'tl' : 'en')}
               </Typography>
               <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                 ({tripsCount} trips)

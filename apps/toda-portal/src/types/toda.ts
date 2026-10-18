@@ -247,11 +247,17 @@ export interface TodaAuditLog {
   log_id: string;
   toda_admin_id: string;
   actor_name: string;
+  actor_role?: string;
   action_type: string;
   target_id: string;
   target_name: string;
   details: string;
+  /** shown (Asia/Manila) */
   performed_at: string;
+  /** the database's time (UTC), for filtering and export */
+  performed_at_iso?: string;
+  before_state?: unknown;
+  after_state?: unknown;
   category: 'Account' | 'Driver Verification' | 'Membership' | 'Operations' | 'Announcement' | 'Incident';
 }
 

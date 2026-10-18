@@ -11,7 +11,8 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PageHeader from '../../../../common/components/PageHeader';
 import PrimaryButton from '../../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../../utils/LanguageContext';
-import { activateWithKeyboard } from '@sakay/shared';
+import { acceptPrivacyNotice, activateWithKeyboard, privacyNoticeExtraItems } from '@sakay/shared';
+import { supabase } from '../../../../services/supabaseClient';
 
 interface AccordionItem {
   id: string;
@@ -63,7 +64,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
     {
       id: 'E',
       title: 'E. Device Telemetry at Seguridad',
-      desc: 'Impormasyon sa device model, operating system version, at diagnostic logs para sa proteksyon laban sa panloloko (anti-fraud) at pagpapanatili ng katatagan ng app.',
+      desc: 'Mga tala ng pag-login at ng paggamit ng app para sa proteksyon laban sa panloloko (anti-fraud). Hindi kinokolekta ang model ng device o operating system.',
     },
   ];
 
@@ -91,11 +92,11 @@ export const PassengerPrivacyPolicy: React.FC = () => {
     {
       id: 'E',
       title: 'E. Device Telemetry & Security',
-      desc: 'Device model details, operating system versions, and security diagnostics collected to prevent fraudulent bookings and ensure platform stability.',
+      desc: 'Sign-in and app-use records to prevent fraudulent bookings. The device model and operating system are not collected.',
     },
   ];
 
-  const items = isTagalog ? tagalogItems : englishItems;
+  const items = [...(isTagalog ? tagalogItems : englishItems), ...privacyNoticeExtraItems('passenger', isTagalog ? 'tl' : 'en')];
 
   return (
     <Box
@@ -152,7 +153,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
             mb: 2.5,
           }}
         >
-          {isTagalog ? 'Huling binago: Hulyo 2026' : 'Last updated: July 2026'}
+          {isTagalog ? 'Huling binago: Oktubre 2026' : 'Last updated: October 2026'}
         </Typography>
 
         {/* Intro */}
@@ -164,7 +165,7 @@ export const PassengerPrivacyPolicy: React.FC = () => {
 
         {/* Accordions */}
         <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', mb: 1.5 }}>
-          {isTagalog ? 'Mga Datos na Kinokolekta' : 'Information We Collect'}
+          {isTagalog ? 'Mga Datos na Kinokolekta at Paano Namin Ito Ginagamit' : 'Information We Collect and How We Use It'}
         </Typography>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
@@ -247,13 +248,15 @@ export const PassengerPrivacyPolicy: React.FC = () => {
           }}
         >
           <PrimaryButton
-            onClick={() =>
+            onClick={async () => {
+              // RA 10173: the notice version the passenger accepted is recorded on the account (the version and the server's time)
+              await acceptPrivacyNotice((fn, args) => supabase.rpc(fn, args));
               navigate('/registration-success', {
                 state: {
                   ...state,
                 },
-              })
-            }
+              });
+            }}
             fullWidth
             sx={{
               height: '56px',
