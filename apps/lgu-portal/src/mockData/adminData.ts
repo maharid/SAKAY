@@ -101,6 +101,8 @@ export interface StrikeItem {
     | 'Waived on Appeal'
     | 'Not Counted (Waived / Exempt)';
   issuedBy: string;
+  /** still counts in the rolling window, so it can be voided if it was issued in error (admin_void_strike) */
+  voidable?: boolean;
 }
 
 /** Restriction state decided by the database (public.account_restriction_state). */

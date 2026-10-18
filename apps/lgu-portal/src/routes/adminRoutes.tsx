@@ -11,6 +11,7 @@ import { PassengerManagementPage } from '../pages/PassengerManagementPage';
 import { PassengerFeedbackPage } from '../pages/PassengerFeedbackPage';
 import { LiveTripsPage } from '../pages/LiveTripsPage';
 import { IncidentReportsPage } from '../pages/IncidentReportsPage';
+import { AppealsPage } from '../pages/AppealsPage';
 import { AnnouncementManagementPage } from '../pages/AnnouncementManagementPage';
 import { FareConfigurationPage } from '../pages/FareConfigurationPage';
 import { ReportsPage } from '../pages/ReportsPage';
@@ -121,6 +122,17 @@ export const AdminRoutes: React.FC = () => {
           <ProtectedRoute>
             <AdminLayout pageTitle="Incident Reports" pageSubtitle="Review and manage passenger and driver incident reports.">
               <IncidentReportsPage />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/appeals"
+        element={
+          <ProtectedRoute>
+            <AdminLayout pageTitle="Strike Appeals" pageSubtitle="Decide the appeals of passengers and the driver appeals the TODAs escalate (Rule 25).">
+              <AppealsPage />
             </AdminLayout>
           </ProtectedRoute>
         }

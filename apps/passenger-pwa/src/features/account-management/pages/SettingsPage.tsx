@@ -130,6 +130,23 @@ const SettingsPage: React.FC = () => {
                   <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
                 </ListItemButton>
               </ListItem>
+              <Divider sx={{ borderColor: "#F8FAFC" }} />
+
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate("/strikes")} sx={{ py: 1.5, px: 2 }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
+                    <GavelIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                        {language === "tl" ? "Mga Strike at Apela" : "Strikes & Appeals"}
+                      </Typography>
+                    }
+                  />
+                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
+                </ListItemButton>
+              </ListItem>
             </List>
           </Paper>
         </Box>

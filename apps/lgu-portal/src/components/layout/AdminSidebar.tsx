@@ -17,11 +17,12 @@ import CampaignIcon from '@mui/icons-material/Campaign';
 import StarRateIcon from '@mui/icons-material/StarRate';
 import PaidIcon from '@mui/icons-material/Paid';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import GavelIcon from '@mui/icons-material/Gavel';
 
 import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
-import { fetchTodaApplications, fetchDrivers } from '../../services/adminApiService';
+import { fetchTodaApplications, fetchDrivers, countPendingLguAppeals } from '../../services/adminApiService';
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -48,6 +49,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
 
   const [pendingTodaCount, setPendingTodaCount] = useState<number>(0);
   const [pendingDriverCount, setPendingDriverCount] = useState<number>(0);
+  const [pendingAppealCount, setPendingAppealCount] = useState<number>(0);
 
   useEffect(() => {
     Promise.all([
@@ -65,6 +67,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
         console.warn('[AdminSidebar] Error fetching pending counts:', err);
       });
   }, []);
+
+  // Rule 25.5 / 25.6: the strike appeals waiting for the LGU Administrator (a decision is due in three business days)
+  useEffect(() => {
+    countPendingLguAppeals().then(setPendingAppealCount).catch(() => undefined);
+  }, [location.pathname]);
 
   const navGroups: NavGroup[] = [
     {
@@ -88,6 +95,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
       items: [
         { id: 'live-trips', label: 'Live Trips', path: '/live-trips', icon: <NavigationIcon fontSize="small" /> },
         { id: 'incident-reports', label: 'Incident Reports', path: '/incident-reports', icon: <ReportProblemIcon fontSize="small" /> },
+        { id: 'appeals', label: 'Strike Appeals', path: '/appeals', icon: <GavelIcon fontSize="small" />, badge: pendingAppealCount > 0 ? pendingAppealCount : undefined, badgeType: 'orange' },
         { id: 'announcements', label: 'Announcements', path: '/announcements', icon: <CampaignIcon fontSize="small" /> },
       ],
     },

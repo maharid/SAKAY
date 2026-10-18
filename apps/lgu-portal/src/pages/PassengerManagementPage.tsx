@@ -11,6 +11,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { CloseAccountButton, VoidStrikeButton } from '../components/admin/AccountSanctionActions';
 import { RestrictionBanner } from '../components/admin/RestrictionBanner';
 import { SakayToast } from '../components/common/SakayToast';
 import { TableEmptyState } from '../components/common/TableEmptyState';
@@ -349,6 +350,19 @@ export const PassengerManagementPage: React.FC = () => {
             }
           }}
           maxWidth={760}
+          extraActions={
+            selectedPassenger.restrictionKind !== 'CLOSED' ? (
+              <CloseAccountButton
+                subjectType="passenger"
+                subjectId={selectedPassenger.id}
+                subjectName={selectedPassenger.name}
+                onDone={async (message, severity) => {
+                  setToast({ message, severity });
+                  await refreshSelectedPassenger(selectedPassenger.id);
+                }}
+              />
+            ) : undefined
+          }
         >
           {/* Account Rating Bar */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAFAFC', padding: '16px 20px', borderRadius: '12px', mb: 4, border: '1px solid var(--mac-border-color)' }}>
@@ -444,11 +458,22 @@ export const PassengerManagementPage: React.FC = () => {
                         </Typography>
                       </Box>
 
-                      <Chip
-                        label={item.status}
-                        size="small"
-                        sx={{ fontSize: '9.3px', fontWeight: 600, backgroundColor: 'rgba(255, 149, 0, 0.12)', color: '#C25E00', height: 24, flexShrink: 0 }}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                        <Chip
+                          label={item.status}
+                          size="small"
+                          sx={{ fontSize: '9.3px', fontWeight: 600, backgroundColor: 'rgba(255, 149, 0, 0.12)', color: '#C25E00', height: 24 }}
+                        />
+                        {item.voidable && (
+                          <VoidStrikeButton
+                            strikeId={item.id}
+                            onDone={async (message, severity) => {
+                              setToast({ message, severity });
+                              await refreshSelectedPassenger(selectedPassenger.id);
+                            }}
+                          />
+                        )}
+                      </Box>
                     </Box>
                   ))}
                 </Box>

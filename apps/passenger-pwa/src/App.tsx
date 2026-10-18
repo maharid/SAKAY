@@ -19,6 +19,8 @@ import SavedPlacesPage from "./features/account-management/pages/SavedPlacesPage
 import SupportPage from "./features/account-management/pages/SupportPage";
 import AppFeedbackPage from "./features/account-management/pages/AppFeedbackPage";
 import ChangePasswordPage from "./features/account-management/pages/ChangePasswordPage";
+import StrikesAppealsPage from "./features/account-management/pages/StrikesAppealsPage";
+import AccountRestrictedPage from "./features/account-management/pages/AccountRestrictedPage";
 import TrackReportsPage from "./features/account-management/pages/TrackReportsPage";
 import TrackReportDetailPage from "./features/account-management/pages/TrackReportDetailPage";
 import SettingsPage from "./features/account-management/pages/SettingsPage";
@@ -66,6 +68,8 @@ function App() {
               <Route path="/support" element={<SupportPage />} />
               <Route path="/app-feedback" element={<AppFeedbackPage />} />
               <Route path="/change-password" element={<ChangePasswordPage />} />
+              <Route path="/strikes" element={<StrikesAppealsPage />} />
+              <Route path="/account-restricted" element={<AccountRestrictedPage />} />
               <Route path="/track-reports" element={<TrackReportsPage />} />
               <Route path="/track-reports/:reportId" element={<TrackReportDetailPage />} />
               <Route path="/location-permission" element={<LocationPermission />} />

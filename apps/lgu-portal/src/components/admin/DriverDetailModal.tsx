@@ -125,6 +125,7 @@ export function getDocumentType(doc: {
 
 import { DriverRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
+import { CloseAccountButton, VoidStrikeButton } from './AccountSanctionActions';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { RestrictionBanner } from './RestrictionBanner';
 import { StatusBadge } from '../common/StatusBadge';
@@ -776,6 +777,17 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 Return for Resubmission
               </Button>
             </Badge>
+          ) : driver.restrictionKind !== 'CLOSED' ? (
+            <CloseAccountButton
+              subjectType="driver"
+              subjectId={driver.id}
+              subjectName={driver.name}
+              onDone={async (message) => {
+                setSnackbarMsg(message);
+                await strikeData.reload();
+                if (onDriverUpdated) onDriverUpdated({ ...driver, accountStatus: 'Inactive', restrictionKind: 'CLOSED' });
+              }}
+            />
           ) : undefined
         }
       >
@@ -1126,7 +1138,18 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                         {item.date} • {item.issuedBy}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: '#C25E00', flexShrink: 0 }}>{item.status}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: '#C25E00' }}>{item.status}</Typography>
+                      {item.voidable && (
+                        <VoidStrikeButton
+                          strikeId={item.id}
+                          onDone={async (message) => {
+                            setSnackbarMsg(message);
+                            await strikeData.reload();
+                          }}
+                        />
+                      )}
+                    </Box>
                   </Box>
                 ))}
               </Box>

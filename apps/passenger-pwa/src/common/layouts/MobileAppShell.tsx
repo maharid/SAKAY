@@ -6,13 +6,13 @@ import { supabase } from "../../services/supabaseClient";
 import SakayToast from "../../common/components/SakayToast";
 import { useLanguage } from "../../utils/LanguageContext";
 import { authSessionIdFromAccessToken } from "../../utils/authSession";
-import { rotatePassengerSession } from "../../services/passengerApiService";
+import { getOwnAccountRestriction, rotatePassengerSession } from "../../services/passengerApiService";
 
 interface MobileAppShellProps {
   children?: React.ReactNode;
 }
 
-const GUARDED_PATHS = ['/dashboard', '/profile', '/settings', '/saved-places', '/support', '/app-feedback', '/change-password', '/track-reports', '/location-permission', '/new-trip', '/set-place', '/book-summary', '/trip-monitoring', '/feedback', '/incident-report', '/history', '/trip-details'];
+const GUARDED_PATHS = ['/dashboard', '/profile', '/settings', '/saved-places', '/support', '/app-feedback', '/change-password', '/strikes', '/account-restricted', '/track-reports', '/location-permission', '/new-trip', '/set-place', '/book-summary', '/trip-monitoring', '/feedback', '/incident-report', '/history', '/trip-details'];
 
 /**
  * MobileAppShell - The central mobile application container for the Passenger PWA.
@@ -42,7 +42,7 @@ export const MobileAppShell: React.FC<MobileAppShellProps> = ({ children }) => {
         const localToken = localStorage.getItem('sakay_session_token');
         const { data: profile } = await supabase
           .from("passenger")
-          .select("passenger_id, session_id, auth_session_id")
+          .select("passenger_id, session_id, auth_session_id, account_status")
           .eq("auth_user_id", sess.session.user.id)
           .maybeSingle();
 
@@ -66,6 +66,15 @@ export const MobileAppShell: React.FC<MobileAppShellProps> = ({ children }) => {
           setSessionToastOpen(true);
           
           navigate('/login', { replace: true });
+          return;
+        }
+
+        // Rule 22.3: a suspended or deactivated passenger is kept on the one page made for her (her strikes and the appeal). The database refuses a
+        // booking by a restricted account whatever the screen does; this only spares her screens that cannot work. (Only an account whose status is
+        // not Active is asked, and the database lifts a suspension that has run out when it is asked.)
+        if (profile && (profile.account_status === 'Suspended' || profile.account_status === 'Deactivated') && location.pathname !== '/account-restricted') {
+          const restriction = await getOwnAccountRestriction('passenger');
+          if (restriction?.restricted) navigate('/account-restricted', { replace: true });
         }
       }
     };
