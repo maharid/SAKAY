@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Box, Button, FormControlLabel, Link, MenuItem, Radio, RadioGroup, TextField, Typography } from '@mui/material';
-import { APPEAL_CAUSE_LABELS, decisionProblem, isPendingAppeal } from '@sakay/shared';
+import { Alert, Box, Button, FormControlLabel, MenuItem, Radio, RadioGroup, TextField, Typography } from '@mui/material';
+import { APPEAL_CAUSE_LABELS, EvidenceLinks, decisionProblem, isPendingAppeal } from '@sakay/shared';
 import type { AppealRecord, ExemptionOutcome } from '@sakay/shared';
 
 import { MacCenterModal } from './MacCenterModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { StatusBadge } from '../common/StatusBadge';
-import { decideAppeal, voidStrike } from '../../services/adminApiService';
+import { decideAppeal, signLguCaseEvidence, voidStrike } from '../../services/adminApiService';
 
 const stamp = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
@@ -122,15 +122,7 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
 
           <Field label="What happened (in the person's words)">{appeal.justification || '-'}</Field>
 
-          {appeal.evidenceUrls.length > 0 && (
-            <Field label="Evidence">
-              {appeal.evidenceUrls.map((url, i) => (
-                <Box key={url}>
-                  <Link href={url} target="_blank" rel="noopener noreferrer">{decodeURIComponent(url.split('/').pop() || '') || `Evidence ${i + 1}`}</Link>
-                </Box>
-              ))}
-            </Field>
-          )}
+          {appeal.evidenceUrls.length > 0 && <EvidenceLinks paths={appeal.evidenceUrls} sign={signLguCaseEvidence} label="Evidence (photos sent with the appeal)" />}
 
           {appeal.escalationReason && <Field label="Why it reached the LGU">{appeal.escalationReason}</Field>}
 

@@ -12,7 +12,7 @@ interface MobileAppShellProps {
   children?: React.ReactNode;
 }
 
-const GUARDED_PATHS = ['/dashboard', '/profile', '/settings', '/saved-places', '/support', '/app-feedback', '/change-password', '/strikes', '/account-restricted', '/track-reports', '/location-permission', '/new-trip', '/set-place', '/book-summary', '/trip-monitoring', '/feedback', '/incident-report', '/history', '/report-driver', '/trip-details'];
+const GUARDED_PATHS = ['/dashboard', '/profile', '/settings', '/saved-places', '/support', '/app-feedback', '/change-password', '/strikes', '/fare-disputes', '/account-restricted', '/track-reports', '/location-permission', '/new-trip', '/set-place', '/book-summary', '/trip-monitoring', '/feedback', '/incident-report', '/history', '/report-driver', '/trip-details'];
 
 /**
  * MobileAppShell - The central mobile application container for the Passenger PWA.

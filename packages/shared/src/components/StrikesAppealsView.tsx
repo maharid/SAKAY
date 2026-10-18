@@ -17,6 +17,7 @@ import {
 import { EXEMPTION_CAUSE_CODES, EXEMPTION_REQUEST_WINDOW_HOURS } from '../config/policyConfig';
 import type { ExemptionCauseCode } from '../config/policyConfig';
 import { useInFlight } from '../hooks/useInFlight';
+import { EvidencePicker } from './EvidencePicker';
 import { canAppealStrike, newestAppealByStrike } from '../utils/strikeAppeals';
 import type { AppealResult, AppealRow, StrikeHistory, StrikeRow } from '../utils/strikeAppeals';
 
@@ -29,8 +30,8 @@ export interface StrikesAppealsViewProps {
   loading: boolean;
   /** the strikes could not be read */
   failed: boolean;
-  /** send an appeal; the database's answer comes back as it is */
-  onAppeal: (strikeId: string, cause: ExemptionCauseCode, justification: string) => Promise<AppealResult>;
+  /** send an appeal with up to three photos as evidence (Rule 25.2); the database's answer comes back as it is */
+  onAppeal: (strikeId: string, cause: ExemptionCauseCode, justification: string, files: File[]) => Promise<AppealResult>;
   /** an appeal was sent: the screen reloads its data and shows `message` */
   onAppealSent: (message: string) => void | Promise<void>;
 }
@@ -84,6 +85,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
   const [target, setTarget] = useState<StrikeRow | null>(null);
   const [cause, setCause] = useState<ExemptionCauseCode>('OTHER');
   const [justification, setJustification] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
   const appealByStrike = useMemo(() => newestAppealByStrike(appeals), [appeals]);
@@ -92,6 +94,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
     setTarget(s);
     setCause(s.violationCode === 'DRV_CONNECTIVITY_FAILURE' ? 'NETWORK_OUTAGE' : 'OTHER');
     setJustification('');
+    setFiles([]);
     setFormError(null);
   };
 
@@ -102,7 +105,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
         setFormError(tl ? 'Isulat kung ano ang nangyari.' : 'Write what happened.');
         return;
       }
-      const result = await onAppeal(target.strikeId, cause, justification);
+      const result = await onAppeal(target.strikeId, cause, justification, files);
       if (!result.ok) {
         setFormError(result.error);
         return;
@@ -216,6 +219,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
             onChange={(e) => setJustification(e.target.value)}
             fullWidth
           />
+          <EvidencePicker language={language} files={files} onChange={setFiles} disabled={flight.busy} />
           {formError && (
             <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px' }}>
               {formError}

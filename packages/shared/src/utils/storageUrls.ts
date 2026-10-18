@@ -1,5 +1,5 @@
 /**
- * Files in Supabase Storage (all ten buckets are private).
+ * Files in Supabase Storage (all eleven buckets are private).
  *
  * The database keeps only the STORAGE PATH of a file (for example "<auth uid>/license_front.jpg"). When a screen needs to show or
  * download it, it asks Storage for a short-lived signed URL; Storage checks the signed-in user against the bucket's policies first, so a

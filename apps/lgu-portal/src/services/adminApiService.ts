@@ -16,6 +16,8 @@
 import { adminActionMessage, mapServiceAreas, pilotAreaArgs, closeAccountArgs, closeUnfinishedTripArgs, confirmAvailabilityArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { ServiceAreaRecord, AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
+import { signCaseEvidence } from '@sakay/shared';
+import type { CaseEvidenceFile } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import {
@@ -1769,6 +1771,9 @@ export async function countPendingLguAppeals(): Promise<number> {
 }
 
 /** Rule 25.6: Full waiver, Partial waiver (the points to waive) or Denied, with the reason (25.8). Null when it was recorded, otherwise the database's sentence. */
+/** Links for the photos of an appeal or a fare-dispute statement (the LGU Administrator may open every one; Storage signs them on request). */
+export const signLguCaseEvidence = (paths: string[]): Promise<CaseEvidenceFile[]> => signCaseEvidence(supabase, paths);
+
 export async function decideAppeal(requestId: string, outcome: ExemptionOutcome, reason: string, pointsToWaive?: number | null): Promise<string | null> {
   const { error } = await supabase.rpc('decide_exemption', decideExemptionArgs(requestId, outcome, reason, pointsToWaive));
   return error ? adminActionMessage(error.message, 'The decision could not be recorded.') : null;
