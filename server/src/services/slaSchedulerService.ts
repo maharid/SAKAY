@@ -4,8 +4,11 @@ let schedulerTimer: NodeJS.Timeout | null = null;
 let initialTimeout: NodeJS.Timeout | null = null;
 let isExecuting = false;
 
-// Batch 4 note: the driver presence sweep (5 minutes of silence -> Offline) no longer runs here. It runs inside the
-// database with pg_cron (migration 20261006000002), so it keeps working when this server sleeps on a free plan.
+// The driver presence sweep (5 minutes of silence -> Offline) runs inside the database with pg_cron (migration 20261006000002), and so since
+// migration 20261028000001 do the hourly SLA / expiry cascade and the strike sweep (job 'sakay-policy-sweeps'): this server sleeps on a free
+// plan and a sleeping server runs no timers. What is left here is `executeSlaCascadeRun()`, the "run it now" action behind
+// POST /api/scheduler/run-sla-checks; it does the same work as the job, and both sweeps are idempotent and take an advisory lock.
+// (startSlaScheduler() below is no longer called by the server. It is kept only so a deployment that wants the in-process timer back can start it.)
 
 /**
  * Executes a single authoritative SLA and credential expiry cascade run.
