@@ -54,6 +54,7 @@ import {
   type PassengerEarlyEndReason,
   reportNetworkOutcome,
   reportNetworkResult,
+  resolveHeading,
 } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -84,8 +85,6 @@ const mapBookingStatus = (rawStatus: string): any => {
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** The driver's app broadcasts its position every couple of seconds: while one arrived within this long the marker follows it, otherwise the database's copy */
-const BROADCAST_FLOWING_MS = 6_000;
 /**
  * What on the map is covered or crowded, in px: the status pill along the top, and the controls column on the right. (The trip sheet is NOT
  * here: it sits below the map in the layout, so opening it shrinks the map itself and the camera re-frames the new visible area.)
@@ -204,22 +203,21 @@ export const TripMonitoring: React.FC = () => {
     known: Boolean(booking?.driver_latitude && booking?.driver_longitude),
   });
   const driverKnown = driverPos.known;
-  // When the driver's app last BROADCAST a position to this phone. While that is recent the marker follows the broadcast (smooth); otherwise it follows the
-  // database's copy (useDriverLiveStatus below). How OLD a position is comes from the database only (Rule 17.9): a broadcast carries the send time of the
-  // driver's phone and repeats a frozen position, so it cannot say that.
-  const lastBroadcastAtRef = useRef<number>(0);
-  // The driver's app repeats its position every couple of seconds, so the SAME place is not a new position: no new state, no redraw. `at` is
-  // when the driver's phone sent it, so that a late older fix cannot move the tricycle backward. `heading` is the direction the driver's phone
-  // reported (absent when it did not): it only turns the marker's arrow.
-  const applyDriverPos = useCallback((lat: number, lng: number, at?: number, heading?: number | null, speed?: number | null) => {
+  // The driver's position is read from the DATABASE only (get_driver_live_status, every 2.5 s; the driver's phone publishes a fix every 5 s, Rule 17.1).
+  // It used to travel on a public realtime channel as well; anyone who knew a booking id could listen to it or send a false position, so that channel
+  // is gone. The SAME place is not a new position: no new state, no redraw. The marker's arrow points the way the tricycle moved between two fixes
+  // (resolveHeading ignores GPS noise and keeps the last direction while it is stopped); nothing is made up when there is no movement to read.
+  const applyDriverPos = useCallback((lat: number, lng: number) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    const h = typeof heading === 'number' && Number.isFinite(heading) ? heading : null;
-    const s = typeof speed === 'number' && Number.isFinite(speed) ? speed : null;
-    setDriverPos((prev) =>
-      prev.known && prev.lat === lat && prev.lng === lng && (prev.heading ?? null) === h && (prev.speed ?? null) === s
-        ? prev
-        : { lat, lng, at, heading: h, speed: s, known: true }
-    );
+    setDriverPos((prev) => {
+      if (prev.known && prev.lat === lat && prev.lng === lng) return prev;
+      const { heading } = resolveHeading({
+        previous: prev.known ? { lat: prev.lat, lng: prev.lng } : null,
+        current: { lat, lng },
+        lastHeading: prev.heading ?? null,
+      });
+      return { lat, lng, heading, speed: null, known: true };
+    });
   }, [setDriverPos]);
 
   // The assigned driver's photo and rating, as the database gives them (a photo only while the trip is live; none is invented)
@@ -291,7 +289,7 @@ export const TripMonitoring: React.FC = () => {
 
           const drvLat = driverInfo?.current_latitude ?? d.driver_latitude;
           const drvLng = driverInfo?.current_longitude ?? d.driver_longitude;
-          if (drvLat && drvLng && Date.now() - lastBroadcastAtRef.current >= BROADCAST_FLOWING_MS) {
+          if (drvLat && drvLng) {
             applyDriverPos(Number(drvLat), Number(drvLng));
           }
 
@@ -348,7 +346,6 @@ export const TripMonitoring: React.FC = () => {
     const searching = row.booking_status === 'Pending' || row.booking_status === 'Searching Driver';
     if (!searching || row.driver_id || !loadedDriverIdRef.current) return;
     loadedDriverIdRef.current = null;
-    lastBroadcastAtRef.current = 0;
     setDriverPos((prev) => ({ ...prev, known: false }));
     setDriverPhotoUrl('');
     setDriverRating(null);
@@ -427,8 +424,10 @@ export const TripMonitoring: React.FC = () => {
     pollNowRef.current = pollOnce;
     const pollInterval = setInterval(pollOnce, 2500);
 
+    // (Named differently from the old broadcast topic `passenger_trip_<id>` on purpose: this channel carries only the booking's own row changes, which
+    // the database's row security already limits to the people on the booking.)
     const channel = supabase
-      .channel(`passenger_trip_${activeBookingId}`)
+      .channel(`booking_changes_${activeBookingId}`)
       .on(
         'postgres_changes',
         {
@@ -452,7 +451,7 @@ export const TripMonitoring: React.FC = () => {
             }
             handleBackToSearch(row);
 
-            if (row.driver_latitude && row.driver_longitude && Date.now() - lastBroadcastAtRef.current >= BROADCAST_FLOWING_MS) {
+            if (row.driver_latitude && row.driver_longitude) {
               applyDriverPos(Number(row.driver_latitude), Number(row.driver_longitude));
             }
 
@@ -478,15 +477,6 @@ export const TripMonitoring: React.FC = () => {
           }
         }
       )
-      .on('broadcast', { event: 'driver_location' }, (payload: any) => {
-        if (payload.payload?.lat && payload.payload?.lng) {
-          lastBroadcastAtRef.current = Date.now();
-          const sentAt = Number(payload.payload.at);
-          const sentHeading = payload.payload.heading === null || payload.payload.heading === undefined ? null : Number(payload.payload.heading);
-          const sentSpeed = payload.payload.speed === null || payload.payload.speed === undefined ? null : Number(payload.payload.speed);
-          applyDriverPos(Number(payload.payload.lat), Number(payload.payload.lng), Number.isFinite(sentAt) ? sentAt : undefined, sentHeading, sentSpeed);
-        }
-      })
       .subscribe();
 
     return () => {
@@ -609,11 +599,10 @@ export const TripMonitoring: React.FC = () => {
     );
   }, [passengerLocation.status, language]);
   // The driver's position as the DATABASE has it, and how old it is (Rules 17.1 / 17.9 / 9.2). The marker is drawn dimmer when the position is old, and the map says
-  // WHEN it was taken once it is more than 10 seconds old; when the driver's broadcast is not reaching this phone the database's copy moves the marker.
+  // WHEN it was taken once it is more than 10 seconds old; the database's copy is also what moves the marker.
   const driverLive = useDriverLiveStatus(activeBookingId, UUID_PATTERN.test(activeBookingId) && Boolean(booking?.driver_id) && isTripActive);
   useEffect(() => {
     if (!driverLive.position) return;
-    if (Date.now() - lastBroadcastAtRef.current < BROADCAST_FLOWING_MS) return;
     applyDriverPos(driverLive.position.lat, driverLive.position.lng);
   }, [driverLive.position, applyDriverPos]);
   const driverStale = driverLive.ageSeconds !== null && driverLive.ageSeconds > PASSENGER_STALE_LOCATION_DIM_SECONDS;
