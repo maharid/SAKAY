@@ -1192,3 +1192,12 @@ One forward-only migration, `20261024000001_batch9_trip_end_payment_disputes.sql
 - **Judgement left to the administrators, not the system:** whether a rating is malicious, whether a flagged pattern is fraud, whether two accounts are one person, whether a document is false, and every closure for good.
 - **Known limits:** a browser cannot report a mock-location tool (the detector sees only what the trail shows); a different person with different documents cannot be linked by the system; the audit log keeps the names written into earlier entries (it is append-only; the DPO decides the period); incident evidence, notifications and the audit log have no retention yet; a Batch 1 renewal approval never replaces the stored image paths, so a renewal queues no old image; `toda_admin_has_affiliation_with_driver()` still lets a rejecting TODA read the driver's rows (not the images); the Express TODA registration route still writes its audit entry with the service role.
 - **Not in this batch:** the end-to-end trace of all four apps (Batch 13).
+
+## 20. Gap-closing round (2026-10-18): decisions taken by the assistant where the policy or the earlier decisions left a choice
+
+Started from the full audit of the repository against the policy (items G1 - G23 in that audit). The owner asked that, wherever a choice was open, the assistant choose the better and more appropriate option and record it here. Each row says what was chosen and why.
+
+| Ref | Item | Decision | Why |
+|---|---|---|---|
+| **G-1** | `supabase/seed.sql` | **The seed only adds; it never deletes.** The `TRUNCATE ... CASCADE` over every data table is removed; each master-data insert skips a row that already exists (`ON CONFLICT DO NOTHING`), and the three audit entries are added once. A clean slate is `supabase db reset`. | The file erased bookings, drivers, passengers and the audit log if run against a database with data, and since the audit log became append-only (Rule 28.4) it no longer ran at all, which broke `db reset` and Supabase preview branches. `batch1/existing-data.js` now proves it can run twice and removes nothing. |
+| **G-6** | Line endings of SQL files | **`.gitattributes` forces LF for `supabase/migrations/*.sql`, `supabase/scripts/*.sql`, `supabase/seed.sql` and `*.sh`.** Other files keep the platform default. | On Windows, `core.autocrlf` checked the migrations out as CRLF, which failed the "LF / pure ASCII" checks of Batches 10 - 12 (the committed files were always clean). SQL is read byte for byte by the migration runner and the hosted SQL editor. |
