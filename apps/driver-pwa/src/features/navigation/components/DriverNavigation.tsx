@@ -64,9 +64,6 @@ export const DriverNavigation: React.FC = () => {
     }),
     [profile.currentLat, profile.currentLng, driverHeading, driverSpeed]
   );
-  // The latest heading and speed, for the broadcast below (the position itself is read from profileRef): the channel is not rebuilt per fix
-  const motionRef = useRef({ heading: driverHeading, speed: driverSpeed });
-  motionRef.current = { heading: driverHeading, speed: driverSpeed };
   // The map: its camera controls, what covers it (so the camera frames what is really visible), and whether the position is still refreshing
   const mapRef = useRef<MapViewHandle>(null);
   const [cameraMode, setCameraMode] = useState<CameraMode>('auto');
@@ -145,35 +142,9 @@ export const DriverNavigation: React.FC = () => {
     };
     notifyEnRoute();
 
-    // Watch real-time GPS position and broadcast to passenger
-    const channel = bookingId ? supabase.channel(`passenger_trip_${bookingId}`) : null;
-
-    // `heading` / `speed` are what the phone reported (null when it did not): the passenger's marker uses them for its arrow, nothing else.
-    const sendPosition = () => {
-      const cur = profileRef.current;
-      if (!channel || !cur.currentLat || !cur.currentLng) return;
-      channel.send({
-        type: 'broadcast',
-        event: 'driver_location',
-        payload: { lat: cur.currentLat, lng: cur.currentLng, at: Date.now(), heading: motionRef.current.heading, speed: motionRef.current.speed },
-      });
-    };
-
-    if (channel) {
-      channel.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') sendPosition();
-      });
-    }
-
-    // Broadcast Driver Location whenever it changes from the central context
-    const broadcastInterval = setInterval(sendPosition, 2000);
-
-    return () => {
-      clearInterval(broadcastInterval);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
+    // The driver's position is NOT sent to the passenger from here any more. It used to go out over a public realtime channel that anyone who knew
+    // the booking id could join (to watch the driver or to send a false position); now the position the phone publishes (driver_heartbeat, every 5 s
+    // while a booking is open, Rule 17.1) is read by the passenger from the database, which only the people on the booking may do.
   }, [bookingId]);
 
   // One request at a time: a second tap while the first is being saved must not write again.

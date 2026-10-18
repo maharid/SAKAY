@@ -141,9 +141,6 @@ export const DriverActiveTrip: React.FC = () => {
     }),
     [safeArea.top, topPanel.height, bottomPanel.height]
   );
-  // The latest position, for the broadcast below: the channel must not be rebuilt on every GPS fix
-  const broadcastRef = useRef({ lat: profile.currentLat, lng: profile.currentLng, heading: driverHeading, speed: driverSpeed });
-  broadcastRef.current = { lat: profile.currentLat, lng: profile.currentLng, heading: driverHeading, speed: driverSpeed };
 
   // Fetch live booking & passenger details
   useEffect(() => {
@@ -311,37 +308,8 @@ export const DriverActiveTrip: React.FC = () => {
     return () => clearInterval(timer);
   }, [tripIsOn, readServerProgress]);
 
-  // Real-time GPS broadcasting during active trip
-  useEffect(() => {
-    const channel = bookingId ? supabase.channel(`passenger_trip_${bookingId}`) : null;
-
-    // The position is read from the ref at the moment of sending: the channel is made once for the booking, not rebuilt on every GPS fix.
-    // `heading` / `speed` are what the phone reported (null when it did not): the passenger's marker uses them for its arrow, nothing else.
-    const sendPosition = () => {
-      const here = broadcastRef.current;
-      if (!channel || !here.lat || !here.lng) return;
-      channel.send({
-        type: 'broadcast',
-        event: 'driver_location',
-        payload: { lat: here.lat, lng: here.lng, at: Date.now(), heading: here.heading, speed: here.speed },
-      });
-    };
-
-    if (channel) {
-      channel.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') sendPosition();
-      });
-    }
-
-    const broadcastInterval = setInterval(sendPosition, 2000);
-
-    return () => {
-      clearInterval(broadcastInterval);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [bookingId]);
+  // (The driver's position is no longer broadcast to the passenger from this screen: it used to go out over a public realtime channel. The passenger reads
+  // the position this phone publishes with driver_heartbeat from the database, which only the people on the booking may do.)
 
   // Moves the booking one step (the database decides whether the step is allowed, and stamps the time). Returns the booking as the database now has it.
   const moveBooking = async (status: string): Promise<{ ok: boolean; actualFare: number | null }> => {
