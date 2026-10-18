@@ -1,6 +1,5 @@
 import { logServerEnv } from './config/env'; // first: loads server/.env from an explicit path before the modules below run
 import { createApp } from './app';
-import { startSlaScheduler } from './services/slaSchedulerService';
 
 logServerEnv();
 
@@ -17,8 +16,8 @@ app.listen(PORT, () => {
   console.log(`   ➜ Health: http://localhost:${PORT}/api/health`);
   console.log(`=============================================`);
 
-  // Start background SLA & credential expiry scheduler daemon
-  startSlaScheduler();
+  // The hourly SLA, expiry and strike duties are scheduled INSIDE the database (pg_cron job 'sakay-policy-sweeps', migration
+  // 20261028000001): a free-plan server sleeps, and a sleeping server runs no timers. POST /api/scheduler/run-sla-checks stays for "run it now".
 });
 
 export default app;
