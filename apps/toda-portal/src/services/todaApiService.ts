@@ -21,7 +21,7 @@ import {
   EvidenceFileItem,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, closeUnfinishedTripArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   decideIncident as decideIncidentReport,
   escalateIncident as escalateIncidentReport,
@@ -1715,6 +1715,15 @@ export async function fetchTodaExemptionRequests(): Promise<DriverExemptionReque
       assignedRole: String(r.assigned_role),
     };
   });
+}
+
+/**
+ * PI-15: a trip the driver left at the destination (Payment Received never tapped) for 30 minutes is closed by the driver's TODA Administrator as Paid or Waived
+ * after both parties were contacted. Null when it was closed (the flag is resolved with it), otherwise the database's sentence.
+ */
+export async function closeUnfinishedTrip(bookingId: string, paymentStatus: 'Paid' | 'Waived', reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_close_unfinished_trip', closeUnfinishedTripArgs(bookingId, paymentStatus, reason));
+  return error ? adminActionMessage(error.message, 'The trip could not be closed.') : null;
 }
 
 /** Rule 25.4: passes an appeal that is with this TODA to the LGU Administrator (a serious consequence, or the TODA cannot decide it fairly). Null when it was passed. */

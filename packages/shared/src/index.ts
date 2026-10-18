@@ -22,6 +22,7 @@ export { StrikesAppealsView } from './components/StrikesAppealsView';
 export type { StrikesAppealsViewProps } from './components/StrikesAppealsView';
 export * from './utils/strikeAppeals';
 export * from './utils/exemptionReview';
+export * from './utils/tripCorrections';
 export type { ReviewFlagsPanelProps, ReviewFlagRow } from './components/ReviewFlagsPanel';
 export type { SafetyEndTripPanelProps, SafetyEndTripOption } from './components/SafetyEndTripPanel';
 export type { IncidentReviewPanelProps } from './components/IncidentReviewPanel';

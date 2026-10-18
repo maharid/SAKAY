@@ -10,14 +10,17 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import { ActiveTripRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
+import { TripCorrectionSection } from './TripCorrectionSection';
 
 interface TripDetailModalProps {
   open: boolean;
   onClose: () => void;
   trip: ActiveTripRecord | null;
+  /** a completed trip was corrected, or a trip left at the destination was closed: the page reloads */
+  onChanged?: () => void | Promise<void>;
 }
 
-export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose, trip }) => {
+export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose, trip, onChanged }) => {
   if (!trip) return null;
 
   return (
@@ -203,6 +206,18 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
           </Box>
         </Box>
       </Box>
+
+      {/* Rule 16.3 / PI-15: the audited correction of a completed trip, and closing a trip the driver never finished */}
+      <TripCorrectionSection
+        bookingId={trip.bookingId}
+        status={trip.status}
+        finalFare={trip.finalFare}
+        paymentStatus={trip.paymentStatus}
+        onChanged={async () => {
+          await onChanged?.();
+          onClose();
+        }}
+      />
     </MacCenterModal>
   );
 };

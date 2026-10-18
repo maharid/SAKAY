@@ -9,6 +9,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useInFlight } from '../hooks/useInFlight';
+import { closeProblem } from '../utils/tripCorrections';
 import { INCIDENT_LOST_ITEM_UNCLAIMED_DAYS, SAFE_REASON_FLAG_COUNT, SAFE_REASON_FLAG_WINDOW_DAYS } from '../config/policyConfig';
 
 /** A review flag as the database holds it (admin_review_flag) */
@@ -31,6 +32,11 @@ export interface ReviewFlagsPanelProps {
   onResolve: (flagId: string, status: 'Resolved' | 'Dismissed', note: string) => Promise<string | null>;
   /** Confirms the strike the flag points at (admin_confirm_flagged_violation); the booking names the event for the flags that list several */
   onConfirm: (flagId: string, bookingId: string | null, reason: string) => Promise<string | null>;
+  /**
+   * PI-15: closes the trip a PAYMENT_STUCK_RECONCILIATION flag names, as Paid (the cash was received) or Waived (no fare), after the parties were contacted
+   * (admin_close_unfinished_trip; it resolves the flag itself). Without it the flag can only be resolved or dismissed.
+   */
+  onCloseTrip?: (bookingId: string, paymentStatus: 'Paid' | 'Waived', reason: string) => Promise<string | null>;
   showWhenEmpty?: boolean;
 }
 
@@ -66,7 +72,7 @@ interface SafeEvent {
  * verifies the event and either closes the flag or, if the reason was misused, confirms the strike (the engine records it under the administrator's name, with the reason).
  * The LGU dashboard lists the same flags for the LGU Administrator.
  */
-export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, showWhenEmpty = false }) => {
+export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, onCloseTrip, showWhenEmpty = false }) => {
   const flight = useInFlight();
   const [openId, setOpenId] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -144,6 +150,16 @@ export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, drive
                     <Button size="small" variant="outlined" disabled={flight.busy || note.trim().length < 10} onClick={() => void run(() => onResolve(f.flag_id, 'Dismissed', note.trim()), 'The flag was dismissed.')} sx={{ textTransform: 'none', fontWeight: 600 }}>
                       Dismiss
                     </Button>
+                    {onCloseTrip && f.flag_type === 'PAYMENT_STUCK_RECONCILIATION' && typeof d.booking_id === 'string' && (
+                      <>
+                        <Button size="small" variant="contained" color="success" disabled={flight.busy || closeProblem('Paid', note) !== null} onClick={() => void run(() => onCloseTrip(String(d.booking_id), 'Paid', note.trim()), 'The trip was closed as Paid.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
+                          Close the trip: Paid
+                        </Button>
+                        <Button size="small" variant="outlined" color="success" disabled={flight.busy || closeProblem('Waived', note) !== null} onClick={() => void run(() => onCloseTrip(String(d.booking_id), 'Waived', note.trim()), 'The trip was closed as Waived.')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                          Close the trip: Waived
+                        </Button>
+                      </>
+                    )}
                     {confirmable && (
                       <Button size="small" variant="contained" color="error" disabled={flight.busy || note.trim().length < 10 || (needsEvent && !eventBooking)} onClick={() => void run(() => onConfirm(f.flag_id, bookingForConfirm, note.trim()), 'The strike was confirmed.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
                         Reason misused: confirm the strike

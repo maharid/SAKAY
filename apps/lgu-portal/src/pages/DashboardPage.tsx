@@ -18,7 +18,8 @@ import { DriverVerificationCard } from '../components/dashboard/DriverVerificati
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
 import { RecentIncidentReportsCard } from '../components/dashboard/RecentIncidentReportsCard';
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
-import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes } from '../services/adminApiService';
+import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes, closeUnfinishedTrip } from '../services/adminApiService';
+import { closeProblem } from '@sakay/shared';
 
 /** The flags a detector raises (Rules 27.1, 27.3 - 27.6): the LGU Administrator confirms them, which records the violation against every account named */
 const INTEGRITY_FLAG_TYPES = ['GPS_SPOOFING_REVIEW', 'RATING_MANIPULATION_REVIEW', 'COLLUSIVE_MATCHING_REVIEW', 'POSSIBLE_REREGISTRATION_REVIEW'];
@@ -206,6 +207,26 @@ export const DashboardPage: React.FC = () => {
       return;
     }
     setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Violation confirmed' } : f)));
+    setFlagDialogOpen(false);
+    setSelectedFlag(null);
+    setFlagResolutionText('');
+    setFlagError(null);
+  };
+
+  // PI-15: a trip left at the destination (Payment Received never tapped) is closed as Paid or Waived after the parties were contacted; this also resolves the flag
+  const handleCloseStuckTrip = async (paymentStatus: 'Paid' | 'Waived') => {
+    if (!selectedFlag) return;
+    const bookingId = selectedFlag.details?.booking_id;
+    if (typeof bookingId !== 'string') {
+      setFlagError('This flag does not name a trip.');
+      return;
+    }
+    const message = await closeUnfinishedTrip(bookingId, paymentStatus, flagResolutionText);
+    if (message) {
+      setFlagError(message);
+      return;
+    }
+    setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: `Trip closed as ${paymentStatus}` } : f)));
     setFlagDialogOpen(false);
     setSelectedFlag(null);
     setFlagResolutionText('');
@@ -782,6 +803,26 @@ export const DashboardPage: React.FC = () => {
             >
               Confirm the violation
             </Button>
+          )}
+          {selectedFlag?.flag_type === 'PAYMENT_STUCK_RECONCILIATION' && (
+            <>
+              <Button
+                onClick={() => handleCloseStuckTrip('Paid')}
+                variant="contained"
+                disabled={closeProblem('Paid', flagResolutionText) !== null}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Close the trip: Paid
+              </Button>
+              <Button
+                onClick={() => handleCloseStuckTrip('Waived')}
+                variant="outlined"
+                disabled={closeProblem('Waived', flagResolutionText) !== null}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Close the trip: Waived
+              </Button>
+            </>
           )}
           {selectedFlag?.flag_type === 'PASSENGER_LOW_RATING_REVIEW' && (
             <Button
