@@ -19,7 +19,7 @@ import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import {
-  SIGNED_URL_TTL, apiFetch, apiPostJson, classifyApplication, formatShortBookingId, signIncidentEvidence, signedStorageUrlFromAny,
+  SIGNED_URL_TTL, apiPostJson, classifyApplication, formatShortBookingId, signIncidentEvidence, signedStorageUrlFromAny,
   barangayDemand, bookingTrend, completionRateOfFinished, driverUtilizationSummary, isCancelledBooking, isCompletedBooking,
   peakHourDistribution, pickupHotspots, serviceUtilization,
 } from '@sakay/shared';
@@ -45,6 +45,15 @@ import {
   type TripEndResult,
 } from '@sakay/shared';
 import type { ApplicationReviewAffiliation, ApplicationReviewDocument, ApplicationStatus, ReviewDocumentType } from '@sakay/shared';
+import {
+  exportAuditLogFile,
+  fetchAuditLogPage,
+  manilaDayStartIso,
+  manilaNextDayStartIso,
+  type AuditLogFilters,
+  type AuditRpc,
+  type XlsxLike,
+} from '@sakay/shared';
 import {
   FareMatrixRecord,
   TodaApplicationRecord,
@@ -452,40 +461,18 @@ export async function approveTodaApplication(
       p_certificate_expiry: defaultCertExpiry,
       p_remarks: remarks || null,
     });
-    if (!rpcErr && rpcRes && rpcRes.success && rpcRes.data) {
+    if (rpcErr) throw new Error(rpcErr.message);
+    if (rpcRes && rpcRes.success === false) throw new Error(String(rpcRes.error || 'The accreditation was not approved.'));
+    if (rpcRes && rpcRes.success && rpcRes.data) {
       updatedData = rpcRes.data;
     }
   } catch (rpcErr) {
     console.warn('[adminApiService] approve RPC warning:', rpcErr);
+    throw rpcErr;
   }
 
-  // 2. Secondary: Backend API endpoint using Supabase Service Role
-  if (!updatedData) {
-    try {
-      const res = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${applicationId}/approve`, {
-        method: 'POST',
-        body: JSON.stringify({ remarks, actor_name: 'City Administrator', acronym, name }),
-      });
-      if (res.ok) {
-        const apiJson = await res.json();
-        if (apiJson.data) updatedData = apiJson.data;
-      }
-    } catch (apiErr) {
-      console.warn('[adminApiService] Server approve API endpoint warning:', apiErr);
-    }
-  }
-
-  // 3. Tertiary: Direct Supabase client update on public.toda
-  if (!updatedData) {
-    try {
-      const { data: d1 } = await supabase
-        .from('toda')
-        .update({ toda_status: 'Active', account_status: 'Active' })
-        .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
-        .select();
-      if (d1 && d1.length > 0) updatedData = d1[0];
-    } catch {}
-  }
+  // The database function is the only way to approve (Batch 12): it checks the caller and writes the audit entry in the same transaction. The old server
+  // route and the direct table update wrote no actor and no before / after state, so they are gone.
 
   // 4. Verification Check: Verify actual database row status
   let isVerifiedInDb = false;
@@ -520,128 +507,31 @@ export async function approveTodaApplication(
       .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`);
   } catch {}
 
-  // Status updated authoritatively in Supabase database
-
-  // Record audit log entry
-  await recordAdminAuditAction({
-    actionType: 'TODA_ACCREDITATION_APPROVED',
-    targetId: applicationId,
-    targetName: updatedData?.toda_name || name || applicationId,
-    details: `Approved municipal accreditation for '${updatedData?.toda_name || name || applicationId}'. ${remarks ? 'Remarks: ' + remarks : ''}`,
-    category: 'Verification',
-  });
+  // Status updated authoritatively in Supabase database; approve_toda_accreditation() wrote the audit entry (actor, before, after) itself.
 
   return { success: true, data: updatedData };
 }
 
 export async function returnTodaApplicationForCorrection(applicationId: string, reason: string) {
-  let updatedData: any = null;
-
-  // 1. Primary: RPC function via Supabase (SECURITY DEFINER)
-  try {
-    const { data: rpcRes, error: rpcErr } = await supabase.rpc('return_toda_accreditation', {
-      p_toda_id: applicationId,
-      p_reason: reason || null,
-    });
-    if (!rpcErr && rpcRes && rpcRes.success && rpcRes.data) {
-      updatedData = rpcRes.data;
-    }
-  } catch (rpcErr) {
-    console.warn('[adminApiService] return RPC warning:', rpcErr);
-  }
-
-  // 2. Secondary: Backend API endpoint
-  if (!updatedData) {
-    try {
-      const res = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${applicationId}/return-correction`, {
-        method: 'POST',
-        body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
-      });
-      if (res.ok) {
-        const apiJson = await res.json();
-        if (apiJson.data) updatedData = apiJson.data;
-      }
-    } catch (apiErr) {
-      console.warn('[adminApiService] Server return-correction API endpoint warning:', apiErr);
-    }
-  }
-
-  // 3. Tertiary: Direct Supabase client update
-  if (!updatedData) {
-    try {
-      const { data: d1 } = await supabase
-        .from('toda')
-        .update({ toda_status: 'Resubmission Required', account_status: 'Resubmission Required' })
-        .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
-        .select();
-      if (d1 && d1.length > 0) updatedData = d1[0];
-    } catch {}
-  }
-
-  await recordAdminAuditAction({
-    actionType: 'TODA_APPLICATION_RETURNED_FOR_CORRECTION',
-    targetId: applicationId,
-    targetName: applicationId,
-    details: `Returned accreditation application for correction. Required Correction: ${reason}`,
-    category: 'Verification',
+  // The database function is the only way (Batch 12): the LGU Administrator is checked inside, and the audit entry (actor, before, after, reason) is written in the
+  // same transaction. The old server route and direct update wrote neither, and a failure used to be swallowed.
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('return_toda_accreditation', {
+    p_toda_id: applicationId,
+    p_reason: reason || null,
   });
-
-  return { success: true, reason, data: updatedData };
+  if (rpcErr) throw new Error(rpcErr.message);
+  if (!rpcRes || rpcRes.success !== true) throw new Error(String(rpcRes?.error || 'The application was not returned.'));
+  return { success: true, reason, data: rpcRes.data };
 }
 
 export async function rejectTodaApplication(applicationId: string, reason: string) {
-  let updatedData: any = null;
-
-  // 1. Primary: RPC function via Supabase (SECURITY DEFINER)
-  try {
-    const { data: rpcRes, error: rpcErr } = await supabase.rpc('deactivate_toda_accreditation', {
-      p_toda_id: applicationId,
-      p_reason: reason || null,
-    });
-    if (!rpcErr && rpcRes && rpcRes.success && rpcRes.data) {
-      updatedData = rpcRes.data;
-    }
-  } catch (rpcErr) {
-    console.warn('[adminApiService] deactivate RPC warning:', rpcErr);
-  }
-
-  // 2. Secondary: Backend API endpoint
-  if (!updatedData) {
-    try {
-      const res = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${applicationId}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({ reason, actor_name: 'City Administrator' }),
-      });
-      if (res.ok) {
-        const apiJson = await res.json();
-        if (apiJson.data) updatedData = apiJson.data;
-      }
-    } catch (apiErr) {
-      console.warn('[adminApiService] Server reject API endpoint warning:', apiErr);
-    }
-  }
-
-  // 3. Tertiary: Direct Supabase client update
-  if (!updatedData) {
-    try {
-      const { data: d1 } = await supabase
-        .from('toda')
-        .update({ toda_status: 'Deactivated', account_status: 'Deactivated' })
-        .or(`toda_id.eq.${applicationId},toda_acronym.ilike.${applicationId}`)
-        .select();
-      if (d1 && d1.length > 0) updatedData = d1[0];
-    } catch {}
-  }
-
-  await recordAdminAuditAction({
-    actionType: 'TODA_APPLICATION_REJECTED',
-    targetId: applicationId,
-    targetName: applicationId,
-    details: `Deactivated/Rejected TODA accreditation application. Reason: ${reason}`,
-    category: 'Verification',
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('deactivate_toda_accreditation', {
+    p_toda_id: applicationId,
+    p_reason: reason || null,
   });
-
-  return { success: true, reason, data: updatedData };
+  if (rpcErr) throw new Error(rpcErr.message);
+  if (!rpcRes || rpcRes.success !== true) throw new Error(String(rpcRes?.error || 'The application was not declined.'));
+  return { success: true, reason, data: rpcRes.data };
 }
 
 export const declineTodaApplication = rejectTodaApplication;
@@ -1191,8 +1081,9 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           verificationStatus,
           accountStatus,
           onlineStatus: d.availability_status === 'Available' || d.availability_status === 'Busy' ? 'Online' : 'Offline',
-          rating: Number(d.weighted_average_rating) || 5.0,
-          ratingCount: 0,
+          // Rule 23.1: 0 = Not Yet Rated (the database holds NULL until the first rating); no default score
+          rating: Number(d.weighted_average_rating) || 0,
+          ratingCount: Number(d.rating_count) || 0,
           phone: d.contact_number || '',
           barangay: d.barangay_service_area || todaInfo?.barangay || 'Calapan City',
           rejectionReason: verif?.rejection_reason || d.rejection_reason || undefined,
@@ -1516,8 +1407,8 @@ export async function fetchTodaDrivers(todaId: string): Promise<DriverRecord[]> 
         verificationStatus: aff.lgu_verification_status === 'Approved' ? 'Verified' : 'Pending',
         accountStatus: d.account_status === 'Suspended' || d.account_status === 'Deactivated' ? 'Inactive' : 'Active',
         onlineStatus: d.availability_status === 'Available' || d.availability_status === 'Busy' ? 'Online' : 'Offline',
-        rating: Number(d.weighted_average_rating) || 5.0,
-        ratingCount: 0,
+        rating: Number(d.weighted_average_rating) || 0,
+        ratingCount: Number(d.rating_count) || 0,
         phone: d.contact_number,
         barangay: aff.barangay_service_area || d.barangay_service_area || d.toda?.barangay || 'Calapan City',
         strikesCount: d.strikes_count ?? 0,
@@ -1685,7 +1576,7 @@ export async function fetchPassengers(filters?: { status?: string }): Promise<Pa
     // What each passenger has really done and been rated: their bookings, and the stars drivers gave them after a trip.
     const [bookingRows, ratingRows] = await Promise.all([
       fetchAllRows('booking', 'passenger_id'),
-      fetchAllRows('rating', 'booking_id, ratee_id, stars, tags, comment, created_at', (q) => q.eq('rater_role', 'Driver').order('created_at', { ascending: false })),
+      fetchAllRows('rating', 'rating_id, booking_id, ratee_id, stars, tags, comment, created_at, is_excluded', (q) => q.eq('rater_role', 'Driver').order('created_at', { ascending: false })),
     ]);
     const bookingCount = new Map<string, number>();
     for (const b of bookingRows) {
@@ -1698,7 +1589,8 @@ export async function fetchPassengers(filters?: { status?: string }): Promise<Pa
 
     return data.map((p: any) => {
       const given = ratingsOf.get(p.passenger_id) ?? [];
-      const average = given.length > 0 ? Math.round((given.reduce((sum, r) => sum + (Number(r.stars) || 0), 0) / given.length) * 10) / 10 : 0;
+      // Rule 23.1: the Average Rating is the database's (sum / n of the ratings of Completed trips that were not excluded); NULL = Not Yet Rated
+      const average = p.average_rating == null ? 0 : Number(p.average_rating);
       return {
       id: p.passenger_id,
       name: p.full_name,
@@ -1716,10 +1608,12 @@ export async function fetchPassengers(filters?: { status?: string }): Promise<Pa
       registeredDate: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US') : '2026',
       // A passenger no driver has rated yet is "Not Yet Rated" (rating 0, count 0), not a made-up 5.0
       rating: average,
-      ratingCount: given.length,
+      ratingCount: Number(p.rating_count) || 0,
       strikesCount: p.strikes_count || 0,
       strikeHistory: [],
       recentFeedback: given.slice(0, 5).map((r: any) => ({
+        ratingId: r.rating_id,
+        excluded: Boolean(r.is_excluded),
         rating: Number(r.stars) || 0,
         category: Array.isArray(r.tags) && r.tags.length > 0 ? String(r.tags[0]) : 'General',
         comment: r.comment || 'No written feedback.',
@@ -1958,49 +1852,49 @@ export async function deleteAnnouncement(announcementId: string) {
 // 7. AUDIT LOGGING SERVICES
 // ============================================================================
 
-export async function fetchAuditLogs(): Promise<AuditLogRecord[]> {
+const auditRpc: AuditRpc = (fn, args) => supabase.rpc(fn, args);
+
+/** What the audit screen filters on, on the server: a day range in Asia/Manila and a search text */
+export interface AuditQuery {
+  fromDay?: string;
+  toDay?: string;
+  search?: string;
+}
+
+const auditFilters = (q: AuditQuery = {}): AuditLogFilters => ({
+  from: q.fromDay ? manilaDayStartIso(q.fromDay) : null,
+  to: q.toDay ? manilaNextDayStartIso(q.toDay) : null,
+  search: q.search || null,
+});
+
+function auditCategoryOf(action: string): AuditLogRecord['category'] {
+  if (action.includes('FARE')) return 'Fare Matrix';
+  if (action.includes('ANNOUNCEMENT')) return 'Announcement';
+  if (action.startsWith('ACCOUNT_') || action.startsWith('STRIKE_') || action.startsWith('EXEMPTION_') || action.startsWith('RATING_') || action.includes('PASSENGER')
+      || action.startsWith('INTEGRITY_') || action.startsWith('VICTIM_')) return 'User Oversight';
+  if (action.includes('TODA') || action.includes('DRIVER')) return 'Verification';
+  return 'System';
+}
+
+/** The latest entries (Rule 28.4): the actor's name, role and the time come from the database, never from the browser. The log is append-only. */
+export async function fetchAuditLogs(query: AuditQuery = {}): Promise<AuditLogRecord[]> {
   try {
-    const { data, error } = await supabase
-      .from('audit_log')
-      .select('*')
-      .order('performed_at', { ascending: false })
-      .limit(100);
-
-    if (error || !data) return [];
-
-    return data.map((log: any) => ({
+    const page = await fetchAuditLogPage(auditRpc, auditFilters(query), 500, 0);
+    return page.rows.map((log) => ({
       id: log.log_id,
       log_id: log.log_id,
-      timestamp: log.performed_at
-        ? new Date(log.performed_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : 'Recent',
-      lgu_admin_id: log.lgu_admin_id || 'LGU-ADMIN',
-      actor_name: 'LGU Transport Administrator',
-      actor_role: 'Administrator',
-      actorId: log.lgu_admin_id || log.toda_admin_id || 'LGU-ADMIN',
-      actorName: 'LGU Transport Administrator',
+      timestamp: log.performed_at_manila + ' (Asia/Manila)',
+      lgu_admin_id: log.actor_id || '',
+      actor_name: log.actor_name,
+      actor_role: log.actor_role || '',
       action_type: log.action_type,
-      actionType: log.action_type,
-      target_id: log.target_id || 'N/A',
-      target_name: log.target_id || 'Entity',
-      target_type: 'Entity',
-      targetId: log.target_id || 'N/A',
-      targetName: log.target_id || 'Entity',
+      target_id: log.target_id || '',
+      target_name: log.target_name || log.target_id || '',
       details: log.details || '',
-      performed_at: log.performed_at || new Date().toISOString(),
-      category: log.action_type.includes('FARE')
-        ? 'Fare Matrix'
-        : log.action_type.includes('TODA') || log.action_type.includes('DRIVER')
-        ? 'Verification'
-        : log.action_type.includes('PASSENGER')
-        ? 'User Oversight'
-        : 'System',
+      performed_at: log.performed_at,
+      before_state: log.before_state,
+      after_state: log.after_state,
+      category: auditCategoryOf(log.action_type),
     }));
   } catch (err) {
     console.error('[adminApiService] fetchAuditLogs error:', err);
@@ -2008,7 +1902,23 @@ export async function fetchAuditLogs(): Promise<AuditLogRecord[]> {
   }
 }
 
+/** Exports every entry the filters match (up to the cap) as Excel, CSV or a PDF (the browser's print dialog: "Save as PDF"); the export is written to the audit log first. */
+export async function exportAuditLog(format: 'xlsx' | 'csv' | 'pdf', query: AuditQuery, generatedBy: string): Promise<{ count: number; truncated: boolean }> {
+  return exportAuditLogFile({
+    rpc: auditRpc,
+    format,
+    filters: auditFilters(query),
+    generatedBy,
+    title: 'SAKAY - Audit Log (LGU Administrator)',
+    loadXlsx: async () => (await import('xlsx')) as unknown as XlsxLike,
+  });
+}
 
+/**
+ * A free-text note from a screen (an announcement, a reminder, an export of a report). The database stamps WHO (the signed-in administrator) and WHEN (the server's
+ * clock); the browser's own time and name are not sent. Decisions on an account, application, TODA, fare, strike or trip outcome are NOT written here: the database
+ * function that makes the decision writes its own entry in the same transaction.
+ */
 export async function recordAdminAuditAction(action: {
   actionType: string;
   targetId?: string;
@@ -2022,13 +1932,60 @@ export async function recordAdminAuditAction(action: {
       {
         action_type: action.actionType,
         target_id: action.targetId || null,
-        details: `[${action.category || 'General'}] ${action.actorName || 'LGU Admin'}: ${action.details}`,
-        performed_at: new Date().toISOString(),
+        target_name: action.targetName || null,
+        category: action.category || 'General',
+        details: action.details,
       },
     ]);
   } catch (err) {
     console.warn('[adminApiService] recordAdminAuditAction error:', err);
   }
+}
+
+// ----------------------------------------------------------------------------
+// Ratings, integrity flags and legal holds (Batch 12; Rules 23.4, 23.5, 27.1 - 27.6, 28.3)
+// ----------------------------------------------------------------------------
+/** Rule 23.5: exclude (or count again) one rating; the reason is kept in the audit entry */
+export async function excludeRating(ratingId: string, exclude: boolean, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_exclude_rating', { p_rating_id: ratingId, p_exclude: exclude, p_reason: reason });
+  return error ? adminActionMessage(error.message, 'The rating could not be changed.') : null;
+}
+
+/** Rules 27.1, 27.3 - 27.6: confirm what a detector flag points at (the strikes, the exclusion of the ratings) */
+export async function confirmIntegrityFlag(flagId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_confirm_integrity_flag', { p_flag_id: flagId, p_reason: reason });
+  return error ? adminActionMessage(error.message, 'The violation could not be confirmed.') : null;
+}
+
+/** Rule 23.4: the warning to a passenger whose average stayed under 3.00 after 20 trips */
+export async function sendConductWarning(flagId: string, message: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_send_conduct_warning', { p_flag_id: flagId, p_message: message });
+  return error ? adminActionMessage(error.message, 'The warning could not be sent.') : null;
+}
+
+export interface LegalHoldRecord {
+  hold_id: string;
+  subject_type: 'booking' | 'driver' | 'passenger';
+  subject_id: string;
+  case_ref: string | null;
+  reason: string;
+  placed_at: string;
+  released_at: string | null;
+}
+
+/** Rule 28.3: the holds the LGU Administrator placed (records tied to an investigation are kept until the case is closed) */
+export async function fetchLegalHolds(): Promise<LegalHoldRecord[]> {
+  const { data, error } = await supabase.from('legal_hold').select('hold_id, subject_type, subject_id, case_ref, reason, placed_at, released_at').order('placed_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as LegalHoldRecord[];
+}
+export async function placeLegalHold(subjectType: LegalHoldRecord['subject_type'], subjectId: string, caseRef: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('place_legal_hold', { p_subject_type: subjectType, p_subject_id: subjectId, p_case_ref: caseRef, p_reason: reason });
+  return error ? adminActionMessage(error.message, 'The hold could not be placed.') : null;
+}
+export async function releaseLegalHold(holdId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('release_legal_hold', { p_hold_id: holdId, p_reason: reason });
+  return error ? adminActionMessage(error.message, 'The hold could not be released.') : null;
 }
 
 // ============================================================================
@@ -2171,6 +2128,8 @@ export interface PassengerFeedbackItem {
   category: 'Cleanliness' | 'Courtesy' | 'Safe Driving' | 'Fair Pricing' | 'General';
   createdAt: string;
   isComplaint: boolean;
+  /** Rule 23.5: the LGU Administrator excluded this rating from the Average Rating */
+  isExcluded: boolean;
 }
 
 export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]> {
@@ -2182,7 +2141,7 @@ export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]>
 
     if (!error && data && data.length > 0) {
       return data.map((r: any) => {
-        const ratingVal = Number(r.stars) || Number(r.rating_value) || 5;
+        const ratingVal = Number(r.stars) || Number(r.rating_value) || 0;
         return {
           id: r.rating_id,
           ratingId: r.rating_id,
@@ -2194,6 +2153,7 @@ export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]>
           category: ratingVal >= 4 ? 'Safe Driving' : 'General',
           createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
           isComplaint: ratingVal <= 2,
+          isExcluded: Boolean(r.is_excluded),
         };
       });
     }
@@ -2223,7 +2183,7 @@ export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]>
 
     return rawRatings.map((r: any) => {
       const d: any = driverMap.get(r.ratee_id);
-      const stars = Number(r.stars) || 5;
+      const stars = Number(r.stars) || 0;
       return {
         id: r.rating_id,
         ratingId: r.rating_id,
@@ -2235,6 +2195,7 @@ export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]>
         category: stars >= 4 ? 'Safe Driving' : 'General',
         createdAt: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
         isComplaint: stars <= 2,
+        isExcluded: Boolean(r.is_excluded),
       };
     });
   } catch (err) {

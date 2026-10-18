@@ -238,9 +238,6 @@ export const DriverConfirmMtopInfo: React.FC = () => {
     !isFieldEmpty(formData.operatorName) &&
     !isFieldEmpty(formData.franchiseNumber) &&
     !isFieldEmpty(formData.plateNumber) &&
-    !isFieldEmpty(formData.chassisNumber) &&
-    !isFieldEmpty(formData.vehicleMake) &&
-    !isFieldEmpty(formData.motorNumber) &&
     !isFieldEmpty(formData.expirationDate) &&
     isLicenseUnexpired(formData.expirationDate) &&
     !isFieldEmpty(formData.authorizedRoute)
@@ -505,44 +502,13 @@ export const DriverConfirmMtopInfo: React.FC = () => {
             </Box>
           </Box>
 
-          {/* ROW 3: CHASSIS NUMBER (Full Width) */}
+          {/* The chassis number, motor number and make are no longer asked for (Batch 12, Rule 28.1: only the fields the verification needs) */}
           <SakayMtopInput
-            label="Chassis number"
-            value={formData.chassisNumber}
-            onChange={(val) => handleFieldChange('chassisNumber', val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18))}
-            error={hasAttemptedSubmit && isFieldEmpty(formData.chassisNumber)}
-            helperText={hasAttemptedSubmit && isFieldEmpty(formData.chassisNumber) ? (isTagalog ? 'Kinakailangan ang impormasyong ito.' : 'This information is required.') : ''}
+            label="Year model"
+            value={formData.yearModel || ''}
+            onChange={(val) => handleFieldChange('yearModel', val.replace(/\D/g, '').slice(0, 4))}
+            placeholder="YYYY"
           />
-
-          {/* ROW 4: MOTOR NUMBER (Full Width) */}
-          <SakayMtopInput
-            label="Motor number"
-            value={formData.motorNumber}
-            onChange={(val) => handleFieldChange('motorNumber', val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18))}
-            error={hasAttemptedSubmit && isFieldEmpty(formData.motorNumber)}
-            helperText={hasAttemptedSubmit && isFieldEmpty(formData.motorNumber) ? (isTagalog ? 'Kinakailangan ang impormasyong ito.' : 'This information is required.') : ''}
-          />
-
-          {/* ROW 5: VEHICLE MAKE (50%) + YEAR MODEL (50%) */}
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
-              <SakayMtopInput
-                label="Vehicle make"
-                value={formData.vehicleMake}
-                onChange={(val) => handleFieldChange('vehicleMake', val)}
-                error={hasAttemptedSubmit && isFieldEmpty(formData.vehicleMake)}
-                helperText={hasAttemptedSubmit && isFieldEmpty(formData.vehicleMake) ? (isTagalog ? 'Kinakailangan ang impormasyong ito.' : 'This information is required.') : ''}
-              />
-            </Box>
-            <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
-              <SakayMtopInput
-                label="Year model"
-                value={formData.yearModel || ''}
-                onChange={(val) => handleFieldChange('yearModel', val.replace(/\D/g, '').slice(0, 4))}
-                placeholder="YYYY"
-              />
-            </Box>
-          </Box>
 
 
           {/* ROW 7: AUTHORIZED ROUTE / ZONE OF OPERATION (Full Width) */}

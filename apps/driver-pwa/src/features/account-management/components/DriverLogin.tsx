@@ -171,7 +171,7 @@ export const DriverLogin: React.FC = () => {
       const plateNumber = driverData.plate_number || verif?.submitted_plate_number || verif?.ocr_plate_number || '';
       const licenseNumber = driverData.license_number || verif?.submitted_license_number || verif?.ocr_license_number || '';
       const franchiseNumber = driverData.franchise_number || verif?.submitted_franchise_number || verif?.ocr_franchise_number || '';
-      const rating = Number(driverData.weighted_average_rating) || 5.0;
+      const rating = Number(driverData.weighted_average_rating) || 0;   // 0 = Not Yet Rated (Rule 23.1)
 
       localStorage.setItem(
         'sakay_driver_profile',

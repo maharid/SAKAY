@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar, Rating, Chip } from '@mui/material';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar, Rating, Chip, Button } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import StarIcon from '@mui/icons-material/Star';
 import FlashOnIcon from '@mui/icons-material/FlashOn';
@@ -21,6 +21,7 @@ import {
   suspendPassenger,
   reactivatePassenger,
   issuePassengerStrike,
+  excludeRating,
 } from '../services/adminApiService';
 
 /**
@@ -47,6 +48,8 @@ export const PassengerManagementPage: React.FC = () => {
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
   const [strikeDialogOpen, setStrikeDialogOpen] = useState(false);
+  // Rule 23.5: the LGU Administrator excludes (or counts again) one rating a driver gave this passenger
+  const [excludeTarget, setExcludeTarget] = useState<{ ratingId: string; excluded: boolean } | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   // Authoritative strike ledger + violation catalog for the open passenger
@@ -163,6 +166,19 @@ export const PassengerManagementPage: React.FC = () => {
     } catch (err) {
       setToast({ message: `Could not record the violation: ${(err as Error).message}`, severity: 'error' });
     }
+  };
+
+  const handleExcludeConfirm = async (reason?: string) => {
+    const target = excludeTarget;
+    setExcludeTarget(null);
+    if (!target || !selectedPassenger) return;
+    const problem = await excludeRating(target.ratingId, !target.excluded, reason || '');
+    if (problem) {
+      setToast({ message: problem, severity: 'error' });
+      return;
+    }
+    setToast({ message: target.excluded ? 'The rating counts again.' : 'The rating was excluded from the Average Rating. The reason was recorded in the audit log.', severity: 'success' });
+    await refreshSelectedPassenger(selectedPassenger.id);
   };
 
   /** Re-reads the passenger list and the open ledger so every number comes from the database. */
@@ -511,6 +527,14 @@ export const PassengerManagementPage: React.FC = () => {
                     <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-primary)', lineHeight: 1.4 }}>
                       "{fb.comment}"
                     </Typography>
+                    {fb.excluded && (
+                      <Typography sx={{ fontSize: '10.4px', fontWeight: 700, color: '#92400E', mt: 0.5 }}>Excluded from the Average Rating (Rule 23.5)</Typography>
+                    )}
+                    {fb.ratingId && (
+                      <Button size="small" variant="outlined" onClick={() => setExcludeTarget({ ratingId: fb.ratingId as string, excluded: Boolean(fb.excluded) })} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '10px', mt: 0.5 }}>
+                        {fb.excluded ? 'Count again' : 'Exclude rating'}
+                      </Button>
+                    )}
                     <Typography sx={{ fontSize: '11.2px', color: 'var(--mac-text-muted)', mt: 1 }}>
                       Trip Ref: {fb.tripId}
                     </Typography>
@@ -574,6 +598,21 @@ export const PassengerManagementPage: React.FC = () => {
           onConfirm={handleIssueStrike}
         />
       )}
+
+      <MacConfirmDialog
+        open={Boolean(excludeTarget)}
+        onClose={() => setExcludeTarget(null)}
+        title={excludeTarget?.excluded ? 'Count this rating again' : 'Exclude this rating'}
+        message={excludeTarget?.excluded
+          ? 'The rating will count in the Average Rating again.'
+          : 'Only a rating that was submitted maliciously or in retaliation, found so after an investigation, is excluded (Rule 23.5). It leaves both the total and the count of the Average Rating.'}
+        confirmLabel={excludeTarget?.excluded ? 'Count again' : 'Exclude rating'}
+        confirmVariant="danger"
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder="What the investigation found (at least 10 characters)"
+        onConfirm={(reason) => void handleExcludeConfirm(reason)}
+      />
 
       <SakayToast
         open={Boolean(toast)}

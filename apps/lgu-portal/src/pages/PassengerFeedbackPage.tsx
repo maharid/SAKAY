@@ -15,6 +15,7 @@ import {
   Chip,
   CircularProgress,
   Button,
+  Alert,
 } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import FeedbackIcon from '@mui/icons-material/Feedback';
@@ -23,7 +24,8 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchPassengerFeedback, PassengerFeedbackItem } from '../services/adminApiService';
+import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { fetchPassengerFeedback, excludeRating, PassengerFeedbackItem } from '../services/adminApiService';
 
 /**
  * ============================================================================
@@ -42,6 +44,9 @@ export const PassengerFeedbackPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  // Rule 23.5: the LGU Administrator excludes a malicious or retaliatory rating from the Average Rating, with a reason (kept in the audit log)
+  const [excludeTarget, setExcludeTarget] = useState<PassengerFeedbackItem | null>(null);
+  const [actionNote, setActionNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   const loadFeedback = async () => {
     setIsLoading(true);
@@ -78,13 +83,21 @@ export const PassengerFeedbackPage: React.FC = () => {
     return matchesSearch && matchesRating && matchesCategory;
   });
 
-  const totalReviews = feedbackList.length;
-  const avgRating =
-    totalReviews > 0
-      ? (feedbackList.reduce((sum, f) => sum + f.ratingValue, 0) / totalReviews).toFixed(1)
-      : '5.0';
-  const complaintsCount = feedbackList.filter((f) => f.ratingValue <= 2 || f.isComplaint).length;
-  const fiveStarCount = feedbackList.filter((f) => f.ratingValue === 5).length;
+  // Rule 23.1: the mean of the ratings that count (excluded ones leave the sum and the count); no ratings = Not Yet Rated, never a default score
+  const counted = feedbackList.filter((f) => !f.isExcluded);
+  const totalReviews = counted.length;
+  const avgRating = totalReviews > 0 ? (counted.reduce((sum, f) => sum + f.ratingValue, 0) / totalReviews).toFixed(1) : null;
+  const complaintsCount = counted.filter((f) => f.ratingValue <= 2 || f.isComplaint).length;
+  const fiveStarCount = counted.filter((f) => f.ratingValue === 5).length;
+
+  const confirmExclude = async (reason?: string) => {
+    const target = excludeTarget;
+    setExcludeTarget(null);
+    if (!target) return;
+    const problem = await excludeRating(target.ratingId, !target.isExcluded, reason || '');
+    setActionNote(problem ? { severity: 'error', text: problem } : { severity: 'success', text: target.isExcluded ? 'The rating counts again.' : 'The rating was excluded from the Average Rating. The reason was recorded in the audit log.' });
+    if (!problem) await loadFeedback();
+  };
 
   const ratingOptions: FilterOption[] = [
     { label: 'All Ratings', value: 'All' },
@@ -123,7 +136,7 @@ export const PassengerFeedbackPage: React.FC = () => {
               <StarIcon sx={{ color: '#FBBC04', fontSize: '17.6' }} />
             </Box>
             <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
-              ⭐ {avgRating} / 5.0
+              {avgRating === null ? 'Not Yet Rated' : `⭐ ${avgRating} / 5.0`}
             </Typography>
             <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
               From {totalReviews} passenger evaluations
@@ -211,6 +224,8 @@ export const PassengerFeedbackPage: React.FC = () => {
         }}
       />
 
+      {actionNote && <Alert severity={actionNote.severity} onClose={() => setActionNote(null)} sx={{ mb: 2 }}>{actionNote.text}</Alert>}
+
       {/* 3. Feedback Data Table */}
       <TableContainer
         component={Paper}
@@ -238,12 +253,15 @@ export const PassengerFeedbackPage: React.FC = () => {
               <TableCell sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
                 PASSENGER FEEDBACK COMMENT
               </TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+                RULE 23.5
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
                   <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
                   <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>
                     Loading passenger feedback...
@@ -299,12 +317,22 @@ export const PassengerFeedbackPage: React.FC = () => {
                         ⚠️ Flagged for Triage Officer Attention
                       </Typography>
                     )}
+                    {item.isExcluded && (
+                      <Typography sx={{ fontSize: '9.3px', color: '#92400E', fontWeight: 700, mt: '4px' }}>
+                        Excluded from the Average Rating (Rule 23.5)
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                    <Button size="small" variant="outlined" onClick={() => setExcludeTarget(item)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '10px' }}>
+                      {item.isExcluded ? 'Count again' : 'Exclude'}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableEmptyState
-                colSpan={4}
+                colSpan={5}
                 icon={<FeedbackIcon />}
                 title="No passenger feedback records found"
                 description={
@@ -319,6 +347,21 @@ export const PassengerFeedbackPage: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <MacConfirmDialog
+        open={Boolean(excludeTarget)}
+        onClose={() => setExcludeTarget(null)}
+        title={excludeTarget?.isExcluded ? 'Count this rating again' : 'Exclude this rating'}
+        message={excludeTarget?.isExcluded
+          ? 'The rating will count in the Average Rating again.'
+          : 'Only a rating that was submitted maliciously or in retaliation, found so after an investigation, is excluded (Rule 23.5). It leaves both the total and the count of the Average Rating.'}
+        confirmLabel={excludeTarget?.isExcluded ? 'Count again' : 'Exclude rating'}
+        confirmVariant="danger"
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder="What the investigation found (at least 10 characters)"
+        onConfirm={(reason) => void confirmExclude(reason)}
+      />
     </Box>
   );
 };

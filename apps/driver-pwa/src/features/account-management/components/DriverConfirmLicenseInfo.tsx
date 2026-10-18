@@ -476,14 +476,12 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
   const isExpValid = !formData.expirationDate || isLicenseUnexpired(formData.expirationDate);
   const isLicNoValid = !formData.licenseNumber || isLicenseNumberValid(formData.licenseNumber);
   const isNameValid = Boolean((formData.firstName?.trim() || formData.fullName?.trim()) && formData.lastName?.trim());
-  const isAddressValid = Boolean(formData.address?.trim() && formData.address.trim().length >= 4);
 
   const isFormValid = Boolean(
     isNameValid &&
     formData.dob?.trim() &&
     isDriverAgeValid(formData.dob) &&
     formData.gender?.trim() &&
-    isAddressValid &&
     formData.licenseNumber?.trim() &&
     isLicenseNumberValid(formData.licenseNumber) &&
     formData.dlCodes?.trim() &&
@@ -820,16 +818,7 @@ export const DriverConfirmLicenseInfo: React.FC = () => {
             </Box>
           </Box>
 
-          {/* 5. Tirahan (100%) */}
-          <SakayFormInput
-            label={isTagalog ? "Tirahan" : "Address"}
-            value={formData.address}
-            onChange={(val) => handleFieldChange('address', val)}
-            multiline
-            rows={2}
-            error={Boolean(formData.address && !isAddressValid)}
-            helperText={formData.address && !isAddressValid ? (isTagalog ? 'Mangyaring ilagay ang kumpletong tirahan.' : 'Please enter complete residential address.') : undefined}
-          />
+          {/* The residential address is no longer asked for (Batch 12, Rule 28.1: only the fields the verification needs) */}
 
           {/* 6. Numero ng Lisensya (100%) */}
           <SakayFormInput

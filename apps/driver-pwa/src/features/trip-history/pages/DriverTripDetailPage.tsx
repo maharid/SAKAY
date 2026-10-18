@@ -372,9 +372,9 @@ export const DriverTripDetailPage: React.FC = () => {
             {passengerRatingReceived ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Rating value={passengerRatingReceived.stars || 5} readOnly size="small" sx={{ color: "#FF6600" }} />
+                  <Rating value={Number(passengerRatingReceived.stars) || 0} readOnly size="small" sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
-                    {(passengerRatingReceived.stars || 5).toFixed(1)} / 5.0
+                    {(Number(passengerRatingReceived.stars) || 0).toFixed(1)} / 5.0
                   </Typography>
                 </Box>
                 {passengerRatingReceived.tags && passengerRatingReceived.tags.length > 0 && (
@@ -408,9 +408,9 @@ export const DriverTripDetailPage: React.FC = () => {
             {driverRatingGiven ? (
               <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 0.75 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Rating value={driverRatingGiven.stars || driverRatingGiven.rating || 5} readOnly size="small" sx={{ color: "#FF6600" }} />
+                  <Rating value={Number(driverRatingGiven.stars) || 0} readOnly size="small" sx={{ color: "#FF6600" }} />
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
-                    {(driverRatingGiven.stars || driverRatingGiven.rating || 5).toFixed(1)} / 5.0
+                    {(Number(driverRatingGiven.stars) || 0).toFixed(1)} / 5.0
                   </Typography>
                 </Box>
                 {driverRatingGiven.tags && driverRatingGiven.tags.length > 0 && (

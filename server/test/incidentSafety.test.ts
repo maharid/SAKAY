@@ -76,7 +76,15 @@ describe('the categories each party is offered (decisions PI-11A, PI-11K)', () =
   it('Rule 16.5: only the emergency and serious categories may name a trip in progress; a lost item and a rude driver wait for the trip to end', () => {
     assert.ok(isEmergencyIncident('Accident') && isEmergencyIncident('Medical Emergency') && isEmergencyIncident('Threat') && isEmergencyIncident('Physical Assault'));
     assert.ok(!isEmergencyIncident('Rude Behavior') && !isEmergencyIncident('Lost Item') && !isEmergencyIncident('Others') && !isEmergencyIncident('Not a category'));
-    assert.equal(EMERGENCY_INCIDENT_CATEGORIES.length, 8);
+    assert.equal(EMERGENCY_INCIDENT_CATEGORIES.length, 9, 'the eight of Batch 11 and Unregistered Person Driving (Rule 27.2, Batch 12)');
+  });
+  it('Rule 27.2 (Batch 12): "Unregistered Person Driving" is a serious category only a passenger can file, goes straight to the LGU and may carry DRV_SUBSTITUTE_DRIVER', () => {
+    assert.equal(incidentCategoryClass('Unregistered Person Driving'), 'SERIOUS');
+    assert.ok(incidentCategoriesFor('Passenger').some((c) => c.value === 'Unregistered Person Driving') && !incidentCategoriesFor('Driver').some((c) => c.value === 'Unregistered Person Driving'));
+    assert.equal(incidentRoutingOf('Unregistered Person Driving'), 'LGU');
+    assert.ok(isEmergencyIncident('Unregistered Person Driving'));
+    assert.deepEqual(incidentStrikeOptions('Unregistered Person Driving', 'Passenger').map((o) => o.code), ['DRV_SUBSTITUTE_DRIVER']);
+    assert.deepEqual(incidentStrikeOptions('Unregistered Person Driving', 'Driver'), []);
   });
   it('Rules 19.3, 19.8: the sentence on the screen sends the serious ones to the LGU and the rest to the TODA', () => {
     assert.equal(incidentRoutingOf('Threat'), 'LGU');

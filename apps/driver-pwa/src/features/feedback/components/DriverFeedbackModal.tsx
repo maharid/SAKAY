@@ -48,7 +48,8 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
   const bookingId = booking?.booking_id || booking?.id || '';
   const passengerName = booking?.passenger_name || booking?.passengerName || 'Passenger';
 
-  const [stars, setStars] = useState<number | null>(5);
+  // Rule 23.1: no pre-selected score - the driver chooses the stars (a default 5 would count as a rating that nobody gave)
+  const [stars, setStars] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -92,7 +93,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
       const found = list.find((r: any) => r.bookingId === bookingId);
       if (found) {
         setAlreadyRated(true);
-        setStars(found.stars || 5);
+        setStars(found.stars || null);
         setSelectedTags(found.tags || []);
         setComment(found.comment || '');
         return;
@@ -134,7 +135,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (alreadyRated) return;
+    if (alreadyRated || !stars) return;
     setSubmitting(true);
 
     // Real ids only: with either one missing the rating is kept on the device but nothing is sent to the database.
@@ -144,7 +145,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
     const record = {
       bookingId,
       passengerName,
-      stars: stars || 5,
+      stars,
       tags: selectedTags,
       comment: comment.trim(),
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
@@ -160,10 +161,10 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
               rater_id: activeDriverId,
               ratee_id: activePassengerId,
               rater_role: 'Driver',
-              stars: stars || 5,
+              stars,
               tags: selectedTags,
               comment: comment.trim(),
-              created_at: new Date().toISOString(),
+              // the time is the server's (a rating's time is stamped by the database)
             },
           ],
           { onConflict: 'booking_id,rater_role', ignoreDuplicates: true }
@@ -326,7 +327,7 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
             <Button
               fullWidth
               variant="contained"
-              disabled={submitting}
+              disabled={submitting || !stars}
               onClick={handleSubmit}
               sx={{
                 borderRadius: '14px',

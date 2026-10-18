@@ -415,7 +415,6 @@ export const DriverConfirmAllInfo: React.FC = () => {
               <ReviewFieldRow label="Suffix" value={suffix?.trim() ? suffix : 'N/A'} />
               <ReviewFieldRow label={isTagalog ? "Petsa ng kapanganakan" : "Date of birth"} value={licenseData.dob} />
               <ReviewFieldRow label={isTagalog ? "Kasarian" : "Gender"} value={licenseData.gender} />
-              <ReviewFieldRow label={isTagalog ? "Tirahan" : "Address"} value={licenseData.address} />
               <ReviewFieldRow label={isTagalog ? "Mga kinababilangang TODA" : "Affiliated TODA(S)"} value={todaName} />
               <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
             </Box>
@@ -506,9 +505,6 @@ export const DriverConfirmAllInfo: React.FC = () => {
             <ReviewFieldRow label={isTagalog ? "Rehistradong may-ari / operator" : "Registered owner / operator"} value={mtopData.operatorName} />
             <ReviewFieldRow label={isTagalog ? "Prangkisa" : "Franchise no."} value={mtopData.franchiseNumber} />
             <ReviewFieldRow label="Plate number" value={mtopData.plateNumber} />
-            <ReviewFieldRow label="Chassis number" value={mtopData.chassisNumber} />
-            <ReviewFieldRow label="Motor number" value={mtopData.motorNumber} />
-            <ReviewFieldRow label="Vehicle make" value={mtopData.vehicleMake} />
             <ReviewFieldRow label="Year model" value={mtopData.yearModel || 'N/A'} />
             <ReviewFieldRow label={isTagalog ? "Awtorisadong ruta / zona" : "Authorized route / zone"} value={mtopData.authorizedRoute} />
             <ReviewFieldRow label={isTagalog ? "Petsa ng pagkapaso (expiration)" : "Expiration date"} value={mtopData.expirationDate} />

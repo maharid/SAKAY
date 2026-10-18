@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { executeSlaCascadeRun } from '../services/slaSchedulerService';
 import { createSchedulerGuard } from '../middleware/schedulerSecret';
+import { purgeIdentityImages } from '../services/retentionService';
 
 const router = express.Router();
 
@@ -66,7 +67,7 @@ router.post('/run-sla-checks', enforceSchedulerSecret, async (req: Request, res:
       await supabase.from('audit_log').insert({
         action_type: 'SCHEDULED_SLA_CASCADE_EXECUTED',
         target_id: 'SYSTEM_SCHEDULER',
-        actor_role: 'system_scheduler',
+        actor_role: 'system',   // one name for every system-originated entry (record_policy_audit uses the same)
         details: `Automated SLA & Expiry cascade completed. Drivers restricted: ${cascadeRes?.drivers_restricted || 0}, Reminders sent: ${cascadeRes?.reminders_sent || 0}, Overdue flags: ${cascadeRes?.overdue_flags_created || 0}, TODA incident flags: ${incidentFlagsCreated}`,
         performed_at: new Date().toISOString(),
       });
@@ -91,6 +92,28 @@ router.post('/run-sla-checks', enforceSchedulerSecret, async (req: Request, res:
       success: false,
       error: err.message || 'Scheduler job failed',
     });
+  }
+});
+
+/**
+ * POST /api/scheduler/run-retention
+ * The daily retention run (Rules 28.1 - 28.3): the database part (old GPS fixes and sessions, the queue of due identity images, accounts closed five years ago)
+ * and then the files: the images the database says are due are removed through the Storage API and confirmed. The database also runs its own part from
+ * pg_cron; this endpoint is for the image files, which only the server can delete. Call it once a day from an external scheduler with the scheduler secret.
+ */
+router.post('/run-retention', enforceSchedulerSecret, async (_req: Request, res: Response) => {
+  if (!supabase) {
+    res.status(503).json({ success: false, error: 'Supabase client is not configured on server.' });
+    return;
+  }
+  try {
+    const { data: job, error } = await supabase.rpc('run_retention_job');
+    if (error) throw new Error(`run_retention_job: ${error.message}`);
+    const images = await purgeIdentityImages(supabase);
+    res.json({ success: true, timestamp: new Date().toISOString(), job, images });
+  } catch (err: any) {
+    console.error('[Scheduler] retention run failed:', err?.message ?? err);
+    res.status(500).json({ success: false, error: err?.message || 'Retention run failed' });
   }
 });
 

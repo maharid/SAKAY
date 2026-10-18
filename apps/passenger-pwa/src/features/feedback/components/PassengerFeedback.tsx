@@ -184,7 +184,7 @@ export const PassengerFeedback: React.FC = () => {
               stars: rating,
               tags: selectedTags,
               comment: cleanComment,
-              created_at: new Date().toISOString(),
+              // the time is the server's (a rating's time is stamped by the database)
             },
           ],
           { onConflict: 'booking_id,rater_role', ignoreDuplicates: true }

@@ -8,7 +8,7 @@
  * ============================================================================
  */
 
-import { apiPostJson } from '@sakay/shared';
+import { apiPostJson, syncPrivacyAcceptance } from '@sakay/shared';
 import type { ApplyDriverTodaAffiliationsResponse, DriverTodaApplicationInput } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
@@ -269,7 +269,7 @@ export async function fetchDriverProfile(_driverId?: string) {
       todaName: todaObj?.toda_name || '',
       todaAcronym: todaObj?.toda_acronym || '',
       todaId: data.toda_id || '',
-      rating: Number(data.weighted_average_rating) || 5.0,
+      rating: Number(data.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
       accountStatus: data.account_status,
       // The column holds 'Offline' | 'Available' | 'Busy' (never 'Online' / 'Paused'); the live value comes from the presence engine.
       isOnline: data.availability_status === 'Available' || data.availability_status === 'Busy',
@@ -871,7 +871,6 @@ export async function saveDriverLicenseVerification(
         full_name: formData.fullName || user.user_metadata?.full_name || 'Driver Applicant',
         license_number: formData.licenseNumber || null,
         date_of_birth: parseDateForDb(formData.dob),
-        residential_address: formData.address || null,
         toda_id: storedTodaId || user.user_metadata?.toda_id || null,
         account_status: 'Pending Verification',
         availability_status: 'Offline',
@@ -918,7 +917,6 @@ export async function saveDriverLicenseVerification(
     if (formData.fullName) updatePayload.full_name = formData.fullName;
     if (formData.licenseNumber) updatePayload.license_number = formData.licenseNumber;
     if (formData.dob) updatePayload.date_of_birth = parseDateForDb(formData.dob);
-    if (formData.address) updatePayload.residential_address = formData.address;
     if (storedTodaId) updatePayload.toda_id = storedTodaId;
 
     const { error: updateErr } = await supabase
@@ -935,6 +933,8 @@ export async function saveDriverLicenseVerification(
 
     console.log('[DRIVER PROFILE DEBUG] Confirmed Driver ID:', driverId);
     console.log('[DRIVER PROFILE DEBUG] Confirmed Auth User ID:', authUserId);
+    // RA 10173: the driver accepted the privacy notice before this row existed; record the version now that it does (the database stores the version and the time)
+    await syncPrivacyAcceptance((fn, args) => supabase.rpc(fn, args));
 
     // 3. Upload raw license photo proof to Supabase Storage ('driver-licenses')
     let totalSizeBytes = 0;
@@ -1024,7 +1024,6 @@ export async function saveDriverLicenseVerification(
     let ocrFullName = '';
     let ocrLicenseNo = '';
     let ocrDobStr: string | null = null;
-    let ocrAddr = '';
     let ocrDlCodesStr = '';
 
     if (formData.rawOcrText) {
@@ -1044,8 +1043,6 @@ export async function saveDriverLicenseVerification(
       submitted_license_number: formData.licenseNumber,
       ocr_dob: ocrDobStr || parseDateForDb(formData.dob),
       submitted_dob: parseDateForDb(formData.dob),
-      ocr_address: ocrAddr || formData.address,
-      submitted_address: formData.address,
       ocr_dl_codes: ocrDlCodesStr || formData.dlCodes,
       submitted_dl_codes: formData.dlCodes,
       license_expiry: parseDateForDb(formData.expirationDate),
@@ -1082,7 +1079,6 @@ export async function saveDriverLicenseVerification(
           submitted_full_name: formData.fullName,
           submitted_license_number: formData.licenseNumber,
           submitted_dob: parseDateForDb(formData.dob),
-          submitted_address: formData.address,
           submitted_dl_codes: formData.dlCodes,
           license_expiry: parseDateForDb(formData.expirationDate),
           license_front_photo_path: frontStoragePath,
@@ -1114,7 +1110,6 @@ export async function saveDriverLicenseVerification(
           submitted_full_name: formData.fullName,
           submitted_license_number: formData.licenseNumber,
           submitted_dob: parseDateForDb(formData.dob),
-          submitted_address: formData.address,
           submitted_dl_codes: formData.dlCodes,
           license_expiry: parseDateForDb(formData.expirationDate),
           license_front_photo_path: frontStoragePath,
@@ -1139,7 +1134,6 @@ export async function saveDriverLicenseVerification(
         .from('driver')
         .update({
           full_name: formData.fullName,
-          residential_address: formData.address,
           date_of_birth: parseDateForDb(formData.dob),
         })
         .eq('driver_id', driverId);
@@ -1587,7 +1581,6 @@ export async function submitFinalDriverRegistration(
     if (includes('license')) {
       if (license?.fullName) driverPayload.full_name = license.fullName;
       if (license?.dob) driverPayload.date_of_birth = parseDateForDb(license.dob);
-      if (license?.address) driverPayload.residential_address = license.address;
     }
 
     // Optional extended profile fields (if migration was executed and triggers permit)
@@ -1598,9 +1591,6 @@ export async function submitFinalDriverRegistration(
       ...(includes('license') && license?.dlCodes ? { dl_codes: license.dlCodes } : {}),
       ...(includes('mtop') && mtop?.franchiseNumber ? { franchise_number: mtop.franchiseNumber } : {}),
       ...(includes('mtop') && mtop?.plateNumber ? { plate_number: mtop.plateNumber } : {}),
-      ...(includes('mtop') && mtop?.chassisNumber ? { chassis_number: mtop.chassisNumber } : {}),
-      ...(includes('mtop') && mtop?.vehicleMake ? { vehicle_make: mtop.vehicleMake } : {}),
-      ...(includes('mtop') && mtop?.motorNumber ? { motor_number: mtop.motorNumber } : {}),
       ...(includes('mtop') && mtop?.orNumber ? { or_number: mtop.orNumber } : {}),
       ...(includes('mtop') && mtop?.authorizedRoute ? { authorized_route: mtop.authorizedRoute } : {}),
       ...(includes('mtop') && mtop?.expirationDate ? { mtop_expiry: parseDateForDb(mtop.expirationDate) } : {}),
@@ -1630,7 +1620,6 @@ export async function submitFinalDriverRegistration(
         submitted_full_name: license?.fullName || null,
         submitted_license_number: license?.licenseNumber || null,
         submitted_dob: license?.dob ? parseDateForDb(license.dob) : null,
-        submitted_address: license?.address || null,
         submitted_dl_codes: license?.dlCodes || null,
         license_expiry: license?.expirationDate ? parseDateForDb(license.expirationDate) : null,
         license_front_photo_path: frontPath,
@@ -1648,9 +1637,6 @@ export async function submitFinalDriverRegistration(
         mtop_photo_path: mtopPath,
       });
       Object.assign(verifPayload, fallbackVerifPayload, {
-        submitted_chassis_number: mtop?.chassisNumber || null,
-        submitted_vehicle_make: mtop?.vehicleMake || null,
-        submitted_motor_number: mtop?.motorNumber || null,
         submitted_or_number: mtop?.orNumber || null,
         mtop_expiry: mtop?.expirationDate ? parseDateForDb(mtop?.expirationDate) : null,
         submitted_authorized_route: mtop?.authorizedRoute || null,

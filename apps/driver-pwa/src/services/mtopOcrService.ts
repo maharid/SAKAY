@@ -552,9 +552,9 @@ export async function parseMtopImage(
               operatorName: g.operatorName || '',
               franchiseNumber: g.franchiseNumber || '',
               plateNumber: g.plateNumber || '',
-              chassisNumber: g.chassisNumber || '',
-              vehicleMake: g.make || '',
-              motorNumber: g.engineNumber || '',
+              chassisNumber: '',   // not extracted, not kept (Batch 12, Rule 28.1)
+              vehicleMake: '',
+              motorNumber: '',
               yearModel: '',
               orNumber: '',
               expirationDate: g.expirationDate || '',
@@ -622,7 +622,7 @@ export async function parseMtopImage(
     if (extracted.authorizedRoute) authorizedRoute = extracted.authorizedRoute;
 
     // STEP 1.5: If key fields missing and raw uncropped photo is provided, scan raw photo
-    const isMissingKeyFields = !operatorName || !franchiseNumber || !plateNumber || !chassisNumber;
+    const isMissingKeyFields = !operatorName || !franchiseNumber || !plateNumber;
     if (isMissingKeyFields && rawImageDataUrl && rawImageDataUrl !== imageDataUrl) {
       onProgress?.(65, 'Analyzing Full Document Frame');
       try {
@@ -683,11 +683,12 @@ export async function parseMtopImage(
     operatorName: operatorName || '',
     franchiseNumber: franchiseNumber || '',
     plateNumber: plateNumber || '',
-    chassisNumber: chassisNumber || '',
-    vehicleMake: vehicleMake || '',
-    motorNumber: motorNumber || '',
+    // the chassis number, make, motor number and OR number are read by the local pass but not kept (Batch 12, Rule 28.1: only what the verification needs)
+    chassisNumber: '',
+    vehicleMake: '',
+    motorNumber: '',
     yearModel: yearModel || '',
-    orNumber: orNumber || '',
+    orNumber: '',
     expirationDate: expirationDate || '',
     authorizedRoute: authorizedRoute || 'City of Calapan, Oriental Mindoro',
     rawOcrText: rawText,
@@ -698,7 +699,6 @@ export async function parseMtopImage(
   if (!parsedData.franchiseNumber) missingFields.push('Franchise Number');
   if (!parsedData.operatorName) missingFields.push('Operator Name');
   if (!parsedData.plateNumber) missingFields.push('Plate Number');
-  if (!parsedData.chassisNumber) missingFields.push('Chassis Number');
 
   const confidenceScore = Math.round(((10 - missingFields.length) / 10) * 100);
 

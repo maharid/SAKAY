@@ -94,6 +94,7 @@ const DRV_OVERCHARGE = OPT('DRV_OVERCHARGING', 'Driver: overcharging attempt (2 
 const DRV_ROUTE = OPT('DRV_ROUTE_DEVIATION_FARE', 'Driver: route deviation that raised the fare (1 strike)', 1, 1, 'driver');
 const DRV_ASSAULT = OPT('DRV_PHYSICAL_ALTERCATION', 'Driver: physical altercation (suspended pending investigation)', 0, 0, 'driver', true);
 const DRV_HARASS = OPT('DRV_HARASSMENT', 'Driver: harassment or threats (suspended pending investigation)', 0, 0, 'driver', true);
+const DRV_SUBSTITUTE = OPT('DRV_SUBSTITUTE_DRIVER', 'Driver: someone else drove the tricycle (suspended pending investigation)', 0, 0, 'driver', true);
 const PAX_ABUSE = OPT('PAX_ABUSIVE_UPHELD', 'Passenger: abusive behavior (2 strikes)', 2, 2, 'passenger');
 const PAX_DAMAGE = OPT('PAX_VEHICLE_DAMAGE', 'Passenger: damage to the vehicle (3 strikes)', 3, 3, 'passenger');
 const PAX_CONTAM = OPT('PAX_CONTAMINATION', 'Passenger: contamination of the vehicle (1 strike)', 1, 1, 'passenger');
@@ -107,6 +108,7 @@ export function incidentStrikeOptions(category: string, reportedBy: string): Inc
   if (category === 'Passenger Misconduct') return by === 'Driver' ? [PAX_ABUSE, PAX_DAMAGE, PAX_CONTAM] : [];
   if (category === 'Physical Assault') return by === 'Passenger' ? [DRV_ASSAULT] : by === 'Driver' ? [PAX_ABUSE] : [];
   if (category === 'Harassment' || category === 'Threat') return by === 'Passenger' ? [DRV_HARASS] : by === 'Driver' ? [PAX_ABUSE] : [];
+  if (category === 'Unregistered Person Driving') return by === 'Passenger' ? [DRV_SUBSTITUTE] : [];
   return [];
 }
 /** Rule 19.5: the strike of a fabricated or malicious report is on the REPORTER (2 strikes, decision PI-11H) */

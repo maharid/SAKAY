@@ -10,7 +10,10 @@ const { ID, seed } = require('../fixtures');
   const send = async (uid, audience, title = 'Meeting', message = 'General assembly on Saturday, 2 PM.') =>
     (await as(uid, (tx) => tx.query(`SELECT public.send_toda_driver_reminder($1,$2,$3) AS r`, [audience, title, message]))).rows[0].r;
   const notes = async (driver) => (await db.query(`SELECT title, message, notification_type FROM notification WHERE driver_id='${driver}' ORDER BY sent_at`)).rows;
-  const clearThrottle = () => db.exec(`UPDATE audit_log SET performed_at = performed_at - interval '2 minutes' WHERE action_type = 'TODA_REMINDER_SENT'`);
+  // The audit log is append-only since Batch 12 (even the owner's session); the test moves the stored time back (instead of waiting) with the trigger off for that one statement
+  const clearThrottle = () => db.exec(`ALTER TABLE audit_log DISABLE TRIGGER trigger_audit_log_append_only;
+    UPDATE audit_log SET performed_at = performed_at - interval '2 minutes' WHERE action_type = 'TODA_REMINDER_SENT';
+    ALTER TABLE audit_log ENABLE TRIGGER trigger_audit_log_append_only;`);
 
   // TODA 1: D1 verified member (license fine), D2 verified member (license expires in 10 days), plus a member who is still pending.
   // TODA 2: D3 verified member. D3 must never hear from TODA 1's administrator.

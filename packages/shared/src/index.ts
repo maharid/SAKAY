@@ -49,6 +49,8 @@ export * from './utils/incidentEvidence';
 export * from './utils/incidentReports';
 export * from './utils/incidentReview';
 export * from './utils/csvDownload';
+export * from './utils/ratingDisplay';
+export * from './utils/auditLog';
 export * from './utils/tripSafety';
 export * from './utils/transportAnalytics';
 export * from './utils/tripProgress';
@@ -76,6 +78,7 @@ export * from './hooks/useConnectionStatus';
 export * from './config/calapanBarangays';
 export * from './utils/applicationReview';
 export * from './config/policyConfig';
+export * from './config/privacyNotice';
 export * from './utils/notificationLocalization';
 
 

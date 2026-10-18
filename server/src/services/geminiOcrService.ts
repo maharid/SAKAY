@@ -1,25 +1,25 @@
 import { GoogleGenAI } from '@google/genai';
 import '../config/env'; // loads server/.env from an explicit path before the API key is read
 
+/**
+ * Data minimization (Rule 28.1, Batch 12): the OCR extracts ONLY the fields the verification needs. For the MTOP: the operator, the franchise number, the plate and the
+ * expiry. The make, engine number, chassis number and issue date are not asked for and not kept.
+ */
 export interface MtopParsedData {
   operatorName: string;
   franchiseNumber: string;
   plateNumber: string;
-  make: string;
-  engineNumber: string;
-  chassisNumber: string;
   expirationDate: string;
-  issuedDate: string;
   rawConfidence?: number;
 }
 
+/** For the driver's license: the number, the full name, the expiry, the DL codes (restrictions) and the birth date. The address and the nationality are not asked for and not kept. */
 export interface LicenseParsedData {
   licenseNumber: string;
   fullName: string;
   expirationDate: string;
+  dlCodes: string;
   birthDate: string;
-  address: string;
-  nationality: string;
   rawConfidence?: number;
 }
 
@@ -52,12 +52,10 @@ Return ONLY a valid JSON object with EXACTLY these keys:
   "operatorName": string, // Full name of the operator/grantee/owner (in UPPERCASE)
   "franchiseNumber": string, // The 3 to 6-digit MTOP / Franchise / Case number
   "plateNumber": string, // Plate number or MV file number
-  "make": string, // Motorcycle brand (e.g. KAWASAKI, BAJAJ, HONDA, YAMAHA, TVS, SUZUKI)
-  "engineNumber": string, // Motor / Engine number
-  "chassisNumber": string, // Chassis / Frame number
-  "expirationDate": string, // Expiration or validity date formatted as MM/DD/YYYY
-  "issuedDate": string // Date granted or issued formatted as MM/DD/YYYY
+  "expirationDate": string // Expiration or validity date formatted as MM/DD/YYYY
 }
+
+Extract nothing else: do not read or return the engine number, chassis number, make or any other field.
 
 Do not include markdown fences, code blocks, or extra commentary. Return only the JSON object.`;
 
@@ -121,10 +119,11 @@ Return ONLY a valid JSON object with EXACTLY these keys:
   "licenseNumber": string, // LTO license number (e.g. N03-12-123456 or D01-20-123456)
   "fullName": string, // Driver full legal name (in UPPERCASE, LAST NAME, FIRST NAME MIDDLE NAME)
   "expirationDate": string, // Expiration date formatted as MM/DD/YYYY
-  "birthDate": string, // Date of birth formatted as MM/DD/YYYY
-  "address": string, // Residential address
-  "nationality": string // Nationality (usually PHL or Filipino)
+  "dlCodes": string, // The restriction / DL codes printed on the license (e.g. A, A1, B, B1)
+  "birthDate": string // Date of birth formatted as MM/DD/YYYY
 }
+
+Extract nothing else: do not read or return the address, nationality, sex or any other field.
 
 Do not include markdown fences, code blocks, or extra commentary. Return only the JSON object.`;
 

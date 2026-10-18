@@ -11,7 +11,8 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PageHeader from '../../../common/components/PageHeader';
 import PrimaryButton from '../../../common/components/PrimaryButton';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { activateWithKeyboard } from '@sakay/shared';
+import { acceptPrivacyNotice, activateWithKeyboard, privacyNoticeExtraItems } from '@sakay/shared';
+import { supabase } from '../../../services/supabaseClient';
 
 interface AccordionItem {
   id: string;
@@ -42,7 +43,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
     {
       id: 'A',
       title: 'A. Personal na Impormasyon',
-      desc: 'Pangalan, numero ng mobile, password, residential address, at profile photo.',
+      desc: 'Pangalan, petsa ng kapanganakan, numero ng mobile, password, at profile photo.',
     },
     {
       id: 'B',
@@ -62,7 +63,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
     {
       id: 'E',
       title: 'E. Device at System Data',
-      desc: 'Impormasyon sa device model, operating system version, at app security diagnostics para sa proteksyon laban sa pandaraya.',
+      desc: 'Mga tala ng pag-login at ng oras na naka-Online/Offline ka, at kung pinapayagan mo ang location, para sa proteksyon laban sa pandaraya at maling paggamit ng account. Hindi kinokolekta ang model ng device o operating system.',
     },
   ];
 
@@ -70,7 +71,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
     {
       id: 'A',
       title: 'A. Personal Information',
-      desc: 'Name, mobile number, password, residential address, and profile photo.',
+      desc: 'Name, birth date, mobile number, password, and profile photo.',
     },
     {
       id: 'B',
@@ -90,11 +91,11 @@ export const DriverPrivacyPolicy: React.FC = () => {
     {
       id: 'E',
       title: 'E. Device and System Data',
-      desc: 'Device model, operating system version, and system diagnostic logs to ensure security and prevent account spoofing.',
+      desc: 'Sign-in records, the times you are Online and Offline, and whether location is allowed, to protect against fraud and account misuse. The device model and operating system are not collected.',
     },
   ];
 
-  const accordionItems = isTagalog ? tagalogItems : englishItems;
+  const accordionItems = [...(isTagalog ? tagalogItems : englishItems), ...privacyNoticeExtraItems('driver', isTagalog ? 'tl' : 'en')];
 
   return (
     <Box
@@ -169,7 +170,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
                 1. Pagtanggap sa mga Tuntunin
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
-                Upang gumana ang SAKAY, maaari naming kolektahin ang mga sumusunod:
+                Upang gumana ang SAKAY, kinokolekta at ginagamit namin ang mga sumusunod:
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -324,7 +325,7 @@ export const DriverPrivacyPolicy: React.FC = () => {
                 1. Information We Collect
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, mb: 1.5 }}>
-                To operate SAKAY and ensure passenger safety, we collect:
+                To operate SAKAY and ensure passenger safety, we collect and use the following. Items F to I say why, for how long, with whom it is shared, and what your rights are:
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -485,14 +486,16 @@ export const DriverPrivacyPolicy: React.FC = () => {
           }}
         >
           <PrimaryButton
-            onClick={() =>
+            onClick={async () => {
+              // RA 10173: the notice version the driver accepted is recorded (now if the account row exists, otherwise when the first document is saved)
+              await acceptPrivacyNotice((fn, args) => supabase.rpc(fn, args));
               navigate('/driver/prepare-documents', {
                 replace: true,
                 state: {
                   ...state,
                 },
-              })
-            }
+              });
+            }}
             fullWidth
             sx={{
               height: '56px',
