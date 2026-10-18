@@ -12,6 +12,8 @@ import { PassengerFeedbackPage } from '../pages/PassengerFeedbackPage';
 import { LiveTripsPage } from '../pages/LiveTripsPage';
 import { IncidentReportsPage } from '../pages/IncidentReportsPage';
 import { AppealsPage } from '../pages/AppealsPage';
+import { VehicleSubstitutionsPage } from '../pages/VehicleSubstitutionsPage';
+import { ServiceAreaPage } from '../pages/ServiceAreaPage';
 import { AnnouncementManagementPage } from '../pages/AnnouncementManagementPage';
 import { FareConfigurationPage } from '../pages/FareConfigurationPage';
 import { ReportsPage } from '../pages/ReportsPage';
@@ -122,6 +124,28 @@ export const AdminRoutes: React.FC = () => {
           <ProtectedRoute>
             <AdminLayout pageTitle="Incident Reports" pageSubtitle="Review and manage passenger and driver incident reports.">
               <IncidentReportsPage />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/service-area"
+        element={
+          <ProtectedRoute>
+            <AdminLayout pageTitle="Service Area" pageSubtitle="Where passengers may start and end a booking: the whole city, or a pilot area.">
+              <ServiceAreaPage />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/vehicle-substitutions"
+        element={
+          <ProtectedRoute>
+            <AdminLayout pageTitle="Vehicle Substitutions" pageSubtitle="Approve a driver's request to use another vehicle for a few days (Rule 29.18).">
+              <VehicleSubstitutionsPage />
             </AdminLayout>
           </ProtectedRoute>
         }

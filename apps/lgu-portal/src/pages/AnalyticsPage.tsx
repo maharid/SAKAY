@@ -18,7 +18,10 @@ import PeopleIcon from '@mui/icons-material/People';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+import { CoverageGapsPanel, fetchCoverageGaps } from '@sakay/shared';
+import type { CoverageGaps } from '@sakay/shared';
 import { fetchOperationalReports, OperationalReportsData } from '../services/adminApiService';
+import { supabase } from '../services/supabaseClient';
 
 /**
  * ============================================================================
@@ -113,6 +116,16 @@ export const AnalyticsPage: React.FC = () => {
     loadAnalytics();
   }, []);
 
+  // Rule 7.10: the coverage gaps logged in the last 30 days, for service planning (never a penalty)
+  const [coverageGaps, setCoverageGaps] = useState<CoverageGaps | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(true);
+  useEffect(() => {
+    fetchCoverageGaps(supabase, 30).then((g) => {
+      setCoverageGaps(g);
+      setCoverageLoading(false);
+    });
+  }, []);
+
   // The map is created once...
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
@@ -189,6 +202,8 @@ export const AnalyticsPage: React.FC = () => {
         </Box>
       ) : (
         <>
+          <CoverageGapsPanel gaps={coverageGaps} loading={coverageLoading} audience="lgu_admin" />
+
           {/* 2. Top Analytics Metrics */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }, gap: 2.5, mb: 3.5 }}>
             <MetricCard

@@ -43,6 +43,8 @@ export interface ReviewFlagsPanelProps {
    * administrator's name. Without it these flags can only be resolved or dismissed.
    */
   onConfirmAvailability?: (flagId: string, reason: string) => Promise<string | null>;
+  /** Rule 7.9: opens the booking-offer history of the driver a DRIVER_REPEATED_DECLINES flag is about (the reasons and the pattern to weigh before confirming) */
+  onViewDeclineHistory?: (driverId: string, driverName: string) => void;
   showWhenEmpty?: boolean;
 }
 
@@ -55,9 +57,11 @@ const TITLES: Record<string, string> = {
   DRIVER_INCAPACITATED_REVIEW: 'A driver became ill during a trip (Rule 29.22)',
   LOST_ITEM_UNCLAIMED_REVIEW: `A lost-item report has had no response for ${INCIDENT_LOST_ITEM_UNCLAIMED_DAYS} days (Rule 29.19)`,
   DRIVER_CHANGE_REFUSAL_PATTERN: 'Repeated complaints that a driver refused to give change (Rule 18.7)',
+  DRIVER_INACTIVITY_REVIEW: 'A driver was put Offline for inactivity several times in 30 days (Rule 7.8): review, no strike',
   DRIVER_REPEATED_CANCELLATIONS: 'A driver cancelled several accepted bookings (Rule 12.7)',
   DRIVER_SHARED_REQUEST_DECLINES: 'A driver declined several Shared Trip requests (Rule 14.3)',
   PAYMENT_STUCK_RECONCILIATION: 'A trip is waiting at the destination for the payment (PI-15)',
+  DRIVER_REPEATED_DECLINES: 'A driver declined several booking offers while Online (Rule 7.9): weigh the reasons before anything is confirmed',
   DRIVER_QUEUE_CONFLICT_REPORT: 'A driver was reported queued at the terminal while Available in the app (Rule 5.3)',
   DRIVER_AVAILABILITY_VIOLATION_REPORT: 'A driver was reported accepting a booking while carrying other passengers (Rule 5.7)',
   TRIP_MANUAL_RECONCILIATION: 'A trip has been silent for 30 minutes (Rule 9.5)',
@@ -80,7 +84,7 @@ interface SafeEvent {
  * verifies the event and either closes the flag or, if the reason was misused, confirms the strike (the engine records it under the administrator's name, with the reason).
  * The LGU dashboard lists the same flags for the LGU Administrator.
  */
-export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, onCloseTrip, onConfirmAvailability, showWhenEmpty = false }) => {
+export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, onCloseTrip, onConfirmAvailability, onViewDeclineHistory, showWhenEmpty = false }) => {
   const flight = useInFlight();
   const [openId, setOpenId] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -114,7 +118,7 @@ export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, drive
           const d = (f.details ?? {}) as Record<string, unknown>;
           const events = Array.isArray(d.events) ? (d.events as SafeEvent[]) : [];
           const driver = driverNames[f.subject_id] ?? (f.subject_type === 'driver' ? 'Driver' : f.subject_type);
-          const confirmable = f.flag_type === 'DRIVER_SAFE_REASON_REVIEW' || (f.flag_type === 'DRIVER_EARLY_STOP_REVIEW' && d.valid_reason === false) || f.flag_type === 'DRIVER_SHARED_REQUEST_DECLINES';
+          const confirmable = f.flag_type === 'DRIVER_SAFE_REASON_REVIEW' || (f.flag_type === 'DRIVER_EARLY_STOP_REVIEW' && d.valid_reason === false) || f.flag_type === 'DRIVER_SHARED_REQUEST_DECLINES' || f.flag_type === 'DRIVER_REPEATED_DECLINES';
           const needsEvent = f.flag_type === 'DRIVER_SAFE_REASON_REVIEW';
           const bookingForConfirm = needsEvent ? eventBooking : typeof d.booking_id === 'string' ? d.booking_id : null;
           return (
@@ -139,11 +143,22 @@ export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, drive
                   ))}
                 </Box>
               )}
+              {typeof d.declines_in_window === 'number' && (
+                <Typography sx={{ fontSize: '12.5px', color: '#334155' }}>
+                  {d.declines_in_window} declines in {String(d.window_hours)} hours
+                  {d.reasons && typeof d.reasons === 'object' ? ': ' + Object.entries(d.reasons as Record<string, number>).map(([k, n]) => `${k.replace(/_/g, ' ')} ${n}`).join(', ') : ''}.
+                </Typography>
+              )}
               {typeof d.events_in_window === 'number' && <Typography sx={{ fontSize: '12.5px', color: '#334155' }}>{d.events_in_window} events in {String(d.window_days)} days.</Typography>}
-              <Box sx={{ mt: 1 }}>
+              <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Button size="small" variant="outlined" onClick={() => { setOpenId(openId === f.flag_id ? null : f.flag_id); setMessage(null); }} sx={{ textTransform: 'none', fontWeight: 600 }}>
                   {openId === f.flag_id ? 'Close' : 'Review'}
                 </Button>
+                {onViewDeclineHistory && f.flag_type === 'DRIVER_REPEATED_DECLINES' && (
+                  <Button size="small" variant="text" onClick={() => onViewDeclineHistory(f.subject_id, driver)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                    View the booking offers of this driver
+                  </Button>
+                )}
               </Box>
               {openId === f.flag_id && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1.25 }}>
