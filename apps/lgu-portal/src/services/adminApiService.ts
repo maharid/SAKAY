@@ -13,7 +13,7 @@
  * ============================================================================
  */
 
-import { adminActionMessage, closeAccountArgs, closeUnfinishedTripArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
+import { adminActionMessage, closeAccountArgs, closeUnfinishedTripArgs, confirmAvailabilityArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
@@ -1657,6 +1657,15 @@ export async function issuePassengerStrike(passengerId: string, violationCode: s
 // ----------------------------------------------------------------------------
 // Rule 16.3 and PI-15: the audited correction of a completed trip, and closing a trip that was left at the destination
 // ----------------------------------------------------------------------------
+
+/**
+ * Rules 5.3 / 5.7: the LGU Administrator confirms a reported queue conflict or availability violation (for a driver with no TODA, or one the TODA did not act on):
+ * the strike is recorded under their name and the flag is resolved. Null when it was recorded, otherwise the database's sentence.
+ */
+export async function confirmAvailabilityViolation(flagId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('confirm_driver_availability_violation', confirmAvailabilityArgs(flagId, reason));
+  return error ? adminActionMessage(error.message, 'The strike could not be recorded.') : null;
+}
 
 /**
  * Rule 16.3: corrects the fare (never above the system's) and / or the payment status of a COMPLETED trip. The route, the times and the people never change.
