@@ -1,0 +1,6 @@
+# SQL is read byte for byte: by the Supabase migration runner, by the hosted SQL editor, and by scripts/db-tests (which fail a migration that is
+# not LF). On Windows, core.autocrlf would otherwise check these files out with CRLF. Everything else keeps the platform default.
+supabase/migrations/*.sql text eol=lf
+supabase/scripts/*.sql text eol=lf
+supabase/seed.sql text eol=lf
+*.sh text eol=lf
