@@ -13,8 +13,8 @@
  * ============================================================================
  */
 
-import { adminActionMessage, confirmFlaggedViolationArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
-import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
+import { adminActionMessage, closeAccountArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
+import type { AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
@@ -1517,6 +1517,7 @@ export async function fetchStrikeHistory(
       strikesApplied: s.points_active > 0 ? s.points_active : s.points_issued,
       status,
       issuedBy: roleLabels[s.issued_by_role] || 'SAKAY System',
+      voidable: counted && Boolean(s.in_window),
     };
   });
   return { activeStrikes: res.active_strikes ?? 0, history };
@@ -1651,6 +1652,67 @@ export async function issuePassengerStrike(passengerId: string, violationCode: s
   return callPolicyRpc<StrikeEngineResult>('issue_strike', {
     p_subject_type: 'passenger', p_subject_id: passengerId, p_violation_code: violationCode, p_reason: reason,
   });
+}
+
+// ----------------------------------------------------------------------------
+// Strike appeals (Rule 25), voiding a strike and closing an account (Rule 22.2)
+// ----------------------------------------------------------------------------
+
+/**
+ * Every strike appeal the LGU Administrator may see, newest first: a passenger's goes to the LGU directly (25.5), a driver's goes to the TODA first and
+ * reaches the LGU when escalated (25.4). Row security shows the LGU all of them. A list that cannot be read throws, so the screen does not claim "no appeals".
+ */
+export async function fetchAppeals(): Promise<AppealRecord[]> {
+  const { data: requests, error } = await supabase
+    .from('exemption_request')
+    .select('request_id, strike_id, subject_type, subject_id, cause_code, justification, evidence_urls, status, assigned_role, requested_at, decision_due_at, escalation_reason, auto_denied, decided_at, decision_reason, points_waived')
+    .order('requested_at', { ascending: false })
+    .limit(300);
+  if (error) throw new Error(error.message);
+  if (!requests || requests.length === 0) return [];
+
+  const strikeIds = [...new Set(requests.map((r) => String(r.strike_id)))];
+  const passengerIds = [...new Set(requests.filter((r) => r.subject_type === 'passenger').map((r) => String(r.subject_id)))];
+  const driverIds = [...new Set(requests.filter((r) => r.subject_type === 'driver').map((r) => String(r.subject_id)))];
+  const [strikes, passengers, drivers, catalog] = await Promise.all([
+    supabase.from('strikes_ledger').select('strike_id, violation_code, source_rule, status, points_active, points_issued').in('strike_id', strikeIds),
+    passengerIds.length ? supabase.from('passenger').select('passenger_id, full_name').in('passenger_id', passengerIds) : Promise.resolve({ data: [] as any[] }),
+    driverIds.length ? supabase.from('driver').select('driver_id, full_name').in('driver_id', driverIds) : Promise.resolve({ data: [] as any[] }),
+    supabase.from('violation_catalog').select('violation_code, description'),
+  ]);
+  return mapAppealRows({
+    requests,
+    strikes: strikes.data ?? [],
+    people: [
+      ...(passengers.data ?? []).map((p: any) => ({ id: String(p.passenger_id), type: 'passenger' as const, name: String(p.full_name ?? 'Passenger') })),
+      ...(drivers.data ?? []).map((d: any) => ({ id: String(d.driver_id), type: 'driver' as const, name: String(d.full_name ?? 'Driver') })),
+    ],
+    catalog: catalog.data ?? [],
+  });
+}
+
+/** How many appeals wait for the LGU Administrator (the badge in the side menu); 0 when it cannot be read. */
+export async function countPendingLguAppeals(): Promise<number> {
+  const { count, error } = await supabase.from('exemption_request').select('request_id', { count: 'exact', head: true }).eq('status', 'Pending LGU Review');
+  return error ? 0 : count ?? 0;
+}
+
+/** Rule 25.6: Full waiver, Partial waiver (the points to waive) or Denied, with the reason (25.8). Null when it was recorded, otherwise the database's sentence. */
+export async function decideAppeal(requestId: string, outcome: ExemptionOutcome, reason: string, pointsToWaive?: number | null): Promise<string | null> {
+  const { error } = await supabase.rpc('decide_exemption', decideExemptionArgs(requestId, outcome, reason, pointsToWaive));
+  return error ? adminActionMessage(error.message, 'The decision could not be recorded.') : null;
+}
+
+/** The one way to remove a strike that should never have been issued. Null when it was voided, otherwise the database's sentence. */
+export async function voidStrike(strikeId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_void_strike', voidStrikeArgs(strikeId, reason));
+  return error ? adminActionMessage(error.message, 'The strike could not be voided.') : null;
+}
+
+/** Rule 22.2: closes an account for good, after the whole history was reviewed. Null when it was closed, otherwise the database's sentence. */
+export async function closeAccountPermanently(subjectType: AppealSubjectType, subjectId: string, reason: string, historyReviewed: boolean): Promise<string | null> {
+  const { error } = await supabase.rpc('admin_close_account', closeAccountArgs(subjectType, subjectId, reason, historyReviewed));
+  return error ? adminActionMessage(error.message, 'The account could not be closed.') : null;
 }
 
 // ============================================================================

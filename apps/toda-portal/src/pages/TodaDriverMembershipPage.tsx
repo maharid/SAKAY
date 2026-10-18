@@ -51,6 +51,7 @@ import {
   fetchTodaProfile,
   fetchTodaExemptionRequests,
   decideExemptionRequest,
+  escalateExemptionRequest,
   TodaRosterEntry,
 } from '../services/todaApiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -88,6 +89,8 @@ export const TodaDriverMembershipPage: React.FC = () => {
   const [decisionPoints, setDecisionPoints] = useState('1');
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [decisionBusy, setDecisionBusy] = useState(false);
+  // Rule 25.4: passing an appeal to the LGU Administrator
+  const [escalateOpen, setEscalateOpen] = useState(false);
   const loadExemptions = async () => setExemptions(await fetchTodaExemptionRequests());
   useEffect(() => {
     loadExemptions();
@@ -317,6 +320,26 @@ export const TodaDriverMembershipPage: React.FC = () => {
       return;
     }
     setToast({ message: 'The decision was recorded and the driver was told.', severity: 'success' });
+    setExemptionDecisionModalOpen(false);
+    setSelectedExemption(null);
+    await loadExemptions();
+  };
+
+  const handleEscalate = async (reason?: string) => {
+    setEscalateOpen(false);
+    if (!selectedExemption || !reason) return;
+    if (reason.trim().length < 5) {
+      setDecisionError('Write why the LGU Administrator needs to decide this appeal.');
+      return;
+    }
+    setDecisionBusy(true);
+    const message = await escalateExemptionRequest(selectedExemption.id, reason);
+    setDecisionBusy(false);
+    if (message) {
+      setDecisionError(message);
+      return;
+    }
+    setToast({ message: 'The appeal was passed to the LGU Administrator.', severity: 'success' });
     setExemptionDecisionModalOpen(false);
     setSelectedExemption(null);
     await loadExemptions();
@@ -786,6 +809,15 @@ export const TodaDriverMembershipPage: React.FC = () => {
                   fullWidth
                 />
                 {decisionError && <Alert severity="warning" sx={{ borderRadius: '10px' }}>{decisionError}</Alert>}
+                {/* Rule 25.4: when the TODA cannot decide it (a suspension or deactivation is at stake, or the TODA is a party) */}
+                <Button
+                  variant="text"
+                  onClick={() => setEscalateOpen(true)}
+                  disabled={decisionBusy}
+                  sx={{ textTransform: 'none', fontSize: '12.5px', fontWeight: 600, alignSelf: 'flex-start', color: '#1565C0', px: 0 }}
+                >
+                  Pass this appeal to the LGU Administrator instead
+                </Button>
               </Box>
             ) : (
               <Alert severity={selectedExemption.status === 'Denied' ? 'error' : selectedExemption.status === 'Pending LGU Review' ? 'info' : 'success'} sx={{ borderRadius: '10px' }}>
@@ -915,6 +947,19 @@ export const TodaDriverMembershipPage: React.FC = () => {
           documentType={previewDocument.type}
         />
       )}
+
+      {/* Rule 25.4: an appeal the TODA passes on (a serious consequence, or the TODA is a party) */}
+      <MacConfirmDialog
+        open={escalateOpen}
+        onClose={() => setEscalateOpen(false)}
+        title="Pass this appeal to the LGU Administrator?"
+        message="Use this when the appeal involves a suspension or deactivation, or when the TODA itself is a party to the dispute. The LGU Administrator then decides it, and you can no longer decide it."
+        confirmLabel="Pass to the LGU"
+        confirmVariant="orange"
+        requireReason
+        reasonPlaceholder="Why does the LGU need to decide this appeal? (a few words)"
+        onConfirm={handleEscalate}
+      />
 
       {/* Suspension Recommendation Confirmation Dialog */}
       <MacConfirmDialog

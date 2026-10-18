@@ -21,7 +21,7 @@ import {
   EvidenceFileItem,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   decideIncident as decideIncidentReport,
   escalateIncident as escalateIncidentReport,
@@ -1715,6 +1715,12 @@ export async function fetchTodaExemptionRequests(): Promise<DriverExemptionReque
       assignedRole: String(r.assigned_role),
     };
   });
+}
+
+/** Rule 25.4: passes an appeal that is with this TODA to the LGU Administrator (a serious consequence, or the TODA cannot decide it fairly). Null when it was passed. */
+export async function escalateExemptionRequest(requestId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('escalate_exemption_request', escalateExemptionArgs(requestId, reason));
+  return error ? adminActionMessage(error.message, 'The appeal could not be passed to the LGU.') : null;
 }
 
 /** Rule 25.6: decides a strike appeal: Full waiver, Partial waiver (the points to waive) or Denied, with the reason (Rule 25.8). Null when accepted. */

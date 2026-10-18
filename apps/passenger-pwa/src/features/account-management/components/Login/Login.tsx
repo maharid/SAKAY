@@ -155,13 +155,14 @@ const Login: React.FC = () => {
           ? restriction.restricted
           : profile.account_status === "Suspended" || profile.account_status === "Deactivated";
         if (isRestricted) {
-          triggerErrorToast(
-            restriction
-              ? describeRestriction(restriction, language === "tl" ? "tl" : "en")
-              : language === "tl"
-                ? "Ang inyong account ay suspendido o na-deactivate."
-                : "Your account has been suspended or deactivated."
-          );
+          // Rule 22.3: a suspended or deactivated passenger keeps the right to appeal to the LGU Administrator, so she stays signed in, on one
+          // page only (the restriction, her strikes, the appeal form). Only an account that was permanently closed is signed out, as before.
+          if (restriction?.kind !== "CLOSED") {
+            setLoading(false);
+            navigate("/account-restricted", { replace: true });
+            return;
+          }
+          triggerErrorToast(describeRestriction(restriction, language === "tl" ? "tl" : "en"));
           setLoading(false);
           await supabase.auth.signOut();
           return;
