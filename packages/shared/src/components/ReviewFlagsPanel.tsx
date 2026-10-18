@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 
 import { useInFlight } from '../hooks/useInFlight';
 import { closeProblem } from '../utils/tripCorrections';
+import { isAvailabilityFlag } from '../utils/availabilityReports';
 import { INCIDENT_LOST_ITEM_UNCLAIMED_DAYS, SAFE_REASON_FLAG_COUNT, SAFE_REASON_FLAG_WINDOW_DAYS } from '../config/policyConfig';
 
 /** A review flag as the database holds it (admin_review_flag) */
@@ -37,6 +38,11 @@ export interface ReviewFlagsPanelProps {
    * (admin_close_unfinished_trip; it resolves the flag itself). Without it the flag can only be resolved or dismissed.
    */
   onCloseTrip?: (bookingId: string, paymentStatus: 'Paid' | 'Waived', reason: string) => Promise<string | null>;
+  /**
+   * Rules 5.3 / 5.7: confirms a reported queue conflict or availability violation (confirm_driver_availability_violation): the strike is recorded under the
+   * administrator's name. Without it these flags can only be resolved or dismissed.
+   */
+  onConfirmAvailability?: (flagId: string, reason: string) => Promise<string | null>;
   showWhenEmpty?: boolean;
 }
 
@@ -52,6 +58,8 @@ const TITLES: Record<string, string> = {
   DRIVER_REPEATED_CANCELLATIONS: 'A driver cancelled several accepted bookings (Rule 12.7)',
   DRIVER_SHARED_REQUEST_DECLINES: 'A driver declined several Shared Trip requests (Rule 14.3)',
   PAYMENT_STUCK_RECONCILIATION: 'A trip is waiting at the destination for the payment (PI-15)',
+  DRIVER_QUEUE_CONFLICT_REPORT: 'A driver was reported queued at the terminal while Available in the app (Rule 5.3)',
+  DRIVER_AVAILABILITY_VIOLATION_REPORT: 'A driver was reported accepting a booking while carrying other passengers (Rule 5.7)',
   TRIP_MANUAL_RECONCILIATION: 'A trip has been silent for 30 minutes (Rule 9.5)',
   DRIVER_LOW_RATING_REVIEW: 'A driver\'s average rating is under 3.00 after at least 20 completed trips: review, counselling or retraining (Rule 23.3)',
 };
@@ -72,7 +80,7 @@ interface SafeEvent {
  * verifies the event and either closes the flag or, if the reason was misused, confirms the strike (the engine records it under the administrator's name, with the reason).
  * The LGU dashboard lists the same flags for the LGU Administrator.
  */
-export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, onCloseTrip, showWhenEmpty = false }) => {
+export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, onCloseTrip, onConfirmAvailability, showWhenEmpty = false }) => {
   const flight = useInFlight();
   const [openId, setOpenId] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -116,6 +124,11 @@ export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, drive
                 <Typography sx={{ fontSize: '12px', color: '#64748B' }}>{driver} · {f.source_rule} · {manila(f.created_at)}</Typography>
               </Box>
               <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#0F172A', mt: 0.5 }}>{TITLES[f.flag_type] ?? f.flag_type}</Typography>
+              {typeof d.description === 'string' && isAvailabilityFlag(f.flag_type) && (
+                <Typography sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.5, mt: 0.25 }}>
+                  {typeof d.reported_by === 'string' ? `Reported by ${d.reported_by.replace('_', ' ')}: ` : ''}"{d.description}"
+                </Typography>
+              )}
               {typeof d.note === 'string' && <Typography sx={{ fontSize: '12.5px', color: '#475569', lineHeight: 1.5, mt: 0.25 }}>{d.note}</Typography>}
               {events.length > 0 && (
                 <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5, fontSize: '12.5px', color: '#334155' }}>
@@ -159,6 +172,11 @@ export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, drive
                           Close the trip: Waived
                         </Button>
                       </>
+                    )}
+                    {onConfirmAvailability && isAvailabilityFlag(f.flag_type) && (
+                      <Button size="small" variant="contained" color="error" disabled={flight.busy || note.trim().length < 10} onClick={() => void run(() => onConfirmAvailability(f.flag_id, note.trim()), 'The violation was confirmed and the strike recorded.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
+                        Confirmed: record the strike
+                      </Button>
                     )}
                     {confirmable && (
                       <Button size="small" variant="contained" color="error" disabled={flight.busy || note.trim().length < 10 || (needsEvent && !eventBooking)} onClick={() => void run(() => onConfirm(f.flag_id, bookingForConfirm, note.trim()), 'The strike was confirmed.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
