@@ -17,19 +17,24 @@ export interface FakeOptions {
   fail?: Record<string, string>;
   /** make auth.getUser fail like a network outage */
   authDown?: boolean;
+  /** auth.admin.updateUserById: return an error to simulate Supabase Auth refusing / failing (default: it works) */
+  adminUpdate?: (userId: string, attributes: Row) => { message: string; status?: number } | null;
 }
 
 export interface FakeClient {
   from(table: string): any;
   rpc(name: string, args?: Row): Promise<{ data: any; error: { message: string } | null }>;
-  auth: { getUser(token: string): Promise<{ data: { user: any } | { user: null }; error: any }> };
-  calls: { getUser: number; rpc: { name: string; args: Row }[]; updates: { table: string; payload: Row; filters: [string, any][] }[]; inserts: { table: string; rows: Row[] }[] };
+  auth: {
+    getUser(token: string): Promise<{ data: { user: any } | { user: null }; error: any }>;
+    admin: { updateUserById(userId: string, attributes: Row): Promise<{ data: any; error: { message: string; status?: number } | null }> };
+  };
+  calls: { getUser: number; adminUpdates: { userId: string; attributes: Row }[]; rpc: { name: string; args: Row }[]; updates: { table: string; payload: Row; filters: [string, any][] }[]; inserts: { table: string; rows: Row[] }[] };
   tables: Record<string, Row[]>;
 }
 
 export function fakeSupabase(opts: FakeOptions = {}): FakeClient {
   const tables = opts.tables ?? {};
-  const calls: FakeClient['calls'] = { getUser: 0, rpc: [], updates: [], inserts: [] };
+  const calls: FakeClient['calls'] = { getUser: 0, adminUpdates: [], rpc: [], updates: [], inserts: [] };
 
   function builder(table: string) {
     const st: { op: 'select' | 'update' | 'insert'; payload?: any; filters: ((r: Row) => boolean)[]; raw: [string, any][]; limit?: number } = { op: 'select', filters: [], raw: [] };
@@ -84,6 +89,13 @@ export function fakeSupabase(opts: FakeOptions = {}): FakeClient {
         const u = opts.users?.[token];
         if (!u) return { data: { user: null }, error: { message: 'invalid JWT', status: 401, name: 'AuthApiError' } };
         return { data: { user: u }, error: null };
+      },
+      admin: {
+        updateUserById: async (userId: string, attributes: Row) => {
+          calls.adminUpdates.push({ userId, attributes });
+          const err = opts.adminUpdate ? opts.adminUpdate(userId, attributes) : null;
+          return err ? { data: null, error: err } : { data: { user: { id: userId } }, error: null };
+        },
       },
     },
     calls,

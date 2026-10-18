@@ -289,6 +289,33 @@ export const sendOtpSms = async (
   };
 };
 
+/**
+ * Texts a password-recovery code. Unlike sendOtpSms, nothing is stored here: the CODE is made by the caller and only its hash is kept, in the
+ * database (password_reset_challenge), so it survives a restart of this server and its tries cannot be reset by one.
+ * Same development echo rule as sendOtpSms (off unless NODE_ENV=development, OTP_DEV_ECHO=1 and no gateway is configured).
+ */
+export const sendRecoveryCodeSms = async (
+  rawPhone: string,
+  code: string
+): Promise<{ success: boolean; message?: string; error?: string }> => {
+  const formattedPhone = normalizePhilippinePhone(rawPhone);
+  if (devEchoEnabled()) {
+    console.log(`[SMS Service] DEV ONLY (OTP_DEV_ECHO=1, no gateway configured): password-recovery code for ${maskPhone(formattedPhone)} is ${code}`);
+    return { success: true, message: 'Code generated (development echo, no SMS sent).' };
+  }
+  const text = `Ang iyong SAKAY code para sa pag-reset ng password ay: ${code}. Valid ito ng 5 minuto. Huwag ibahagi ang code na ito kaninuman.`;
+  const sent = await sendRawSms(formattedPhone, text);
+  if (!sent.success) console.error(`[SMS Service] Failed to dispatch a password-recovery code to ${maskPhone(formattedPhone)}:`, sent.error);
+  return { success: sent.success, message: sent.message, error: sent.error };
+};
+
+/** A short notice to a number (for example "your password was changed"). Never carries a code. */
+export const sendNoticeSms = async (rawPhone: string, text: string): Promise<{ success: boolean; error?: string }> => {
+  if (devEchoEnabled()) return { success: true };
+  const sent = await sendRawSms(rawPhone, text);
+  return { success: sent.success, error: sent.error };
+};
+
 export type OtpVerdict =
   | { success: true }
   | { success: false; error: string; reason: 'not_found' | 'expired' | 'wrong' | 'too_many' };

@@ -1,103 +1,112 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import { checkPassword, extendTapArea, usePasswordRecovery } from "@sakay/shared";
 import { useLanguage } from "../../../../utils/LanguageContext";
 import PrimaryButton from "../../../../common/components/PrimaryButton";
 import Logo from "../../../../common/components/Logo";
 import SuccessModal from "../../../../common/components/SuccessModal";
-import { supabase } from "../../../../services/supabaseClient";
-import { extendTapArea } from "@sakay/shared";
+import SakayToast from "../../../../common/components/SakayToast";
+import { RegisterInput } from "../../../../common/components/RegisterInput";
 
+/**
+ * Step 2 of password recovery: the 6-digit code that was texted, and the new password. The server checks the password rules first (a weak
+ * password does not use up the code), then the code (five wrong ones lock the number for 15 minutes), then sets the password. The person
+ * is NOT signed in by this: she logs in with the new password, which ends her login on any other phone.
+ */
 const ResetPassword: React.FC = () => {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const recovery = usePasswordRecovery("passenger", language);
+  const tl = language === "tl";
 
-  // Retrieve state passed from ForgotPassword
-  const state = location.state as {
-    identifier?: string;
-  };
+  const state = location.state as { phone?: string; justSent?: boolean } | null;
+  const phone = state?.phone ?? "";
 
-  const identifier = state?.identifier || "";
-
-  // Form states
+  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // A code was just sent by the screen before this one: the next may be asked for after the usual wait
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    if (state?.justSent) recovery.startResendWait();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Without a number (this page was opened directly, or reloaded) there is nothing to finish: start from the number
+  if (!phone) return <Navigate to="/forgot-password" replace />;
+
+  const check = checkPassword(password);
+  const matches = password.length > 0 && password === confirmPassword;
+  const locked = recovery.lockedMinutes > 0;
+  const canSubmit = code.length === 6 && check.ok && matches && !locked && !recovery.busy;
+
+  const criteria = [
+    { met: check.length, label: tl ? "Hindi bababa sa 8 karakter" : "At least 8 characters" },
+    { met: check.letters, label: tl ? "Malalaking (A-Z) at maliliit (a-z) na titik" : "Upper (A-Z) and lower case (a-z) letters" },
+    { met: check.digit, label: tl ? "May numero (0-9)" : "A number (0-9)" },
+    { met: check.symbol, label: tl ? "May simbolo (@, #, $, atbp.)" : "A symbol (@, #, $, etc.)" },
+  ];
+
+  const maskedPhone = phone.length > 6 ? `${phone.slice(0, 5)}*****${phone.slice(-2)}` : phone;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    // Validations
-    if (!password) {
-      setError(t.passwordRequired);
-      return;
-    }
-    if (password.length < 6) {
-      setError(language === "tl" ? "Dapat hindi bababa sa 6 na karakter ang password" : "Password must be at least 6 characters");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError(t.passwordsMustMatch);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password,
-      });
-
-      if (updateError) {
-        setError(updateError.message);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(false);
+    if (!canSubmit) return;
+    const ok = await recovery.changePassword(phone, code, password);
+    if (ok) {
       setSuccess(true);
-      setTimeout(() => {
-        navigate("/login", { replace: true });
-      }, 1500);
-
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred while resetting password.';
-      setError(errMsg);
-      setLoading(false);
+      setTimeout(() => navigate("/login", { replace: true }), 1800);
+      return;
     }
+    // a code that is wrong, spent or expired is not worth keeping on screen
+    setCode("");
+    setToastOpen(true);
   };
+
+  const handleResend = async () => {
+    if (recovery.resendSeconds > 0 || recovery.busy) return;
+    const sent = await recovery.requestCode(phone);
+    if (sent) setCode("");
+    setToastOpen(!sent);
+  };
+
+  const eye = (shown: boolean, toggle: () => void, labelOn: string, labelOff: string) => (
+    <IconButton aria-label={shown ? labelOff : labelOn} onClick={toggle} edge="end" size="small" sx={{ ...extendTapArea(8), color: "#64748B" }}>
+      {shown ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+    </IconButton>
+  );
 
   return (
     <Box
       sx={{
         width: "100%",
         height: "100%",
-        padding: "24px",
-        paddingTop: "calc(var(--safe-area-top) + 16px)",
-        paddingBottom: "calc(var(--safe-area-bottom) + 24px)",
         backgroundColor: "#FFFFFF",
         display: "flex",
         flexDirection: "column",
-        overflowY: "auto",
-        "& > *": { flexShrink: 0 },
+        overflow: "hidden",
       }}
-      className="hide-scrollbar"
     >
+      <SakayToast open={toastOpen} message={recovery.message} severity="error" onClose={() => setToastOpen(false)} />
+
       {/* Header */}
       <Box
         sx={{
@@ -105,10 +114,15 @@ const ResetPassword: React.FC = () => {
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
+          padding: "16px 24px 12px 24px",
+          paddingTop: "calc(var(--safe-area-top) + 16px)",
+          backgroundColor: "#FFFFFF",
+          flexShrink: 0,
+          borderBottom: "1px solid rgba(226, 232, 240, 0.6)",
         }}
       >
         <IconButton
-          aria-label={language === "tl" ? "Bumalik" : "Back"}
+          aria-label={tl ? "Bumalik" : "Back"}
           onClick={() => navigate("/forgot-password")}
           sx={{
             backgroundColor: "#FFFFFF",
@@ -118,214 +132,129 @@ const ResetPassword: React.FC = () => {
             borderRadius: "14px",
             width: "44px",
             height: "44px",
-            "&:hover": {
-              backgroundColor: "#F8FAFC",
-            },
+            "&:hover": { backgroundColor: "#F8FAFC" },
           }}
         >
           <ArrowBackIcon sx={{ fontSize: 20 }} />
         </IconButton>
-
         <Logo color="orange" />
       </Box>
 
-      {/* Title */}
-      <Box sx={{ marginTop: "44px", textAlign: "left", width: "100%" }}>
-        <Typography
-          component="h2"
-          sx={{
-            fontSize: "24px",
-            fontWeight: 700,
-            color: "#0F172A",
-            lineHeight: 1.3,
-          }}
-        >
-          {language === "tl" ? "I-reset ang Password" : "Reset Password"}
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: "15px",
-            color: "#64748B",
-            marginTop: "8px",
-            lineHeight: 1.5,
-          }}
-        >
-          {language === "tl"
-            ? `Gumawa ng bagong password para sa iyong account (${identifier})`
-            : `Create a new password for your account (${identifier})`}
-        </Typography>
-      </Box>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ width: "100%", marginTop: "24px", borderRadius: "12px" }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Form */}
       <Box
         component="form"
         onSubmit={handleSubmit}
-        className="anim-fade-in"
+        noValidate
+        className="anim-fade-in hide-scrollbar"
         sx={{
-          marginTop: "32px",
+          flexGrow: 1,
+          overflowY: "auto",
+          "& > *": { flexShrink: 0 },
+          padding: "24px 24px calc(var(--safe-area-bottom) + 24px) 24px",
           display: "flex",
           flexDirection: "column",
-          gap: "16px",
-          width: "100%",
         }}
       >
-        {/* New Password */}
-        <Box sx={{ width: "100%" }}>
-          <TextField
-            fullWidth
+        <Box sx={{ marginTop: "8px", textAlign: "left", width: "100%" }}>
+          <Typography component="h2" sx={{ fontSize: "24px", fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>
+            {tl ? "I-reset ang Password" : "Reset Password"}
+          </Typography>
+          <Typography sx={{ fontSize: "15px", color: "#64748B", marginTop: "8px", lineHeight: 1.5, fontWeight: 500 }}>
+            {tl
+              ? `Ilagay ang 6-digit na code na ipinadala sa ${maskedPhone} at gumawa ng bagong password.`
+              : `Enter the 6-digit code we texted to ${maskedPhone}, then choose a new password.`}
+          </Typography>
+        </Box>
+
+        {locked && (
+          <Alert severity="warning" sx={{ width: "100%", marginTop: "20px", borderRadius: "12px" }}>
+            {tl
+              ? `Masyadong maraming maling code. Subukan muli pagkalipas ng ${recovery.lockedMinutes} minuto.`
+              : `Too many wrong codes. Please try again in ${recovery.lockedMinutes} minute${recovery.lockedMinutes === 1 ? "" : "s"}.`}
+          </Alert>
+        )}
+
+        <Box sx={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
+          <RegisterInput
+            label={tl ? "6-digit na code" : "6-digit code"}
             required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-            label={language === "tl" ? "Bagong Password" : "New Password"}
+            value={code}
+            onChange={(val) => setCode(val.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            readOnly={locked}
+          />
+
+          <RegisterInput
+            label={tl ? "Bagong password" : "New password"}
+            required
             type={showPassword ? "text" : "password"}
-            slotProps={{
-              inputLabel: {
-                sx: {
-                  color: "#64748B",
-                  fontSize: "15px",
-                  transform: "translate(16px, 18px) scale(1)",
-                  transformOrigin: "top left",
-                  "&.MuiInputLabel-shrink": {
-                    transform: "translate(16px, 8px) scale(0.75)",
-                    fontWeight: 600,
-                  },
-                  "&.Mui-focused": {
-                    color: "#FF6600",
-                  },
-                },
-              },
-              input: {
-                notched: false,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={showPassword ? (language === "tl" ? "Itago ang password" : "Hide password") : (language === "tl" ? "Ipakita ang password" : "Show password")}
-                      sx={extendTapArea(8)}
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                      disabled={loading}
-                    >
-                      {showPassword ? <VisibilityOff sx={{ color: "#64748B" }} /> : <Visibility sx={{ color: "#64748B" }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  height: "58px",
-                  backgroundColor: "#F8FAFC",
-                  borderRadius: "14px",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#E2E8F0",
-                    borderWidth: "1.5px",
-                    "& legend": { display: "none" },
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#FF6600", borderWidth: "1.5px" },
-                  "&.Mui-focused": {
-                    boxShadow: "0 0 0 3px rgba(255, 102, 0, 0.12)",
-                  },
-                  "& .MuiOutlinedInput-input": {
-                    pt: "20px",
-                    pb: "4px",
-                    px: "16px",
-                    fontSize: "15px",
-                    fontWeight: 500,
-                    color: "#0F172A",
-                  },
-                },
-              },
-            }}
+            autoComplete="new-password"
+            value={password}
+            onChange={setPassword}
+            endAdornment={eye(
+              showPassword,
+              () => setShowPassword(!showPassword),
+              tl ? "Ipakita ang password" : "Show password",
+              tl ? "Itago ang password" : "Hide password"
+            )}
           />
-        </Box>
 
-        {/* Confirm New Password */}
-        <Box sx={{ width: "100%" }}>
-          <TextField
-            fullWidth
+          <Box component="ul" aria-label={tl ? "Mga patakaran sa password" : "Password rules"} sx={{ listStyle: "none", m: 0, p: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+            {criteria.map((c) => (
+              <Box component="li" key={c.label} sx={{ display: "flex", alignItems: "center", gap: "8px", color: c.met ? "#15803D" : "#64748B", fontSize: "13px", fontWeight: 500 }}>
+                {c.met ? <CheckCircleIcon sx={{ fontSize: 16 }} aria-label={tl ? "Natupad" : "Met"} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 16 }} aria-label={tl ? "Hindi pa natutupad" : "Not met yet"} />}
+                {c.label}
+              </Box>
+            ))}
+          </Box>
+
+          <RegisterInput
+            label={tl ? "Kumpirmahin ang bagong password" : "Confirm new password"}
             required
+            type={showConfirm ? "text" : "password"}
+            autoComplete="new-password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={loading}
-            label={language === "tl" ? "Kumpirmahin ang Bagong Password" : "Confirm New Password"}
-            type={showConfirmPassword ? "text" : "password"}
-            slotProps={{
-              inputLabel: {
-                sx: {
-                  color: "#64748B",
-                  fontSize: "15px",
-                  transform: "translate(16px, 18px) scale(1)",
-                  transformOrigin: "top left",
-                  "&.MuiInputLabel-shrink": {
-                    transform: "translate(16px, 8px) scale(0.75)",
-                    fontWeight: 600,
-                  },
-                  "&.Mui-focused": {
-                    color: "#FF6600",
-                  },
-                },
-              },
-              input: {
-                notched: false,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={showConfirmPassword ? (language === "tl" ? "Itago ang kumpirmang password" : "Hide confirm password") : (language === "tl" ? "Ipakita ang kumpirmang password" : "Show confirm password")}
-                      sx={extendTapArea(8)}
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      edge="end"
-                      disabled={loading}
-                    >
-                      {showConfirmPassword ? <VisibilityOff sx={{ color: "#64748B" }} /> : <Visibility sx={{ color: "#64748B" }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  height: "58px",
-                  backgroundColor: "#F8FAFC",
-                  borderRadius: "14px",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#E2E8F0",
-                    borderWidth: "1.5px",
-                    "& legend": { display: "none" },
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#FF6600", borderWidth: "1.5px" },
-                  "&.Mui-focused": {
-                    boxShadow: "0 0 0 3px rgba(255, 102, 0, 0.12)",
-                  },
-                  "& .MuiOutlinedInput-input": {
-                    pt: "20px",
-                    pb: "4px",
-                    px: "16px",
-                    fontSize: "15px",
-                    fontWeight: 500,
-                    color: "#0F172A",
-                  },
-                },
-              },
-            }}
+            onChange={setConfirmPassword}
+            error={confirmPassword.length > 0 && !matches}
+            helperText={confirmPassword.length > 0 && !matches ? (tl ? "Dapat magtugma ang password" : "Passwords must match") : ""}
+            endAdornment={eye(
+              showConfirm,
+              () => setShowConfirm(!showConfirm),
+              tl ? "Ipakita ang kumpirmadong password" : "Show confirmed password",
+              tl ? "Itago ang kumpirmadong password" : "Hide confirmed password"
+            )}
           />
         </Box>
 
-        <Box sx={{ marginTop: "24px", width: "100%" }}>
-          <PrimaryButton type="submit" fullWidth loading={loading}>
-            {language === "tl" ? "I-update ang Password" : "Update Password"}
+        <Box sx={{ marginTop: "28px", width: "100%" }}>
+          <PrimaryButton type="submit" fullWidth loading={recovery.busy} disabled={!canSubmit}>
+            {tl ? "I-update ang Password" : "Update Password"}
           </PrimaryButton>
+        </Box>
+
+        <Box sx={{ marginTop: "12px", width: "100%", display: "flex", justifyContent: "center" }}>
+          <Button
+            type="button"
+            onClick={handleResend}
+            disabled={recovery.resendSeconds > 0 || recovery.busy || locked}
+            sx={{ textTransform: "none", fontWeight: 600, color: "#FF6600", minHeight: 44 }}
+          >
+            {recovery.resendSeconds > 0
+              ? tl
+                ? `Humiling muli ng code (${recovery.resendSeconds}s)`
+                : `Send a new code (${recovery.resendSeconds}s)`
+              : tl
+                ? "Humiling muli ng code"
+                : "Send a new code"}
+          </Button>
         </Box>
       </Box>
 
-      {/* Success Modal */}
       <SuccessModal
         open={success}
-        title={language === "tl" ? "Matagumpay na Nireset!" : "Password Reset Successful!"}
-        message={language === "tl" ? "Matagumpay na na-reset ang password ng iyong account." : "Your account password was successfully reset."}
+        title={tl ? "Napalitan na ang Password!" : "Password Changed!"}
+        message={tl ? "Mag-login gamit ang iyong bagong password." : "Log in with your new password."}
       />
     </Box>
   );

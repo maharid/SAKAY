@@ -447,7 +447,7 @@ export const Register: React.FC = () => {
               role="button"
               tabIndex={0}
               onKeyDown={activateWithKeyboard}
-              onClick={() => navigate('/forgot-password')}>
+              onClick={() => navigate('/forgot-password', { state: { phone } })}>
               {language === 'tl' ? '→ I-recover ang Password' : '→ Recover Password'}
             </Typography>
           )}
