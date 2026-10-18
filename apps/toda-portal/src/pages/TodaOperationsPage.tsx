@@ -44,8 +44,9 @@ import {
 } from '../services/todaApiService';
 import type { GpsArea } from '../services/todaApiService';
 import { GpsAreasCard } from '../components/admin/GpsAreasCard';
-import { FareDisputesPanel, ReportDriverAvailabilityDialog, ReviewFlagsPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
-import type { FareDisputeRow, ReconciliationTrip, ReviewFlagRow } from '@sakay/shared';
+import { FareDisputesPanel, ReportDriverAvailabilityDialog, ReviewFlagsPanel, SafetyEndTripPanel, TripReconciliationPanel, VehicleSubstitutionsPanel, CoverageGapsPanel, DeclineHistoryDialog, fetchCoverageGaps, fetchDeclineHistory, asSubstitutionClient, decideVehicleSubstitution, endVehicleSubstitution, fetchVehicleSubstitutions } from '@sakay/shared';
+import type { CoverageGaps, DeclineHistory, FareDisputeRow, ReconciliationTrip, ReviewFlagRow, VehicleSubstitution } from '@sakay/shared';
+import { supabase } from '../services/supabaseClient';
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { driverActivity, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike } from '@sakay/shared';
@@ -136,15 +137,30 @@ export const TodaOperationsPage: React.FC = () => {
   const loadReviewFlags = async () => setReviewFlags(await fetchTodaReviewFlags());
   // Rules 5.3 / 5.7: reporting a driver seen in the terminal queue, or carrying other passengers, while Available in the app
   const [reportOpen, setReportOpen] = useState(false);
+  // Rule 29.18: the drivers' requests to use another vehicle: the TODA Administrator approves first, then the LGU Administrator
+  const [substitutions, setSubstitutions] = useState<VehicleSubstitution[]>([]);
+  const loadSubstitutions = async () => setSubstitutions((await fetchVehicleSubstitutions(asSubstitutionClient(supabase))) ?? []);
+  // Rule 7.9: the booking offers of a driver a repeated-declines flag is about. Rule 7.10: the coverage gaps logged for this TODA's zone.
+  const [declineView, setDeclineView] = useState<{ driverId: string; name: string; loading: boolean; history: DeclineHistory | null } | null>(null);
+  const [coverageGaps, setCoverageGaps] = useState<CoverageGaps | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(true);
+  const openDeclineHistory = async (driverId: string, name: string) => {
+    setDeclineView({ driverId, name, loading: true, history: null });
+    const history = await fetchDeclineHistory(supabase, driverId);
+    setDeclineView({ driverId, name, loading: false, history });
+  };
   useEffect(() => {
     loadReconciliation();
     loadGpsAreas();
     loadFareDisputes();
     loadReviewFlags();
+    loadSubstitutions();
+    fetchCoverageGaps(supabase, 30).then((g) => { setCoverageGaps(g); setCoverageLoading(false); });
     const timer = setInterval(() => {
       loadReconciliation();
       loadFareDisputes();
       loadReviewFlags();
+      loadSubstitutions();
     }, 15000);
     return () => clearInterval(timer);
   }, [targetTodaId]);
@@ -214,6 +230,31 @@ export const TodaOperationsPage: React.FC = () => {
         onFiled={() => void loadReviewFlags()}
       />
 
+      <CoverageGapsPanel gaps={coverageGaps} loading={coverageLoading} audience="toda_admin" />
+      <DeclineHistoryDialog
+        open={declineView !== null}
+        onClose={() => setDeclineView(null)}
+        driverName={declineView?.name ?? ''}
+        history={declineView?.history ?? null}
+        loading={declineView?.loading ?? false}
+        failed={declineView !== null && !declineView.loading && declineView.history === null}
+      />
+
+      <VehicleSubstitutionsPanel
+        role="toda_admin"
+        requests={substitutions}
+        onDecide={async (id, approve, note) => {
+          const message = await decideVehicleSubstitution(asSubstitutionClient(supabase), 'toda_admin', id, approve, note);
+          if (!message) await loadSubstitutions();
+          return message;
+        }}
+        onEnd={async (id, reason) => {
+          const message = await endVehicleSubstitution(asSubstitutionClient(supabase), id, reason);
+          if (!message) await loadSubstitutions();
+          return message;
+        }}
+      />
+
       <ReviewFlagsPanel
         flags={reviewFlags}
         driverNames={Object.fromEntries(drivers.map((d) => [d.id, d.name]))}
@@ -232,6 +273,7 @@ export const TodaOperationsPage: React.FC = () => {
           if (!message) await loadReviewFlags();
           return message;
         }}
+        onViewDeclineHistory={openDeclineHistory}
         onCloseTrip={async (bookingId, paymentStatus, reason) => {
           const message = await closeUnfinishedTrip(bookingId, paymentStatus, reason);
           if (!message) {

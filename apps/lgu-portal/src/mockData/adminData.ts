@@ -169,6 +169,9 @@ export interface DriverRecord {
   restrictionKind?: AccountRestrictionKind;
   suspendedUntil?: string;
   suspensionReason?: string;
+  /** Rule 3.9: the applicant was permanently disqualified and can never be cleared to re-apply */
+  isPermanentlyDisqualified?: boolean;
+  disqualificationReason?: string;
   isResubmitted?: boolean;
   resubmittedAt?: string;
   documents: {

@@ -18,11 +18,13 @@ import StarRateIcon from '@mui/icons-material/StarRate';
 import PaidIcon from '@mui/icons-material/Paid';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import GavelIcon from '@mui/icons-material/Gavel';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import MapIcon from '@mui/icons-material/Map';
 
 import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
-import { fetchTodaApplications, fetchDrivers, countPendingLguAppeals } from '../../services/adminApiService';
+import { fetchTodaApplications, fetchDrivers, countPendingLguAppeals, countPendingLguSubstitutions } from '../../services/adminApiService';
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -50,6 +52,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
   const [pendingTodaCount, setPendingTodaCount] = useState<number>(0);
   const [pendingDriverCount, setPendingDriverCount] = useState<number>(0);
   const [pendingAppealCount, setPendingAppealCount] = useState<number>(0);
+  const [pendingVehicleCount, setPendingVehicleCount] = useState<number>(0);
 
   useEffect(() => {
     Promise.all([
@@ -71,6 +74,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
   // Rule 25.5 / 25.6: the strike appeals waiting for the LGU Administrator (a decision is due in three business days)
   useEffect(() => {
     countPendingLguAppeals().then(setPendingAppealCount).catch(() => undefined);
+    countPendingLguSubstitutions().then(setPendingVehicleCount).catch(() => undefined);
   }, [location.pathname]);
 
   const navGroups: NavGroup[] = [
@@ -87,6 +91,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
         { id: 'accredited-todas', label: 'Accredited TODAs', path: '/accredited-todas', icon: <VerifiedUserIcon fontSize="small" /> },
         { id: 'drivers', label: 'Drivers', path: '/drivers', icon: <BadgeIcon fontSize="small" />, badge: pendingDriverCount > 0 ? pendingDriverCount : undefined, badgeType: 'orange' },
         { id: 'passengers', label: 'Passengers', path: '/passengers', icon: <PeopleIcon fontSize="small" /> },
+        { id: 'vehicle-substitutions', label: 'Vehicle Substitutions', path: '/vehicle-substitutions', icon: <SwapHorizIcon fontSize="small" />, badge: pendingVehicleCount > 0 ? pendingVehicleCount : undefined, badgeType: 'orange' },
         { id: 'feedback', label: 'Passenger Feedback', path: '/feedback', icon: <StarRateIcon fontSize="small" /> },
       ],
     },
@@ -103,6 +108,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
       groupTitle: 'MUNICIPAL POLICY',
       items: [
         { id: 'fare-configuration', label: 'Fare Configuration', path: '/fare-configuration', icon: <PaidIcon fontSize="small" /> },
+        { id: 'service-area', label: 'Service Area', path: '/service-area', icon: <MapIcon fontSize="small" /> },
       ],
     },
     {

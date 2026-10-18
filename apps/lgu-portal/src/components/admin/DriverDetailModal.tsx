@@ -126,6 +126,9 @@ export function getDocumentType(doc: {
 import { DriverRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { CloseAccountButton, VoidStrikeButton } from './AccountSanctionActions';
+import { DeclineHistoryDialog, allowDriverReapplication, fetchDeclineHistory, permanentlyDisqualifyDriver } from '@sakay/shared';
+import { supabase } from '../../services/supabaseClient';
+import type { DeclineHistory } from '@sakay/shared';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { RestrictionBanner } from './RestrictionBanner';
 import { StatusBadge } from '../common/StatusBadge';
@@ -184,6 +187,16 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
   // Authoritative strike ledger + violation catalog (read from the policy engine)
   const strikeData = useStrikeData('driver', open ? driver?.id : null);
+  // Rule 7.9: the booking offers of this driver (declines and their reasons), for the review of a pattern of refusals
+  // Rule 3.9: allowing a rejected applicant to re-apply (per application), and the permanent disqualification of an applicant (the LGU Administrator's only)
+  const [reapplyTarget, setReapplyTarget] = useState<string | null>(null);
+  const [disqualifyOpen, setDisqualifyOpen] = useState(false);
+  const [declineView, setDeclineView] = useState<{ loading: boolean; history: DeclineHistory | null } | null>(null);
+  const openDeclineHistory = async () => {
+    if (!driver) return;
+    setDeclineView({ loading: true, history: null });
+    setDeclineView({ loading: false, history: await fetchDeclineHistory(supabase, driver.id) });
+  };
 
   React.useEffect(() => {
     if (driver && open) {
@@ -840,10 +853,29 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     )}
                     <Chip size="small" label={`TODA: ${aff.todaStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.todaStage) }} />
                     <Chip size="small" label={`LGU: ${aff.lguStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.lguStage) }} />
+                    {(aff.todaStage === 'Rejected' || aff.lguStage === 'Rejected') && !driver.isPermanentlyDisqualified && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={(e) => { e.stopPropagation(); setReapplyTarget(aff.affiliationId); }}
+                        sx={{ textTransform: 'none', fontWeight: 700, fontSize: '11px', py: 0, minHeight: 24 }}
+                      >
+                        Allow re-application
+                      </Button>
+                    )}
                   </Box>
                 </Box>
               );
             })}
+            {driver.isPermanentlyDisqualified ? (
+              <Alert severity="error" sx={{ mt: 1.5, borderRadius: '10px' }}>
+                Permanently disqualified (Rule 3.9): this applicant can never be cleared to re-apply.{driver.disqualificationReason ? ` Reason: ${driver.disqualificationReason}` : ''}
+              </Alert>
+            ) : (
+              <Button size="small" color="error" variant="text" onClick={() => setDisqualifyOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '11.5px', mt: 0.5, px: 0 }}>
+                Permanently disqualify this applicant (Rule 3.9)
+              </Button>
+            )}
             <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
               {awaitingAffiliations.length > 1
                 ? 'Several TODA applications are waiting for the LGU. Click the one the Approve / Reject action applies to.'
@@ -1115,12 +1147,20 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                 Active Strikes: <span style={{ color: activeStrikes > 0 ? '#DC2626' : '#1E8E3E', fontWeight: 700 }}>{activeStrikes} Strike(s)</span>
               </Typography>
-              <ActionButton
-                label="+ Record Violation / Strike"
-                showArrow={false}
-                onClick={() => setStrikeDialogOpen(true)}
-                sx={{ height: 32, fontSize: '12px' }}
-              />
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <ActionButton
+                  label="Booking offers (Rule 7.9)"
+                  showArrow={false}
+                  onClick={openDeclineHistory}
+                  sx={{ height: 32, fontSize: '12px' }}
+                />
+                <ActionButton
+                  label="+ Record Violation / Strike"
+                  showArrow={false}
+                  onClick={() => setStrikeDialogOpen(true)}
+                  sx={{ height: 32, fontSize: '12px' }}
+                />
+              </Box>
             </Box>
 
             {strikeData.history.length > 0 && (
@@ -2015,6 +2055,59 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           {snackbarMsg}
         </Alert>
       </Snackbar>
+      <MacConfirmDialog
+        open={reapplyTarget !== null}
+        onClose={() => setReapplyTarget(null)}
+        title="Allow this applicant to apply again?"
+        message="A rejection is final unless the LGU Administrator allows the applicant to be reviewed again (Rule 3.9). The application goes back to Submitted for its TODA. The earlier rejection reasons and your reason are kept in the audit log."
+        confirmLabel="Allow re-application"
+        confirmVariant="orange"
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder="Why may this applicant apply again? (at least 10 characters)"
+        onConfirm={async (reason) => {
+          const target = reapplyTarget;
+          setReapplyTarget(null);
+          if (!target || !reason) return;
+          const problem = await allowDriverReapplication(supabase, target, reason);
+          setSnackbarMsg(problem ?? 'The application goes back to review.');
+          if (!problem && onDriverUpdated) {
+            onDriverUpdated({
+              ...driver,
+              verificationStatus: 'Pending',
+              affiliations: affiliations.map((a) => (a.affiliationId === target ? { ...a, todaStage: 'Submitted' as const, lguStage: 'Pending' as const } : a)),
+            } as DriverRecord);
+          }
+        }}
+      />
+      <MacConfirmDialog
+        open={disqualifyOpen}
+        onClose={() => setDisqualifyOpen(false)}
+        title="Permanently disqualify this applicant?"
+        message={`"${driver.name}" can never be cleared to re-apply, and every application is rejected (Rule 3.9). Use this only for fraud, falsified documents or a comparable ground. It cannot be undone.`}
+        confirmLabel="Disqualify permanently"
+        confirmVariant="danger"
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder="The ground for the disqualification (at least 10 characters)"
+        onConfirm={async (reason) => {
+          setDisqualifyOpen(false);
+          if (!reason) return;
+          const problem = await permanentlyDisqualifyDriver(supabase, driver.id, reason);
+          setSnackbarMsg(problem ?? `${driver.name} was permanently disqualified.`);
+          if (!problem && onDriverUpdated) {
+            onDriverUpdated({ ...driver, verificationStatus: 'Rejected', isPermanentlyDisqualified: true, disqualificationReason: reason } as DriverRecord);
+          }
+        }}
+      />
+      <DeclineHistoryDialog
+        open={declineView !== null}
+        onClose={() => setDeclineView(null)}
+        driverName={driver.name}
+        history={declineView?.history ?? null}
+        loading={declineView?.loading ?? false}
+        failed={declineView !== null && !declineView.loading && declineView.history === null}
+      />
     </>
   );
 };

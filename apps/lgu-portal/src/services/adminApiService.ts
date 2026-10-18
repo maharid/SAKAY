@@ -13,8 +13,8 @@
  * ============================================================================
  */
 
-import { adminActionMessage, closeAccountArgs, closeUnfinishedTripArgs, confirmAvailabilityArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
-import type { AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
+import { adminActionMessage, mapServiceAreas, pilotAreaArgs, closeAccountArgs, closeUnfinishedTripArgs, confirmAvailabilityArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
+import type { ServiceAreaRecord, AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
@@ -1093,6 +1093,8 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           restrictionKind: deriveRestrictionKind(d),
           suspendedUntil: d.suspended_until || undefined,
           suspensionReason: d.suspension_reason || undefined,
+          isPermanentlyDisqualified: Boolean(d.is_permanently_disqualified),
+          disqualificationReason: d.disqualification_reason || undefined,
           isResubmitted,
           resubmittedAt: reviewStatus?.resubmittedAt || undefined,
           documents,
@@ -1657,6 +1659,44 @@ export async function issuePassengerStrike(passengerId: string, violationCode: s
 // ----------------------------------------------------------------------------
 // Rule 16.3 and PI-15: the audited correction of a completed trip, and closing a trip that was left at the destination
 // ----------------------------------------------------------------------------
+
+// ----------------------------------------------------------------------------
+// The service area (PI-01): the whole city, or a pilot circle around one TODA's terminal
+// ----------------------------------------------------------------------------
+
+/** The configured service areas, the active one first; null when they could not be read. */
+export async function fetchServiceAreas(): Promise<ServiceAreaRecord[] | null> {
+  const { data, error } = await supabase.from('service_area_config').select('config_id, area_name, radius_km, is_active, notes, updated_at, boundary_geojson').order('updated_at', { ascending: false }).limit(20);
+  return error || !data ? null : mapServiceAreas(data);
+}
+
+/** The accredited TODAs that have a terminal on the map (the centre of a pilot area). */
+export async function fetchTodaTerminals(): Promise<Array<{ id: string; name: string }>> {
+  const { data } = await supabase.from('toda').select('toda_id, toda_name, terminal_latitude, terminal_longitude').not('terminal_latitude', 'is', null).not('terminal_longitude', 'is', null).order('toda_name', { ascending: true });
+  return (data ?? []).map((t) => ({ id: String(t.toda_id), name: String(t.toda_name) }));
+}
+
+function rpcOutcome(res: { data: unknown; error: { message: string } | null }, fallback: string): string | null {
+  if (res.error) return adminActionMessage(res.error.message, fallback);
+  const d = res.data as { success?: boolean; error?: string } | null;
+  return d && d.success === true ? null : adminActionMessage(d?.error, fallback);
+}
+
+/** Narrows the service area to a circle around a TODA's terminal. Null when it was set, otherwise the database's sentence. */
+export async function setPilotServiceArea(todaId: string, radiusKm: number): Promise<string | null> {
+  return rpcOutcome(await supabase.rpc('set_pilot_service_area', pilotAreaArgs(todaId, radiusKm)), 'The service area could not be changed.');
+}
+
+/** Puts the service area back to the whole of Calapan City (its boundary). Null when it was set, otherwise the database's sentence. */
+export async function useWholeCityServiceArea(): Promise<string | null> {
+  return rpcOutcome(await supabase.rpc('use_city_service_area'), 'The service area could not be changed.');
+}
+
+/** Rule 29.18: how many vehicle substitution requests wait for the LGU Administrator (the badge in the side menu); 0 when it cannot be read. */
+export async function countPendingLguSubstitutions(): Promise<number> {
+  const { count, error } = await supabase.from('vehicle_substitution').select('substitution_id', { count: 'exact', head: true }).eq('status', 'Pending LGU Approval');
+  return error ? 0 : count ?? 0;
+}
 
 /**
  * Rules 5.3 / 5.7: the LGU Administrator confirms a reported queue conflict or availability violation (for a driver with no TODA, or one the TODA did not act on):
