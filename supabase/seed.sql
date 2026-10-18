@@ -7,23 +7,12 @@
 --   Driver PWA, and Passenger PWA applications.
 -- ============================================================================
 
--- 1. CLEAN EXISTING SEED DATA (IF RE-RUNNING)
-TRUNCATE TABLE 
-    public.audit_log,
-    public.announcement,
-    public.incident_report,
-    public.rating,
-    public.gps_log,
-    public.dispatch_attempt,
-    public.booking,
-    public.driver_verification,
-    public.driver,
-    public.passenger,
-    public.toda_admin,
-    public.lgu_admin,
-    public.fare_matrix,
-    public.toda
-CASCADE;
+-- 1. THIS FILE ONLY ADDS. IT NEVER DELETES.
+-- ============================================================================
+-- It used to start with TRUNCATE ... CASCADE over every data table (bookings, drivers, passengers, the audit log), so running it against a
+-- database with real data erased all of it, and since the audit log became append-only (Rule 28.4, Batch 12) it no longer ran at all. It now only
+-- inserts the master data below, and every insert skips a row that is already there, so it is safe to run twice and safe on a database that
+-- already holds data. (To start from nothing, use `supabase db reset`; that is the one place a clean slate is wanted.)
 
 -- ============================================================================
 -- 2. ACCREDITED TODA ORGANIZATIONS (Calapan City)
@@ -128,7 +117,8 @@ INSERT INTO public.toda (
     '2026-12-31T23:59:59Z',
     'Active',
     'Active'
-);
+)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- 3. MUNICIPAL FARE MATRIX ORDINANCES
@@ -160,7 +150,8 @@ INSERT INTO public.fare_matrix (
     '2019-01-01T00:00:00Z',
     FALSE,
     NULL
-);
+)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- 4. ANNOUNCEMENTS (City Bulletins & TODA Notices)
@@ -183,32 +174,25 @@ INSERT INTO public.announcement (
     'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     'Strict Adherence to Regulated Tariffs',
     'Drivers are reminded that the standard base fare is ₱15.00 for the first 2.0 km. Overcharging complaints will result in immediate policy strikes.'
-);
+)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- 5. AUDIT LOG (Immutable Administrative Ledger)
 -- ============================================================================
 
-INSERT INTO public.audit_log (
-    log_id,
-    action_type,
-    details
-) VALUES 
-(
-    gen_random_uuid(),
-    'SYSTEM_INITIALIZED',
-    'Database seed script executed. Calapan City TODA registries, active fare matrix, and baseline parameters established.'
-),
-(
-    gen_random_uuid(),
-    'FARE_MATRIX_VERIFIED',
-    'Verified City Ordinance No. 110, Series of 2022 active tariff matrix: ₱15.00 base (2.0 km), ₱1.00/km succeeding.'
-),
-(
-    gen_random_uuid(),
-    'TODA_ACCREDITATION_CONFIRMED',
-    'Confirmed municipal accreditation for CCTODA (CAL-TODA-2024-001) with 24 authorized units.'
-);
+INSERT INTO public.audit_log (log_id, action_type, details)
+SELECT gen_random_uuid(), v.action_type, v.details
+FROM (VALUES
+    ('SYSTEM_INITIALIZED',
+     'Database seed script executed. Calapan City TODA registries, active fare matrix, and baseline parameters established.'),
+    ('FARE_MATRIX_VERIFIED',
+     'Verified City Ordinance No. 110, Series of 2022 active tariff matrix: ₱15.00 base (2.0 km), ₱1.00/km succeeding.'),
+    ('TODA_ACCREDITATION_CONFIRMED',
+     'Confirmed municipal accreditation for CCTODA (CAL-TODA-2024-001) with 24 authorized units.')
+) AS v(action_type, details)
+WHERE NOT EXISTS (SELECT 1 FROM public.audit_log a WHERE a.action_type = v.action_type AND a.details = v.details);
+
 -- ============================================================================
 -- NO SEEDED LOGIN ACCOUNTS
 -- ============================================================================

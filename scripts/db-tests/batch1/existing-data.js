@@ -91,6 +91,8 @@ const BEFORE_BATCH1 = '20260927020000_fix_all_security_advisor_red_notices.sql';
     check('is_driver_documentarily_restricted runs for a backfilled driver (gates going online)', restricted.ok, restricted);
 
     // Supabase's preview and `db reset` run supabase/seed.sql after the migrations.
+    const countsBefore = (await db.query(`SELECT (SELECT count(*) FROM public.lgu_admin)::int AS lgu, (SELECT count(*) FROM public.toda_admin)::int AS toda_admins,
+                                             (SELECT count(*) FROM auth.users)::int AS users`)).rows[0];
     let seedError = null;
     try {
       await db.exec(require('fs').readFileSync(require('path').join(__dirname, '..', '..', '..', 'supabase', 'seed.sql'), 'utf8'));
@@ -98,16 +100,32 @@ const BEFORE_BATCH1 = '20260927020000_fix_all_security_advisor_red_notices.sql';
     check('supabase/seed.sql applies after the migrations (as in Supabase preview / db reset)', seedError === null, seedError);
     if (seedError === null) {
       const seeded = (await db.query(`SELECT
-        (SELECT count(*) FROM public.toda WHERE toda_status = 'Active')::int AS todas,
+        (SELECT count(*) FROM public.toda WHERE toda_status = 'Active' AND toda_id IN ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'))::int AS seed_todas,
+        (SELECT count(*) FROM public.fare_matrix WHERE fare_matrix_id = 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380f01' AND is_active)::int AS seed_fare,
         (SELECT count(*) FROM public.lgu_admin)::int AS lgu,
         (SELECT count(*) FROM public.toda_admin)::int AS toda_admins,
+        (SELECT count(*) FROM auth.users)::int AS users,
         (SELECT count(*) FROM auth.users WHERE email IN ('admin@gmail.com', 'cctoda@toda.sakay.internal', 'bltoda@toda.sakay.internal',
-                                                         'svtoda@toda.sakay.internal', 'lptoda@toda.sakay.internal'))::int AS seeded_logins,
-        (SELECT count(*) FROM public.fare_matrix)::int AS fares`)).rows[0];
+                                                         'svtoda@toda.sakay.internal', 'lptoda@toda.sakay.internal'))::int AS seeded_logins`)).rows[0];
       // Perimeter lockdown (D-SEC-5): the seed holds master data only. It used to create an LGU administrator and TODA administrators
-      // with passwords written in the file; no login account comes from it any more.
-      check('the seed leaves 3 Active TODAs and a fare matrix, and creates NO login account (no administrator, nothing in auth.users)',
-        seeded.todas === 3 && seeded.lgu === 0 && seeded.toda_admins === 0 && seeded.seeded_logins === 0 && seeded.fares >= 1, seeded);
+      // with passwords written in the file; no login account comes from it any more. (It adds rows; it never removes the rows that were there.)
+      check('the seed adds its master data (the Active TODA, the active fare matrix) and creates NO administrator and NO login account',
+        seeded.seed_todas === 1 && seeded.seed_fare === 1 && seeded.lgu === countsBefore.lgu && seeded.toda_admins === countsBefore.toda_admins
+        && seeded.users === countsBefore.users && seeded.seeded_logins === 0, { seeded, countsBefore });
+
+      // The seed only ADDS (it used to TRUNCATE every data table, which erased real data and, since the audit log became append-only, no longer ran).
+      // Running it again on a database that holds data must change nothing and delete nothing.
+      const sqlText = require('fs').readFileSync(require('path').join(__dirname, '..', '..', '..', 'supabase', 'seed.sql'), 'utf8');
+      check('the seed contains no TRUNCATE and no DELETE statement', !/^\s*(TRUNCATE|DELETE)/im.test(sqlText.replace(/--.*$/gm, '')));
+      const count = async () => (await db.query(`SELECT (SELECT count(*) FROM public.toda)::int AS todas, (SELECT count(*) FROM public.fare_matrix)::int AS fares,
+                                                  (SELECT count(*) FROM public.announcement)::int AS announcements, (SELECT count(*) FROM public.audit_log)::int AS audit`)).rows[0];
+      await db.exec(`SELECT set_config('sakay.internal_context','true',false); INSERT INTO public.announcement (toda_id, title, message) VALUES (NULL, 'Real announcement', 'Written by an administrator after the seed.'); SELECT set_config('sakay.internal_context','',false)`);
+      const before = await count();
+      let again = null;
+      try { await db.exec(sqlText); } catch (e) { again = e.message; }
+      const after = await count();
+      check('the seed can be run a second time on a database that holds data, and it changes nothing', again === null && JSON.stringify(before) === JSON.stringify(after), { again, before, after });
+      check('...and the announcement written after the first run is still there', (await db.query(`SELECT 1 FROM public.announcement WHERE title = 'Real announcement'`)).rows.length === 1);
     }
   }
 
