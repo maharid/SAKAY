@@ -21,6 +21,7 @@ import AppFeedbackPage from "./features/account-management/pages/AppFeedbackPage
 import ChangePasswordPage from "./features/account-management/pages/ChangePasswordPage";
 import StrikesAppealsPage from "./features/account-management/pages/StrikesAppealsPage";
 import AccountRestrictedPage from "./features/account-management/pages/AccountRestrictedPage";
+import ReportDriverPage from "./features/trip-history/pages/ReportDriverPage";
 import TrackReportsPage from "./features/account-management/pages/TrackReportsPage";
 import TrackReportDetailPage from "./features/account-management/pages/TrackReportDetailPage";
 import SettingsPage from "./features/account-management/pages/SettingsPage";
@@ -83,6 +84,7 @@ function App() {
               <Route path="/share/:token" element={<SharedTripView />} />
               <Route path="/history" element={<PassengerHistory />} />
               <Route path="/trip-details/:id" element={<TripDetailPage />} />
+              <Route path="/report-driver" element={<ReportDriverPage />} />
               <Route path="/trip-details" element={<TripDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

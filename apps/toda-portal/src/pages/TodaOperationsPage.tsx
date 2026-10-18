@@ -39,10 +39,12 @@ import {
   resolveTodaReviewFlag,
   confirmTodaFlaggedViolation,
   closeUnfinishedTrip,
+  reportDriverAvailability,
+  confirmAvailabilityViolation,
 } from '../services/todaApiService';
 import type { GpsArea } from '../services/todaApiService';
 import { GpsAreasCard } from '../components/admin/GpsAreasCard';
-import { FareDisputesPanel, ReviewFlagsPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
+import { FareDisputesPanel, ReportDriverAvailabilityDialog, ReviewFlagsPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
 import type { FareDisputeRow, ReconciliationTrip, ReviewFlagRow } from '@sakay/shared';
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { driverActivity, volumeByPeriod } from '@sakay/shared';
@@ -132,6 +134,8 @@ export const TodaOperationsPage: React.FC = () => {
   // The events the system recorded without a strike (a breakdown, an accident, a lost item nobody claimed, a detention ...): the TODA Administrator verifies them (PI-11B)
   const [reviewFlags, setReviewFlags] = useState<ReviewFlagRow[]>([]);
   const loadReviewFlags = async () => setReviewFlags(await fetchTodaReviewFlags());
+  // Rules 5.3 / 5.7: reporting a driver seen in the terminal queue, or carrying other passengers, while Available in the app
+  const [reportOpen, setReportOpen] = useState(false);
   useEffect(() => {
     loadReconciliation();
     loadGpsAreas();
@@ -192,6 +196,24 @@ export const TodaOperationsPage: React.FC = () => {
         onReportDeliberateOffline={reportDeliberateOffline}
       />
 
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+        <Button
+          variant="outlined"
+          onClick={() => setReportOpen(true)}
+          disabled={drivers.filter((d) => !String(d.id).startsWith('roster-')).length === 0}
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
+        >
+          Report a driver: queue conflict / availability (Rules 5.3, 5.7)
+        </Button>
+      </Box>
+      <ReportDriverAvailabilityDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        drivers={drivers.filter((d) => !String(d.id).startsWith('roster-')).map((d) => ({ id: d.id, name: d.name }))}
+        onSubmit={reportDriverAvailability}
+        onFiled={() => void loadReviewFlags()}
+      />
+
       <ReviewFlagsPanel
         flags={reviewFlags}
         driverNames={Object.fromEntries(drivers.map((d) => [d.id, d.name]))}
@@ -202,6 +224,11 @@ export const TodaOperationsPage: React.FC = () => {
         }}
         onConfirm={async (flagId, bookingId, reason) => {
           const message = await confirmTodaFlaggedViolation(flagId, bookingId, reason);
+          if (!message) await loadReviewFlags();
+          return message;
+        }}
+        onConfirmAvailability={async (flagId, reason) => {
+          const message = await confirmAvailabilityViolation(flagId, reason);
           if (!message) await loadReviewFlags();
           return message;
         }}

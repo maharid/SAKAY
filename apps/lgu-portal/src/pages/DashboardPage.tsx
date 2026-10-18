@@ -18,8 +18,8 @@ import { DriverVerificationCard } from '../components/dashboard/DriverVerificati
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
 import { RecentIncidentReportsCard } from '../components/dashboard/RecentIncidentReportsCard';
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
-import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes, closeUnfinishedTrip } from '../services/adminApiService';
-import { closeProblem } from '@sakay/shared';
+import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes, closeUnfinishedTrip, confirmAvailabilityViolation } from '../services/adminApiService';
+import { closeProblem, isAvailabilityFlag } from '@sakay/shared';
 
 /** The flags a detector raises (Rules 27.1, 27.3 - 27.6): the LGU Administrator confirms them, which records the violation against every account named */
 const INTEGRITY_FLAG_TYPES = ['GPS_SPOOFING_REVIEW', 'RATING_MANIPULATION_REVIEW', 'COLLUSIVE_MATCHING_REVIEW', 'POSSIBLE_REREGISTRATION_REVIEW'];
@@ -63,6 +63,14 @@ const describeFlagDetails = (flag: any): string[] => {
     return [
       'The driver ended booking ' + d.booking_id + ' before the destination. Reason: ' + d.reason + (d.valid_reason ? ' (a valid reason: no strike).' : '.'),
       d.valid_reason ? '' : 'Confirming issues DRV_EARLY_STOP (1 strike, Rule 13.7).',
+    ].filter(Boolean);
+  }
+  if (isAvailabilityFlag(flag?.flag_type ?? '')) {
+    return [
+      (flag.flag_type === 'DRIVER_QUEUE_CONFLICT_REPORT' ? 'Queue conflict (Rule 5.3): Available in the app while queued at the terminal.' : 'Availability violation (Rule 5.7): accepted a booking while carrying other passengers.')
+        + ' Reported by ' + String(d.reported_by ?? 'an administrator').replace('_', ' ') + '.',
+      d.description ? '"' + d.description + '"' : '',
+      'Confirming records the strike under your name (Rules 5.3 / 5.7). Nothing is struck until you confirm.',
     ].filter(Boolean);
   }
   if (flag?.flag_type === 'PAYMENT_STUCK_RECONCILIATION') {
@@ -202,6 +210,21 @@ export const DashboardPage: React.FC = () => {
   const handleConfirmIntegrity = async () => {
     if (!selectedFlag) return;
     const message = await confirmIntegrityFlag(selectedFlag.flag_id, flagResolutionText);
+    if (message) {
+      setFlagError(message);
+      return;
+    }
+    setAdminFlags((prev) => prev.map((f) => (f.flag_id === selectedFlag.flag_id ? { ...f, status: 'Resolved', resolution: 'Violation confirmed' } : f)));
+    setFlagDialogOpen(false);
+    setSelectedFlag(null);
+    setFlagResolutionText('');
+    setFlagError(null);
+  };
+
+  // Rules 5.3 / 5.7: the LGU Administrator confirms a reported queue conflict or availability violation: the strike is recorded under their name
+  const handleConfirmAvailability = async () => {
+    if (!selectedFlag) return;
+    const message = await confirmAvailabilityViolation(selectedFlag.flag_id, flagResolutionText);
     if (message) {
       setFlagError(message);
       return;
@@ -802,6 +825,17 @@ export const DashboardPage: React.FC = () => {
               sx={{ textTransform: 'none', fontWeight: 600 }}
             >
               Confirm the violation
+            </Button>
+          )}
+          {isAvailabilityFlag(selectedFlag?.flag_type ?? '') && (
+            <Button
+              onClick={handleConfirmAvailability}
+              variant="contained"
+              color="error"
+              disabled={flagResolutionText.trim().length < 10}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Confirm: record the strike
             </Button>
           )}
           {selectedFlag?.flag_type === 'PAYMENT_STUCK_RECONCILIATION' && (

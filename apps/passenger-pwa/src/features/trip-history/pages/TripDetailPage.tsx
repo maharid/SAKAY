@@ -547,6 +547,15 @@ export const TripDetailPage: React.FC = () => {
           >
             {language === "tl" ? "I-ulat ang problema sa biyahe" : "Report a trip issue"}
           </Button>
+          {/* Rule 5.7: the driver took the booking while carrying other passengers (or was working the terminal queue) */}
+          {stateTrip?.driverName && (
+            <Button
+              onClick={() => navigate("/report-driver", { state: { bookingId: tripId } })}
+              sx={{ display: "block", mx: "auto", color: "#64748B", fontWeight: 600, fontSize: "13px", textTransform: "none", fontFamily: "Poppins, sans-serif" }}
+            >
+              {language === "tl" ? "May ibang sakay ang drayber?" : "Did the driver already have other passengers?"}
+            </Button>
+          )}
         </Box>
       </Box>
 

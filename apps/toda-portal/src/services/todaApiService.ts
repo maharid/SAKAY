@@ -21,7 +21,7 @@ import {
   EvidenceFileItem,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, closeUnfinishedTripArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, closeUnfinishedTripArgs, confirmAvailabilityArgs, reportAvailabilityArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   decideIncident as decideIncidentReport,
   escalateIncident as escalateIncidentReport,
@@ -35,7 +35,7 @@ import {
   type LostItemStatus,
   type TripEndResult,
 } from '@sakay/shared';
-import type { RejectionReasonCode } from '@sakay/shared';
+import type { AvailabilityKind, RejectionReasonCode } from '@sakay/shared';
 import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import { exportAuditLogFile, fetchAuditLogPage, manilaDayStartIso, manilaNextDayStartIso } from '@sakay/shared';
@@ -1715,6 +1715,21 @@ export async function fetchTodaExemptionRequests(): Promise<DriverExemptionReque
       assignedRole: String(r.assigned_role),
     };
   });
+}
+
+/**
+ * Rules 5.3 / 5.7: the TODA Administrator reports a driver of this TODA seen queued at the terminal while Available in the app, or one who accepted a booking while
+ * carrying other passengers. A report only: a strike follows when an administrator confirms it. Null when it was filed, otherwise the database's sentence.
+ */
+export async function reportDriverAvailability(driverId: string, kind: AvailabilityKind, description: string): Promise<string | null> {
+  const { error } = await supabase.rpc('report_driver_availability_violation', reportAvailabilityArgs(driverId, kind, null, description));
+  return error ? adminActionMessage(error.message, 'The report could not be filed.') : null;
+}
+
+/** Rules 5.3 / 5.7: the TODA Administrator confirms a report of one of this TODA's drivers: the strike is recorded under their name. Null when it was recorded. */
+export async function confirmAvailabilityViolation(flagId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('confirm_driver_availability_violation', confirmAvailabilityArgs(flagId, reason));
+  return error ? adminActionMessage(error.message, 'The strike could not be recorded.') : null;
 }
 
 /**
