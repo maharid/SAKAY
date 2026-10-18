@@ -188,6 +188,13 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
       throw new Error(`${describeRestriction(restriction, 'tl')}\n\n(${describeRestriction(restriction, 'en')})`);
     }
 
+    // Rules 4.5 / 29.1: the account signed in on another device since this one logged in
+    if (msg.includes('ERR_SESSION_SUPERSEDED')) {
+      throw new Error(
+        'Nag-login ang iyong account sa ibang device. Mag-login muli bago mag-book.\n\n(Your account signed in on another device. Please log in again before booking.)'
+      );
+    }
+
     if (msg.includes('ERR_DESTINATION_OUT_OF_SERVICE_AREA')) {
       throw new Error(
         'Nasa labas ng opisyal na service area ng Calapan City ang napiling destinasyon. Mangyaring pumili ng destinasyon sa loob ng lungsod.'

@@ -5,6 +5,8 @@ import { ConnectionLostBanner } from "@sakay/shared";
 import { supabase } from "../../services/supabaseClient";
 import SakayToast from "../../common/components/SakayToast";
 import { useLanguage } from "../../utils/LanguageContext";
+import { authSessionIdFromAccessToken } from "../../utils/authSession";
+import { rotatePassengerSession } from "../../services/passengerApiService";
 
 interface MobileAppShellProps {
   children?: React.ReactNode;
@@ -40,10 +42,18 @@ export const MobileAppShell: React.FC<MobileAppShellProps> = ({ children }) => {
         const localToken = localStorage.getItem('sakay_session_token');
         const { data: profile } = await supabase
           .from("passenger")
-          .select("session_id")
+          .select("passenger_id, session_id, auth_session_id")
           .eq("auth_user_id", sess.session.user.id)
           .maybeSingle();
-        
+
+        // This phone holds the current token but the database never recorded THIS login as the current one (it signed in through a path or a
+        // build that did not register it): record it now, so the database can tell this login from an older one. Only the current phone does this.
+        const loginSession = authSessionIdFromAccessToken(sess.session.access_token);
+        if (profile?.passenger_id && profile.session_id && profile.session_id === localToken && loginSession && profile.auth_session_id !== loginSession) {
+          await rotatePassengerSession(profile.passenger_id);
+          return;
+        }
+
         if (profile?.session_id && profile.session_id !== localToken) {
           await supabase.auth.signOut();
           localStorage.removeItem('sakay_session_token');

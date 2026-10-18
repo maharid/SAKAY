@@ -219,20 +219,30 @@ export function getOwnAccountRestriction(role: 'passenger' | 'driver' = 'passeng
 // ============================================================================
 
 /**
- * Writes a fresh session_id to public.passenger and persists the token in
- * localStorage so Login.tsx can compare it on the next login attempt.
- * Call this at login time (not only at OTP time) to enforce single-session.
+ * Records THIS login as the passenger's current one (Rules 4.5 / 29.1) and keeps the new token on the phone. Call it at every login, after the
+ * password login and after the OTP.
+ *
+ * The database does the recording (register_passenger_session): it rotates the token and remembers which auth session is current, so that a
+ * booking from any older login is refused there, not just by this app. If that function is not available yet (the app is deployed before the
+ * migration), the old direct write is used so nothing breaks; it did nothing useful before, because the column did not exist.
  */
 export async function rotatePassengerSession(passengerId: string): Promise<string> {
-  const newSessionId = crypto.randomUUID();
-  await supabase
-    .from('passenger')
-    .update({ session_id: newSessionId })
-    .eq('passenger_id', passengerId);
+  let token: string | null = null;
   try {
-    localStorage.setItem('sakay_session_token', newSessionId);
+    const { data, error } = await supabase.rpc('register_passenger_session');
+    const result = data as { success?: boolean; session_token?: string } | null;
+    if (!error && result?.success && result.session_token) token = result.session_token;
+  } catch {
+    // fall through to the old write
+  }
+  if (!token) {
+    token = crypto.randomUUID();
+    await supabase.from('passenger').update({ session_id: token }).eq('passenger_id', passengerId);
+  }
+  try {
+    localStorage.setItem('sakay_session_token', token);
   } catch {}
-  return newSessionId;
+  return token;
 }
 
 /**
