@@ -1,6 +1,8 @@
 import { EXEMPTION_REQUEST_WINDOW_HOURS } from '../config/policyConfig';
 import type { ExemptionCauseCode } from '../config/policyConfig';
 import { reportNetworkOutcome } from '../hooks/useConnectionStatus';
+import { caseEvidenceProblem, uploadCaseEvidenceFiles } from './caseEvidence';
+import type { IncidentUploadClient } from './incidentReports';
 
 /**
  * Rules 20, 21, 22.3 and 25: a person's own strikes, and the way to appeal one. Used by the Passenger and the Driver app, so the two screens
@@ -110,12 +112,18 @@ export async function fetchOwnAppeals(client: StrikeAppealClient): Promise<Appea
 }
 
 /** Rule 25: asks for a strike to be waived. The database refuses a strike that is not theirs, not eligible, already waived, past its 48 hours or already pending. */
-export async function submitStrikeAppeal(client: StrikeAppealClient, strikeId: string, cause: ExemptionCauseCode, justification: string): Promise<AppealResult> {
+export async function submitStrikeAppeal(
+  client: StrikeAppealClient,
+  strikeId: string,
+  cause: ExemptionCauseCode,
+  justification: string,
+  evidencePaths: string[] = []
+): Promise<AppealResult> {
   const { data, error } = await client.rpc('submit_exemption_request', {
     p_strike_id: strikeId,
     p_cause_code: cause,
     p_justification: justification.trim(),
-    p_evidence: [],
+    p_evidence: evidencePaths,
     p_toda_is_party: false,
   });
   reportNetworkOutcome(error);
@@ -125,6 +133,31 @@ export async function submitStrikeAppeal(client: StrikeAppealClient, strikeId: s
     ? { ok: true, error: null, assignedRole: row.assigned_role ?? null }
     : { ok: false, error: 'The appeal could not be sent. Please try again.', assignedRole: null };
 }
+
+/**
+ * The same, with up to three photos (Rule 25.2): the photos are uploaded to the sender's own folder first and the appeal carries their paths. A photo that is not accepted, or
+ * that could not be uploaded, comes back as the error to show, and nothing is sent.
+ */
+export async function submitStrikeAppealWithPhotos(
+  client: StrikeAppealClient & IncidentUploadClient,
+  strikeId: string,
+  cause: ExemptionCauseCode,
+  justification: string,
+  files: File[] = []
+): Promise<AppealResult> {
+  const problem = caseEvidenceProblem(files);
+  if (problem) return { ok: false, error: problem, assignedRole: null };
+  let paths: string[] = [];
+  try {
+    paths = await uploadCaseEvidenceFiles(client, files);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Hindi na-upload ang larawan. (The photo could not be uploaded.)', assignedRole: null };
+  }
+  return submitStrikeAppeal(client, strikeId, cause, justification, paths);
+}
+
+/** The apps hand over their typed Supabase client through this cast (the library's own types are too deep for the structural ones: TS2589). */
+export const asStrikeAppealPhotoClient = (client: unknown) => client as StrikeAppealClient & IncidentUploadClient;
 
 /** The newest appeal of each strike. */
 export function newestAppealByStrike(appeals: AppealRow[]): Map<string, AppealRow> {

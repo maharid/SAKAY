@@ -98,11 +98,11 @@ export function evidenceFileProblem(file: { type: string; size: number }): strin
 }
 
 /**
- * Uploads the reporter's photos (at most 3) and returns their storage paths. Throws an Error whose message (Filipino, then English) can be shown as it is. The stored name is
+ * Uploads the submitter's photos (at most 3) to `bucket` and returns their storage paths. Throws an Error whose message (Filipino, then English) can be shown as it is. The stored name is
  * made here (a time and a number, and the extension of the format), never the name the phone gave: the database only accepts a path in the reporter's own folder that ends in
  * .jpg, .jpeg, .png or .webp.
  */
-export async function uploadIncidentEvidenceFiles(client: IncidentUploadClient, files: File[]): Promise<string[]> {
+export async function uploadEvidenceFilesTo(bucket: string, client: IncidentUploadClient, files: File[]): Promise<string[]> {
   if (files.length === 0) return [];
   if (files.length > INCIDENT_EVIDENCE_MAX_FILES) throw new Error(`Hanggang ${INCIDENT_EVIDENCE_MAX_FILES} larawan lamang. (At most ${INCIDENT_EVIDENCE_MAX_FILES} photos.)`);
   const { data: auth } = await client.auth.getUser();
@@ -117,12 +117,15 @@ export async function uploadIncidentEvidenceFiles(client: IncidentUploadClient, 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const path = ownedObjectPath(uid, `${stamp}-${i + 1}.${EXTENSION_OF[file.type]}`);
-    const { error } = await client.storage.from(INCIDENT_EVIDENCE_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    const { error } = await client.storage.from(bucket).upload(path, file, { contentType: file.type, upsert: false });
     if (error) throw new Error(`Hindi na-upload ang larawan. (The photo could not be uploaded: ${error.message})`);
     paths.push(path);
   }
   return paths;
 }
+
+/** An incident report's photos go to the incident-evidence bucket; an appeal's and a fare dispute's to case-evidence (see caseEvidence.ts): the same rules, a different bucket. */
+export const uploadIncidentEvidenceFiles = (client: IncidentUploadClient, files: File[]): Promise<string[]> => uploadEvidenceFilesTo(INCIDENT_EVIDENCE_BUCKET, client, files);
 
 /** One photo (the older call; the screens now send up to three through uploadIncidentEvidenceFiles) */
 export async function uploadIncidentEvidence(client: IncidentUploadClient, file: File): Promise<string> {

@@ -24,14 +24,13 @@ import {
 import PeopleIcon from '@mui/icons-material/People';
 import GavelIcon from '@mui/icons-material/Gavel';
 import DescriptionIcon from '@mui/icons-material/Description';
-import InsertPhotoIcon from '@mui/icons-material/InsertPhoto';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ShieldIcon from '@mui/icons-material/Shield';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 
-import { TodaDriverMember, DriverExemptionRequest, EvidenceFileItem } from '../types/toda';
+import { EvidenceLinks } from '@sakay/shared';
+import { TodaDriverMember, DriverExemptionRequest } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { STRIKE_LADDER } from '@sakay/shared/config/policyConfig';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -39,7 +38,6 @@ import { SakayToast } from '../components/common/SakayToast';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
-import { DocumentPreviewModal } from '../components/admin/DocumentPreviewModal';
 import {
   fetchTodaDriverMembers,
   suspendTodaDriver,
@@ -52,6 +50,7 @@ import {
   fetchTodaExemptionRequests,
   decideExemptionRequest,
   escalateExemptionRequest,
+  signTodaCaseEvidence,
   TodaRosterEntry,
 } from '../services/todaApiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,7 +81,6 @@ export const TodaDriverMembershipPage: React.FC = () => {
   // Selected Exemption for Review Modal
   const [selectedExemption, setSelectedExemption] = useState<DriverExemptionRequest | null>(null);
   const [exemptionDecisionModalOpen, setExemptionDecisionModalOpen] = useState(false);
-  const [previewDocument, setPreviewDocument] = useState<EvidenceFileItem | null>(null);
   // Rules 8.6, 9.4, 25: the decision on an appeal (Full waiver / Partial waiver / Denied, with the reason): the database checks and audits it
   const [decisionOutcome, setDecisionOutcome] = useState<'FULL' | 'PARTIAL' | 'DENIED'>('FULL');
   const [decisionReason, setDecisionReason] = useState('');
@@ -870,82 +868,11 @@ export const TodaDriverMembershipPage: React.FC = () => {
                   No supporting evidence was submitted with this appeal.
                 </Typography>
               ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {selectedExemption.evidenceFiles.map((file) => (
-                    <Box
-                      key={file.id}
-                      onClick={() => setPreviewDocument(file)}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '14px 18px',
-                        borderRadius: '10px',
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid var(--mac-border-color)',
-                        boxShadow: 'var(--mac-shadow-subtle)',
-                        cursor: 'pointer',
-                        transition: 'var(--mac-transition-fast)',
-                        '&:hover': {
-                          borderColor: 'var(--sakay-orange-border)',
-                          backgroundColor: 'var(--sakay-orange-soft)',
-                        },
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        {file.type === 'image' ? (
-                          <InsertPhotoIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24 }} />
-                        ) : (
-                          <DescriptionIcon sx={{ color: '#1565C0', fontSize: 24 }} />
-                        )}
-                        <Box>
-                          <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                            {file.name}
-                          </Typography>
-                          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
-                            Official evidence document attachment
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<VisibilityIcon fontSize="small" />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPreviewDocument(file);
-                        }}
-                        sx={{
-                          height: 34,
-                          px: 2,
-                          borderRadius: '8px',
-                          fontSize: '13.5px',
-                          fontWeight: 600,
-                          textTransform: 'none',
-                          color: 'var(--sakay-orange)',
-                          borderColor: 'var(--sakay-orange-border)',
-                          backgroundColor: 'var(--sakay-orange-soft)',
-                        }}
-                      >
-                        View
-                      </Button>
-                    </Box>
-                  ))}
-                </Box>
+                <EvidenceLinks paths={selectedExemption.evidenceFiles.map((f) => f.id)} sign={signTodaCaseEvidence} label="Photos sent with the appeal" />
               )}
             </Box>
           </Box>
         </MacCenterModal>
-      )}
-
-      {/* Document Inspection Preview Modal */}
-      {previewDocument && (
-        <DocumentPreviewModal
-          open={Boolean(previewDocument)}
-          onClose={() => setPreviewDocument(null)}
-          documentName={previewDocument.name}
-          documentType={previewDocument.type}
-        />
       )}
 
       {/* Rule 25.4: an appeal the TODA passes on (a serious consequence, or the TODA is a party) */}

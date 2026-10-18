@@ -93,5 +93,6 @@ None of this can be proven on a laptop. Do it once with two phones (a passenger 
 | 10 | "Forgot password" with a real number (passenger, then driver) | the code arrives by SMS within a minute; the new password works; the old phone is signed out; a text says the password changed |
 | 11 | Passenger takes a late-cancel strike, then appeals it | it appears in the LGU portal > Strike Appeals; the decision reaches the passenger |
 | 12 | Driver asks for another vehicle (Settings > Another Vehicle) | the TODA portal shows it first, then the LGU portal; after approval the passenger sees the new plate; it reverts by itself |
+| 13 | Passenger appeals a strike with two photos (Settings > Strikes & Appeals); driver adds a statement with a photo to a fare case (Settings > Fare Cases) | the LGU portal (Strike Appeals) and the TODA portal open the photos; the other side of a fare case sees only "1 photo attached"; Supabase > Storage shows the private bucket `case-evidence` |
 
 Write down the result of each row and send me any that fail, with the time, so the server and database logs can be read for that moment.

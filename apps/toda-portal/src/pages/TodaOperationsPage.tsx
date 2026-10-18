@@ -33,6 +33,7 @@ import {
   reportGpsArea,
   fetchFareDisputes,
   escalateFareDispute,
+  signTodaCaseEvidence,
   resolveFareDispute,
   endTripSafely,
   fetchTodaReviewFlags,
@@ -297,6 +298,7 @@ export const TodaOperationsPage: React.FC = () => {
         role="toda_admin"
         disputes={fareDisputes}
         showWhenEmpty={false}
+        signEvidence={signTodaCaseEvidence}
         onEscalate={async (id, reason) => {
           const message = await escalateFareDispute(id, reason);
           if (!message) await loadFareDisputes();

@@ -20,6 +20,7 @@ import SupportPage from "./features/account-management/pages/SupportPage";
 import AppFeedbackPage from "./features/account-management/pages/AppFeedbackPage";
 import ChangePasswordPage from "./features/account-management/pages/ChangePasswordPage";
 import StrikesAppealsPage from "./features/account-management/pages/StrikesAppealsPage";
+import FareDisputesPage from "./features/account-management/pages/FareDisputesPage";
 import AccountRestrictedPage from "./features/account-management/pages/AccountRestrictedPage";
 import ReportDriverPage from "./features/trip-history/pages/ReportDriverPage";
 import TrackReportsPage from "./features/account-management/pages/TrackReportsPage";
@@ -70,6 +71,7 @@ function App() {
               <Route path="/app-feedback" element={<AppFeedbackPage />} />
               <Route path="/change-password" element={<ChangePasswordPage />} />
               <Route path="/strikes" element={<StrikesAppealsPage />} />
+              <Route path="/fare-disputes" element={<FareDisputesPage />} />
               <Route path="/account-restricted" element={<AccountRestrictedPage />} />
               <Route path="/track-reports" element={<TrackReportsPage />} />
               <Route path="/track-reports/:reportId" element={<TrackReportDetailPage />} />

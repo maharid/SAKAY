@@ -17,6 +17,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import TranslateIcon from '@mui/icons-material/Translate';
 import GavelIcon from '@mui/icons-material/Gavel';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import SecurityIcon from '@mui/icons-material/Security';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
@@ -293,6 +294,23 @@ export const DriverSettingsPage: React.FC = () => {
                     primary={
                       <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>
                         {isTagalog ? 'Mga Strike at Apela' : 'Strikes & Appeals'}
+                      </Typography>
+                    }
+                  />
+                  <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20 }} />
+                </ListItemButton>
+              </ListItem>
+              <Divider sx={{ borderColor: '#F8FAFC' }} />
+
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate('/driver/fare-disputes')} sx={{ py: 1.5, px: 2 }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: '#64748B' }}>
+                    <ReceiptLongIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>
+                        {isTagalog ? 'Mga Kaso sa Pamasahe' : 'Fare Cases'}
                       </Typography>
                     }
                   />

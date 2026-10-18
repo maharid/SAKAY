@@ -262,7 +262,7 @@ export interface FareDisputeRow {
   driver_phone: string | null;
   plate_number: string | null;
   toda_name: string | null;
-  notes: Array<{ party: string; note: string; created_at: string }>;
+  notes: Array<{ party: string; note: string; created_at: string; /** storage paths of the photos sent with the statement (case-evidence bucket) */ evidence_paths?: string[] }>;
 }
 
 /** What an administrator decides about a dispute (resolve_fare_dispute) */

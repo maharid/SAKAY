@@ -12,7 +12,9 @@ import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { EvidenceLinks } from './EvidenceLinks';
 import { useInFlight } from '../hooks/useInFlight';
+import type { CaseEvidenceFile } from '../utils/caseEvidence';
 import { FARE_DISPUTE_OUTCOMES, FARE_DISPUTE_STRIKES, earlyEndReasonLabel, type FareDisputeDecision, type FareDisputeRow } from '../utils/tripEnd';
 
 export interface FareDisputesPanelProps {
@@ -25,6 +27,8 @@ export interface FareDisputesPanelProps {
   onResolve: (decision: FareDisputeDecision) => Promise<string | null>;
   /** Shown when there is nothing to review (the LGU page hides the panel instead: pass false) */
   showWhenEmpty?: boolean;
+  /** Opens the photos sent with a statement (Rule 18.4): signs their storage paths. Without it the photos are only counted. */
+  signEvidence?: (paths: string[]) => Promise<CaseEvidenceFile[]>;
 }
 
 const KIND_LABELS: Record<FareDisputeRow['kind'], string> = {
@@ -70,7 +74,7 @@ const Party: React.FC<{ label: string; name: string | null; phone: string | null
  * written to the fare ledger and the audit log by the database, and both parties are told.
  * Used by the TODA and LGU portals (the data and the actions are theirs; this is only the screen).
  */
-export const FareDisputesPanel: React.FC<FareDisputesPanelProps> = ({ role, disputes, onEscalate, onResolve, showWhenEmpty = true }) => {
+export const FareDisputesPanel: React.FC<FareDisputesPanelProps> = ({ role, disputes, onEscalate, onResolve, showWhenEmpty = true, signEvidence }) => {
   const flight = useInFlight();
   const [deciding, setDeciding] = useState<FareDisputeRow | null>(null);
   const [escalating, setEscalating] = useState<FareDisputeRow | null>(null);
@@ -184,9 +188,14 @@ export const FareDisputesPanel: React.FC<FareDisputesPanelProps> = ({ role, disp
               {d.notes.length > 0 && (
                 <Box sx={{ p: '10px 12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   {d.notes.map((n, i) => (
-                    <Typography key={i} sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45 }}>
-                      <strong style={{ textTransform: 'capitalize' }}>{n.party.replace('_', ' ')}</strong> ({manila(n.created_at)}): {n.note}
-                    </Typography>
+                    <Box key={i}>
+                      <Typography sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45 }}>
+                        <strong style={{ textTransform: 'capitalize' }}>{n.party.replace('_', ' ')}</strong> ({manila(n.created_at)}): {n.note}
+                      </Typography>
+                      {(n.evidence_paths ?? []).length > 0 && (signEvidence
+                        ? <EvidenceLinks paths={n.evidence_paths ?? []} sign={signEvidence} label="Photos sent with this statement" />
+                        : <Typography sx={{ fontSize: '12px', color: '#64748B' }}>{(n.evidence_paths ?? []).length} photo(s) attached</Typography>)}
+                    </Box>
                   ))}
                 </Box>
               )}

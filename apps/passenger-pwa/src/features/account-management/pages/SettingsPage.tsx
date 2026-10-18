@@ -14,6 +14,7 @@ import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import TranslateIcon from "@mui/icons-material/Translate";
 import GavelIcon from "@mui/icons-material/Gavel";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import SecurityIcon from "@mui/icons-material/Security";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -141,6 +142,23 @@ const SettingsPage: React.FC = () => {
                     primary={
                       <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                         {language === "tl" ? "Mga Strike at Apela" : "Strikes & Appeals"}
+                      </Typography>
+                    }
+                  />
+                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
+                </ListItemButton>
+              </ListItem>
+              <Divider sx={{ borderColor: "#F8FAFC" }} />
+
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate("/fare-disputes")} sx={{ py: 1.5, px: 2 }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
+                    <ReceiptLongIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
+                        {language === "tl" ? "Mga Kaso sa Pamasahe" : "Fare Cases"}
                       </Typography>
                     }
                   />

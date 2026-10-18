@@ -34,7 +34,7 @@ import { ActionButton } from '../components/admin/ActionButton';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
 import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
 import { TableEmptyState } from '../components/common/TableEmptyState';
-import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip, fetchFareDisputes, resolveFareDispute, endTripSafely } from '../services/adminApiService';
+import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip, fetchFareDisputes, resolveFareDispute, endTripSafely, signLguCaseEvidence } from '../services/adminApiService';
 import { FareDisputesPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
 import type { FareDisputeRow } from '@sakay/shared';
 import type { ReconciliationTrip } from '@sakay/shared';
@@ -245,6 +245,7 @@ export const LiveTripsPage: React.FC = () => {
         role="lgu_admin"
         disputes={fareDisputes}
         showWhenEmpty={false}
+        signEvidence={signLguCaseEvidence}
         onEscalate={async () => 'The LGU Administrator decides a dispute directly.'}
         onResolve={async (decision) => {
           const message = await resolveFareDispute(decision);

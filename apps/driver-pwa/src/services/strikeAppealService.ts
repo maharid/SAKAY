@@ -1,4 +1,4 @@
-import { fetchOwnAppeals, fetchStrikeHistory, submitStrikeAppeal as submitAppeal } from '@sakay/shared';
+import { asStrikeAppealPhotoClient, fetchOwnAppeals, fetchStrikeHistory, submitStrikeAppealWithPhotos as submitAppeal } from '@sakay/shared';
 import type { AppealResult, AppealRow, ExemptionCauseCode, StrikeHistory, StrikeRow } from '@sakay/shared';
 
 import { supabase } from './supabaseClient';
@@ -28,6 +28,6 @@ export const fetchMyStrikes = async (): Promise<StrikeHistory | null> => {
 /** The driver's own appeals (row security shows him only his). */
 export const fetchMyAppeals = (): Promise<DriverAppeal[]> => fetchOwnAppeals(supabase);
 
-/** Rule 25: asks for a strike to be waived. */
-export const submitStrikeAppeal = (strikeId: string, cause: ExemptionCauseCode, justification: string): Promise<AppealResult> =>
-  submitAppeal(supabase, strikeId, cause, justification);
+/** Rule 25: asks for a strike to be waived, with up to three photos as evidence (Rule 25.2). */
+export const submitStrikeAppeal = (strikeId: string, cause: ExemptionCauseCode, justification: string, files: File[] = []): Promise<AppealResult> =>
+  submitAppeal(asStrikeAppealPhotoClient(supabase), strikeId, cause, justification, files);

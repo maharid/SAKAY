@@ -14,7 +14,7 @@ const { ID, seed } = require('../fixtures');
   });
   const sid = async (key) => (await db.query(`SELECT strike_id FROM strikes_ledger WHERE idempotency_key='${key}'`)).rows[0].strike_id;
   const request = (uid, strikeId, cause = 'VEHICLE_BREAKDOWN', party = false) => as(uid, (tx) => attempt(async () =>
-    (await tx.query(`SELECT public.submit_exemption_request($1,$2,'Photo of the breakdown attached','["https://x/e.jpg"]'::jsonb,$3) r`, [strikeId, cause, party])).rows[0].r));
+    (await tx.query(`SELECT public.submit_exemption_request($1,$2,'Photo of the breakdown attached',$4::jsonb,$3) r`, [strikeId, cause, party, JSON.stringify([`${uid}/1700000000-1.jpg`])])).rows[0].r));   // evidence is a photo in the requester's own folder (20261028000006)
   const decide = (uid, reqId, outcome, reason, pts = null) => as(uid, (tx) => attempt(async () =>
     (await tx.query('SELECT public.decide_exemption($1,$2,$3,$4) r', [reqId, outcome, reason, pts])).rows[0].r));
   const subj = async (type, id) => (await db.query(type === 'passenger'

@@ -36,6 +36,8 @@ import {
   type TripEndResult,
 } from '@sakay/shared';
 import type { AvailabilityKind, RejectionReasonCode } from '@sakay/shared';
+import { signCaseEvidence } from '@sakay/shared';
+import type { CaseEvidenceFile } from '@sakay/shared';
 import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import { exportAuditLogFile, fetchAuditLogPage, manilaDayStartIso, manilaNextDayStartIso } from '@sakay/shared';
@@ -1668,6 +1670,9 @@ export async function reportGpsArea(cellKey: string, note: string): Promise<stri
 const manilaStamp = (iso: string): string =>
   new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
+/** Links for the photos of an appeal or a fare-dispute statement (Storage signs only what this administrator may read: the TODA's own drivers' cases). */
+export const signTodaCaseEvidence = (paths: string[]): Promise<CaseEvidenceFile[]> => signCaseEvidence(supabase, paths);
+
 /** Rules 8.6, 9.4, 25: the strike appeals of this TODA's drivers, as the database holds them (row security shows a TODA Administrator only their own). */
 export async function fetchTodaExemptionRequests(): Promise<DriverExemptionRequest[]> {
   const { data: requests, error } = await supabase
@@ -1692,11 +1697,12 @@ export async function fetchTodaExemptionRequests(): Promise<DriverExemptionReque
   return requests.map((r) => {
     const strike = strikeById.get(String(r.strike_id));
     const urls: string[] = Array.isArray(r.evidence_urls) ? (r.evidence_urls as unknown[]).map(String) : [];
-    const evidenceFiles: EvidenceFileItem[] = urls.map((url, i) => ({
-      id: url,
-      name: decodeURIComponent(url.split('/').pop() || '') || ('Evidence ' + (i + 1)),
-      type: /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) ? 'image' : /\.pdf(\?|$)/i.test(url) ? 'pdf' : 'document',
-      url,
+    // the photos stay storage PATHS here; the page asks Storage for a short-lived link when the administrator opens the appeal (Rule 25.2, migration 20261028000006)
+    const evidenceFiles: EvidenceFileItem[] = urls.map((path, i) => ({
+      id: path,
+      name: 'Photo ' + (i + 1),
+      type: 'image',
+      url: '',
     }));
     return {
       id: String(r.request_id),
