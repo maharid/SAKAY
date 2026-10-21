@@ -279,6 +279,7 @@ export const AccreditedTodasPage: React.FC = () => {
           open={Boolean(selectedToda)}
           onClose={() => setSelectedToda(null)}
           toda={selectedToda}
+          onChanged={loadTodas}
         />
       )}
     </Box>

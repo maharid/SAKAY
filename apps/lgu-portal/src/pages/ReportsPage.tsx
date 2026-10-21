@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Paper,
   Card,
   CardContent,
@@ -16,6 +10,9 @@ import {
   Tab,
   CircularProgress,
   LinearProgress,
+  Alert,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -25,97 +22,111 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import GroupsIcon from '@mui/icons-material/Groups';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import PieChartIcon from '@mui/icons-material/PieChart';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import MapIcon from '@mui/icons-material/Map';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import { exportReportCsv, exportReportXlsx, printReportPdf } from '@sakay/shared';
+import type { VolumePeriod, XlsxLike } from '@sakay/shared';
 
-import { fetchOperationalReports, OperationalReportsData } from '../services/adminApiService';
+import { AnalyticsFilterBar } from '../components/admin/AnalyticsFilterBar';
+import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable';
+import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
+import { ReportTableView } from '../components/admin/ReportTableView';
+import { useOperationalReports } from '../hooks/useOperationalReports';
+import { recordAdminAuditAction } from '../services/adminApiService';
+import { reportTableFor } from '../utils/reportTables';
+import type { ReportKind } from '../utils/reportTables';
 
 /**
  * ============================================================================
  * TRANSPORTATION REPORTS GENERATOR PAGE (ReportsPage.tsx)
  * ============================================================================
- * Checklist Scope:
- *   ● View Reports
- *     ○ Booking reports
- *     ○ Driver utilization reports
- *     ○ TODA performance reports
- *     ○ Peak-hour reports
- *     ○ Barangay demand reports
- *     ○ Service utilization reports
+ * Checklist Scope (A9):
+ *   ● View and generate reports, each exportable as Excel (.xlsx), CSV and PDF
+ *     ○ Booking reports (with the estimated gross fare value)
+ *     ○ Booking trend report (daily, weekly, monthly, with the change from the period before)
+ *     ○ Participating-driver utilization report
+ *     ○ TODA performance report
+ *     ○ Peak-hour report (all bookings and by TODA)
+ *     ○ SAKAY Booking Activity Hotspot report (pickups, drop-offs, weekdays against weekends)
+ *     ○ Barangay demand report
+ *     ○ Service utilization report
+ *     ○ Cancellation summary report
+ *     ○ Incident summary report
+ *   ● Every report follows the date range, TODA and barangay filter.
+ * The PDF is the browser's print dialog ("Save as PDF"); the Excel file is a real .xlsx workbook.
  * ============================================================================
  */
+
+type ExportFormat = 'xlsx' | 'csv' | 'pdf';
+
+const NO_RECORDS: Record<ReportKind, string> = {
+  Bookings: 'No booking requests match the filter.',
+  Trend: 'No periods to show.',
+  Drivers: 'No driver records match the filter.',
+  TODA: 'No accredited TODA associations match the filter.',
+  PeakHours: 'No booking requests match the filter.',
+  Hotspots: 'No booking with a pickup or drop-off location matches the filter.',
+  Barangay: 'No booking requests match the filter.',
+  Service: 'No booking requests match the filter.',
+  Cancellations: 'No booking requests match the filter.',
+  Incidents: 'No incident reports match the filter.',
+};
+
+const cardSx = { borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' };
+
+interface KpiCardProps {
+  title: string;
+  value: string | number;
+  caption: string;
+  color: string;
+}
+
+const KpiCard: React.FC<KpiCardProps> = ({ title, value, caption, color }) => (
+  <Card sx={cardSx}>
+    <CardContent sx={{ p: '20px 22px !important' }}>
+      <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>{title}</Typography>
+      <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color, mb: 0.5 }}>{value}</Typography>
+      <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>{caption}</Typography>
+    </CardContent>
+  </Card>
+);
+
 export const ReportsPage: React.FC = () => {
-  const [reportsData, setReportsData] = useState<OperationalReportsData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeReportTab, setActiveReportTab] = useState<
-    'Bookings' | 'Drivers' | 'TODA' | 'PeakHours' | 'Barangay' | 'Service'
-  >('Bookings');
+  const { data: reportsData, filter, setFilter, isLoading, loadError, reload } = useOperationalReports();
+  const [activeReportTab, setActiveReportTab] = useState<ReportKind>('Bookings');
+  const [trendPeriod, setTrendPeriod] = useState<VolumePeriod>('week');
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
-  const loadReports = async () => {
-    setIsLoading(true);
+  const table = reportsData ? reportTableFor(activeReportTab, reportsData, trendPeriod) : null;
+
+  const runExport = async (format: ExportFormat) => {
+    if (!table || !reportsData) return;
+    setExporting(format);
+    setExportNote(null);
     try {
-      const data = await fetchOperationalReports();
-      setReportsData(data);
+      if (format === 'xlsx') {
+        exportReportXlsx((await import('xlsx')) as unknown as XlsxLike, table);
+      } else if (format === 'csv') {
+        exportReportCsv(table);
+      } else if (!printReportPdf(table, 'LGU Administrator')) {
+        throw new Error('The browser blocked the PDF window. Allow pop-ups for this site and try again.');
+      }
+      // who exported which report, for which filter (the report itself is never changed by this)
+      await recordAdminAuditAction({
+        actionType: 'REPORT_EXPORTED',
+        targetName: table.title,
+        details: `Exported '${table.title}' as ${format === 'xlsx' ? 'Excel' : format === 'csv' ? 'CSV' : 'PDF'} (${table.rows.length} rows). ${reportsData.filterText}.`,
+        category: 'System',
+      });
+      setExportNote({ severity: 'success', text: `${table.title}: ${table.rows.length} row${table.rows.length === 1 ? '' : 's'} exported (${reportsData.filterText}).` });
     } catch (err) {
-      console.error('[ReportsPage] Failed to fetch operational reports:', err);
+      setExportNote({ severity: 'error', text: err instanceof Error ? err.message : 'The report could not be exported.' });
     } finally {
-      setIsLoading(false);
+      setExporting(null);
     }
-  };
-
-  useEffect(() => {
-    loadReports();
-  }, []);
-
-  const handleExportCSV = (reportName: string) => {
-    if (!reportsData) return;
-    let csvContent = '';
-
-    if (reportName === 'Bookings') {
-      csvContent += 'Metric,Value\r\n';
-      csvContent += `Total Bookings,${reportsData.summary.totalBookings}\r\n`;
-      csvContent += `Completed Trips,${reportsData.summary.completedTrips}\r\n`;
-      csvContent += `Cancelled Bookings,${reportsData.summary.cancelledTrips}\r\n`;
-      csvContent += `Total Fares Collected (PHP),${reportsData.summary.totalRevenue}\r\n`;
-      csvContent += `Average Fare Per Completed Trip (PHP),${reportsData.summary.averageFare}\r\n`;
-    } else if (reportName === 'Service') {
-      const u = reportsData.serviceUtilization;
-      csvContent += 'Outcome,Bookings,Share of Requests\r\n';
-      csvContent += `Completed,${u.completed},${u.completionRate}%\r\n`;
-      csvContent += `Cancelled,${u.cancelled},${u.cancellationRate}%\r\n`;
-      csvContent += `No Driver Found,${u.noDriverFound},${u.noDriverRate}%\r\n`;
-      csvContent += `In Progress / Open,${u.inProgress},\r\n`;
-      csvContent += `Solo Trips,${u.soloTrips},\r\n`;
-      csvContent += `Shared Trips,${u.sharedTrips},\r\n`;
-    } else if (reportName === 'PeakHours') {
-      csvContent += 'Hour Window,Trip Volume\r\n';
-      reportsData.peakHourDistribution.forEach((h) => {
-        csvContent += `"${h.hour.replace(/"/g, '""')}",${h.count}\r\n`;
-      });
-    } else if (reportName === 'Barangay') {
-      csvContent += 'Barangay Zone,Booking Requests,Percentage Share\r\n';
-      reportsData.barangayDemand.forEach((b) => {
-        csvContent += `"${b.barangay.replace(/"/g, '""')}",${b.count},${b.percentage}%\r\n`;
-      });
-    } else if (reportName === 'TODA') {
-      csvContent += 'TODA Name,Completed Trips,Registered Units,Completion Rate of Finished Trips\r\n';
-      reportsData.todaPerformance.forEach((t) => {
-        csvContent += `"${t.todaName.replace(/"/g, '""')}",${t.totalTrips},${t.activeUnits},${t.completionRate === null ? 'n/a' : `${t.completionRate}%`}\r\n`;
-      });
-    } else {
-      csvContent += 'Driver Name,Affiliated TODA,Completed Trips,Rating,Status\r\n';
-      reportsData.driverUtilization.forEach((d) => {
-        csvContent += `"${d.driverName.replace(/"/g, '""')}","${d.toda.replace(/"/g, '""')}",${d.completedTrips},${d.rating === null ? 'Not Yet Rated' : d.rating.toFixed(2)},"${d.status}"\r\n`;
-      });
-    }
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `SAKAY_LGU_Report_${reportName}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   const summary = reportsData?.summary || {
@@ -130,19 +141,18 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
-      {/* 1. Header Toolbar with Export Action */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-            Official Municipal Transportation Reports
+      {/* 1. Header Toolbar with Export Actions */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ maxWidth: 900 }}>
+          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Official Municipal Transportation Reports</Typography>
+          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: '3px', mb: 0.5 }}>
+            Reporting for tricycle public transit operations in Calapan City
           </Typography>
-          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: '3px' }}>
-            Comprehensive reporting for tricycle public transit operations in Calapan City
-          </Typography>
+          <PilotCoverageNote />
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
           <Button
-            onClick={loadReports}
+            onClick={() => void reload()}
             startIcon={<RefreshIcon />}
             variant="outlined"
             size="small"
@@ -151,88 +161,44 @@ export const ReportsPage: React.FC = () => {
             Refresh
           </Button>
           <Button
-            onClick={() => handleExportCSV(activeReportTab)}
+            onClick={() => void runExport('xlsx')}
+            disabled={!table || exporting !== null}
             startIcon={<DownloadIcon />}
             variant="contained"
             size="small"
             sx={{ textTransform: 'none', backgroundColor: 'var(--sakay-orange)', fontWeight: 600 }}
           >
-            Export Report (CSV)
+            {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel (.xlsx)'}
+          </Button>
+          <Button onClick={() => void runExport('csv')} disabled={!table || exporting !== null} variant="outlined" size="small" sx={{ textTransform: 'none', fontWeight: 600 }}>
+            {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button onClick={() => void runExport('pdf')} disabled={!table || exporting !== null} variant="outlined" size="small" sx={{ textTransform: 'none', fontWeight: 600 }}>
+            {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
           </Button>
         </Box>
       </Box>
 
+      {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
+      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 2 }}>{exportNote.text}</Alert>}
+
+      {reportsData && <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={reportsData.todaOptions} barangayOptions={reportsData.barangayOptions} />}
+
       {/* 2. Top Summary KPI Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 4,
-        }}
-      >
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
-              Total Completed Trips
-            </Typography>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#2E7D32', mb: 0.5 }}>
-              {summary.completedTrips}
-            </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
-              Out of {summary.totalBookings} total bookings
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
-              Gross Municipal Fares
-            </Typography>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--sakay-orange)', mb: 0.5 }}>
-              ₱{summary.totalRevenue.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
-              Average ₱{summary.averageFare.toFixed(2)} / completed trip
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
-              Active Driver Workforce
-            </Typography>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#1565C0', mb: 0.5 }}>
-              {summary.activeDrivers}
-            </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
-              Verified drivers across TODAs
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
-              Accredited TODAs
-            </Typography>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
-              {summary.accreditedTodas}
-            </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
-              Authorized transport associations
-            </Typography>
-          </CardContent>
-        </Card>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5, mb: 4 }}>
+        <KpiCard title="Total Completed Trips" value={summary.completedTrips} caption={`Out of ${summary.totalBookings} total bookings`} color="#2E7D32" />
+        <KpiCard title="Estimated Gross Fare Value" value={`₱${summary.totalRevenue.toLocaleString()}`} caption={`Average ₱${summary.averageFare.toFixed(2)} / completed trip`} color="var(--sakay-orange)" />
+        <KpiCard title="Verified Driver Workforce" value={summary.activeDrivers} caption="Verified drivers in this selection" color="#1565C0" />
+        <KpiCard title="Accredited TODAs" value={summary.accreditedTodas} caption="Authorized transport associations in this selection" color="var(--mac-text-primary)" />
       </Box>
 
       {/* 3. Report Category Tabs */}
       <Box sx={{ mb: 3, borderBottom: '1px solid var(--mac-border-color)' }}>
         <Tabs
           value={activeReportTab}
-          onChange={(_, val) => setActiveReportTab(val)}
+          onChange={(_, val: ReportKind) => setActiveReportTab(val)}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{
             '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 3 },
             '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '11.3px', minHeight: 48 },
@@ -240,297 +206,100 @@ export const ReportsPage: React.FC = () => {
           }}
         >
           <Tab icon={<AssessmentIcon fontSize="small" />} iconPosition="start" label="1. Booking Reports" value="Bookings" />
-          <Tab icon={<DirectionsCarIcon fontSize="small" />} iconPosition="start" label="2. Driver Utilization" value="Drivers" />
-          <Tab icon={<GroupsIcon fontSize="small" />} iconPosition="start" label="3. TODA Performance" value="TODA" />
-          <Tab icon={<ScheduleIcon fontSize="small" />} iconPosition="start" label="4. Peak-Hour Reports" value="PeakHours" />
-          <Tab icon={<LocationOnIcon fontSize="small" />} iconPosition="start" label="5. Barangay Demand" value="Barangay" />
-          <Tab icon={<PieChartIcon fontSize="small" />} iconPosition="start" label="6. Service Utilization" value="Service" />
+          <Tab icon={<TimelineIcon fontSize="small" />} iconPosition="start" label="2. Booking Trend" value="Trend" />
+          <Tab icon={<DirectionsCarIcon fontSize="small" />} iconPosition="start" label="3. Driver Utilization" value="Drivers" />
+          <Tab icon={<GroupsIcon fontSize="small" />} iconPosition="start" label="4. TODA Performance" value="TODA" />
+          <Tab icon={<ScheduleIcon fontSize="small" />} iconPosition="start" label="5. Peak-Hour Reports" value="PeakHours" />
+          <Tab icon={<MapIcon fontSize="small" />} iconPosition="start" label="6. Booking Activity Hotspots" value="Hotspots" />
+          <Tab icon={<LocationOnIcon fontSize="small" />} iconPosition="start" label="7. Barangay Demand" value="Barangay" />
+          <Tab icon={<PieChartIcon fontSize="small" />} iconPosition="start" label="8. Service Utilization" value="Service" />
+          <Tab icon={<CancelIcon fontSize="small" />} iconPosition="start" label="9. Cancellations" value="Cancellations" />
+          <Tab icon={<ReportProblemIcon fontSize="small" />} iconPosition="start" label="10. Incidents" value="Incidents" />
         </Tabs>
       </Box>
 
       {/* 4. Tab Content Panels */}
-      {isLoading ? (
+      {isLoading && !reportsData ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-          <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>
-            Generating report...
-          </Typography>
+          <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>Generating report...</Typography>
         </Box>
       ) : (
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            overflow: 'hidden',
-            backgroundColor: '#FFFFFF',
-            p: 3,
-          }}
-        >
-          {/* Tab 1: Booking Reports */}
-          {activeReportTab === 'Bookings' && (
-            <Box>
-              <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
-                Booking Performance & Tariff Revenue Audit
-              </Typography>
-              <TableContainer>
-                <Table>
-                  <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>OPERATIONAL METRIC</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>RECORDED VALUE</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>BASIS</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Total Booking Invocations</TableCell>
-                      <TableCell>{summary.totalBookings} bookings</TableCell>
-                      <TableCell>Every booking request, any outcome</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Completed Trips</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#2E7D32' }}>{summary.completedTrips} trips</TableCell>
-                      <TableCell>{summary.totalBookings > 0 ? `${reportsData?.serviceUtilization.completionRate ?? 0}% of requests` : 'No requests yet'}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Cancelled Bookings</TableCell>
-                      <TableCell sx={{ color: '#DC2626' }}>{summary.cancelledTrips} cancellations</TableCell>
-                      <TableCell>{summary.totalBookings > 0 ? `${reportsData?.serviceUtilization.cancellationRate ?? 0}% of requests` : 'No requests yet'}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Gross Fare Volume</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{summary.totalRevenue.toFixed(2)}</TableCell>
-                      <TableCell>Sum of final fares of completed trips (cash)</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Average Fare Per Completed Trip</TableCell>
-                      <TableCell>₱{summary.averageFare.toFixed(2)}</TableCell>
-                      <TableCell>Gross fares divided by completed trips</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
+        reportsData &&
+        table && (
+          <Paper elevation={0} sx={{ ...cardSx, overflow: 'hidden', p: 3 }}>
+            <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)', mb: 2 }}>Showing: {reportsData.filterText}</Typography>
 
-          {/* Tab 2: Driver Utilization */}
-          {activeReportTab === 'Drivers' && (
-            <Box>
-              <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
-                Driver Utilization & Service Reliability Report ({reportsData?.driverUtilization.length || 0} Registered Drivers)
-              </Typography>
-              <TableContainer>
-                <Table>
-                  <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>DRIVER NAME</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>TODA AFFILIATION</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>COMPLETED TRIPS</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>PASSENGER RATING</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>ACCOUNT STANDING</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {reportsData && reportsData.driverUtilization.length > 0 ? (
-                      reportsData.driverUtilization.map((d, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell sx={{ fontWeight: 600 }}>{d.driverName}</TableCell>
-                          <TableCell>{d.toda}</TableCell>
-                          <TableCell>{d.completedTrips} Trips</TableCell>
-                          <TableCell>{d.rating === null ? 'Not Yet Rated' : `⭐ ${d.rating.toFixed(1)} / 5.0`}</TableCell>
-                          <TableCell sx={{ color: d.status === 'Verified' ? '#2E7D32' : '#DC2626', fontWeight: 600 }}>
-                            {d.status}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'var(--mac-text-muted)' }}>
-                          No driver records found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-
-          {/* Tab 3: TODA Performance */}
-          {activeReportTab === 'TODA' && (
-            <Box>
-              <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
-                Accredited TODA Association Operational Performance
-              </Typography>
-              <TableContainer>
-                <Table>
-                  <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>TODA NAME</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>ACTIVE UNITS / DRIVERS</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>FULFILLED TRIPS</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>COMPLETION RATE (FINISHED TRIPS)</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {reportsData && reportsData.todaPerformance.length > 0 ? (
-                      reportsData.todaPerformance.map((t, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell sx={{ fontWeight: 600 }}>{t.todaName}</TableCell>
-                          <TableCell>{t.activeUnits} Units</TableCell>
-                          <TableCell>{t.totalTrips} Completed</TableCell>
-                          <TableCell sx={{ color: t.completionRate === null ? 'var(--mac-text-muted)' : '#2E7D32', fontWeight: 600 }}>
-                            {t.completionRate === null ? 'No finished trips yet' : `${t.completionRate}% completed`}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'var(--mac-text-muted)' }}>
-                          No accredited TODA associations found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-
-          {/* Tab 4: Peak Hours */}
-          {activeReportTab === 'PeakHours' && (
-            <Box>
-              <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
-                Peak Travel Hours (when SAKAY bookings are created, Asia/Manila time)
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                {reportsData && reportsData.peakHourDistribution.map((h, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography sx={{ width: 100, fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>
-                      {h.hour}
-                    </Typography>
-                    <Box sx={{ flex: 1 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={(h.count / Math.max(1, ...reportsData.peakHourDistribution.map((x) => x.count))) * 100}
-                        sx={{
-                          height: 12,
-                          borderRadius: 6,
-                          backgroundColor: '#F0F0F2',
-                          '& .MuiLinearProgress-bar': {
-                            backgroundColor: 'var(--sakay-orange)',
-                            borderRadius: 6,
-                          },
-                        }}
-                      />
-                    </Box>
-                    <Typography sx={{ width: 80, fontSize: '10.8px', fontWeight: 700, textAlign: 'right', color: 'var(--mac-text-primary)' }}>
-                      {h.count} Trips
-                    </Typography>
-                  </Box>
-                ))}
+            {activeReportTab === 'Trend' && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                <ToggleButtonGroup size="small" exclusive value={trendPeriod} onChange={(_, v: VolumePeriod | null) => v && setTrendPeriod(v)}>
+                  <ToggleButton value="day" sx={{ textTransform: 'none', px: 2 }}>Daily</ToggleButton>
+                  <ToggleButton value="week" sx={{ textTransform: 'none', px: 2 }}>Weekly</ToggleButton>
+                  <ToggleButton value="month" sx={{ textTransform: 'none', px: 2 }}>Monthly</ToggleButton>
+                </ToggleButtonGroup>
+                {(() => {
+                  const c = reportsData.comparison[trendPeriod];
+                  if (!c) return <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)' }}>Fewer than two complete periods: nothing to compare yet.</Typography>;
+                  return (
+                    <Alert severity={c.direction === 'decline' ? 'warning' : c.direction === 'growth' ? 'success' : 'info'} sx={{ py: 0, '& .MuiAlert-message': { fontSize: '11.3px' } }}>
+                      {c.direction === 'growth' ? 'Growth' : c.direction === 'decline' ? 'Decline' : 'No change'}: {c.current.label} had {c.current.total} booking{c.current.total === 1 ? '' : 's'} against {c.previous.total} in {c.previous.label}
+                      {c.changePct === null ? '' : ` (${c.change > 0 ? '+' : ''}${c.changePct}%)`}.
+                    </Alert>
+                  );
+                })()}
               </Box>
-            </Box>
-          )}
+            )}
 
-          {/* Tab 5: Barangay Demand */}
-          {activeReportTab === 'Barangay' && (
-            <Box>
-              <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
-                Barangay Pickup Demand
-              </Typography>
-              <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)', mb: 2 }}>
-                The barangay is read from the pickup address text; a pickup whose address names no Calapan barangay is listed as not identified.
-              </Typography>
-              <TableContainer>
-                <Table>
-                  <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>BARANGAY ZONE</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>TRIP REQUESTS</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>SHARE OF SAKAY BOOKINGS</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {reportsData && reportsData.barangayDemand.map((b, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell sx={{ fontWeight: 600 }}>{b.barangay}</TableCell>
-                        <TableCell>{b.count} Pickups</TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={b.percentage || 10}
-                              sx={{ flex: 1, height: 8, borderRadius: 4, '& .MuiLinearProgress-bar': { backgroundColor: '#1565C0' } }}
-                            />
-                            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-secondary)', width: 45 }}>
-                              {b.percentage}%
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
+            {activeReportTab === 'PeakHours' && (
+              <Box sx={{ mb: 4 }}>
+                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
+                  Peak Travel Hours (when SAKAY bookings are created, Asia/Manila time)
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {reportsData.peakHourDistribution.map((h) => (
+                    <Box key={h.hour} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography sx={{ width: 100, fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{h.hour}</Typography>
+                      <Box sx={{ flex: 1 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={(h.count / Math.max(1, ...reportsData.peakHourDistribution.map((x) => x.count))) * 100}
+                          sx={{ height: 12, borderRadius: 6, backgroundColor: '#F0F0F2', '& .MuiLinearProgress-bar': { backgroundColor: 'var(--sakay-orange)', borderRadius: 6 } }}
+                        />
+                      </Box>
+                      <Typography sx={{ width: 80, fontSize: '10.8px', fontWeight: 700, textAlign: 'right', color: 'var(--mac-text-primary)' }}>
+                        {h.count} {h.count === 1 ? 'Trip' : 'Trips'}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 4, mb: 1.5 }}>Peak hours of each TODA</Typography>
+                <PeakHoursByGroupTable groupLabel="TODA" rows={reportsData.peakHoursByToda} />
+                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 4, mb: 1.5 }}>Peak hours of each barangay (pickup)</Typography>
+                <PeakHoursByGroupTable groupLabel="Barangay (pickup)" rows={reportsData.peakHoursByBarangay} />
+                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 4, mb: 1.5 }}>The exported table</Typography>
+              </Box>
+            )}
 
-          {/* Tab 6: Service Utilization */}
-          {activeReportTab === 'Service' && reportsData && (
-            <Box>
-              <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
-                Service Utilization: what happened to the booking requests
-              </Typography>
-              <TableContainer>
-                <Table>
-                  <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>OUTCOME</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>BOOKINGS</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>SHARE OF REQUESTS</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {[
-                      ['Completed trips', reportsData.serviceUtilization.completed, reportsData.serviceUtilization.completionRate, '#2E7D32'],
-                      ['Cancelled', reportsData.serviceUtilization.cancelled, reportsData.serviceUtilization.cancellationRate, '#DC2626'],
-                      ['No driver found', reportsData.serviceUtilization.noDriverFound, reportsData.serviceUtilization.noDriverRate, '#F59E0B'],
-                      ['In progress / open', reportsData.serviceUtilization.inProgress, null, '#1565C0'],
-                    ].map(([label, count, share, color]) => (
-                      <TableRow key={String(label)}>
-                        <TableCell sx={{ fontWeight: 600 }}>{label}</TableCell>
-                        <TableCell sx={{ fontWeight: 700, color: String(color) }}>{String(count)}</TableCell>
-                        <TableCell>{share === null ? 'n/a' : `${share}%`}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Solo trips / Shared trips</TableCell>
-                      <TableCell>
-                        {reportsData.serviceUtilization.soloTrips} solo, {reportsData.serviceUtilization.sharedTrips} shared
-                      </TableCell>
-                      <TableCell>of {reportsData.serviceUtilization.requests} requests</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Verified drivers who carried passengers</TableCell>
-                      <TableCell>
-                        {reportsData.driverUtilizationSummary.activeDrivers} of {reportsData.driverUtilizationSummary.verifiedDrivers}
-                      </TableCell>
-                      <TableCell>
-                        {reportsData.driverUtilizationSummary.verifiedDrivers > 0 ? `${reportsData.driverUtilizationSummary.rate}%` : 'n/a'} in the last{' '}
-                        {reportsData.driverUtilizationSummary.windowDays} days
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-        </Paper>
+            {activeReportTab === 'Barangay' && (
+              <Box sx={{ mb: 4 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {reportsData.barangayDemand.map((b) => (
+                    <Box key={b.barangay} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography sx={{ width: 190, fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{b.barangay}</Typography>
+                      <LinearProgress variant="determinate" value={b.percentage} sx={{ flex: 1, height: 8, borderRadius: 4, '& .MuiLinearProgress-bar': { backgroundColor: '#1565C0' } }} />
+                      <Typography sx={{ width: 110, fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-secondary)', textAlign: 'right' }}>
+                        {b.count} pickup{b.count === 1 ? '' : 's'} · {b.percentage}%
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            <ReportTableView table={table} emptyText={NO_RECORDS[activeReportTab]} />
+          </Paper>
+        )
       )}
     </Box>
   );
 };
-

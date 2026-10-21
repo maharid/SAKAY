@@ -1360,7 +1360,12 @@ export async function fetchTodaAnnouncements(todaId?: string): Promise<TodaAnnou
 
     if (error || !data) return [];
 
-    const filtered = data.filter((a: any) => !a.toda_id || a.toda_id === effectiveTodaId);
+    // This TODA's own announcements (a TODA's administrator manages their published flag), the LGU's announcements for this TODA (only while published),
+    // and the LGU's city-wide announcements that are published and meant for everybody or for TODA administrators.
+    const filtered = data.filter((a: any) => {
+      if (a.toda_id) return a.toda_id === effectiveTodaId && (Boolean(a.created_by) || a.is_published !== false);
+      return a.is_published !== false && (!a.target_audience || ['All', 'TODA Administrator'].includes(a.target_audience));
+    });
 
     return filtered.map((a: any) => ({
       id: a.announcement_id,

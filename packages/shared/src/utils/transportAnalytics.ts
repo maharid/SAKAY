@@ -22,6 +22,14 @@ export interface BookingLike {
   driver_id?: string | null;
   actual_distance_km?: number | string | null;
   estimated_distance_km?: number | string | null;
+  passenger_id?: string | null;
+  toda_id?: string | null;
+  dropoff_address?: string | null;
+  dropoff_latitude?: number | string | null;
+  dropoff_longitude?: number | string | null;
+  accepted_at?: string | null;
+  cancelled_by?: string | null;
+  cancellation_reason?: string | null;
 }
 
 const MANILA = 'Asia/Manila';
@@ -53,8 +61,8 @@ export const manilaDateKey = (d: Date): string => dateFmt.format(d);
 /** 0-23, the hour in Manila */
 export const manilaHour = (d: Date): number => Number(hourFmt.format(d)) % 24;
 
-const round1 = (n: number): number => Math.round(n * 10) / 10;
-const pct = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+export const round1 = (n: number): number => Math.round(n * 10) / 10;
+export const pct = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Booking volume by day, week or month (TODA reports: daily, weekly and monthly booking reports, platform volume, gross fare)
@@ -83,22 +91,22 @@ export interface VolumeRow {
 const shortDate = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
 const monthLabelFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' });
 
-const keyToUtc = (key: string): Date => {
+export const keyToUtc = (key: string): Date => {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d ?? 1));
 };
 const utcToKey = (d: Date): string => d.toISOString().slice(0, 10);
-const addDaysToKey = (key: string, days: number): string => utcToKey(new Date(keyToUtc(key).getTime() + days * 86_400_000));
+export const addDaysToKey = (key: string, days: number): string => utcToKey(new Date(keyToUtc(key).getTime() + days * 86_400_000));
 /** The Monday of the week that contains a calendar date ("YYYY-MM-DD") */
 const weekStartKey = (key: string): string => addDaysToKey(key, -((keyToUtc(key).getUTCDay() + 6) % 7));
 
-function periodKeyOf(dateKey: string, period: VolumePeriod): string {
+export function periodKeyOf(dateKey: string, period: VolumePeriod): string {
   if (period === 'day') return dateKey;
   if (period === 'week') return weekStartKey(dateKey);
   return dateKey.slice(0, 7);
 }
 
-function periodKeysEndingAt(nowKey: string, period: VolumePeriod, count: number): string[] {
+export function periodKeysEndingAt(nowKey: string, period: VolumePeriod, count: number): string[] {
   const keys: string[] = [];
   if (period === 'day') {
     for (let i = count - 1; i >= 0; i--) keys.push(addDaysToKey(nowKey, -i));
@@ -115,7 +123,7 @@ function periodKeysEndingAt(nowKey: string, period: VolumePeriod, count: number)
   return keys;
 }
 
-function periodLabel(key: string, period: VolumePeriod): string {
+export function periodLabel(key: string, period: VolumePeriod): string {
   if (period === 'day') return shortDate.format(keyToUtc(key));
   if (period === 'week') return `${shortDate.format(keyToUtc(key))} - ${shortDate.format(keyToUtc(addDaysToKey(key, 6)))}`;
   return monthLabelFmt.format(keyToUtc(`${key}-01`));
@@ -203,13 +211,16 @@ export interface Hotspot {
   label: string;
 }
 
-export function pickupHotspots(bookings: BookingLike[], cell: number = HOTSPOT_CELL_DEGREES, top: number = HOTSPOT_MAX_COUNT): Hotspot[] {
+export type HotspotKind = 'pickup' | 'dropoff';
+
+/** Where the pickups (or the drop-offs) of the bookings cluster, grouped in cells of `cell` degrees */
+export function hotspotsOf(bookings: BookingLike[], kind: HotspotKind, cell: number = HOTSPOT_CELL_DEGREES, top: number = HOTSPOT_MAX_COUNT): Hotspot[] {
   type Acc = { count: number; sumLat: number; sumLng: number; addresses: Map<string, number> };
   const cells = new Map<string, Acc>();
   let located = 0;
   for (const b of bookings) {
-    const lat = Number(b.pickup_latitude);
-    const lng = Number(b.pickup_longitude);
+    const lat = Number(kind === 'pickup' ? b.pickup_latitude : b.dropoff_latitude);
+    const lng = Number(kind === 'pickup' ? b.pickup_longitude : b.dropoff_longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) continue;
     located += 1;
     const key = `${Math.round(lat / cell)}:${Math.round(lng / cell)}`;
@@ -217,7 +228,7 @@ export function pickupHotspots(bookings: BookingLike[], cell: number = HOTSPOT_C
     acc.count += 1;
     acc.sumLat += lat;
     acc.sumLng += lng;
-    const addr = (b.pickup_address ?? '').trim();
+    const addr = ((kind === 'pickup' ? b.pickup_address : b.dropoff_address) ?? '').trim();
     if (addr) acc.addresses.set(addr, (acc.addresses.get(addr) ?? 0) + 1);
     cells.set(key, acc);
   }
@@ -225,10 +236,13 @@ export function pickupHotspots(bookings: BookingLike[], cell: number = HOTSPOT_C
     .sort((a, b) => b.count - a.count)
     .slice(0, top)
     .map((acc) => {
-      const label = [...acc.addresses.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Pickup area';
+      const label = [...acc.addresses.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (kind === 'pickup' ? 'Pickup area' : 'Drop-off area');
       return { lat: acc.sumLat / acc.count, lng: acc.sumLng / acc.count, count: acc.count, share: pct(acc.count, located), label };
     });
 }
+
+export const pickupHotspots = (bookings: BookingLike[], cell: number = HOTSPOT_CELL_DEGREES, top: number = HOTSPOT_MAX_COUNT): Hotspot[] => hotspotsOf(bookings, 'pickup', cell, top);
+export const dropoffHotspots = (bookings: BookingLike[], cell: number = HOTSPOT_CELL_DEGREES, top: number = HOTSPOT_MAX_COUNT): Hotspot[] => hotspotsOf(bookings, 'dropoff', cell, top);
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Barangay demand: the barangay named in the pickup address (a booking stores the address text, not a barangay)

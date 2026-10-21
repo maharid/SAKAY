@@ -34,6 +34,8 @@ export interface IncidentReviewPanelProps {
   onEscalate: (reason: string, serious: boolean) => Promise<string | null>;
   onDecide: (d: Omit<IncidentDecision, 'incidentId'>) => Promise<string | null>;
   onLostItem: (status: Exclude<LostItemStatus, 'Open'>, note: string) => Promise<string | null>;
+  /** LGU only: hand a report that was escalated (not a serious one) back to the TODA Administrator of the driver's TODA, with the reason */
+  onRefer?: (reason: string) => Promise<string | null>;
 }
 
 const manila = (iso: string | null): string => {
@@ -58,9 +60,9 @@ const LOST_ITEM_STEPS: Array<{ status: Exclude<LostItemStatus, 'Open'>; label: s
  * Rules 19.3, 19.4, 19.5, 19.6, 19.8, 26.4: what an administrator does with one incident report. The database is the authority (who may act, what each outcome may carry, the strike, the audit entry,
  * the notices); this is only the form. Used by the TODA and the LGU portals. A report that is with the LGU Administrator is read only for the TODA Administrator (decision PI-11I).
  */
-export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, incident, onStart, onEscalate, onDecide, onLostItem }) => {
+export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, incident, onStart, onEscalate, onDecide, onLostItem, onRefer }) => {
   const flight = useInFlight();
-  const [mode, setMode] = useState<null | 'escalate' | 'decide' | 'lost'>(null);
+  const [mode, setMode] = useState<null | 'escalate' | 'decide' | 'lost' | 'refer'>(null);
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
   const [reason, setReason] = useState('');
   const [serious, setSerious] = useState(false);
@@ -76,6 +78,8 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
   const withdrawn = incident.status === 'Cancelled';
   const readOnlyForToda = role === 'toda_admin' && (incident.routing === 'LGU' || incident.priority === 'Serious');
   const pending = incident.status === 'Pending' || incident.status === 'Pending Review';
+  // Rule 19.8: assault, harassment, threats and crime stay with the LGU; anything else it took over can go back to the TODA (the database makes the same check)
+  const canRefer = role === 'lgu_admin' && Boolean(onRefer) && incident.routing === 'LGU' && incident.priority !== 'Serious' && klass !== 'SERIOUS';
   const unclaimedFrom = Date.parse(incident.created_at) + INCIDENT_LOST_ITEM_UNCLAIMED_DAYS * 86_400_000;
 
   const outcomes = useMemo(() => incidentOutcomesFor(incident.category, incident.reported_by), [incident.category, incident.reported_by]);
@@ -175,6 +179,11 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
                 {role === 'toda_admin' ? 'Escalate to the LGU' : incident.routing === 'LGU' ? 'Reclassify as serious' : 'Take over / mark serious'}
               </Button>
             )}
+            {canRefer && (
+              <Button size="small" variant={mode === 'refer' ? 'contained' : 'outlined'} disabled={flight.busy} onClick={() => setMode(mode === 'refer' ? null : 'refer')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Refer to the TODA
+              </Button>
+            )}
             <Button size="small" variant={mode === 'decide' ? 'contained' : 'outlined'} disabled={flight.busy} onClick={() => setMode(mode === 'decide' ? null : 'decide')} sx={{ textTransform: 'none', fontWeight: 600 }}>
               Record the decision
             </Button>
@@ -187,6 +196,18 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
                 label={<Typography sx={{ fontSize: '13px' }}>This describes an assault, harassment, a threat or a crime (Rule 19.8): reclassify it as serious</Typography>} />
               <Button size="small" variant="contained" color="error" disabled={flight.busy || reason.trim().length < 10} onClick={() => void run(() => onEscalate(reason.trim(), serious), 'The report was sent to the LGU Administrator.')} sx={{ textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}>
                 {flight.busy ? 'Sending...' : 'Send to the LGU Administrator'}
+              </Button>
+            </Box>
+          )}
+
+          {mode === 'refer' && onRefer && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography sx={{ fontSize: '12.5px', color: '#475569', lineHeight: 1.5 }}>
+                The report goes back to the TODA Administrator of the driver's TODA, who is told and has a fresh time to act. It is recorded in the audit log under your name. A serious report (Rule 19.8) cannot be referred.
+              </Typography>
+              <TextField size="small" multiline rows={2} fullWidth label="Why it goes back to the TODA (at least 10 characters)" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <Button size="small" variant="contained" disabled={flight.busy || reason.trim().length < 10} onClick={() => void run(() => onRefer(reason.trim()), 'The report was referred to the TODA Administrator.')} sx={{ textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}>
+                {flight.busy ? 'Sending...' : 'Refer to the TODA Administrator'}
               </Button>
             </Box>
           )}

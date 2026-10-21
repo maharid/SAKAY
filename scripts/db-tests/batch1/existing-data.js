@@ -83,6 +83,8 @@ const BEFORE_BATCH1 = '20260927020000_fix_all_security_advisor_red_notices.sql';
     const upd = await asLgu((tx) => attempt(() => tx.query(`UPDATE public.toda SET toda_name = 'Renamed' WHERE toda_id = 'c0000000-0000-0000-0000-00000000000a'`)));
     check('an LGU administrator can update a TODA (the toda protection trigger reads certificate_expiry)', upd.ok, upd);
 
+    // the database refuses an approval when no Barangay Clearance was uploaded (Rule 2.1)
+    await db.query(`UPDATE public.toda SET barangay_clearance_url = 'toda/clearance.pdf' WHERE toda_id = 'c0000000-0000-0000-0000-00000000000b'`);
     const approve = await asLgu((tx) => attempt(() => tx.query(
       `SELECT public.approve_toda_accreditation('c0000000-0000-0000-0000-00000000000b','CERT-2026-001', now() + interval '1 year', 'ok') r`)));
     check('approve_toda_accreditation works (writes certificate_number / certificate_expiry)', approve.ok, approve);

@@ -30,11 +30,13 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { TodaAccreditationDialog } from '../components/admin/TodaAccreditationDialog';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { TableEmptyState } from '../components/common/TableEmptyState';
 import {
   fetchTodaApplications,
   approveTodaApplication,
+  sendTodaRenewalReminder,
   returnTodaApplicationForCorrection,
   rejectTodaApplication,
   recordAdminAuditAction,
@@ -132,22 +134,14 @@ export const TodaApplicationsPage: React.FC = () => {
     { label: 'This Month', value: 'This Month' },
   ];
 
-  const handleApproveConfirm = async () => {
+  /** Called by the approval dialog with the number and date the Administrator typed; throws the database's own explanation back into the dialog. */
+  const handleApproveSubmit = async (certificateNumber: string, validUntilIso: string, remarks: string) => {
     if (!selectedApp) return;
-
-    try {
-      await approveTodaApplication(selectedApp.id);
-      setSnackbarMessage(`Successfully approved accreditation for ${selectedApp.name}.`);
-      setApplications((prev) =>
-        prev.map((app) => (app.id === selectedApp.id ? { ...app, status: 'Approved' } : app))
-      );
-      setSelectedApp((prev) => (prev ? { ...prev, status: 'Approved' } : null));
-    } catch (err) {
-      console.error('[TodaApplications] Approval error:', err);
-      setSnackbarMessage(`Error approving application: ${(err as Error).message}`);
-    }
-
+    await approveTodaApplication(selectedApp.id, remarks || undefined, certificateNumber, validUntilIso);
+    setSnackbarMessage(`Approved the accreditation of ${selectedApp.name}.`);
     setApproveDialogOpen(false);
+    await loadApplications();
+    setSelectedApp((prev) => (prev ? { ...prev, status: 'Approved' } : null));
   };
 
   const handleResubmissionConfirm = async (reason?: string) => {
@@ -201,18 +195,15 @@ export const TodaApplicationsPage: React.FC = () => {
     setRejectDialogOpen(false);
   };
 
-  const handleSendReminder = (todaId: string) => {
+  const handleSendReminder = async (todaId: string) => {
+    // a real notice to the TODA's administrators (the database refuses a second one within 10 minutes and writes the audit entry)
+    const problem = await sendTodaRenewalReminder(todaId);
+    if (problem) {
+      setSnackbarMessage(problem);
+      return;
+    }
     setReminderSent(todaId);
-
-    recordAdminAuditAction({
-      actionType: 'CLEARANCE_REMINDER_SENT',
-      targetId: todaId,
-      targetName: selectedApp ? selectedApp.name : todaId,
-      details: `Dispatched automated Barangay Clearance renewal reminder to TODA leadership.`,
-      category: 'Verification',
-    });
-
-    setSnackbarMessage('Renewal reminder sent successfully to TODA leadership.');
+    setSnackbarMessage('The renewal reminder was sent to the TODA administrators.');
     setTimeout(() => setReminderSent(null), 3000);
   };
 
@@ -506,6 +497,30 @@ export const TodaApplicationsPage: React.FC = () => {
                 </Typography>
               </Box>
               <Box>
+                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Registration Number</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  {selectedApp.registrationNumber || 'N/A'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Contact Number</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  {selectedApp.phone || 'N/A'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Email Address</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  {selectedApp.email || 'N/A'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Service Coverage Area</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  {selectedApp.serviceCoverageArea || selectedApp.barangay || 'N/A'}
+                </Typography>
+              </Box>
+              <Box>
                 <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Terminal Location</Typography>
                 <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.terminalLocation || 'Calapan City Terminal'}
@@ -688,6 +703,27 @@ export const TodaApplicationsPage: React.FC = () => {
                   </Box>
                 );
               })}
+              {selectedApp.status !== 'Approved' && selectedApp.hasBarangayClearance === false && (
+                <Alert
+                  severity="warning"
+                  sx={{ borderRadius: '12px' }}
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => {
+                        setTargetCorrectionDoc({ name: 'Barangay Clearance', type: 'Missing' });
+                        setResubmissionDialogOpen(true);
+                      }}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                      Return for Correction
+                    </Button>
+                  }
+                >
+                  No Barangay Clearance was uploaded, so this TODA cannot be accredited yet (Rule 2.1).
+                </Alert>
+              )}
             </Box>
           </Box>
 
@@ -741,16 +777,16 @@ export const TodaApplicationsPage: React.FC = () => {
         />
       )}
 
-      {/* Approve Confirmation Dialog */}
+      {/* Approval: the Administrator types the certificate number and the date the Barangay Clearance is valid until (Rule 2.1) */}
       {selectedApp && (
-        <MacConfirmDialog
+        <TodaAccreditationDialog
           open={approveDialogOpen}
+          mode="approve"
+          todaName={selectedApp.name}
+          hasClearance={selectedApp.hasBarangayClearance !== false}
+          currentCertificateNumber={selectedApp.certificateNumber}
           onClose={() => setApproveDialogOpen(false)}
-          title="Approve TODA Accreditation?"
-          message={`You are about to issue official municipal accreditation for "${selectedApp.name}". This will authorize their drivers and operating routes in ${selectedApp.barangay} with a 3-year certificate.`}
-          confirmLabel="Approve & Issue Certificate"
-          confirmVariant="orange"
-          onConfirm={handleApproveConfirm}
+          onSubmit={handleApproveSubmit}
         />
       )}
 

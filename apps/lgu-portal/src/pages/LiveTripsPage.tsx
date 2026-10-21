@@ -39,6 +39,12 @@ import { FareDisputesPanel, SafetyEndTripPanel, TripReconciliationPanel } from '
 import type { FareDisputeRow } from '@sakay/shared';
 import type { ReconciliationTrip } from '@sakay/shared';
 
+/** A position older than this is drawn grey: the phone is not reporting any more (the policy treats 3 minutes of silence as Driver Unreachable) */
+const LIVE_FIX_STALE_SECONDS = 90;
+
+const escapeHtml = (v: string): string =>
+  v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
 /**
  * ============================================================================
  * LIVE OPERATIONS & TRIP MONITORING PAGE (LiveTripsPage.tsx)
@@ -62,6 +68,7 @@ export const LiveTripsPage: React.FC = () => {
   // Map references
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const framedRef = useRef(false);
 
   const loadTrips = async () => {
     setIsLoading(true);
@@ -139,11 +146,10 @@ export const LiveTripsPage: React.FC = () => {
     return matchesSearch && matchesToda;
   });
 
+  const todaNames = Array.from(new Set(bookings.map((b) => b.todaName).filter((n) => n && n !== '\u2014'))).sort();
   const todaOptions: FilterOption[] = [
     { label: 'All TODAs', value: 'All' },
-    { label: 'Calapan Central TODA', value: 'Calapan Central TODA' },
-    { label: 'Balite-Lumangbayan TODA', value: 'Balite-Lumangbayan TODA' },
-    { label: 'San Vicente East Drivers Association', value: 'San Vicente East Drivers Association' },
+    ...todaNames.map((n) => ({ label: n, value: n })),
   ];
 
   // Leaflet Map Initialization & Markers
@@ -174,10 +180,16 @@ export const LiveTripsPage: React.FC = () => {
       }
     });
 
-    // Render active trips on map
-    activeTrips.forEach((trip) => {
+    // Render the active trips that have a driver position (the phone's own heartbeat; a trip still searching has none)
+    const withFix = activeTrips.filter((t) => t.driverLat !== null && t.driverLng !== null);
+    const bounds: L.LatLngTuple[] = [];
+    withFix.forEach((trip) => {
+      const lat = trip.driverLat as number;
+      const lng = trip.driverLng as number;
       const isOngoing = trip.status === 'Trip Ongoing';
-      const markerBg = isOngoing ? '#1565C0' : '#FF5500';
+      const ageSeconds = trip.driverFixAt ? Math.max(0, Math.round((Date.now() - Date.parse(trip.driverFixAt)) / 1000)) : null;
+      const stale = ageSeconds === null || ageSeconds > LIVE_FIX_STALE_SECONDS;
+      const markerBg = stale ? '#94A3B8' : isOngoing ? '#1565C0' : '#FF5500';
 
       const customIcon = L.divIcon({
         className: 'custom-live-trip-marker',
@@ -190,26 +202,34 @@ export const LiveTripsPage: React.FC = () => {
         iconAnchor: [18, 18],
       });
 
-      const marker = L.marker([trip.driverLat, trip.driverLng], { icon: customIcon }).addTo(map);
+      const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
       marker.bindPopup(`
-        <b>${trip.id}</b><br/>
-        Driver: ${trip.driverName}<br/>
-        Status: <b>${trip.status}</b><br/>
-        Route: ${trip.pickupArea} → ${trip.destinationArea}
+        <b>${escapeHtml(trip.id.slice(0, 8).toUpperCase())}</b><br/>
+        Driver: ${escapeHtml(trip.driverName)}<br/>
+        Status: <b>${escapeHtml(trip.status)}</b><br/>
+        Route: ${escapeHtml(trip.pickupArea)} → ${escapeHtml(trip.destinationArea)}<br/>
+        Last GPS: ${ageSeconds === null ? 'none' : ageSeconds < 60 ? `${ageSeconds} s ago` : `${Math.round(ageSeconds / 60)} min ago`}${stale ? ' (not current)' : ''}
       `);
 
       marker.on('click', () => setSelectedTrip(trip));
 
-      // Route line
+      // Route line: pickup, where the driver is now, destination
       L.polyline(
         [
           [trip.startLat, trip.startLng],
-          [trip.driverLat, trip.driverLng],
+          [lat, lng],
           [trip.destLat, trip.destLng],
         ],
         { color: markerBg, weight: 4, opacity: 0.8, dashArray: isOngoing ? undefined : '6, 6' }
       ).addTo(map);
+      bounds.push([lat, lng]);
     });
+
+    // The first time drivers appear, frame them
+    if (bounds.length > 0 && !framedRef.current) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      framedRef.current = true;
+    }
   }, [activeTrips]);
 
   // Rules 29.20 - 29.22: the live trips with a driver on them (a booking still searching has nothing to end)
@@ -392,7 +412,7 @@ export const LiveTripsPage: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <NavigationIcon sx={{ color: 'var(--sakay-orange)', fontSize: '16' }} />
             <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-              Live Calapan City Transportation Transit Map ({activeTrips.length} Active)
+              Live Calapan City Transportation Transit Map ({activeTrips.length} active, {activeTrips.filter((t) => t.driverLat !== null).length} with a driver GPS position)
             </Typography>
           </Box>
           <Button
@@ -532,6 +552,13 @@ export const LiveTripsPage: React.FC = () => {
                   </TableCell>
                   <TableCell sx={{ py: 2.2, px: 3 }}>
                     <StatusBadge status={trip.status as any} />
+                    {(trip.cancelledBy || trip.cancellationReason) && (
+                      <Typography sx={{ fontSize: '9.2px', color: 'var(--mac-text-muted)', mt: '4px', maxWidth: 220 }}>
+                        {trip.cancelledBy ? `By ${trip.cancelledBy}` : ''}
+                        {trip.cancelledBy && trip.cancellationReason ? ': ' : ''}
+                        {trip.cancellationReason ?? ''}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
                     <ActionButton

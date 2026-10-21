@@ -25,6 +25,9 @@ export interface TodaApplicationRecord {
   resubmissionReason?: string;
   barangayClearanceExpiry: string;
   clearanceStatus: 'Valid' | 'Expiring Soon' | 'Expired' | 'Under Review';
+  /** False when the TODA never uploaded a Barangay Clearance (the database refuses an approval without one) */
+  hasBarangayClearance?: boolean;
+  certificateNumber?: string | null;
   isOverdue5Days?: boolean;
   officers?: {
     president: string;
@@ -61,7 +64,9 @@ export interface AccreditedTodaRecord {
   accreditedDate: string;
   expiryDate: string;
   barangayClearanceExpiry: string;
-  clearanceStatus: 'Valid' | 'Expiring Soon' | 'Expired';
+  clearanceStatus: 'Valid' | 'Expiring Soon' | 'Expired' | 'Under Review';
+  hasBarangayClearance?: boolean;
+  certificateNumber?: string | null;
 
   confirmedIncidents: number;
   flaggedForReview: boolean;
@@ -191,7 +196,7 @@ export interface PassengerRecord {
   phone: string;
   email: string;
   verificationStatus: 'Verified' | 'Unverified';
-  accountStatus: 'Active' | 'Suspended' | 'Deactivated';
+  accountStatus: 'Active' | 'Suspended' | 'Deactivated' | 'Pending';
   suspensionReason?: string;
   restrictionKind?: AccountRestrictionKind;
   suspendedUntil?: string;
@@ -351,6 +356,10 @@ export interface AnnouncementRecord {
   scheduled_date?: string;
   created_by_lgu_admin: string;
   created_at: string;
+  /** When the database published / unpublished / last changed it (null until it happens) */
+  published_at?: string | null;
+  unpublished_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface AuditLogRecord {

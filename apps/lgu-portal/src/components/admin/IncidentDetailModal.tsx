@@ -12,7 +12,7 @@ import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
 import { ActionButton } from './ActionButton';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
-import { startIncident, escalateIncident, decideIncident, updateLostItemReport } from '../../services/adminApiService';
+import { startIncident, escalateIncident, decideIncident, updateLostItemReport, referIncidentToToda } from '../../services/adminApiService';
 
 interface IncidentDetailModalProps {
   open: boolean;
@@ -212,6 +212,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({ open, 
               onEscalate={(reason, serious) => after(() => escalateIncident(incident.id, reason, serious))()}
               onDecide={(d) => after(() => decideIncident({ incidentId: incident.id, ...d }))()}
               onLostItem={(status, note) => after(() => updateLostItemReport(incident.id, status, note))()}
+              onRefer={(reason) => after(() => referIncidentToToda(incident.id, reason))()}
             />
           )}
         </Box>
