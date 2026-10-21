@@ -12,6 +12,8 @@ interface TodaAccreditationDialogProps {
   hasClearance: boolean;
   /** Prefilled for a renewal */
   currentCertificateNumber?: string | null;
+  /** What the TODA says the clearance is valid until (YYYY-MM-DD): prefilled, never trusted. The Administrator reads the document and confirms or corrects it. */
+  declaredValidUntil?: string | null;
   onClose: () => void;
   /** Resolves when the database accepted it; rejects with the database's own explanation, which is shown here */
   onSubmit: (certificateNumber: string, validUntilIso: string, remarks: string) => Promise<void>;
@@ -25,7 +27,7 @@ const manilaDay = (offsetDays = 0): string =>
  * Rule 2.1 / checklist A2.5, A2.8: the LGU Administrator reads the Barangay Clearance and types its certificate number and the date it is valid until. Nothing is made up
  * on the way: a missing number or date, a date that is not in the future, or a TODA with no clearance on file cannot be saved.
  */
-export const TodaAccreditationDialog: React.FC<TodaAccreditationDialogProps> = ({ open, mode, todaName, hasClearance, currentCertificateNumber, onClose, onSubmit }) => {
+export const TodaAccreditationDialog: React.FC<TodaAccreditationDialogProps> = ({ open, mode, todaName, hasClearance, currentCertificateNumber, declaredValidUntil, onClose, onSubmit }) => {
   const [certificateNumber, setCertificateNumber] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -35,12 +37,12 @@ export const TodaAccreditationDialog: React.FC<TodaAccreditationDialogProps> = (
   useEffect(() => {
     if (open) {
       setCertificateNumber(mode === 'renew' ? currentCertificateNumber ?? '' : '');
-      setValidUntil('');
+      setValidUntil(declaredValidUntil && declaredValidUntil >= manilaDay(1) ? declaredValidUntil : '');
       setRemarks('');
       setError(null);
       setBusy(false);
     }
-  }, [open, mode, currentCertificateNumber]);
+  }, [open, mode, currentCertificateNumber, declaredValidUntil]);
 
   const tomorrow = manilaDay(1);
   const problem =
@@ -102,6 +104,7 @@ export const TodaAccreditationDialog: React.FC<TodaAccreditationDialogProps> = (
           value={validUntil}
           onChange={(e) => setValidUntil(e.target.value)}
           disabled={!hasClearance}
+          helperText={declaredValidUntil ? `The TODA states: ${declaredValidUntil}. Check it against the clearance and correct it if it differs.` : 'The TODA stated no date: read it from the clearance.'}
           slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: tomorrow } }}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
         />

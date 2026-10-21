@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
-  Button,
   Card,
   Paper,
   Table,
@@ -14,12 +13,13 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
 
 import { serviceUtilization, volumeByPeriod } from '@sakay/shared';
-import type { BookingLike, VolumePeriod } from '@sakay/shared';
+import type { BookingLike, ReportTable, VolumePeriod } from '@sakay/shared';
 
-import { downloadCsv, reportFileName } from '../../utils/csvDownload';
+import { PILOT_COVERAGE_TEXT } from '../common/PilotCoverageNote';
+import { ReportExportButtons } from './ReportExportButtons';
+import type { ExportFormat } from './ReportExportButtons';
 
 /**
  * TODA reports: daily, weekly and monthly booking reports, platform booking volume and estimated gross fare value (checklist:
@@ -30,7 +30,7 @@ interface BookingVolumeReportProps {
   trips: BookingLike[];
   todaName: string;
   /** called after the file is saved, so the page can write the audit entry */
-  onExported: (reportName: string) => void;
+  onExported: (reportName: string, format: ExportFormat) => void;
 }
 
 const PERIOD_LABEL: Record<VolumePeriod, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly' };
@@ -47,15 +47,16 @@ export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips,
   // The newest period first, the way a report is read.
   const rows = useMemo(() => [...volumeByPeriod(trips, period)].reverse(), [trips, period]);
 
-  const exportCsv = () => {
-    const name = `Booking Volume ${PERIOD_LABEL[period]}`;
-    downloadCsv(
-      reportFileName(name),
-      [PERIOD_COLUMN[period], 'Booking Requests', 'Completed', 'Cancelled', 'No Driver Found', 'Shared Trips', 'Estimated Gross Fare (PHP)', 'Average Fare (PHP)', 'Completion Rate (%)'],
-      rows.map((r) => [r.label, r.total, r.completed, r.cancelled, r.noDriverFound, r.sharedTrips, r.grossFare.toFixed(2), r.averageFare.toFixed(2), r.completionRate])
-    );
-    onExported(name);
-  };
+  // The report as shown; the Excel, CSV and PDF files contain exactly this table
+  const table: ReportTable = useMemo(
+    () => ({
+      title: `Booking Volume Report (${PERIOD_LABEL[period]})`,
+      notes: [`${todaName}: bookings counted by the day they were created (Asia/Manila). Estimated gross fare value is the sum of the final fares of completed trips, paid in cash.`, PILOT_COVERAGE_TEXT],
+      headers: [PERIOD_COLUMN[period], 'Booking Requests', 'Completed', 'Cancelled', 'No Driver Found', 'Shared Trips', 'Estimated Gross Fare (PHP)', 'Average Fare (PHP)', 'Completion Rate (%)'],
+      rows: rows.map((r) => [r.label, r.total, r.completed, r.cancelled, r.noDriverFound, r.sharedTrips, r.grossFare.toFixed(2), r.averageFare.toFixed(2), r.completionRate]),
+    }),
+    [period, rows, todaName]
+  );
 
   const kpis: Array<[string, string, string, string]> = [
     ['Platform Booking Volume', String(totals.requests), 'All booking requests recorded for your TODA', 'var(--mac-text-primary)'],
@@ -90,15 +91,7 @@ export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips,
             <ToggleButton key={p} value={p}>{PERIOD_LABEL[p]}</ToggleButton>
           ))}
         </ToggleButtonGroup>
-        <Button
-          onClick={exportCsv}
-          startIcon={<DownloadIcon />}
-          variant="contained"
-          size="small"
-          sx={{ textTransform: 'none', backgroundColor: 'var(--sakay-orange)', fontWeight: 600 }}
-        >
-          Export {PERIOD_LABEL[period]} Report (CSV)
-        </Button>
+        <ReportExportButtons table={table} generatedBy={`${todaName} Administrator`} onExported={onExported} />
       </Box>
 
       <TableContainer component={Paper} elevation={0} sx={{ ...cardSx, overflow: 'hidden' }}>

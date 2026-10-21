@@ -27,6 +27,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabaseClient';
+import { SakayPhoneInput } from '../components/common/SakayPhoneInput';
 
 // Helper HSV <-> HEX Conversion Utilities
 function hexToHsv(hexStr: string): { h: number; s: number; v: number } {
@@ -459,6 +460,16 @@ export const AccountManagementPage: React.FC = () => {
   const [nameMsg, setNameMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isUpdatingName, setIsUpdatingName] = useState(false);
 
+  // Contact (mobile) number State: stored as +639XXXXXXXXX, edited as 09XXXXXXXXX
+  const nationalOf = (stored?: string | null): string => {
+    const digits = String(stored ?? '').replace(/\D/g, '');
+    if (digits.startsWith('639')) return `0${digits.slice(2)}`;
+    return digits.startsWith('09') ? digits : '';
+  };
+  const [contact, setContact] = useState(nationalOf(adminProfile?.contact_number));
+  const [contactMsg, setContactMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isUpdatingContact, setIsUpdatingContact] = useState(false);
+
   // Email State
   const [email, setEmail] = useState(user?.email || adminProfile?.email || '');
   const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -475,6 +486,11 @@ export const AccountManagementPage: React.FC = () => {
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastProgress, setToastProgress] = useState(100);
+
+  useEffect(() => {
+    setContact(nationalOf(adminProfile?.contact_number));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminProfile?.contact_number]);
 
   useEffect(() => {
     if (adminProfile?.full_name) {
@@ -516,6 +532,33 @@ export const AccountManagementPage: React.FC = () => {
       clearInterval(interval);
     };
   }, [toastOpen]);
+
+  const handleUpdateContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^09\d{9}$/.test(contact)) {
+      setContactMsg({ type: 'error', text: 'Enter a valid 11-digit mobile number starting with 09.' });
+      return;
+    }
+    setIsUpdatingContact(true);
+    setContactMsg(null);
+    try {
+      if (user) {
+        const { data, error } = await supabase
+          .from('lgu_admin')
+          .update({ contact_number: `+63${contact.slice(1)}` })
+          .eq('auth_user_id', user.id)
+          .select('admin_id');
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error('The number was not saved. Sign in again and retry.');
+        await refreshProfile();
+        setContactMsg({ type: 'success', text: 'Contact number updated successfully!' });
+      }
+    } catch (err: any) {
+      setContactMsg({ type: 'error', text: err.message || 'Failed to update the contact number.' });
+    } finally {
+      setIsUpdatingContact(false);
+    }
+  };
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -718,6 +761,54 @@ export const AccountManagementPage: React.FC = () => {
                   }}
                 >
                   {isUpdatingName ? 'Saving...' : 'Save Name'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Contact (mobile) number */}
+          <Card
+            sx={{
+              borderRadius: 'var(--mac-radius-lg)',
+              border: '1px solid var(--mac-border-color)',
+              boxShadow: 'var(--mac-shadow-card)',
+              backgroundColor: '#FFFFFF',
+              mb: 3,
+            }}
+          >
+            <CardContent sx={{ p: 3.5 }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>Contact Number</Typography>
+                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                  The mobile number of the City Administrator, kept on the administrator record.
+                </Typography>
+              </Box>
+              {contactMsg && (
+                <Alert severity={contactMsg.type} sx={{ mb: 2.5, borderRadius: '10px', fontSize: '12.5px' }}>
+                  {contactMsg.text}
+                </Alert>
+              )}
+              <form onSubmit={handleUpdateContact}>
+                <Box sx={{ mb: 2.5 }}>
+                  <SakayPhoneInput label="Mobile Number" value={contact} onChange={setContact} required />
+                </Box>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={isUpdatingContact || contact === nationalOf(adminProfile?.contact_number)}
+                  sx={{
+                    borderRadius: '10px',
+                    px: 3.5,
+                    py: 1.1,
+                    backgroundColor: 'var(--sakay-orange)',
+                    boxShadow: 'none',
+                    textTransform: 'none',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
+                  }}
+                >
+                  {isUpdatingContact ? 'Saving...' : 'Save Contact Number'}
                 </Button>
               </form>
             </CardContent>

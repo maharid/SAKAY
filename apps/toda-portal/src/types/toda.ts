@@ -60,10 +60,22 @@ export interface TodaProfile {
     treasurer: string;
     treasurerContact?: string;
   };
-  accreditationStatus: 'Active' | 'Pending Verification' | 'Suspended' | 'Deactivated';
+  accreditationStatus: 'Active' | 'Pending Verification' | 'Resubmission Required' | 'Suspended' | 'Deactivated';
+  /** Why the LGU returned the application for correction (only while Resubmission Required) */
+  resubmissionReason?: string | null;
+  /** Why the LGU declined or deactivated the accreditation (only while Deactivated) */
+  declineReason?: string | null;
+  /** The accreditation / Barangay Clearance validity the LGU recorded, readable ('' until the LGU has recorded one) */
   accreditationExpiry: string;
+  /** The same date as ISO, for the countdown; null until the LGU has recorded one */
+  accreditationExpiryIso?: string | null;
+  /** The certificate number the LGU recorded ('' until it has) */
   accreditationNo: string;
   permitNumber: string;
+  /** What this TODA says its current Barangay Clearance is valid until (YYYY-MM-DD); the LGU confirms it against the document */
+  declaredClearanceValidUntil?: string | null;
+  /** A renewed clearance of an Active TODA that is waiting for the LGU to record it (ISO), else null */
+  renewalSubmittedAt?: string | null;
   barangayClearanceFile: { name: string; date: string; url?: string };
   rosterFile: { name: string; date: string; count: number; url?: string };
   bylawsFile?: { name: string; date: string; url?: string };

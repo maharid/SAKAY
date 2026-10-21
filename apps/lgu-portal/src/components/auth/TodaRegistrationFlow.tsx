@@ -96,6 +96,8 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
     driverList: null,
   });
 
+  /** what the registrant says the Barangay Clearance is valid until (YYYY-MM-DD); the LGU checks it against the document */
+  const [clearanceValidUntil, setClearanceValidUntil] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
 
@@ -173,6 +175,14 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
     } else if (activeStep === 4) {
       if (!docs.barangayClearance || !docs.driverList) {
         setErrorMsg('Please upload both required documents.');
+        return;
+      }
+      if (!clearanceValidUntil) {
+        setErrorMsg('Enter the date the Barangay Clearance is valid until.');
+        return;
+      }
+      if (clearanceValidUntil <= new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10)) {
+        setErrorMsg('The Barangay Clearance must be valid beyond today.');
         return;
       }
     }
@@ -293,6 +303,12 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
           throw new Error('This login already administers a TODA. Use a different email to register another TODA.');
         }
         throw new Error(detail ? 'The registration could not be saved: ' + detail : 'The registration could not be saved. Please try again.');
+      }
+
+      // The date the registrant stated for the clearance (Rule 2.1). Not fatal when it fails: the LGU reads the real date from the document at approval.
+      if (clearanceValidUntil) {
+        const { error: validityError } = await supabase.rpc('toda_declare_clearance_validity', { p_valid_until: clearanceValidUntil });
+        if (validityError) console.warn('[TodaRegistrationFlow] The clearance validity date was not saved:', validityError.message);
       }
 
       // Clean up session so LGU portal is left unauthenticated for LGU login
@@ -601,6 +617,15 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
                 onRemove={() => setDocs({ ...docs, driverList: null })}
               />
             </Box>
+            <TextField
+              type="date"
+              label="Barangay Clearance valid until *"
+              value={clearanceValidUntil}
+              onChange={(e) => setClearanceValidUntil(e.target.value)}
+              helperText="The date printed on the clearance. The LGU Administrator checks it against the document."
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ ...inputStyles, maxWidth: 320 }}
+            />
           </Box>
         )}
 

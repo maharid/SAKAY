@@ -40,7 +40,11 @@ import {
   recordTodaAuditAction,
   uploadTodaDocument,
   updateTodaComplianceDocument,
+  resubmitTodaApplication,
 } from '../services/todaApiService';
+import { AccreditationCard } from '../components/common/AccreditationCard';
+import { ChangePasswordCard } from '../components/common/ChangePasswordCard';
+import { accreditationChip, documentChip } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
 
 const CALAPAN_BARANGAYS = [
@@ -118,6 +122,8 @@ export const TodaAccountManagementPage: React.FC = () => {
   const [docCategory, setDocCategory] = useState<'Barangay Clearance' | 'Driver Roster' | 'Internal Bylaws'>('Barangay Clearance');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  /** the date a new Barangay Clearance is valid until (YYYY-MM-DD); the LGU confirms it against the document */
+  const [clearanceValidUntil, setClearanceValidUntil] = useState('');
 
   // Drag & Drop Feedback States
   const [isDraggingModalZone, setIsDraggingModalZone] = useState(false);
@@ -324,9 +330,13 @@ export const TodaAccountManagementPage: React.FC = () => {
     }
   };
 
-  // Submit Annual Compliance Document Renewal Upload
+  // Submit a compliance document: a correction of a returned application, or the renewed Barangay Clearance of an Active TODA
   const handleDocumentUploadSubmit = async () => {
     if (!selectedFile || !profile) return;
+    if (docCategory === 'Barangay Clearance' && !clearanceValidUntil) {
+      setUploadSnackbar({ open: true, message: 'Enter the date the Barangay Clearance is valid until.', severity: 'error' });
+      return;
+    }
     setIsUploadingDoc(true);
 
     try {
@@ -339,50 +349,28 @@ export const TodaAccountManagementPage: React.FC = () => {
 
       const uploadResult = await uploadTodaDocument(selectedFile, targetBucket as any);
 
-      // Update the toda table in Supabase so City LGU immediately receives the new document
-      await updateTodaComplianceDocument(
+      // The database function replaces the file for the LGU and says what it means (a correction, or a renewal for an accredited TODA)
+      const { renewal } = await updateTodaComplianceDocument(
         profile.id,
         docCategory,
         uploadResult.url,
-        selectedFile.name
+        selectedFile.name,
+        docCategory === 'Barangay Clearance' ? clearanceValidUntil : null
       );
-
-      // Optimistically update local profile state so UI immediately reflects the new document
-      const nowStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      setProfile((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev, accreditationStatus: 'Pending Verification' as const };
-        if (docCategory === 'Barangay Clearance') {
-          updated.barangayClearanceFile = {
-            name: selectedFile.name,
-            date: nowStr,
-            url: uploadResult.url,
-          };
-        } else if (docCategory === 'Driver Roster') {
-          updated.rosterFile = {
-            name: selectedFile.name,
-            date: nowStr,
-            count: prev.rosterFile?.count || 0,
-            url: uploadResult.url,
-          };
-        } else if (docCategory === 'Internal Bylaws') {
-          updated.bylawsFile = {
-            name: selectedFile.name,
-            date: nowStr,
-            url: uploadResult.url,
-          };
-        }
-        return updated;
-      });
 
       setUploadSnackbar({
         open: true,
-        message: `Successfully re-uploaded ${docCategory} ("${selectedFile.name}"). Sent to City LGU for verification and review!`,
+        message: renewal
+          ? `The renewed Barangay Clearance ("${selectedFile.name}") was sent to the LGU. Your accreditation stays as it is until the LGU records the renewal.`
+          : profile.accreditationStatus === 'Resubmission Required'
+          ? `${docCategory} ("${selectedFile.name}") was replaced. When every correction is done, press Resubmit for LGU review.`
+          : `${docCategory} ("${selectedFile.name}") was sent to the LGU for review.`,
         severity: 'success',
       });
 
       await loadProfile();
       setSelectedFile(null);
+      setClearanceValidUntil('');
       setUploadDocModalOpen(false);
     } catch (err: any) {
       console.error('[TodaAccount] Error uploading compliance document:', err);
@@ -394,6 +382,13 @@ export const TodaAccountManagementPage: React.FC = () => {
     } finally {
       setIsUploadingDoc(false);
     }
+  };
+
+  // Send a returned application back to the LGU
+  const handleResubmit = async (note: string) => {
+    await resubmitTodaApplication(note);
+    await loadProfile();
+    setUploadSnackbar({ open: true, message: 'The application was resubmitted. It is back with the LGU for review.', severity: 'success' });
   };
 
   if (isLoading || !profile) {
@@ -466,12 +461,12 @@ export const TodaAccountManagementPage: React.FC = () => {
                   {profile.name}
                 </Typography>
                 <Chip
-                  icon={<VerifiedIcon sx={{ fontSize: 18, color: profile.accreditationStatus === 'Active' ? '#1E8E3E' : '#B06000' }} />}
-                  label={profile.accreditationStatus === 'Active' ? 'Accredited Active' : 'Pending Verification'}
+                  icon={<VerifiedIcon sx={{ fontSize: 18, color: accreditationChip(profile.accreditationStatus).color }} />}
+                  label={accreditationChip(profile.accreditationStatus).label}
                   size="small"
                   sx={{
-                    backgroundColor: profile.accreditationStatus === 'Active' ? '#E6F4EA' : '#FEF3C7',
-                    color: profile.accreditationStatus === 'Active' ? '#1E8E3E' : '#B06000',
+                    backgroundColor: accreditationChip(profile.accreditationStatus).bg,
+                    color: accreditationChip(profile.accreditationStatus).color,
                     fontWeight: 600,
                     fontSize: '13px',
                   }}
@@ -522,6 +517,9 @@ export const TodaAccountManagementPage: React.FC = () => {
           </Box>
         </Box>
       </Card>
+
+      {/* 1b. Accreditation status, the LGU's reason, and the Resubmit step */}
+      <AccreditationCard profile={profile} onResubmit={handleResubmit} />
 
       {/* 2. Balanced 2-Column Grid Layout for TODA Information */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, alignItems: 'start' }}>
@@ -677,11 +675,11 @@ export const TodaAccountManagementPage: React.FC = () => {
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
                 <Chip
-                  label={profile.accreditationStatus === 'Active' ? 'Active Accreditation' : 'Pending LGU Verification'}
+                  label={accreditationChip(profile.accreditationStatus).label}
                   size="small"
                   sx={{
-                    backgroundColor: profile.accreditationStatus === 'Active' ? '#E6F4EA' : '#FEF3C7',
-                    color: profile.accreditationStatus === 'Active' ? '#1E8E3E' : '#B06000',
+                    backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
+                    color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
                     fontWeight: 600,
                     fontSize: '12.5px',
                   }}
@@ -767,14 +765,14 @@ export const TodaAccountManagementPage: React.FC = () => {
 
                     <Box sx={{ mb: 1 }}>
                       <Chip
-                        label={profile.accreditationStatus === 'Active' ? 'Verified by LGU' : 'Pending Verification'}
+                        label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
                         size="small"
                         sx={{
                           height: 22,
                           fontSize: '11.5px',
                           fontWeight: 600,
-                          backgroundColor: profile.accreditationStatus === 'Active' ? '#E6F4EA' : '#FEF3C7',
-                          color: profile.accreditationStatus === 'Active' ? '#1E8E3E' : '#B06000',
+                          backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
+                          color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
                           borderRadius: '6px',
                         }}
                       />
@@ -784,7 +782,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                       {profile.barangayClearanceFile.name}
                     </Typography>
                     <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
-                      Submitted {profile.barangayClearanceFile.date}
+                      {profile.barangayClearanceFile.date ? `Submitted ${profile.barangayClearanceFile.date}` : 'No file submitted yet'}
                     </Typography>
                   </Box>
                 </Box>
@@ -898,14 +896,14 @@ export const TodaAccountManagementPage: React.FC = () => {
 
                     <Box sx={{ mb: 1 }}>
                       <Chip
-                        label={profile.accreditationStatus === 'Active' ? 'Verified by LGU' : 'Pending Verification'}
+                        label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
                         size="small"
                         sx={{
                           height: 22,
                           fontSize: '11.5px',
                           fontWeight: 600,
-                          backgroundColor: profile.accreditationStatus === 'Active' ? '#E6F4EA' : '#FEF3C7',
-                          color: profile.accreditationStatus === 'Active' ? '#1E8E3E' : '#B06000',
+                          backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
+                          color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
                           borderRadius: '6px',
                         }}
                       />
@@ -1029,14 +1027,14 @@ export const TodaAccountManagementPage: React.FC = () => {
 
                     <Box sx={{ mb: 1 }}>
                       <Chip
-                        label={profile.accreditationStatus === 'Active' ? 'Verified by LGU' : 'Pending Verification'}
+                        label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
                         size="small"
                         sx={{
                           height: 22,
                           fontSize: '11.5px',
                           fontWeight: 600,
-                          backgroundColor: profile.accreditationStatus === 'Active' ? '#E6F4EA' : '#FEF3C7',
-                          color: profile.accreditationStatus === 'Active' ? '#1E8E3E' : '#B06000',
+                          backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
+                          color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
                           borderRadius: '6px',
                         }}
                       />
@@ -1046,7 +1044,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                       {profile.bylawsFile?.name || 'TODA_Bylaws.pdf'}
                     </Typography>
                     <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
-                      Submitted {profile.bylawsFile?.date || 'Recent'}
+                      {profile.bylawsFile?.date ? `Submitted ${profile.bylawsFile.date}` : 'No file submitted yet'}
                     </Typography>
                   </Box>
                 </Box>
@@ -1118,6 +1116,9 @@ export const TodaAccountManagementPage: React.FC = () => {
           </Card>
         </Box>
       </Box>
+
+      {/* 2b. The administrator's own password */}
+      <ChangePasswordCard />
 
       {/* 3. Edit TODA Organizational Profile Centered Modal (Exact TODA Registration Labels & Layout) */}
       <MacCenterModal
@@ -1306,11 +1307,11 @@ export const TodaAccountManagementPage: React.FC = () => {
       <MacCenterModal
         open={uploadDocModalOpen}
         onClose={() => setUploadDocModalOpen(false)}
-        title="Annual Accreditation Document Upload"
-        subtitle="Submit updated accreditation compliance files for City LGU review"
+        title={profile.accreditationStatus === 'Active' ? 'Submit a Renewed Document' : 'Submit a Compliance Document'}
+        subtitle={profile.accreditationStatus === 'Resubmission Required' ? 'Replace a document the LGU returned for correction' : 'Submit accreditation compliance files for City LGU review'}
         maxWidth={660}
         primaryActionLabel={isUploadingDoc ? 'Uploading...' : selectedFile ? 'Submit Document for LGU Review' : undefined}
-        onPrimaryAction={selectedFile && !isUploadingDoc ? handleDocumentUploadSubmit : undefined}
+        onPrimaryAction={selectedFile && !isUploadingDoc && (docCategory !== 'Barangay Clearance' || clearanceValidUntil) ? handleDocumentUploadSubmit : undefined}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setUploadDocModalOpen(false)}
       >
@@ -1463,8 +1464,23 @@ export const TodaAccountManagementPage: React.FC = () => {
             )}
           </Box>
 
+          {docCategory === 'Barangay Clearance' && (
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              label="Barangay Clearance valid until"
+              value={clearanceValidUntil}
+              onChange={(e) => setClearanceValidUntil(e.target.value)}
+              helperText="Copy the date printed on the clearance. The LGU Administrator checks it against the document before recording it."
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10) } }}
+            />
+          )}
+
           <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', lineHeight: 1.4 }}>
-            Submitted compliance files will be transmitted directly to the City LGU Franchising Office for annual accreditation renewal verification.
+            {profile.accreditationStatus === 'Active'
+              ? 'A renewed Barangay Clearance goes to the City LGU Franchising Office. Your accreditation stays as it is until the LGU records the renewal.'
+              : 'Submitted compliance files go directly to the City LGU Franchising Office for review.'}
           </Typography>
         </Box>
       </MacCenterModal>

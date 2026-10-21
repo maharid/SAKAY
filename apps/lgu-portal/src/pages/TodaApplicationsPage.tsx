@@ -703,6 +703,12 @@ export const TodaApplicationsPage: React.FC = () => {
                   </Box>
                 );
               })}
+              {selectedApp.hasBarangayClearance !== false && (
+                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)' }}>
+                  Barangay Clearance valid until, as stated by the TODA: <b>{selectedApp.declaredClearanceValidUntil ?? 'not stated'}</b>
+                  {selectedApp.clearanceSubmittedAt ? ` (clearance sent ${new Date(selectedApp.clearanceSubmittedAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })})` : ''}. Read the date on the document yourself before approving.
+                </Typography>
+              )}
               {selectedApp.status !== 'Approved' && selectedApp.hasBarangayClearance === false && (
                 <Alert
                   severity="warning"
@@ -785,6 +791,7 @@ export const TodaApplicationsPage: React.FC = () => {
           todaName={selectedApp.name}
           hasClearance={selectedApp.hasBarangayClearance !== false}
           currentCertificateNumber={selectedApp.certificateNumber}
+          declaredValidUntil={selectedApp.declaredClearanceValidUntil}
           onClose={() => setApproveDialogOpen(false)}
           onSubmit={handleApproveSubmit}
         />

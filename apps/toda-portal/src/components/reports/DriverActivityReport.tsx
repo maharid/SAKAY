@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import {
   Box,
-  Button,
   Card,
   Chip,
   Paper,
@@ -13,12 +12,13 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
 
 import { DRIVER_ACTIVITY_WINDOW_DAYS, driverActivity } from '@sakay/shared';
-import type { BookingLike } from '@sakay/shared';
+import type { BookingLike, ReportTable } from '@sakay/shared';
 
-import { downloadCsv, reportFileName } from '../../utils/csvDownload';
+import { PILOT_COVERAGE_TEXT } from '../common/PilotCoverageNote';
+import { ReportExportButtons } from './ReportExportButtons';
+import type { ExportFormat } from './ReportExportButtons';
 
 /**
  * TODA reports: driver trip volume and activity (checklist: TODA Administrator > View Reports). One row per driver of the TODA:
@@ -34,7 +34,9 @@ export interface ActivityDriver {
 interface DriverActivityReportProps {
   trips: BookingLike[];
   drivers: ActivityDriver[];
-  onExported: (reportName: string) => void;
+  onExported: (reportName: string, format: ExportFormat) => void;
+  /** Who the PDF says generated it */
+  generatedBy?: string;
 }
 
 const peso = (n: number): string => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -43,22 +45,26 @@ const headCell = { fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-mut
 const dayOf = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : 'No completed trip yet';
 
-export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({ trips, drivers, onExported }) => {
+export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({ trips, drivers, onExported, generatedBy = 'TODA Administrator' }) => {
   const rows = useMemo(() => driverActivity(trips, drivers), [trips, drivers]);
   const active = rows.filter((r) => r.activeInWindow).length;
   const completed = rows.reduce((n, r) => n + r.completed, 0);
   const km = Math.round(rows.reduce((n, r) => n + r.km, 0) * 10) / 10;
   const rate = rows.length > 0 ? Math.round((active / rows.length) * 100) : 0;
 
-  const exportCsv = () => {
-    const name = 'Driver Trip Volume and Activity';
-    downloadCsv(
-      reportFileName(name),
-      ['Driver', 'Plate / Franchise', 'Completed Trips', 'Cancelled', 'Distance (km)', 'Estimated Gross Fare (PHP)', 'Latest Completed Trip', `Active In Last ${DRIVER_ACTIVITY_WINDOW_DAYS} Days`],
-      rows.map((r) => [r.name, r.plate, r.completed, r.cancelled, r.km, r.grossFare.toFixed(2), dayOf(r.lastTripAt), r.activeInWindow ? 'Yes' : 'No'])
-    );
-    onExported(name);
-  };
+  // The report as shown; the Excel, CSV and PDF files contain exactly this table
+  const table: ReportTable | null = useMemo(
+    () =>
+      rows.length === 0
+        ? null
+        : {
+            title: 'Driver Trip Volume and Activity Report',
+            notes: [`One row per driver of your TODA. Active means a completed trip in the last ${DRIVER_ACTIVITY_WINDOW_DAYS} days.`, PILOT_COVERAGE_TEXT],
+            headers: ['Driver', 'Plate / Franchise', 'Completed Trips', 'Cancelled', 'Distance (km)', 'Estimated Gross Fare (PHP)', 'Latest Completed Trip', `Active In Last ${DRIVER_ACTIVITY_WINDOW_DAYS} Days`],
+            rows: rows.map((r) => [r.name, r.plate, r.completed, r.cancelled, r.km, r.grossFare.toFixed(2), dayOf(r.lastTripAt), r.activeInWindow ? 'Yes' : 'No']),
+          },
+    [rows]
+  );
 
   const kpis: Array<[string, string, string, string]> = [
     ['Registered Drivers', String(rows.length), 'Drivers of your TODA with a SAKAY account', 'var(--mac-text-primary)'],
@@ -82,16 +88,7 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({ trip
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button
-          onClick={exportCsv}
-          startIcon={<DownloadIcon />}
-          variant="contained"
-          size="small"
-          disabled={rows.length === 0}
-          sx={{ textTransform: 'none', backgroundColor: 'var(--sakay-orange)', fontWeight: 600 }}
-        >
-          Export Driver Activity (CSV)
-        </Button>
+        <ReportExportButtons table={table} generatedBy={generatedBy} onExported={onExported} />
       </Box>
 
       <TableContainer component={Paper} elevation={0} sx={{ ...cardSx, overflow: 'hidden' }}>

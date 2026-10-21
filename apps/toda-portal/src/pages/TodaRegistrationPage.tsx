@@ -73,6 +73,7 @@ interface RegistrationDraft {
   treasurerName?: string;
   treasurerContact?: string;
   confirmAcronym?: string;
+  clearanceValidUntil?: string;
   clearanceDoc?: { url: string | null; fileName: string | null; sizeBytes: number };
   rosterDoc?: { url: string | null; fileName: string | null; sizeBytes: number };
   bylawsDoc?: { url: string | null; fileName: string | null; sizeBytes: number };
@@ -132,6 +133,7 @@ export const TodaRegistrationPage: React.FC = () => {
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [barangay, setBarangay] = useState('');
   const [dateEstablished, setDateEstablished] = useState('');
+  const [clearanceValidUntil, setClearanceValidUntil] = useState('');
   const [serviceCoverageArea, setServiceCoverageArea] = useState('');
 
   // Section 2: Executive Officers
@@ -260,6 +262,7 @@ export const TodaRegistrationPage: React.FC = () => {
         if (draft.treasurerName) setTreasurerName(draft.treasurerName);
         if (draft.treasurerContact) setTreasurerContact(draft.treasurerContact);
         if (draft.confirmAcronym) setConfirmAcronym(draft.confirmAcronym);
+        if (draft.clearanceValidUntil) setClearanceValidUntil(draft.clearanceValidUntil);
         // Documents are not restored: a file cannot be kept in the browser draft, so they are attached again.
       }
     } catch (e) {
@@ -305,6 +308,7 @@ export const TodaRegistrationPage: React.FC = () => {
       treasurerName,
       treasurerContact,
       confirmAcronym,
+      clearanceValidUntil,
       lastSaved: new Date().toISOString(),
     };
 
@@ -318,7 +322,7 @@ export const TodaRegistrationPage: React.FC = () => {
     terminalLatitude, terminalLongitude, coordinatesText,
     presidentName, presidentContact, vicePresidentName, vicePresidentContact,
     secretaryName, secretaryContact, treasurerName, treasurerContact,
-    confirmAcronym, clearanceDoc.url, clearanceDoc.fileName, clearanceDoc.sizeBytes,
+    confirmAcronym, clearanceValidUntil, clearanceDoc.url, clearanceDoc.fileName, clearanceDoc.sizeBytes,
     rosterDoc.url, rosterDoc.fileName, rosterDoc.sizeBytes,
     bylawsDoc.url, bylawsDoc.fileName, bylawsDoc.sizeBytes
   ]);
@@ -344,6 +348,7 @@ export const TodaRegistrationPage: React.FC = () => {
     setTreasurerName('');
     setTreasurerContact('');
     setConfirmAcronym('');
+    setClearanceValidUntil('');
     setPassword('');
     setConfirmPassword('');
     setClearanceDoc({ file: null, url: null, fileName: null, sizeBytes: 0, isUploading: false, uploadError: null });
@@ -558,6 +563,11 @@ export const TodaRegistrationPage: React.FC = () => {
     if (!clearanceDoc.url && !clearanceDoc.file) {
       emptyRequiredErrors.push({ id: 'field-clearanceDoc', message: 'Barangay Clearance is required.' });
     }
+    if (!clearanceValidUntil) {
+      emptyRequiredErrors.push({ id: 'field-clearanceValidUntil', message: 'Enter the date the Barangay Clearance is valid until.' });
+    } else if (clearanceValidUntil <= new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10)) {
+      emptyRequiredErrors.push({ id: 'field-clearanceValidUntil', message: 'The Barangay Clearance must be valid beyond today.' });
+    }
     if (!rosterDoc.url && !rosterDoc.file) {
       emptyRequiredErrors.push({ id: 'field-rosterDoc', message: 'Driver Roster is required.' });
     }
@@ -646,6 +656,7 @@ export const TodaRegistrationPage: React.FC = () => {
         treasurerName: treasurerName.trim(),
         treasurerContact: treasurerContact.trim(),
         password,
+        clearanceValidUntil,
         files: { barangayClearance: clearanceDoc.file, driverRoster: rosterDoc.file, bylaws: bylawsDoc.file },
         registeredTricycleCount: driverCount,
         terminalLatitude,
@@ -1305,6 +1316,17 @@ export const TodaRegistrationPage: React.FC = () => {
                     )}
                   </Box>
                 </Paper>
+
+                <SakayTextField
+                  id="field-clearanceValidUntil"
+                  label="Barangay Clearance valid until"
+                  type="date"
+                  value={clearanceValidUntil}
+                  onChange={(e) => setClearanceValidUntil(e.target.value)}
+                  required
+                  error={hasAttemptedSubmit && !clearanceValidUntil}
+                  helperText="The date printed on the clearance. The LGU Administrator checks it against the document."
+                />
 
                 {/* 2. Driver Roster */}
                 <input
