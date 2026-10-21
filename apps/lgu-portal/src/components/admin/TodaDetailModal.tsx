@@ -25,19 +25,27 @@ import { StatusBadge } from '../common/StatusBadge';
 import { ActionButton } from './ActionButton';
 import { DriverDetailModal } from './DriverDetailModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
-import { fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation } from '../../services/adminApiService';
+import { MacConfirmDialog } from './MacConfirmDialog';
+import { TodaAccreditationDialog } from './TodaAccreditationDialog';
+import { fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
 
 interface TodaDetailModalProps {
   open: boolean;
   onClose: () => void;
   toda: AccreditedTodaRecord | null;
+  /** the accreditation was renewed or suspended: the directory reloads */
+  onChanged?: () => void | Promise<void>;
 }
 
-export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose, toda }) => {
+export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose, toda, onChanged }) => {
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
   const [isRelocationLoading, setIsRelocationLoading] = useState(false);
   const [relocationFeedback, setRelocationFeedback] = useState<string | null>(null);
+  // the accreditation controls (Rules 2.4, 24.3)
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+  const [accreditationFeedback, setAccreditationFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Real affiliated drivers fetched from database
   const [drivers, setDrivers] = useState<DriverRecord[]>([]);
@@ -207,6 +215,39 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
             )}
           </Box>
         )}
+
+        {/* Accreditation controls: record the renewal of the Barangay Clearance, remind the TODA, or suspend the accreditation after review */}
+        <Box sx={{ mb: 3.5, backgroundColor: '#F8FAFC', border: '1px solid var(--mac-border-color)', borderRadius: '12px', padding: '16px 20px' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+            <Box>
+              <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                Accreditation Controls
+              </Typography>
+              <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', mt: 0.5 }}>
+                Clearance valid until <b>{toda.barangayClearanceExpiry}</b> ({toda.clearanceStatus}). After it passes, every driver of this TODA is blocked from going Online until a renewal is recorded.
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button size="small" variant="outlined" onClick={async () => {
+                const problem = await sendTodaRenewalReminder(toda.id);
+                setAccreditationFeedback(problem ? { ok: false, text: problem } : { ok: true, text: 'The reminder was sent to the TODA administrators.' });
+              }} sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}>
+                Send Renewal Reminder
+              </Button>
+              <Button size="small" variant="contained" onClick={() => setRenewOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600, backgroundColor: 'var(--sakay-orange)', boxShadow: 'none', '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' } }}>
+                Record Renewal
+              </Button>
+              <Button size="small" variant="outlined" color="error" onClick={() => setSuspendOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}>
+                Suspend Accreditation
+              </Button>
+            </Box>
+          </Box>
+          {accreditationFeedback && (
+            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: accreditationFeedback.ok ? '#1E8E3E' : '#B91C1C', mt: 1 }}>
+              {accreditationFeedback.text}
+            </Typography>
+          )}
+        </Box>
 
         {/* Section 1: TODA Information Grid */}
         <Box sx={{ mb: 3.5 }}>
@@ -439,6 +480,46 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
           )}
         </Box>
       </MacCenterModal>
+
+
+      {/* Renewal: the Administrator types the certificate number and the new valid-until date (Rule 24.3) */}
+      <TodaAccreditationDialog
+        open={renewOpen}
+        mode="renew"
+        todaName={toda.name}
+        hasClearance={toda.hasBarangayClearance !== false}
+        currentCertificateNumber={toda.certificateNumber}
+        onClose={() => setRenewOpen(false)}
+        onSubmit={async (certificateNumber, validUntilIso, remarks) => {
+          await approveTodaApplication(toda.id, remarks ? `Renewal. ${remarks}` : 'Renewal of the Barangay Clearance.', certificateNumber, validUntilIso);
+          setRenewOpen(false);
+          await onChanged?.();
+          onClose();
+        }}
+      />
+
+      {/* Suspension after review (Rule 2.4): the reason is required and goes to the audit log */}
+      <MacConfirmDialog
+        open={suspendOpen}
+        onClose={() => setSuspendOpen(false)}
+        title="Suspend this TODA's accreditation?"
+        message={`The TODA administrator of "${toda.name}" and every one of its drivers lose access until the accreditation is approved again.`}
+        confirmLabel="Suspend Accreditation"
+        confirmVariant="danger"
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder="Why is the accreditation suspended after review? (at least 10 characters)"
+        onConfirm={async (reason) => {
+          setSuspendOpen(false);
+          try {
+            await suspendTodaAccreditation(toda.id, reason ?? '');
+            await onChanged?.();
+            onClose();
+          } catch (err) {
+            setAccreditationFeedback({ ok: false, text: err instanceof Error ? err.message : 'The accreditation was not suspended.' });
+          }
+        }}
+      />
 
       {/* Driver Detail Inspection Modal */}
       {selectedDriver && (

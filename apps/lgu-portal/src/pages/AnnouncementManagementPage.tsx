@@ -19,6 +19,8 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import AddAlertIcon from '@mui/icons-material/AddAlert';
@@ -39,26 +41,23 @@ import {
   fetchAnnouncements,
   fetchAccreditedTodas,
   createAnnouncement,
+  updateAnnouncement,
+  setAnnouncementPublished,
   deleteAnnouncement,
-  recordAdminAuditAction,
 } from '../services/adminApiService';
-import { useAuth } from '../contexts/AuthContext';
 
 /**
  * ============================================================================
  * ANNOUNCEMENT MANAGEMENT PAGE COMPONENT
  * ============================================================================
  * Purpose:
- *   Enables LGU Transport Administrators to draft, broadcast, schedule,
- *   and archive city-wide municipal notices targeted to commuters,
- *   tricycle drivers, or specific TODA associations.
+ *   Enables LGU Transport Administrators to draft, publish, edit, unpublish
+ *   and delete city-wide municipal notices targeted to commuters, tricycle
+ *   drivers, or TODA administrators. Every change is saved to the database
+ *   (which stamps the publication times); a failed save is shown, never hidden.
  * ============================================================================
  */
 export const AnnouncementManagementPage: React.FC = () => {
-  const { adminProfile, user } = useAuth();
-  const currentAdminName = adminProfile?.full_name || 'City Administrator';
-  const currentAdminRole = adminProfile?.position || 'LGU Transport Officer';
-
   // State: Broadcast bulletins list and filter options
   const [announcements, setAnnouncements] = useState<AnnouncementRecord[]>([]);
   const [todasList, setTodasList] = useState<AccreditedTodaRecord[]>([]);
@@ -80,8 +79,11 @@ export const AnnouncementManagementPage: React.FC = () => {
   const [formMessage, setFormMessage] = useState('');
   const [formRole, setFormRole] = useState<AnnouncementRecord['target_role']>('All');
   const [formTodaId, setFormTodaId] = useState<string>('all-todas');
-  const [formTiming, setFormTiming] = useState<'Immediate' | 'Scheduled'>('Immediate');
-  const [formScheduledDate, setFormScheduledDate] = useState('May 25, 2026');
+  const [formPublish, setFormPublish] = useState<boolean>(true);
+  // the announcement being edited (null = composing a new one)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   /**
    * Effect: Fetch live municipal announcements and accredited TODAs on initial mount.
@@ -97,6 +99,7 @@ export const AnnouncementManagementPage: React.FC = () => {
       })
       .catch((err) => {
         console.warn('[AnnouncementManagement] Failed to fetch data:', err);
+        if (isMounted) setNotice({ severity: 'error', text: `The announcements could not be loaded: ${err?.message ?? 'unknown error'}` });
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -158,113 +161,100 @@ export const AnnouncementManagementPage: React.FC = () => {
     }
   };
 
-  /**
-   * Action Handler: Submits a new broadcast announcement.
-   * Persists to backend API and writes to immutable audit trail.
-   */
-  const handleCreateSubmit = async () => {
-    if (!formTitle.trim() || !formMessage.trim()) return;
+  /** Reads the list again from the database (what the apps and the audit log will see) and keeps the open details window in step. */
+  const reload = async () => {
+    const fresh = (await fetchAnnouncements()) || [];
+    setAnnouncements(fresh);
+    setSelectedAnn((prev) => (prev ? fresh.find((a) => a.id === prev.id) ?? null : null));
+  };
 
-    let todaName: string | null = null;
-    if (formTodaId !== 'all-todas' && formRole !== 'All') {
-      const todaMatch = todasList.find((t) => t.id === formTodaId);
-      todaName = todaMatch ? todaMatch.name : 'Selected TODA';
-    } else {
-      todaName = formRole === 'All' ? 'All City TODAs & Commuters' : `All ${formRole}s`;
-    }
+  const failure = (err: unknown) => setNotice({ severity: 'error', text: err instanceof Error ? err.message : 'The change could not be saved.' });
 
-    const newId = `ANN-2026-00${announcements.length + 1}`;
-    const newRecord: AnnouncementRecord = {
-      id: newId,
-      announcement_id: `ANN-00${announcements.length + 1}`,
-      title: formTitle.trim(),
-      message: formMessage.trim(),
-      target_role: formRole,
-      toda_id: formTodaId === 'all-todas' ? null : formTodaId,
-      toda_name: todaName,
-      is_published: formTiming === 'Immediate',
-      publish_timing: formTiming,
-      scheduled_date: formTiming === 'Scheduled' ? formScheduledDate : undefined,
-      created_by_lgu_admin: `${currentAdminName} (${currentAdminRole})`,
-      created_at: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' • ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    // Backend API Call
-    try {
-      await createAnnouncement({
-        title: formTitle.trim(),
-        message: formMessage.trim(),
-        targetRole: formRole,
-        targetTodaId: formTodaId === 'all-todas' ? null : formTodaId,
-      });
-    } catch (err) {
-      console.warn('[AnnouncementManagement] Backend error during announcement create:', err);
-    }
-
-    setAnnouncements((prev) => [newRecord, ...prev]);
-
-    // Record in Audit Trail
-    recordAdminAuditAction({
-      actionType: formTiming === 'Immediate' ? 'ANNOUNCEMENT_PUBLISHED' : 'ANNOUNCEMENT_SCHEDULED',
-      targetId: newId,
-      targetName: newRecord.title,
-      details: `Created announcement "${newRecord.title}" targeted for ${newRecord.target_role} (${todaName}). Status: ${newRecord.is_published ? 'Published' : 'Draft/Scheduled'}.`,
-      category: 'Announcement',
-    });
-
-    // Reset Form
+  const resetForm = () => {
+    setEditingId(null);
     setFormTitle('');
     setFormMessage('');
     setFormRole('All');
     setFormTodaId('all-todas');
-    setFormTiming('Immediate');
-    setCreateModalOpen(false);
+    setFormPublish(true);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setCreateModalOpen(true);
+  };
+
+  const openEdit = (ann: AnnouncementRecord) => {
+    setEditingId(ann.id);
+    setFormTitle(ann.title);
+    setFormMessage(ann.message);
+    setFormRole(ann.target_role);
+    setFormTodaId(ann.toda_id || 'all-todas');
+    setFormPublish(ann.is_published);
+    setSelectedAnn(null);
+    setCreateModalOpen(true);
   };
 
   /**
-   * Action Handler: Toggles published vs unpublished status.
+   * Action Handler: saves a new announcement, or the changes to the one being edited, in the database.
+   * The list is reloaded afterwards, so what is shown is what was saved.
    */
-  const handleTogglePublish = (ann: AnnouncementRecord) => {
-    const nextPublished = !ann.is_published;
-    setAnnouncements((prev) =>
-      prev.map((a) => (a.id === ann.id ? { ...a, is_published: nextPublished } : a))
-    );
-    setSelectedAnn((prev) => (prev && prev.id === ann.id ? { ...prev, is_published: nextPublished } : prev));
-
-    recordAdminAuditAction({
-      actionType: nextPublished ? 'ANNOUNCEMENT_PUBLISHED' : 'ANNOUNCEMENT_UNPUBLISHED',
-      targetId: ann.id,
-      targetName: ann.title,
-      details: `${nextPublished ? 'Published' : 'Unpublished/Archived'} announcement broadcast "${ann.title}".`,
-      category: 'Announcement',
-    });
+  const handleSaveSubmit = async () => {
+    if (!formTitle.trim() || !formMessage.trim() || saving) return;
+    setSaving(true);
+    const input = {
+      title: formTitle.trim(),
+      message: formMessage.trim(),
+      targetRole: formRole,
+      targetTodaId: formRole !== 'All' && formTodaId !== 'all-todas' ? formTodaId : null,
+    };
+    try {
+      if (editingId) {
+        await updateAnnouncement(editingId, input);
+        setNotice({ severity: 'success', text: 'The announcement was updated.' });
+      } else {
+        await createAnnouncement({ ...input, publish: formPublish });
+        setNotice({ severity: 'success', text: formPublish ? 'The announcement was published.' : 'Saved as a draft. Open it and choose Publish when it is ready.' });
+      }
+      setCreateModalOpen(false);
+      resetForm();
+      await reload();
+    } catch (err) {
+      failure(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   /**
-   * Action Handler: Deletes an announcement record.
+   * Action Handler: publishes or unpublishes an announcement (saved; the database stamps the time).
+   */
+  const handleTogglePublish = async (ann: AnnouncementRecord) => {
+    const next = !ann.is_published;
+    try {
+      await setAnnouncementPublished(ann.id, next, ann.title);
+      await reload();
+      setNotice({ severity: 'success', text: next ? 'The announcement is published.' : 'The announcement is unpublished: the apps no longer show it.' });
+    } catch (err) {
+      failure(err);
+    }
+  };
+
+  /**
+   * Action Handler: deletes an announcement record.
    */
   const handleDeleteConfirm = async () => {
     if (!selectedAnn) return;
-
-    // Backend API Call
     try {
-      await deleteAnnouncement(selectedAnn.id);
+      await deleteAnnouncement(selectedAnn.id, selectedAnn.title);
+      setSelectedAnn(null);
+      await reload();
+      setNotice({ severity: 'success', text: 'The announcement was deleted.' });
     } catch (err) {
-      console.warn('[AnnouncementManagement] Backend error during announcement delete:', err);
+      failure(err);
+    } finally {
+      setDeleteDialogOpen(false);
     }
-
-    setAnnouncements((prev) => prev.filter((a) => a.id !== selectedAnn.id));
-
-    recordAdminAuditAction({
-      actionType: 'ANNOUNCEMENT_DELETED',
-      targetId: selectedAnn.id,
-      targetName: selectedAnn.title,
-      details: `Deleted municipal announcement record "${selectedAnn.title}".`,
-      category: 'Announcement',
-    });
-
-    setDeleteDialogOpen(false);
-    setSelectedAnn(null);
   };
 
   return (
@@ -272,7 +262,11 @@ export const AnnouncementManagementPage: React.FC = () => {
       {/* 0. Rules 15.4 / 29.6: declaring a calamity (the announcement and the strike pause, one audited action) */}
       <CalamityPanel
         onChanged={async () => {
-          setAnnouncements((await fetchAnnouncements()) || []);
+          try {
+            await reload();
+          } catch (err) {
+            failure(err);
+          }
         }}
       />
 
@@ -298,7 +292,7 @@ export const AnnouncementManagementPage: React.FC = () => {
           <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#1565C0' }}>{todaScopedCount}</Typography>
         </Box>
         <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 20px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Drafts / Scheduled</Typography>
+          <Typography sx={{ fontSize: '10.4px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Drafts</Typography>
           <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{draftCount}</Typography>
         </Box>
       </Box>
@@ -336,14 +330,7 @@ export const AnnouncementManagementPage: React.FC = () => {
         </Box>
 
         <Button
-          onClick={() => {
-            setFormTitle('');
-            setFormMessage('');
-            setFormRole('All');
-            setFormTodaId('all-todas');
-            setFormTiming('Immediate');
-            setCreateModalOpen(true);
-          }}
+          onClick={openCreate}
           startIcon={<AddAlertIcon fontSize="small" />}
           variant="contained"
           sx={{
@@ -475,8 +462,9 @@ export const AnnouncementManagementPage: React.FC = () => {
                 onRefresh={async () => {
                   setIsLoading(true);
                   try {
-                    const data = await fetchAnnouncements();
-                    setAnnouncements(data || []);
+                    await reload();
+                  } catch (err) {
+                    failure(err);
                   } finally {
                     setIsLoading(false);
                   }
@@ -492,11 +480,11 @@ export const AnnouncementManagementPage: React.FC = () => {
       <MacCenterModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title="Compose Municipal Announcement"
-        subtitle="Broadcast notices, route advisories, or compliance reminders."
+        title={editingId ? 'Edit Municipal Announcement' : 'Compose Municipal Announcement'}
+        subtitle={editingId ? 'Changes are saved to the same announcement.' : 'Broadcast notices, route advisories, or compliance reminders.'}
         maxWidth={680}
-        primaryActionLabel={formTiming === 'Immediate' ? 'Publish Broadcast Now' : 'Save & Schedule'}
-        onPrimaryAction={handleCreateSubmit}
+        primaryActionLabel={saving ? 'Saving...' : editingId ? 'Save Changes' : formPublish ? 'Publish Now' : 'Save as Draft'}
+        onPrimaryAction={handleSaveSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setCreateModalOpen(false)}
       >
@@ -565,30 +553,27 @@ export const AnnouncementManagementPage: React.FC = () => {
             )}
           </Box>
 
-          <Box sx={{ backgroundColor: '#FAFAFC', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
-              Broadcast Publishing Schedule
-            </Typography>
-            <RadioGroup
-              row
-              value={formTiming}
-              onChange={(e) => setFormTiming(e.target.value as 'Immediate' | 'Scheduled')}
-            >
-              <FormControlLabel value="Immediate" control={<Radio sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }} />} label="Publish Immediately" />
-              <FormControlLabel value="Scheduled" control={<Radio sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }} />} label="Schedule for Future Date" />
-            </RadioGroup>
-
-            {formTiming === 'Scheduled' && (
-              <TextField
-                fullWidth
-                size="small"
-                label="Target Broadcast Date"
-                value={formScheduledDate}
-                onChange={(e) => setFormScheduledDate(e.target.value)}
-                sx={{ mt: 1.5, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-              />
-            )}
-          </Box>
+          {editingId ? (
+            <Box sx={{ backgroundColor: '#FAFAFC', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>
+                This announcement stays {formPublish ? 'published' : 'unpublished'}. Use Publish / Unpublish in its details window to change that.
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ backgroundColor: '#FAFAFC', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
+                Publication
+              </Typography>
+              <RadioGroup
+                row
+                value={formPublish ? 'now' : 'draft'}
+                onChange={(e) => setFormPublish(e.target.value === 'now')}
+              >
+                <FormControlLabel value="now" control={<Radio sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }} />} label="Publish now" />
+                <FormControlLabel value="draft" control={<Radio sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }} />} label="Save as a draft (nobody sees it yet)" />
+              </RadioGroup>
+            </Box>
+          )}
         </Box>
       </MacCenterModal>
 
@@ -623,8 +608,20 @@ export const AnnouncementManagementPage: React.FC = () => {
                 <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_by_lgu_admin}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Timestamp</Typography>
+                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Created</Typography>
                 <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_at}</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Published</Typography>
+                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.published_at ?? 'Not published yet'}</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Unpublished</Typography>
+                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.unpublished_at ?? '\u2014'}</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Last changed</Typography>
+                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.updated_at ?? '\u2014'}</Typography>
               </Box>
             </Box>
 
@@ -648,15 +645,7 @@ export const AnnouncementManagementPage: React.FC = () => {
 
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
-                  onClick={() => {
-                    setFormTitle(selectedAnn.title);
-                    setFormMessage(selectedAnn.message);
-                    setFormRole(selectedAnn.target_role);
-                    setFormTodaId(selectedAnn.toda_id || 'all-todas');
-                    setFormTiming(selectedAnn.publish_timing || 'Immediate');
-                    setSelectedAnn(null);
-                    setCreateModalOpen(true);
-                  }}
+                  onClick={() => openEdit(selectedAnn)}
                   variant="outlined"
                   size="small"
                   startIcon={<EditIcon fontSize="small" />}
@@ -727,6 +716,17 @@ export const AnnouncementManagementPage: React.FC = () => {
           onConfirm={handleDeleteConfirm}
         />
       )}
+
+      <Snackbar
+        open={Boolean(notice)}
+        autoHideDuration={notice?.severity === 'error' ? 8000 : 4000}
+        onClose={() => setNotice(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setNotice(null)} severity={notice?.severity ?? 'info'} sx={{ width: '100%' }}>
+          {notice?.text}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

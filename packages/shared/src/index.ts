@@ -80,6 +80,8 @@ export * from './utils/ratingDisplay';
 export * from './utils/auditLog';
 export * from './utils/tripSafety';
 export * from './utils/transportAnalytics';
+export * from './utils/transportInsights';
+export * from './utils/reportExport';
 export * from './utils/tripProgress';
 export * from './utils/tripEnd';
 export * from './utils/sharedMatch';

@@ -109,7 +109,7 @@ const { setup, ID, DRIVERS, PAX, attempt, check, summary } = require('../b12fixt
   r = await lgu(`deactivate_toda_accreditation('${ID.TODA1}', 'The accreditation was withdrawn by ordinance.')`);
   const dea = await lastAudit('TODA_APPLICATION_REJECTED', ID.TODA1);
   check('declining a TODA writes its entry as well', r.success === true && dea && dea.actor_id === ID.L_AUTH && dea.after_state.account_status === 'Deactivated', { r, dea });
-  await internal(`UPDATE toda SET toda_status = 'Active', account_status = 'Active' WHERE toda_id = '${ID.TODA1}'; UPDATE toda_admin SET account_status = 'Active' WHERE toda_id = '${ID.TODA1}'`);
+  await internal(`UPDATE toda SET toda_status = 'Active', account_status = 'Active', barangay_clearance_url = 'toda/clearance.pdf' WHERE toda_id = '${ID.TODA1}'; UPDATE toda_admin SET account_status = 'Active' WHERE toda_id = '${ID.TODA1}'`);
   r = await lgu(`approve_toda_accreditation('${ID.TODA1}', 'CERT-2026-777', now() + interval '2 years', 'Documents complete.')`);
   const appr = await lastAudit('TODA_ACCREDITATION_APPROVED', ID.TODA1);
   check('approving writes ONE entry with the actor and the before / after state', r.success === true && appr && appr.actor_id === ID.L_AUTH && appr.before_state && appr.after_state && (await s.auditOf('TODA_ACCREDITATION_APPROVED', ID.TODA1)).length === 1, appr);

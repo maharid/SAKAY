@@ -97,6 +97,7 @@ export const PassengerManagementPage: React.FC = () => {
   const statusOptions: FilterOption[] = [
     { label: 'All Account Statuses', value: 'All' },
     { label: 'Active', value: 'Active' },
+    { label: 'Pending OTP', value: 'Pending' },
     { label: 'Suspended', value: 'Suspended' },
     { label: 'Deactivated', value: 'Deactivated' },
   ];
@@ -341,7 +342,7 @@ export const PassengerManagementPage: React.FC = () => {
           title={`Passenger Account — ${selectedPassenger.name}`}
           subtitle={`Passenger ID: ${selectedPassenger.id}`}
           badge={<StatusBadge status={selectedPassenger.accountStatus} />}
-          primaryActionLabel={selectedPassenger.accountStatus === 'Active' ? 'Suspend Account' : 'Reactivate Account'}
+          primaryActionLabel={selectedPassenger.accountStatus === 'Pending' ? undefined : selectedPassenger.accountStatus === 'Active' ? 'Suspend Account' : 'Reactivate Account'}
           onPrimaryAction={() => {
             if (selectedPassenger.accountStatus === 'Active') {
               setSuspendDialogOpen(true);
@@ -513,7 +514,7 @@ export const PassengerManagementPage: React.FC = () => {
               <Box>
                 <Typography sx={{ fontSize: '11.2px', color: 'var(--mac-text-muted)', mb: '4px' }}>Verification Status</Typography>
                 <Typography sx={{ fontSize: '13px', fontWeight: 600, color: selectedPassenger.verificationStatus === 'Verified' ? '#34A853' : '#FBBC04' }}>
-                  {selectedPassenger.verificationStatus} (OTP Verified)
+                  {selectedPassenger.verificationStatus === 'Verified' ? 'Verified (mobile number confirmed by OTP)' : 'Unverified (the OTP step is not finished; no booking is possible yet)'}
                 </Typography>
               </Box>
               <Box>

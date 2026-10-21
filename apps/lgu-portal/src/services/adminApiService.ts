@@ -20,12 +20,7 @@ import { signCaseEvidence } from '@sakay/shared';
 import type { CaseEvidenceFile } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
-import {
-  SIGNED_URL_TTL, apiPostJson, classifyApplication, formatShortBookingId, signIncidentEvidence, signedStorageUrlFromAny,
-  barangayDemand, bookingTrend, completionRateOfFinished, driverUtilizationSummary, isCancelledBooking, isCompletedBooking,
-  peakHourDistribution, pickupHotspots, serviceUtilization,
-} from '@sakay/shared';
-import type { BarangayDemandRow, DriverUtilizationSummary, Hotspot, PeakHourPoint, ServiceUtilization, TrendPoint } from '@sakay/shared';
+import { SIGNED_URL_TTL, apiPostJson, classifyApplication, formatShortBookingId, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   TODA_INCIDENT_REPORT_FLAG_THRESHOLD,
   TODA_INCIDENT_REPORT_WINDOW_DAYS,
@@ -355,6 +350,16 @@ async function todaDocumentsOf(row: any): Promise<Array<{ name: string; type: st
 // have been permanently purged. All status verification is strictly database-backed.
 
 
+/** How close a TODA's Barangay Clearance / accreditation validity date is (the reminders go out 30 days before it). */
+function clearanceStatusOf(expiryIso: string | null | undefined): 'Valid' | 'Expiring Soon' | 'Expired' | 'Under Review' {
+  if (!expiryIso) return 'Under Review';
+  const days = Math.ceil((Date.parse(expiryIso) - Date.now()) / 86_400_000);
+  if (!Number.isFinite(days)) return 'Under Review';
+  if (days < 0) return 'Expired';
+  if (days <= 30) return 'Expiring Soon';
+  return 'Valid';
+}
+
 export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> {
   try {
     const { data, error } = await supabase
@@ -404,7 +409,9 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
         barangayClearanceExpiry: row.certificate_expiry
           ? new Date(row.certificate_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           : '',
-        clearanceStatus: (normalizedStatus === 'Approved' ? 'Valid' : 'Under Review') as 'Valid' | 'Under Review',
+        clearanceStatus: clearanceStatusOf(row.certificate_expiry),
+        hasBarangayClearance: Boolean(row.barangay_clearance_url && String(row.barangay_clearance_url).trim()),
+        certificateNumber: row.certificate_number || null,
         submittedDate: row.created_at
           ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
           : 'Recent',
@@ -450,8 +457,12 @@ export async function approveTodaApplication(
   const acronym = todaInfo?.toda_acronym || (applicationId.length <= 15 ? applicationId : undefined);
   const name = todaInfo?.toda_name;
 
-  const defaultCertNo = certificateNumber || todaInfo?.certificate_number || `CERT-LGU-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
-  const defaultCertExpiry = certificateExpiry || (todaInfo?.certificate_expiry && new Date(todaInfo.certificate_expiry) > new Date() ? todaInfo.certificate_expiry : new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000).toISOString());
+  // The LGU Administrator types the certificate number and the date the Barangay Clearance is valid until: nothing is invented here (Rule 2.1).
+  if (!certificateNumber || !certificateNumber.trim() || !certificateExpiry) {
+    throw new Error('Enter the certificate number and the date the Barangay Clearance is valid until.');
+  }
+  const defaultCertNo = certificateNumber.trim();
+  const defaultCertExpiry = certificateExpiry;
 
   let updatedData: any = null;
 
@@ -538,6 +549,18 @@ export async function rejectTodaApplication(applicationId: string, reason: strin
 
 export const declineTodaApplication = rejectTodaApplication;
 
+/** Suspends an accredited TODA's participation after the LGU reviewed it (Rule 2.4): its administrator and drivers can no longer operate until it is approved again. */
+export async function suspendTodaAccreditation(todaId: string, reason: string) {
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('deactivate_toda_accreditation', {
+    p_toda_id: todaId,
+    p_reason: reason || null,
+  });
+  if (rpcErr) throw new Error(rpcErr.message);
+  if (!rpcRes || rpcRes.success !== true) throw new Error(String(rpcRes?.error || 'The accreditation was not suspended.'));
+  return { success: true, reason, data: rpcRes.data };
+}
+
+
 // ============================================================================
 // 3. ACCREDITED TODA REGISTRY
 // ============================================================================
@@ -570,8 +593,10 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
       accreditationNo: row.registration_number || row.certificate_number || 'N/A',
       accreditedDate: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US') : '',
       expiryDate: row.certificate_expiry ? new Date(row.certificate_expiry).toLocaleDateString('en-US') : '',
-      barangayClearanceExpiry: '',
-      clearanceStatus: 'Valid',
+      barangayClearanceExpiry: row.certificate_expiry ? new Date(row.certificate_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '\u2014',
+      clearanceStatus: clearanceStatusOf(row.certificate_expiry),
+      hasBarangayClearance: Boolean(row.barangay_clearance_url && String(row.barangay_clearance_url).trim()),
+      certificateNumber: row.certificate_number || null,
       confirmedIncidents: 0,
       flaggedForReview: false,
       centerLat: row.terminal_latitude || 13.4115,
@@ -1065,19 +1090,19 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           id: d.driver_id,
           name: d.full_name || 'Driver Applicant',
           licenseNo: d.license_number || verif?.submitted_license_number || 'N/A',
-          licenseExpiry: d.license_expiry || verif?.license_expiry || '2026-12-31',
+          licenseExpiry: d.license_expiry || verif?.license_expiry || '',
           licenseStatus: 'Valid',
           mtopNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
-          mtopExpiry: d.license_expiry || verif?.franchise_expiry || '2026-12-31',
+          mtopExpiry: d.mtop_expiry || verif?.mtop_expiry || verif?.franchise_expiry || '',
           mtopStatus: 'Valid',
-          mtopOperatorName: verif?.submitted_operator_name || d.full_name,
+          mtopOperatorName: verif?.submitted_operator_name || '',
           todaName: affs.length > 1 ? affs.map((a) => a.todaAcronym).join(', ') : (affs[0]?.todaName || todaInfo?.toda_name || 'Calapan Central TODA'),
           todaId: d.toda_id || '',
           affiliations: affs,
           actionAffiliationId: awaitingLgu[0]?.affiliationId,
           vehiclePlate: d.plate_number || verif?.submitted_plate_number || 'N/A',
           franchiseNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
-          franchiseExpiry: verif?.franchise_expiry || '2026-12-31',
+          franchiseExpiry: verif?.mtop_expiry || verif?.franchise_expiry || '',
           todaVerificationStatus: 'Verified',
           lguVerificationStatus,
           verificationStatus,
@@ -1380,12 +1405,12 @@ export async function fetchTodaDrivers(todaId: string): Promise<DriverRecord[]> 
         id: d.driver_id,
         name: d.full_name,
         licenseNo: d.license_number || verif?.submitted_license_number || 'N/A',
-        licenseExpiry: d.license_expiry || verif?.license_expiry || '2026-12-31',
+        licenseExpiry: d.license_expiry || verif?.license_expiry || '',
         licenseStatus: 'Valid',
         mtopNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
-        mtopExpiry: d.license_expiry || verif?.franchise_expiry || '2026-12-31',
+        mtopExpiry: d.mtop_expiry || verif?.mtop_expiry || verif?.franchise_expiry || '',
         mtopStatus: 'Valid',
-        mtopOperatorName: verif?.submitted_operator_name || d.full_name,
+        mtopOperatorName: verif?.submitted_operator_name || '',
         todaName: d.toda?.toda_name || 'TODA Association',
         todaId: todaId,
         // In this per-TODA list the decision is always about THIS TODA's application
@@ -1404,7 +1429,7 @@ export async function fetchTodaDrivers(todaId: string): Promise<DriverRecord[]> 
         actionAffiliationId: aff.toda_endorsement_status === 'Endorsed' && aff.lgu_verification_status === 'Pending' ? aff.affiliation_id : undefined,
         vehiclePlate: d.plate_number || verif?.submitted_plate_number || 'N/A',
         franchiseNo: d.franchise_number || verif?.submitted_franchise_number || 'N/A',
-        franchiseExpiry: verif?.franchise_expiry || '2026-12-31',
+        franchiseExpiry: verif?.mtop_expiry || verif?.franchise_expiry || '',
         todaVerificationStatus: 'Verified',
         // THIS TODA's affiliation decides, not the driver's overall status (the driver may be Verified through another TODA only)
         lguVerificationStatus: aff.lgu_verification_status === 'Approved' ? 'Verified' : 'Pending',
@@ -1601,10 +1626,11 @@ export async function fetchPassengers(filters?: { status?: string }): Promise<Pa
       name: p.full_name,
       phone: p.contact_number,
       email: p.email || '',
-      verificationStatus: 'Verified',
+      // A passenger who has not finished the OTP (account_status 'Pending ...') is Unverified and not yet Active (Rule 4.1)
+      verificationStatus: String(p.account_status ?? '').startsWith('Pending') ? 'Unverified' : 'Verified',
       accountStatus: deriveRestrictionKind(p) === 'DEACTIVATED' || deriveRestrictionKind(p) === 'CLOSED'
         ? 'Deactivated'
-        : p.account_status === 'Suspended' ? 'Suspended' : 'Active',
+        : p.account_status === 'Suspended' ? 'Suspended' : String(p.account_status ?? '').startsWith('Pending') ? 'Pending' : 'Active',
       restrictionKind: deriveRestrictionKind(p),
       suspendedUntil: p.suspended_until || undefined,
       suspensionReason: p.suspension_reason || undefined,
@@ -1916,74 +1942,115 @@ export async function endCalamity(note: string): Promise<string | null> {
 }
 
 export async function fetchAnnouncements(): Promise<AnnouncementRecord[]> {
-  try {
-    const { data, error } = await supabase
-      .from('announcement')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error || !data) return [];
-    return data.map((a: any) => ({
-      id: a.announcement_id,
-      announcement_id: a.announcement_id,
-      title: a.title,
-      message: a.message,
-      target_role: a.target_audience || 'All',
-      target_toda_id: a.target_toda_id || a.toda_id || null,
-      target_toda_name: null,
-      is_published: a.is_published,
-      publish_timing: 'Immediate',
-      created_by_lgu_admin: 'LGU Administrator',
-      created_at: a.created_at ? new Date(a.created_at).toLocaleDateString('en-US') : 'Recent',
-    }));
-  } catch (err) {
-    console.error('[adminApiService] fetchAnnouncements error:', err);
-    return [];
+  const { data, error } = await supabase
+    .from('announcement')
+    .select('*, toda:toda_id(toda_name)')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []).map((a: any) => ({
+    id: a.announcement_id,
+    announcement_id: a.announcement_id,
+    toda_id: a.toda_id ?? null,
+    toda_name: a.toda?.toda_name ?? null,
+    title: a.title,
+    message: a.message,
+    target_role: (a.target_audience || 'All') as AnnouncementRecord['target_role'],
+    is_published: a.is_published !== false,
+    publish_timing: 'Immediate',
+    // created_by points at a TODA administrator; a notice written by the LGU Administrator has none
+    created_by_lgu_admin: a.created_by ? 'TODA Administrator' : 'LGU Administrator',
+    created_at: a.created_at ? formatManilaDateTime(a.created_at) : '\u2014',
+    published_at: a.published_at ? formatManilaDateTime(a.published_at) : null,
+    unpublished_at: a.unpublished_at ? formatManilaDateTime(a.unpublished_at) : null,
+    updated_at: a.updated_at ? formatManilaDateTime(a.updated_at) : null,
+  }));
+}
+
+export interface AnnouncementInput {
+  title: string;
+  message: string;
+  /** All | Passenger | Driver | TODA Administrator (stored as target_audience; the apps read the announcements meant for them) */
+  targetRole: string;
+  targetTodaId: string | null;
+}
+
+/** Row security answers "no permission" with zero rows, not an error: a change that touched nothing is reported as a failure. */
+async function announcementChanged(result: { data: any[] | null; error: { message: string } | null }): Promise<void> {
+  if (result.error) throw new Error(result.error.message);
+  if (!result.data || result.data.length === 0) {
+    throw new Error('The announcement was not changed. It may have been deleted, or this account may not be allowed to change it.');
   }
 }
 
-export async function createAnnouncement(payload: {
-  title: string;
-  message?: string;
-  content?: string;
-  targetRole?: string;
-  target_role?: string;
-  urgency?: string;
-  targetTodaId?: string | null;
-  target_toda_id?: string | null;
-}) {
-  const messageText = payload.message || payload.content || '';
-  const targetAudience = payload.targetRole || payload.target_role || 'All';
-  const targetTodaId = payload.targetTodaId || payload.target_toda_id || null;
-
+/** Saves a new announcement. publish=false saves a draft that nobody sees until it is published. The database stamps the publication time. */
+export async function createAnnouncement(payload: AnnouncementInput & { publish?: boolean; urgency?: string }) {
+  const publish = payload.publish !== false;
   const { data, error } = await supabase
     .from('announcement')
     .insert([
       {
         title: payload.title,
-        message: messageText,
-        target_audience: targetAudience,
+        message: payload.message,
+        target_audience: payload.targetRole || 'All',
         urgency: payload.urgency || 'Normal',
-        is_published: true,
-        toda_id: targetTodaId,
+        is_published: publish,
+        toda_id: payload.targetTodaId || null,
       },
     ])
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   await recordAdminAuditAction({
-    actionType: 'ANNOUNCEMENT_BROADCASTED',
+    actionType: publish ? 'ANNOUNCEMENT_BROADCASTED' : 'ANNOUNCEMENT_DRAFTED',
     targetId: data?.announcement_id,
     targetName: payload.title,
-    details: `Broadcasted municipal advisory '${payload.title}' to audience: ${targetAudience}.`,
+    details: `${publish ? 'Published' : 'Saved as a draft'} the announcement '${payload.title}' for: ${payload.targetRole || 'All'}.`,
     category: 'Announcement',
   });
   return { success: true, data };
 }
 
-export async function deleteAnnouncement(announcementId: string) {
-  const { error } = await supabase.from('announcement').delete().eq('announcement_id', announcementId);
-  if (error) throw error;
-  return { success: true };
+/** Changes the text, audience or scope of an existing announcement (the same row; the publish state is untouched). */
+export async function updateAnnouncement(announcementId: string, input: AnnouncementInput): Promise<void> {
+  await announcementChanged(
+    await supabase
+      .from('announcement')
+      .update({ title: input.title, message: input.message, target_audience: input.targetRole || 'All', toda_id: input.targetTodaId || null })
+      .eq('announcement_id', announcementId)
+      .select('announcement_id')
+  );
+  await recordAdminAuditAction({
+    actionType: 'ANNOUNCEMENT_EDITED',
+    targetId: announcementId,
+    targetName: input.title,
+    details: `Edited the announcement '${input.title}' (audience: ${input.targetRole || 'All'}).`,
+    category: 'Announcement',
+  });
+}
+
+/** Publishes or unpublishes an announcement; the database stamps published_at / unpublished_at. */
+export async function setAnnouncementPublished(announcementId: string, published: boolean, title = ''): Promise<void> {
+  await announcementChanged(
+    await supabase.from('announcement').update({ is_published: published }).eq('announcement_id', announcementId).select('announcement_id')
+  );
+  await recordAdminAuditAction({
+    actionType: published ? 'ANNOUNCEMENT_PUBLISHED' : 'ANNOUNCEMENT_UNPUBLISHED',
+    targetId: announcementId,
+    targetName: title || undefined,
+    details: `${published ? 'Published' : 'Unpublished'} the announcement${title ? ` '${title}'` : ''}.`,
+    category: 'Announcement',
+  });
+}
+
+export async function deleteAnnouncement(announcementId: string, title = ''): Promise<void> {
+  await announcementChanged(await supabase.from('announcement').delete().eq('announcement_id', announcementId).select('announcement_id'));
+  await recordAdminAuditAction({
+    actionType: 'ANNOUNCEMENT_DELETED',
+    targetId: announcementId,
+    targetName: title || undefined,
+    details: `Deleted the announcement${title ? ` '${title}'` : ''}.`,
+    category: 'Announcement',
+  });
 }
 
 // ============================================================================
@@ -2150,9 +2217,11 @@ export interface BookingRecordItem {
   startLng: number;
   destLat: number;
   destLng: number;
-  driverLat: number;
-  driverLng: number;
-  currentArea: string;
+  /** The driver's own position while the booking is live (from the phone's heartbeat); null when there is no driver or no fix yet */
+  driverLat: number | null;
+  driverLng: number | null;
+  /** When the driver's phone last reported that position (ISO); null when there is none */
+  driverFixAt: string | null;
   /** The estimate the passenger confirmed (Matched Shared Fare Estimate for a Shared trip) */
   estimatedFare: number;
   /** The final, binding fare once the trip arrived (written by the database, Rule 6.2); null before that */
@@ -2163,10 +2232,40 @@ export interface BookingRecordItem {
   /** Unpaid | Paid | Payment Disputed | Waived */
   paymentStatus?: string | null;
   distanceKm?: number;
+  /** The quoted road distance and the distance the phone recorded (null until known) */
+  estimatedDistanceKm: number | null;
+  actualDistanceKm: number | null;
+  /** passenger | driver | system, and the reason given, for a cancelled booking (null otherwise) */
+  cancelledBy: string | null;
+  cancellationReason: string | null;
+  /** The booking's timeline (ISO); each is null until it happens */
+  requestedAt: string | null;
+  acceptedAt: string | null;
+  arrivedAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
   createdAt: string;
   bookingTime: string;
-  eta: string;
+  sharedTripDetails?: {
+    matchedPassengers: number;
+    cutoffPassed: boolean;
+    sharedSavings: string;
+  };
 }
+
+/** The statuses in which a driver is committed to the booking and their phone is reporting a position */
+const LIVE_BOOKING_STATUSES = [
+  'Accepted',
+  'Driver Assigned',
+  'Driver En Route',
+  'In Transit',
+  'Arrived at Pickup',
+  'Driver Arrived',
+  'Trip Ongoing',
+  'Heading to Passenger',
+  'Arrived at Destination',
+];
 
 export async function fetchAllBookings(filterStatus?: string): Promise<BookingRecordItem[]> {
   try {
@@ -2182,10 +2281,16 @@ export async function fetchAllBookings(filterStatus?: string): Promise<BookingRe
           full_name,
           contact_number,
           plate_number,
+          current_latitude,
+          current_longitude,
+          last_location_update,
           toda:toda_id (
             toda_name,
             toda_acronym
           )
+        ),
+        booking_toda:toda_id (
+          toda_name
         )
       `)
       .order('created_at', { ascending: false });
@@ -2215,43 +2320,71 @@ export async function fetchAllBookings(filterStatus?: string): Promise<BookingRe
     const { data, error } = await query;
     if (error || !data) return [];
 
-    return data.map((b: any) => ({
-      id: b.booking_id,
-      bookingId: b.booking_id,
-      tripType: b.is_shared_trip || b.trip_type === 'Shared' ? 'Shared Trip' : 'Solo Ride',
-      status: b.booking_status,
-      driverId: b.driver_id,
-      driverName: b.driver?.full_name || 'Assigned Driver',
-      driverPhone: b.driver?.contact_number || '+63 900 000 0000',
-      todaName: b.driver?.toda?.toda_name || 'Calapan Central TODA',
-      vehiclePlate: b.driver?.plate_number || 'MV-101',
-      passengerId: b.passenger_id,
-      passengerName: b.passenger?.full_name || 'Commuter',
-      passengerPhone: b.passenger?.contact_number || '+63 900 000 0000',
-      passengerCount: b.passenger_count || 1,
-      pickupArea: b.pickup_address || b.pickup_location_address || 'Pickup Point',
-      destinationArea: b.dropoff_address || b.dropoff_location_address || 'Destination Point',
-      startLat: Number(b.pickup_latitude) || 13.4115,
-      startLng: Number(b.pickup_longitude) || 121.1803,
-      destLat: Number(b.dropoff_latitude) || 13.4150,
-      destLng: Number(b.dropoff_longitude) || 121.1850,
-      driverLat: Number(b.pickup_latitude) || 13.4115,
-      driverLng: Number(b.pickup_longitude) || 121.1803,
-      currentArea: b.pickup_address || b.pickup_location_address || 'Calapan City',
-      estimatedFare: Number(b.estimated_fare) || 0,
-      finalFare: b.actual_fare !== null && b.actual_fare !== undefined ? Number(b.actual_fare) : null,
-      fareBasis: b.fare_breakdown?.final?.basis ?? null,
-      fareDeviation: Boolean(b.fare_breakdown?.final?.deviation),
-      paymentStatus: b.payment_status ?? null,
-      distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
-      createdAt: b.created_at,
-      bookingTime: b.created_at ? new Date(b.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '12:00 PM',
-      eta: '3 mins',
-    }));
+    return data.map((b: any): BookingRecordItem => {
+      const live = LIVE_BOOKING_STATUSES.includes(b.booking_status);
+      const hasFix = live && b.driver && b.driver.current_latitude != null && b.driver.current_longitude != null;
+      const iso = (v: any): string | null => (v ? String(v) : null);
+      return {
+        id: b.booking_id,
+        bookingId: b.booking_id,
+        tripType: b.is_shared_trip || b.trip_type === 'Shared' ? 'Shared Trip' : 'Solo Ride',
+        status: b.booking_status,
+        driverId: b.driver_id,
+        driverName: b.driver?.full_name || 'No driver assigned',
+        driverPhone: b.driver?.contact_number || '\u2014',
+        todaName: b.driver?.toda?.toda_name || b.booking_toda?.toda_name || '\u2014',
+        vehiclePlate: b.driver?.plate_number || '\u2014',
+        passengerId: b.passenger_id,
+        passengerName: b.passenger?.full_name || 'Unknown passenger',
+        passengerPhone: b.passenger?.contact_number || '\u2014',
+        passengerCount: b.passenger_count || 1,
+        pickupArea: b.pickup_address || b.pickup_location_address || '\u2014',
+        destinationArea: b.dropoff_address || b.dropoff_location_address || '\u2014',
+        startLat: Number(b.pickup_latitude),
+        startLng: Number(b.pickup_longitude),
+        destLat: Number(b.dropoff_latitude),
+        destLng: Number(b.dropoff_longitude),
+        driverLat: hasFix ? Number(b.driver.current_latitude) : null,
+        driverLng: hasFix ? Number(b.driver.current_longitude) : null,
+        driverFixAt: hasFix ? iso(b.driver.last_location_update) : null,
+        estimatedFare: Number(b.estimated_fare) || 0,
+        finalFare: b.actual_fare !== null && b.actual_fare !== undefined ? Number(b.actual_fare) : null,
+        fareBasis: b.fare_breakdown?.final?.basis ?? null,
+        fareDeviation: Boolean(b.fare_breakdown?.final?.deviation),
+        paymentStatus: b.payment_status ?? null,
+        distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
+        estimatedDistanceKm: b.estimated_distance_km != null ? Number(b.estimated_distance_km) : null,
+        actualDistanceKm: b.actual_distance_km != null ? Number(b.actual_distance_km) : null,
+        cancelledBy: b.cancelled_by || (String(b.booking_status).startsWith('Cancelled by ') ? String(b.booking_status).slice(13).toLowerCase() : null),
+        cancellationReason: b.cancellation_reason || null,
+        requestedAt: iso(b.requested_at ?? b.created_at),
+        acceptedAt: iso(b.accepted_at),
+        arrivedAt: iso(b.arrived_at),
+        startedAt: iso(b.trip_started_at),
+        completedAt: iso(b.trip_completed_at),
+        cancelledAt: iso(b.cancelled_at),
+        createdAt: b.created_at,
+        bookingTime: b.created_at ? new Date(b.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '\u2014',
+      };
+    });
   } catch (err) {
     console.error('[adminApiService] fetchAllBookings error:', err);
     return [];
   }
+}
+
+/** The route a trip really took: the positions the driver's phone published during it (Rule 6.2.4), oldest first. The LGU Administrator may read them. */
+export async function fetchTripTrack(bookingId: string): Promise<Array<{ lat: number; lng: number; at: string }>> {
+  const { data, error } = await supabase
+    .from('gps_log')
+    .select('latitude, longitude, recorded_at')
+    .eq('booking_id', bookingId)
+    .order('recorded_at', { ascending: true })
+    .limit(3000);
+  if (error || !data) return [];
+  return (data as any[])
+    .filter((r) => Number.isFinite(Number(r.latitude)) && Number.isFinite(Number(r.longitude)))
+    .map((r) => ({ lat: Number(r.latitude), lng: Number(r.longitude), at: String(r.recorded_at) }));
 }
 
 // ============================================================================
@@ -2342,107 +2475,6 @@ export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]>
   } catch (err) {
     console.error('[adminApiService] fetchPassengerFeedback error:', err);
     return [];
-  }
-}
-
-// ============================================================================
-// 10. OPERATIONAL REPORTS & TRANSPORTATION ANALYTICS
-// ============================================================================
-
-export interface OperationalReportsData {
-  summary: {
-    totalBookings: number;
-    completedTrips: number;
-    cancelledTrips: number;
-    totalRevenue: number;
-    averageFare: number;
-    activeDrivers: number;
-    accreditedTodas: number;
-  };
-  peakHourDistribution: PeakHourPoint[];
-  barangayDemand: BarangayDemandRow[];
-  /** completionRate: percent of the TODA's finished trips that were completed (null while nothing has finished) */
-  todaPerformance: Array<{ todaName: string; totalTrips: number; activeUnits: number; completionRate: number | null }>;
-  driverUtilization: Array<{ driverName: string; toda: string; completedTrips: number; rating: number | null; status: string }>;
-  /** Descriptive analytics, all computed from the bookings (packages/shared/src/utils/transportAnalytics.ts) */
-  bookingTrend: TrendPoint[];
-  hotspots: Hotspot[];
-  serviceUtilization: ServiceUtilization;
-  driverUtilizationSummary: DriverUtilizationSummary;
-}
-
-const EMPTY_SERVICE: ServiceUtilization = serviceUtilization([]);
-
-export async function fetchOperationalReports(): Promise<OperationalReportsData> {
-  try {
-    const [bookingsRes, driversRes, todasRes] = await Promise.all([
-      supabase.from('booking').select('*, driver:driver_id(full_name, toda:toda_id(toda_name))'),
-      supabase.from('driver').select('*, toda:toda_id(toda_name)'),
-      supabase.from('toda').select('*'),
-    ]);
-
-    const bookings = bookingsRes.data || [];
-    const drivers = driversRes.data || [];
-    const todas = (todasRes.data || []).filter((t: any) => (t.toda_status || t.account_status) === 'Active');
-
-    const service = serviceUtilization(bookings);
-    const completed = bookings.filter(isCompletedBooking);
-    const verifiedDriverIds = drivers.filter((d: any) => d.account_status === 'Verified').map((d: any) => d.driver_id as string);
-
-    // Per TODA: completed trips of its drivers, and the share of its finished trips that were completed
-    const todaPerformance = todas.map((t: any) => {
-      const mine = bookings.filter((b: any) => b.driver?.toda?.toda_name === t.toda_name);
-      const done = mine.filter(isCompletedBooking).length;
-      const cancelled = mine.filter(isCancelledBooking).length;
-      return {
-        todaName: t.toda_name as string,
-        totalTrips: done,
-        activeUnits: (t.active_driver_count || t.registered_tricycle_count || 0) as number,
-        completionRate: completionRateOfFinished(done, cancelled),
-      };
-    });
-
-    const driverUtilization = drivers.map((d: any) => ({
-      driverName: d.full_name as string,
-      toda: (d.toda?.toda_name || 'No TODA') as string,
-      completedTrips: completed.filter((b: any) => b.driver_id === d.driver_id).length,
-      // A driver with no rating yet is "Not Yet Rated" (policy 23.1), not 5.0
-      rating: d.weighted_average_rating == null ? null : Number(d.weighted_average_rating),
-      status: d.account_status as string,
-    }));
-
-    return {
-      summary: {
-        totalBookings: service.requests,
-        completedTrips: service.completed,
-        cancelledTrips: service.cancelled,
-        totalRevenue: service.grossFare,
-        averageFare: service.averageFare,
-        activeDrivers: verifiedDriverIds.length,
-        accreditedTodas: todas.length,
-      },
-      peakHourDistribution: peakHourDistribution(bookings),
-      barangayDemand: barangayDemand(bookings),
-      todaPerformance,
-      driverUtilization,
-      bookingTrend: bookingTrend(bookings),
-      hotspots: pickupHotspots(bookings),
-      serviceUtilization: service,
-      driverUtilizationSummary: driverUtilizationSummary(verifiedDriverIds, bookings),
-    };
-  } catch (err) {
-    console.error('[adminApiService] fetchOperationalReports error:', err);
-    return {
-      summary: { totalBookings: 0, completedTrips: 0, cancelledTrips: 0, totalRevenue: 0, averageFare: 0, activeDrivers: 0, accreditedTodas: 0 },
-      peakHourDistribution: [],
-      barangayDemand: [],
-      todaPerformance: [],
-      driverUtilization: [],
-      bookingTrend: [],
-      hotspots: [],
-      serviceUtilization: EMPTY_SERVICE,
-      driverUtilizationSummary: { verifiedDrivers: 0, activeDrivers: 0, rate: 0, windowDays: 30 },
-    };
   }
 }
 
@@ -2625,3 +2657,26 @@ export async function resolveAdminReviewFlag(flagId: string, resolution: string)
 }
 
 
+
+
+/** A real notice to the TODA's administrators about its Barangay Clearance (the database refuses a second one within 10 minutes). */
+export async function sendTodaRenewalReminder(todaId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('admin_send_toda_renewal_reminder', { p_toda_id: todaId });
+  if (error) return adminActionMessage(error.message, 'The reminder could not be sent.');
+  const r = data as { success?: boolean; error?: string } | null;
+  return r?.success ? null : r?.error || 'The reminder could not be sent.';
+}
+
+/** A real notice to the driver about the License and MTOP dates on record. */
+export async function sendDriverRenewalReminder(driverId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('admin_send_driver_renewal_reminder', { p_driver_id: driverId });
+  if (error) return adminActionMessage(error.message, 'The reminder could not be sent.');
+  const r = data as { success?: boolean; error?: string } | null;
+  return r?.success ? null : r?.error || 'The reminder could not be sent.';
+}
+
+/** The LGU Administrator sends a report back to the involved TODA for action (never a serious one, Rule 19.8). */
+export async function referIncidentToToda(incidentId: string, reason: string): Promise<string | null> {
+  const { error } = await supabase.rpc('incident_refer_to_toda', { p_incident_id: incidentId, p_reason: reason });
+  return error ? adminActionMessage(error.message, 'The report could not be referred.') : null;
+}

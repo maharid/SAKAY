@@ -13,6 +13,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import { useNavigate } from 'react-router-dom';
 
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
+import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
 import { BookingTrendCard } from '../components/dashboard/BookingTrendCard';
 import { DriverVerificationCard } from '../components/dashboard/DriverVerificationCard';
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
@@ -301,6 +302,9 @@ export const DashboardPage: React.FC = () => {
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
       {/* 1. Welcome Greeting Text Header */}
       <WelcomeHeader />
+      <Box sx={{ mb: 2.5 }}>
+        <PilotCoverageNote />
+      </Box>
 
       {/* 2. TODA Supervisory Review Banner (Conditional from live DB) */}
       {showTodaAlert && flaggedTodas.length > 0 && (

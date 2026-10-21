@@ -145,6 +145,7 @@ import {
   issueDriverStrike,
   recordAdminAuditAction,
   verifyDriverRenewal,
+  sendDriverRenewalReminder,
   updateDriverDocumentReview,
 } from '../../services/adminApiService';
 
@@ -155,6 +156,13 @@ interface DriverDetailModalProps {
   onStatusChange?: (driverId: string, newStatus: 'Active' | 'Inactive') => void;
   onDriverUpdated?: (updatedDriver: DriverRecord) => void;
 }
+
+/** A stored date (YYYY-MM-DD or a full timestamp) as a readable date; a missing one says so instead of showing an invented date. */
+const dateText = (value?: string | null): string => {
+  if (!value) return 'Not recorded';
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00+08:00` : value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   open,
@@ -627,16 +635,15 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   /**
    * Action Handler: Send Renewal Reminder Alert
    */
-  const handleSendReminder = () => {
+  const handleSendReminder = async () => {
+    // a real notice in the driver's app (the database refuses a second one within 10 minutes and writes the audit entry)
+    const problem = await sendDriverRenewalReminder(driver.id);
+    if (problem) {
+      setSnackbarMsg(problem);
+      return;
+    }
     setReminderSent(true);
-    recordAdminAuditAction({
-      actionType: 'DRIVER_PERMIT_REMINDER_SENT',
-      targetId: driver.id,
-      targetName: driver.name,
-      details: `Dispatched MTOP and License renewal alert to driver mobile (${driver.phone}).`,
-      category: 'Verification',
-    });
-    setSnackbarMsg(`Renewal alert sent to ${driver.name}.`);
+    setSnackbarMsg(`Renewal reminder sent to ${driver.name}.`);
     setTimeout(() => setReminderSent(false), 3000);
   };
 
@@ -1249,7 +1256,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             <Box>
               <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>TODA Membership No.</Typography>
               <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {driver.mtopNo ? `MEM-${driver.mtopNo}` : 'MEM-2026-01'}
+                {driver.affiliations?.find((a) => a.isActive)?.membershipNo ?? driver.affiliations?.find((a) => a.membershipNo)?.membershipNo ?? 'Not recorded'}
               </Typography>
             </Box>
             <Box>
@@ -1275,15 +1282,23 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             </Box>
             <Box>
               <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>License Expiry</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.licenseExpiry}</Typography>
+              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{dateText(driver.licenseExpiry)}</Typography>
             </Box>
             <Box>
               <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>MTOP Franchise No.</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopNo}</Typography>
+              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopNo || 'Not recorded'}</Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>MTOP Expiry</Typography>
+              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{dateText(driver.mtopExpiry)}</Typography>
             </Box>
             <Box>
               <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Tricycle Vehicle Plate</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.vehiclePlate}</Typography>
+              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.vehiclePlate || 'Not recorded'}</Typography>
+            </Box>
+            <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Registered MTOP Operator (Rule 3.3)</Typography>
+              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopOperatorName || 'Not recorded'}</Typography>
             </Box>
           </Box>
 
@@ -1317,15 +1332,15 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               {driver.pendingLicenseExpiry && (
                 <Box sx={{ backgroundColor: '#FFFFFF', p: 1.5, borderRadius: '8px', border: '1px solid #FDE68A' }}>
                   <Typography sx={{ fontSize: '11px', color: '#92400E', fontWeight: 600 }}>Proposed License Expiry</Typography>
-                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#1F2937' }}>{driver.pendingLicenseExpiry}</Typography>
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Current: {driver.licenseExpiry}</Typography>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#1F2937' }}>{dateText(driver.pendingLicenseExpiry)}</Typography>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Current: {dateText(driver.licenseExpiry)}</Typography>
                 </Box>
               )}
               {driver.pendingMtopExpiry && (
                 <Box sx={{ backgroundColor: '#FFFFFF', p: 1.5, borderRadius: '8px', border: '1px solid #FDE68A' }}>
                   <Typography sx={{ fontSize: '11px', color: '#92400E', fontWeight: 600 }}>Proposed MTOP Expiry</Typography>
-                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#1F2937' }}>{driver.pendingMtopExpiry}</Typography>
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Current: {driver.mtopExpiry}</Typography>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#1F2937' }}>{dateText(driver.pendingMtopExpiry)}</Typography>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Current: {dateText(driver.mtopExpiry)}</Typography>
                 </Box>
               )}
             </Box>

@@ -7,15 +7,17 @@ import RouteIcon from '@mui/icons-material/Route';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
-import { ActiveTripRecord } from '../../mockData/adminData';
+import type { BookingRecordItem } from '../../services/adminApiService';
+import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
 import { TripCorrectionSection } from './TripCorrectionSection';
+import { TripRouteMap } from './TripRouteMap';
 
 interface TripDetailModalProps {
   open: boolean;
   onClose: () => void;
-  trip: ActiveTripRecord | null;
+  trip: BookingRecordItem | null;
   /** a completed trip was corrected, or a trip left at the destination was closed: the page reloads */
   onChanged?: () => void | Promise<void>;
 }
@@ -23,13 +25,28 @@ interface TripDetailModalProps {
 export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose, trip, onChanged }) => {
   if (!trip) return null;
 
+  const fmt = (iso: string | null): string => (iso ? formatManilaDateTime(iso) : '\u2014');
+  const minutesBetween = (a: string | null, b: string | null): number | null =>
+    a && b && Number.isFinite(Date.parse(a)) && Number.isFinite(Date.parse(b)) ? Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 60000)) : null;
+  const tripMinutes = minutesBetween(trip.startedAt, trip.completedAt);
+  const km = (v: number | null): string => (v === null ? '\u2014' : `${v.toFixed(2)} km`);
+  const cancelled = trip.status.includes('Cancel');
+  const noDriver = trip.status === 'No Driver Found';
+  const timeline: Array<[string, string | null]> = [
+    ['Booking requested', trip.requestedAt],
+    ['Driver accepted', trip.acceptedAt],
+    ['Driver arrived at pickup', trip.arrivedAt],
+    ['Trip started', trip.startedAt],
+    ['Trip completed', trip.completedAt],
+  ];
+
   return (
     <MacCenterModal
       open={open}
       onClose={onClose}
       title={`Trip Details — ${trip.id}`}
       subtitle={`Booking ID: ${trip.bookingId} • ${trip.todaName}`}
-      badge={<StatusBadge status={trip.status === 'Trip Ongoing' ? 'Active' : 'Pending'} />}
+      badge={<StatusBadge status={trip.status as any} />}
       maxWidth={780}
     >
       {/* Top Status & Telemetry Bar */}
@@ -65,7 +82,14 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
               {trip.status}
             </Typography>
             <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: '3px' }}>
-              Current GPS: <span style={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.currentArea}</span>
+              {trip.driverLat !== null && trip.driverLng !== null ? (
+                <>
+                  Driver GPS ({trip.driverLat.toFixed(5)}, {trip.driverLng.toFixed(5)}) at{' '}
+                  <span style={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>{fmt(trip.driverFixAt)}</span>
+                </>
+              ) : (
+                <>No live driver position for this booking</>
+              )}
             </Typography>
           </Box>
         </Box>
@@ -83,7 +107,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
             }}
           />
           <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--sakay-orange)' }}>
-            ETA to Destination: {trip.eta}
+            {trip.actualDistanceKm !== null ? `Recorded distance: ${km(trip.actualDistanceKm)}` : trip.estimatedDistanceKm !== null ? `Quoted distance: ${km(trip.estimatedDistanceKm)}` : 'Distance not recorded yet'}
           </Typography>
         </Box>
       </Box>
@@ -206,6 +230,86 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
           </Box>
         </Box>
       </Box>
+
+      {/* Section 4: what happened and when (Rule 16.2: timestamps, distance and duration are recorded automatically) */}
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+          <AccessTimeIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
+          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            Timeline, Distance & Duration
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+          {timeline.map(([label, at]) => (
+            <Box key={label}>
+              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>{label}</Typography>
+              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{fmt(at)}</Typography>
+            </Box>
+          ))}
+          {(cancelled || trip.cancelledAt) && (
+            <Box>
+              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Cancelled</Typography>
+              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#B91C1C' }}>{fmt(trip.cancelledAt)}</Typography>
+            </Box>
+          )}
+          <Box>
+            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Quoted road distance</Typography>
+            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.estimatedDistanceKm)}</Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Distance recorded by the driver's phone</Typography>
+            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.actualDistanceKm)}</Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Trip duration (start to completion)</Typography>
+            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{tripMinutes === null ? '\u2014' : `${tripMinutes} min`}</Typography>
+          </Box>
+          {trip.fareDeviation && (
+            <Box>
+              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Route deviation (Rule 6.2.4)</Typography>
+              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#C25E00' }}>Recorded: the fare follows the distance travelled</Typography>
+            </Box>
+          )}
+        </Box>
+      </Box>
+
+      {(cancelled || noDriver) && (
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+            <NavigationIcon fontSize="small" sx={{ color: '#B91C1C' }} />
+            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              {noDriver ? 'No Driver Found' : 'Cancellation'}
+            </Typography>
+          </Box>
+          <Box sx={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', padding: '16px 20px', borderRadius: '12px' }}>
+            {noDriver ? (
+              <Typography sx={{ fontSize: '11.6px', color: '#7F1D1D' }}>Every eligible driver declined, did not answer, or none was available. No strike applies to anyone (Rule 7.4).</Typography>
+            ) : (
+              <>
+                <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#7F1D1D' }}>
+                  Cancelled by {trip.cancelledBy ?? 'unknown'}{trip.cancelledAt ? ` on ${fmt(trip.cancelledAt)}` : ''}
+                </Typography>
+                <Typography sx={{ fontSize: '11.6px', color: '#7F1D1D', mt: '4px' }}>
+                  Reason: {trip.cancellationReason ?? 'none was recorded'}
+                </Typography>
+              </>
+            )}
+          </Box>
+        </Box>
+      )}
+
+      {/* Section 5: the route the driver's phone recorded */}
+      {trip.driverId && (
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+            <RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
+            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              Route Recorded by the Driver's Phone
+            </Typography>
+          </Box>
+          <TripRouteMap bookingId={trip.bookingId} pickupLat={trip.startLat} pickupLng={trip.startLng} destLat={trip.destLat} destLng={trip.destLng} />
+        </Box>
+      )}
 
       {/* Rule 16.3 / PI-15: the audited correction of a completed trip, and closing a trip the driver never finished */}
       <TripCorrectionSection
