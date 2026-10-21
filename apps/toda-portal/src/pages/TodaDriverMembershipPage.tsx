@@ -53,6 +53,7 @@ import {
   signTodaCaseEvidence,
   TodaRosterEntry,
 } from '../services/todaApiService';
+import { isTodaLocked } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
 
 // toda driver roster membership, strikes record, and suspension management
@@ -345,21 +346,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
-      {todaStatus === 'Pending Verification' && (
-        <Box sx={{ mb: 3.5, backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 'var(--mac-radius-lg)', padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 2 }}>
-          <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 26, flexShrink: 0 }} />
-          <Box>
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#991B1B', mb: '3px' }}>
-              Pending TODA LGU Accreditation
-            </Typography>
-            <Typography sx={{ fontSize: '13.5px', color: '#B91C1C', lineHeight: 1.4 }}>
-              Your TODA organization is currently under review by the City Transport Office. Driver endorsement tools and membership management features are temporarily locked until your application is approved.
-            </Typography>
-          </Box>
-        </Box>
-      )}
-
-      {todaStatus === 'Pending Verification' ? (
+      {isTodaLocked(todaStatus) ? (
         <Box sx={{ mt: 2, textAlign: 'center', p: 6, backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)' }}>
           <ShieldIcon sx={{ fontSize: 48, color: '#D1D5DB', mb: 2 }} />
           <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>Feature Unavailable</Typography>
@@ -545,7 +532,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
                       </TableCell>
 
                       <TableCell align="right" sx={{ py: 2, px: 3, whiteSpace: 'nowrap' }}>
-                        {todaStatus === 'Pending Verification' ? (
+                        {isTodaLocked(todaStatus) ? (
                           <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>
                             Temporarily Locked
                           </Typography>

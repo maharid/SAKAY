@@ -346,7 +346,7 @@ export const TodaOperationsPage: React.FC = () => {
                 Accreditation Status — {profile?.name || 'TODA Association'}
               </Typography>
               <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                Accreditation Permit #{profile?.accreditationNo || 'CAL-TODA-2024-001'} is {profile?.accreditationStatus === 'Active' ? 'active' : 'currently pending'}.
+                {profile?.accreditationNo ? `Accreditation certificate #${profile.accreditationNo}` : 'The accreditation certificate'} is {profile?.accreditationStatus === 'Active' ? 'active' : 'not active yet'}.
               </Typography>
             </Box>
           </Box>

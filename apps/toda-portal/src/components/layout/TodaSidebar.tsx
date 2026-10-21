@@ -18,7 +18,8 @@ import { MacTooltip } from '../common/MacTooltip';
 import { StatusBadge } from '../common/StatusBadge';
 import { MacCenterModal } from '../admin/MacCenterModal';
 import { TodaProfile } from '../../types/toda';
-import { fetchTodaProfile, fetchDriverApplicants } from '../../services/todaApiService';
+import { fetchTodaProfile, fetchDriverApplicants, onTodaProfileChanged } from '../../services/todaApiService';
+import { isTodaLocked } from '../../utils/accreditation';
 
 interface TodaSidebarProps {
   collapsed: boolean;
@@ -49,12 +50,16 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
   const [applicantCount, setApplicantCount] = useState<number>(0);
 
   useEffect(() => {
-    fetchTodaProfile().then((p) => {
-      if (p) setProfile(p);
-    });
+    const loadProfile = () => {
+      fetchTodaProfile().then((p) => {
+        if (p) setProfile(p);
+      });
+    };
+    loadProfile();
     fetchDriverApplicants().then((apps) => {
       setApplicantCount(apps ? apps.length : 0);
     });
+    return onTodaProfileChanged(loadProfile);
   }, []);
 
   const navGroups: NavGroup[] = [
@@ -67,22 +72,22 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
     {
       groupTitle: 'DRIVERS & FLEET',
       items: [
-        { id: 'driver-verification', label: 'Driver Verification', path: '/driver-verification', icon: <AssignmentIcon fontSize="small" />, badge: applicantCount > 0 ? applicantCount : undefined, badgeType: 'orange', disabled: profile?.accreditationStatus === 'Pending Verification' },
-        { id: 'drivers', label: 'Driver Membership', path: '/drivers', icon: <PeopleIcon fontSize="small" />, disabled: profile?.accreditationStatus === 'Pending Verification' },
-        { id: 'fleet', label: 'Tricycle Fleet', path: '/fleet', icon: <DirectionsCarIcon fontSize="small" />, disabled: profile?.accreditationStatus === 'Pending Verification' },
+        { id: 'driver-verification', label: 'Driver Verification', path: '/driver-verification', icon: <AssignmentIcon fontSize="small" />, badge: applicantCount > 0 ? applicantCount : undefined, badgeType: 'orange', disabled: isTodaLocked(profile?.accreditationStatus) },
+        { id: 'drivers', label: 'Driver Membership', path: '/drivers', icon: <PeopleIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
+        { id: 'fleet', label: 'Tricycle Fleet', path: '/fleet', icon: <DirectionsCarIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
       ],
     },
     {
       groupTitle: 'COMMUNICATIONS',
       items: [
-        { id: 'announcements', label: 'Announcements', path: '/announcements', icon: <CampaignIcon fontSize="small" />, disabled: profile?.accreditationStatus === 'Pending Verification' },
+        { id: 'announcements', label: 'Announcements', path: '/announcements', icon: <CampaignIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
       ],
     },
     {
       groupTitle: 'PERFORMANCE & AUDIT',
       items: [
-        { id: 'reports', label: 'TODA Reports & Incidents', path: '/reports', icon: <AssessmentIcon fontSize="small" />, disabled: profile?.accreditationStatus === 'Pending Verification' },
-        { id: 'audit-logs', label: 'Audit Logs', path: '/audit-logs', icon: <SecurityIcon fontSize="small" />, disabled: profile?.accreditationStatus === 'Pending Verification' },
+        { id: 'reports', label: 'TODA Reports & Incidents', path: '/reports', icon: <AssessmentIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
+        { id: 'audit-logs', label: 'Audit Logs', path: '/audit-logs', icon: <SecurityIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
       ],
     },
     {
@@ -559,7 +564,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                 Accreditation Permit Number
               </Typography>
               <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#1E8E3E' }}>
-                #{profile?.accreditationNo || 'CAL-TODA-2024-001'}
+                {profile?.accreditationNo ? `#${profile.accreditationNo}` : 'Not issued yet'}
               </Typography>
             </Box>
 

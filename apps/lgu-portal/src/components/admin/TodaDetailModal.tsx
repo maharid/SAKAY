@@ -242,6 +242,12 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
               </Button>
             </Box>
           </Box>
+          {toda.renewalSubmittedAt && (
+            <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: '#9A3412', mt: 1.5, backgroundColor: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: '8px', p: '8px 12px' }}>
+              The TODA sent a renewed Barangay Clearance on {new Date(toda.renewalSubmittedAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}
+              {toda.declaredClearanceValidUntil ? `, stating it is valid until ${toda.declaredClearanceValidUntil}` : ''}. Open it with View Document, then press Record Renewal and enter the certificate number and the date you read on it.
+            </Typography>
+          )}
           {accreditationFeedback && (
             <Typography sx={{ fontSize: '12px', fontWeight: 600, color: accreditationFeedback.ok ? '#1E8E3E' : '#B91C1C', mt: 1 }}>
               {accreditationFeedback.text}
@@ -489,6 +495,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         todaName={toda.name}
         hasClearance={toda.hasBarangayClearance !== false}
         currentCertificateNumber={toda.certificateNumber}
+        declaredValidUntil={toda.declaredClearanceValidUntil}
         onClose={() => setRenewOpen(false)}
         onSubmit={async (certificateNumber, validUntilIso, remarks) => {
           await approveTodaApplication(toda.id, remarks ? `Renewal. ${remarks}` : 'Renewal of the Barangay Clearance.', certificateNumber, validUntilIso);

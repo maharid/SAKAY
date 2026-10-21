@@ -237,6 +237,11 @@ export const AccreditedTodasPage: React.FC = () => {
                     <Box sx={{ mt: '4px' }}>
                       <StatusBadge status={toda.clearanceStatus as any} />
                     </Box>
+                    {toda.renewalSubmittedAt && (
+                      <Typography sx={{ fontSize: '10.4px', fontWeight: 700, color: '#9A3412', mt: '4px' }}>
+                        Renewal received: record it
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)', py: 2.2, px: 3 }}>
                     {toda.registeredDrivers} Drivers

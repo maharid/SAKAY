@@ -22,7 +22,6 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PeopleIcon from '@mui/icons-material/People';
 import EventNoteIcon from '@mui/icons-material/EventNote';
-import DownloadIcon from '@mui/icons-material/Download';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -35,8 +34,10 @@ import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { BookingVolumeReport } from '../components/reports/BookingVolumeReport';
 import { DriverActivityReport } from '../components/reports/DriverActivityReport';
 import type { ActivityDriver } from '../components/reports/DriverActivityReport';
-import { downloadCsv, reportFileName } from '../utils/csvDownload';
-import { IncidentReviewPanel, incidentClocks, type BookingLike, type IncidentRecord } from '@sakay/shared';
+import { ReportExportButtons } from '../components/reports/ReportExportButtons';
+import type { ExportFormat } from '../components/reports/ReportExportButtons';
+import { PILOT_COVERAGE_TEXT, PilotCoverageNote } from '../components/common/PilotCoverageNote';
+import { IncidentReviewPanel, incidentClocks, type BookingLike, type IncidentRecord, type ReportTable } from '@sakay/shared';
 import {
   fetchTodaDrivers,
   fetchTodaOperationsTrips,
@@ -227,34 +228,28 @@ export const TodaReportingPage: React.FC = () => {
   ];
 
   // Export a report as a CSV file (opens in Excel) and record it in the audit log
-  const recordExport = (reportName: string) => {
+  const recordExport = (reportName: string, format: ExportFormat) => {
     recordTodaAuditAction({
       actionType: 'REPORT_EXPORTED',
       targetId: 'REPORT',
       targetName: reportName,
-      details: `Exported ${reportName} (CSV) for ${todaName}.`,
+      details: `Exported ${reportName} (${format}) for ${todaName}.`,
       category: 'Operations',
     });
   };
 
-  const exportLedger = () => {
-    const name = 'Operations Trip Ledger';
-    downloadCsv(
-      reportFileName(name),
-      ['Booking Code', 'Passenger', 'Driver', 'Vehicle Plate', 'Pickup', 'Dropoff', 'Distance (km)', 'Fare (PHP)', 'Mode', 'Status', 'Time'],
-      filteredBookings.map((b) => [b.bookingCode, b.passengerName, b.driverName, b.vehiclePlate, b.pickupLocation, b.dropoffLocation, b.distanceKm, b.fareAmount, b.tripMode, b.status, b.timestamp])
-    );
-    recordExport(name);
+  // The two reports of this page as tables: the Excel, CSV and PDF files contain exactly these
+  const ledgerTable: ReportTable = {
+    title: 'Operations Trip Ledger',
+    notes: [`The trips of ${todaName} that match the filters on screen.`, PILOT_COVERAGE_TEXT],
+    headers: ['Booking Code', 'Passenger', 'Driver', 'Vehicle Plate', 'Pickup', 'Dropoff', 'Distance (km)', 'Fare (PHP)', 'Mode', 'Status', 'Time'],
+    rows: filteredBookings.map((b) => [b.bookingCode, b.passengerName, b.driverName, b.vehiclePlate, b.pickupLocation, b.dropoffLocation, b.distanceKm, b.fareAmount, b.tripMode, b.status, b.timestamp]),
   };
-
-  const exportIncidents = () => {
-    const name = 'Incident Summary';
-    downloadCsv(
-      reportFileName(name),
-      ['Incident Code', 'Driver', 'Vehicle Plate', 'Reported By', 'Category', 'Priority', 'With', 'Date', 'Status', 'Outcome', 'Strike', 'Description'],
-      filteredIncidents.map((i) => [i.incidentCode || i.id.slice(0, 8), i.driverName, i.vehiclePlate, `${i.reporterName} (${i.reporterRole})`, i.category, i.priority ?? '', i.routing ?? '', i.submittedAt, i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.description])
-    );
-    recordExport(name);
+  const incidentTable: ReportTable = {
+    title: 'Incident Summary Report',
+    notes: [`The incident reports about drivers of ${todaName} that match the filters on screen.`, PILOT_COVERAGE_TEXT],
+    headers: ['Incident Code', 'Driver', 'Vehicle Plate', 'Reported By', 'Category', 'Priority', 'With', 'Date', 'Status', 'Outcome', 'Strike', 'Description'],
+    rows: filteredIncidents.map((i) => [i.incidentCode || i.id.slice(0, 8), i.driverName, i.vehiclePlate, `${i.reporterName} (${i.reporterRole})`, i.category, i.priority ?? '', i.routing ?? '', i.submittedAt, i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.description]),
   };
 
   // Incident handlers: each one is ONE database function (who may act, the strike, the audit entry and the notices are the database's); the list is read again afterwards
@@ -275,18 +270,13 @@ export const TodaReportingPage: React.FC = () => {
           <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
             Official operational trip audits and passenger complaints for {todaName}
           </Typography>
+          <Box sx={{ mt: 0.75, maxWidth: 900 }}>
+            <PilotCoverageNote />
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
           {(activeTab === 0 || activeTab === 3) && (
-            <Button
-              onClick={activeTab === 0 ? exportLedger : exportIncidents}
-              startIcon={<DownloadIcon />}
-              variant="contained"
-              size="small"
-              sx={{ textTransform: 'none', backgroundColor: 'var(--sakay-orange)', fontWeight: 600 }}
-            >
-              Export {activeTab === 0 ? 'Trip Ledger' : 'Incident Summary'} (CSV)
-            </Button>
+            <ReportExportButtons table={activeTab === 0 ? ledgerTable : incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
           )}
           <Button
             onClick={loadData}
@@ -485,7 +475,7 @@ export const TodaReportingPage: React.FC = () => {
       ) : activeTab === 1 ? (
         <BookingVolumeReport trips={rawTrips} todaName={todaName} onExported={recordExport} />
       ) : activeTab === 2 ? (
-        <DriverActivityReport trips={rawTrips} drivers={activityDrivers} onExported={recordExport} />
+        <DriverActivityReport trips={rawTrips} drivers={activityDrivers} onExported={recordExport} generatedBy={`${todaName} Administrator`} />
       ) : (
         /* 6. Incident Management Tab */
         <>

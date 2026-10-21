@@ -75,9 +75,9 @@ export interface DashboardStats {
     passengers: { total: number; active: number; inactive: number };
     drivers: { total: number; active: number; inactive: number };
     todas: { total: number; pendingReview: number };
-    trips: { total: number; ongoing: number; allBookings: number };
+    trips: { total: number; ongoing: number; allBookings: number; cancelled: number };
     verifications: { pending: number; overdue5Days: number };
-    incidents: { open: number; total: number };
+    incidents: { open: number; total: number; resolved: number };
   };
   driverBreakdown: {
     total: number;
@@ -129,6 +129,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       bookingsOngoing,
       incidentsTotal,
       incidentsOpen,
+      bookingsCancelled,
+      incidentsResolved,
       recentIncidentsRes,
       incidentReportsRes,
     ] = await Promise.all([
@@ -144,6 +146,9 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       supabase.from('booking').select('*', { count: 'exact', head: true }).in('booking_status', ['Accepted', 'In Transit', 'Arrived at Pickup', 'Trip Ongoing', 'Arrived at Destination', 'Driver Assigned', 'Driver En Route', 'Driver Arrived', 'Heading to Passenger']),
       supabase.from('incident_report').select('*', { count: 'exact', head: true }),
       supabase.from('incident_report').select('*', { count: 'exact', head: true }).is('outcome', null).neq('status', 'Cancelled'),
+      supabase.from('booking').select('*', { count: 'exact', head: true }).ilike('booking_status', 'Cancel%'),
+      // resolved = a decision (an outcome) is recorded; a report the reporter withdrew is neither open nor resolved
+      supabase.from('incident_report').select('*', { count: 'exact', head: true }).not('outcome', 'is', null),
       supabase.from('incident_report').select('*').order('created_at', { ascending: false }).limit(5),
       supabase.from('incident_report').select('*, driver:driver_id(toda_id), booking:booking_id(toda_id)'),
     ]);
@@ -165,6 +170,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     const ongoingB = bookingsOngoing.count || 0;
     const totalI = incidentsTotal.count || 0;
     const openI = incidentsOpen.count || 0;
+    const cancelledB = bookingsCancelled.count || 0;
+    const resolvedI = incidentsResolved.count || 0;
 
     const recentIncidents = (recentIncidentsRes.data || []).map((inc: any) => ({
       id: inc.incident_id,
@@ -237,6 +244,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
           total: completedB,
           ongoing: ongoingB,
           allBookings: totalB,
+          cancelled: cancelledB,
         },
         verifications: {
           pending: pendingD + pendingTodas.length,
@@ -245,6 +253,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
         incidents: {
           open: openI,
           total: totalI,
+          resolved: resolvedI,
         },
       },
       driverBreakdown: {
@@ -265,9 +274,9 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
         passengers: { total: 0, active: 0, inactive: 0 },
         drivers: { total: 0, active: 0, inactive: 0 },
         todas: { total: 0, pendingReview: 0 },
-        trips: { total: 0, ongoing: 0, allBookings: 0 },
+        trips: { total: 0, ongoing: 0, allBookings: 0, cancelled: 0 },
         verifications: { pending: 0, overdue5Days: 0 },
-        incidents: { open: 0, total: 0 },
+        incidents: { open: 0, total: 0, resolved: 0 },
       },
       driverBreakdown: { total: 0, approved: 0, pending: 0, rejected: 0, suspended: 0 },
       recentIncidents: [],
@@ -412,6 +421,9 @@ export async function fetchTodaApplications(): Promise<TodaApplicationRecord[]> 
         clearanceStatus: clearanceStatusOf(row.certificate_expiry),
         hasBarangayClearance: Boolean(row.barangay_clearance_url && String(row.barangay_clearance_url).trim()),
         certificateNumber: row.certificate_number || null,
+        declaredClearanceValidUntil: row.declared_clearance_valid_until ? String(row.declared_clearance_valid_until).slice(0, 10) : null,
+        clearanceSubmittedAt: row.barangay_clearance_submitted_at || null,
+        renewalSubmittedAt: row.renewal_submitted_at || null,
         submittedDate: row.created_at
           ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
           : 'Recent',
@@ -597,6 +609,9 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
       clearanceStatus: clearanceStatusOf(row.certificate_expiry),
       hasBarangayClearance: Boolean(row.barangay_clearance_url && String(row.barangay_clearance_url).trim()),
       certificateNumber: row.certificate_number || null,
+      declaredClearanceValidUntil: row.declared_clearance_valid_until ? String(row.declared_clearance_valid_until).slice(0, 10) : null,
+      clearanceSubmittedAt: row.barangay_clearance_submitted_at || null,
+      renewalSubmittedAt: row.renewal_submitted_at || null,
       confirmedIncidents: 0,
       flaggedForReview: false,
       centerLat: row.terminal_latitude || 13.4115,

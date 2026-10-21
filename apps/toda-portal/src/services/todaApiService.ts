@@ -103,51 +103,66 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
       .select('*', { count: 'exact', head: true })
       .eq('toda_id', data.toda_id);
 
-    const isDbActive = ['active', 'approved', 'verified', 'accredited'].includes(
-      String(data.toda_status || data.account_status || data.status || '').toLowerCase()
-    );
+    const rawStatus = String(data.toda_status || data.account_status || data.status || '').trim().toLowerCase();
+    const accreditationStatus: TodaProfile['accreditationStatus'] = ['active', 'approved', 'verified', 'accredited'].includes(rawStatus)
+      ? 'Active'
+      : rawStatus === 'resubmission required'
+        ? 'Resubmission Required'
+        : ['deactivated', 'declined', 'rejected'].includes(rawStatus)
+          ? 'Deactivated'
+          : rawStatus === 'suspended'
+            ? 'Suspended'
+            : 'Pending Verification';
+    const shortDate = (iso: string | null | undefined): string =>
+      iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const fileName = (url: string | null | undefined): string => (url ? url.split('/').pop()?.split('?')[0] || 'Uploaded file' : 'Not uploaded');
 
     return {
       id: data.toda_id,
       name: data.toda_name,
       acronym: data.toda_acronym || 'TODA',
       registrationNumber: data.registration_number || data.toda_acronym || 'TODA',
-      dateEstablished: data.date_established || '2024-01-01',
-      terminalLocation: data.terminal_location || data.service_coverage_area || 'Calapan City Terminal',
+      dateEstablished: data.date_established || '',
+      terminalLocation: data.terminal_location || data.service_coverage_area || '',
       terminalLatitude: data.terminal_latitude || null,
       terminalLongitude: data.terminal_longitude || null,
-      barangay: data.barangay || 'Calapan City',
-      serviceCoverageArea: data.service_coverage_area || 'Calapan City Corridor',
-      contactNumber: data.president_contact || data.contact_number || '+63 917 000 0000',
+      barangay: data.barangay || '',
+      serviceCoverageArea: data.service_coverage_area || '',
+      contactNumber: data.president_contact || data.contact_number || '',
       email: data.email || `${(data.toda_acronym || 'toda').toLowerCase()}@toda.sakay.internal`,
       officers: {
-        president: data.president_name || 'Association President',
+        president: data.president_name || '',
         presidentContact: data.president_contact || '',
-        vicePresident: data.vice_president_name || 'N/A',
+        vicePresident: data.vice_president_name || '',
         vicePresidentContact: data.vice_president_contact || '',
-        secretary: data.secretary_name || 'N/A',
+        secretary: data.secretary_name || '',
         secretaryContact: data.secretary_contact || '',
-        treasurer: data.treasurer_name || 'N/A',
+        treasurer: data.treasurer_name || '',
         treasurerContact: data.treasurer_contact || '',
       },
-      accreditationStatus: isDbActive ? 'Active' : 'Pending Verification',
-      accreditationExpiry: data.certificate_expiry ? new Date(data.certificate_expiry).toLocaleDateString('en-US') : 'Dec 31, 2026',
-      accreditationNo: data.certificate_number || data.toda_acronym || 'TODA',
+      accreditationStatus,
+      resubmissionReason: accreditationStatus === 'Resubmission Required' ? data.resubmission_reason || null : null,
+      declineReason: accreditationStatus === 'Deactivated' ? data.decline_reason || null : null,
+      accreditationExpiry: data.certificate_expiry ? new Date(data.certificate_expiry).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : '',
+      accreditationExpiryIso: data.certificate_expiry || null,
+      accreditationNo: data.certificate_number || '',
       permitNumber: data.toda_acronym || 'TODA',
+      declaredClearanceValidUntil: data.declared_clearance_valid_until ? String(data.declared_clearance_valid_until).slice(0, 10) : null,
+      renewalSubmittedAt: data.renewal_submitted_at || null,
       barangayClearanceFile: {
-        name: data.barangay_clearance_url ? data.barangay_clearance_url.split('/').pop()?.split('?')[0] || 'Barangay_Clearance.pdf' : 'Barangay_Clearance.pdf',
-        date: data.created_at ? new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Jan 10, 2026',
+        name: fileName(data.barangay_clearance_url),
+        date: shortDate(data.barangay_clearance_submitted_at || (data.barangay_clearance_url ? data.created_at : null)),
         url: data.barangay_clearance_url,
       },
       rosterFile: {
-        name: data.accredited_drivers_url ? data.accredited_drivers_url.split('/').pop()?.split('?')[0] || 'TODA_Driver_Roster.xlsx' : 'TODA_Driver_Roster.xlsx',
-        date: data.created_at ? new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Jan 15, 2026',
+        name: fileName(data.accredited_drivers_url),
+        date: shortDate(data.accredited_drivers_url ? data.created_at : null),
         count: data.registered_tricycle_count || driverCount || 0,
         url: data.accredited_drivers_url,
       },
       bylawsFile: {
-        name: data.bylaws_url ? data.bylaws_url.split('/').pop()?.split('?')[0] || 'TODA_Bylaws.pdf' : 'TODA_Bylaws.pdf',
-        date: data.created_at ? new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Jan 15, 2026',
+        name: fileName(data.bylaws_url),
+        date: shortDate(data.bylaws_url ? data.created_at : null),
         url: data.bylaws_url,
       },
       isOtpVerified: true,
@@ -307,70 +322,56 @@ export async function uploadTodaDocument(
   return { url: path, fileName: file.name, path, sizeBytes: file.size };
 }
 
+/** What the database said, as the sentence to show; the functions below answer { success, error } instead of raising. */
+function todaRpcResult(data: unknown, error: { message?: string } | null, fallback: string): { renewal?: boolean; toda_status?: string } {
+  if (error) throw new Error(error.message || fallback);
+  const r = data as { success?: boolean; error?: string; renewal?: boolean; toda_status?: string } | null;
+  if (!r?.success) throw new Error(r?.error || fallback);
+  return r;
+}
+
+/** The portal's own screens (the sidebar, the status banner) re-read the TODA after something changed its status or documents. */
+const TODA_PROFILE_CHANGED = 'toda-profile-changed';
+export const onTodaProfileChanged = (handler: () => void): (() => void) => {
+  window.addEventListener(TODA_PROFILE_CHANGED, handler);
+  return () => window.removeEventListener(TODA_PROFILE_CHANGED, handler);
+};
+const announceTodaProfileChanged = (): void => {
+  try {
+    window.dispatchEvent(new Event(TODA_PROFILE_CHANGED));
+  } catch {
+    // no window (tests): nothing to tell
+  }
+};
+
 /**
- * Updates a TODA compliance document URL (Barangay Clearance, Driver Roster, or Bylaws)
- * in the database and marks status as 'Pending Verification' so the LGU can verify and endorse it.
+ * Submits one compliance file (Barangay Clearance, Driver Roster or Internal Bylaws) that was already uploaded into this login's own folder.
+ * The database function decides what it means (Rule 2.1, 24.3): while the application is pending or returned it replaces the file; for an Active TODA a new
+ * Barangay Clearance is a RENEWAL: the accreditation stays as it is and the LGU Administrator is flagged to record it. A TODA cannot change its own status.
+ * A Barangay Clearance needs the date it is valid until.
  */
 export async function updateTodaComplianceDocument(
-  todaId: string,
+  _todaId: string,
   category: 'Barangay Clearance' | 'Driver Roster' | 'Internal Bylaws',
-  fileUrl: string,
-  fileName: string
-) {
-  // Columns guaranteed to exist in public.toda (no updated_at!)
-  const updatePayload: Record<string, any> = {
-    toda_status: 'Pending Verification',
-    resubmission_reason: null, // Clear any previous correction request
-  };
-
-  if (category === 'Barangay Clearance') {
-    updatePayload.barangay_clearance_url = fileUrl;
-  } else if (category === 'Driver Roster') {
-    updatePayload.accredited_drivers_url = fileUrl;
-  } else if (category === 'Internal Bylaws') {
-    updatePayload.bylaws_url = fileUrl;
-  }
-
-  let updatedData: any = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await supabase
-      .from('toda')
-      .update(updatePayload)
-      .eq('toda_id', todaId)
-      .select()
-      .maybeSingle();
-
-    if (!error) {
-      updatedData = data;
-      break;
-    }
-
-    const errMsg = (error.message || '') + ' ' + (error.details || '');
-    const match =
-      errMsg.match(/Could not find the '([^']+)' column/i) ||
-      errMsg.match(/column [^.]*\.?([a-zA-Z0-9_]+) does not exist/i);
-
-    if (match && match[1] && match[1] in updatePayload) {
-      console.warn(`[todaApiService] Column '${match[1]}' does not exist in 'toda', pruning and retrying...`);
-      delete updatePayload[match[1]];
-    } else if (errMsg.includes('toda_status') && 'toda_status' in updatePayload) {
-      delete updatePayload.toda_status;
-      updatePayload.account_status = 'Pending Verification';
-    } else {
-      console.error('[todaApiService] updateTodaComplianceDocument error:', error);
-      throw error;
-    }
-  }
-
-  await recordTodaAuditAction({
-    actionType: 'COMPLIANCE_DOCUMENT_UPDATED',
-    targetId: todaId,
-    targetName: fileName,
-    details: `Re-uploaded and submitted updated ${category} ("${fileName}") for City LGU verification and review.`,
-    category: 'Account',
+  filePath: string,
+  fileName: string,
+  validUntil?: string | null
+): Promise<{ renewal: boolean }> {
+  const { data, error } = await supabase.rpc('toda_submit_compliance_document', {
+    p_category: category,
+    p_path: filePath,
+    p_file_name: fileName,
+    p_valid_until: validUntil || null,
   });
+  const r = todaRpcResult(data, error, 'The document could not be submitted. Please try again.');
+  announceTodaProfileChanged();
+  return { renewal: Boolean(r.renewal) };
+}
 
-  return updatedData || { toda_id: todaId, status: 'Pending Verification', fileUrl };
+/** States what the TODA says its Barangay Clearance is valid until (used right after registering). Not fatal when it fails: the LGU reads the date from the document. */
+export async function declareClearanceValidity(validUntil: string): Promise<void> {
+  const { data, error } = await supabase.rpc('toda_declare_clearance_validity', { p_valid_until: validUntil });
+  todaRpcResult(data, error, 'The clearance validity date could not be saved.');
 }
 
 /**
@@ -401,6 +402,8 @@ export async function registerToda(payload: {
   password: string;
   /** the three documents; they are uploaded here, AFTER the registrant's login exists */
   files: { barangayClearance: File; driverRoster: File; bylaws: File };
+  /** what the registrant says the Barangay Clearance is valid until (YYYY-MM-DD); the LGU checks it against the document */
+  clearanceValidUntil?: string;
   registeredTricycleCount?: number;
   terminalLatitude?: number | null;
   terminalLongitude?: number | null;
@@ -486,6 +489,15 @@ export async function registerToda(payload: {
       throw new Error(detail ? `The registration could not be saved: ${detail}` : 'The registration could not be saved. Please try again.');
     }
 
+    // The validity date the registrant stated for the clearance. Not fatal when it fails: the LGU reads the real date from the document at approval.
+    if (payload.clearanceValidUntil) {
+      try {
+        await declareClearanceValidity(payload.clearanceValidUntil);
+      } catch (validityErr) {
+        console.warn('[todaApiService] The clearance validity date was not saved with the registration:', validityErr);
+      }
+    }
+
     // 4. Officers and bylaws, added to the new record by its own administrator (a missing optional column is skipped, not fatal)
     const details: Record<string, any> = {
       vice_president_name: payload.vicePresidentName?.trim() || null,
@@ -518,52 +530,14 @@ export async function registerToda(payload: {
   }
 }
 
-export async function resubmitTodaApplication(todaId: string, updatedData: any) {
-  let updatePayload: Record<string, any> = {
-    ...updatedData,
-    toda_status: 'Pending Verification',
-  };
-  delete updatePayload.updated_at;
-  delete updatePayload.terminal_location;
-
-  let updatedDataResult: any = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await supabase
-      .from('toda')
-      .update(updatePayload)
-      .eq('toda_id', todaId)
-      .select()
-      .maybeSingle();
-
-    if (!error) {
-      updatedDataResult = data;
-      break;
-    }
-
-    const errMsg = (error.message || '') + ' ' + (error.details || '');
-    const match =
-      errMsg.match(/Could not find the '([^']+)' column/i) ||
-      errMsg.match(/column [^.]*\.?([a-zA-Z0-9_]+) does not exist/i);
-
-    if (match && match[1] && match[1] in updatePayload) {
-      console.warn(`[todaApiService] Column '${match[1]}' does not exist in 'toda', pruning and retrying...`);
-      delete updatePayload[match[1]];
-    } else if (errMsg.includes('toda_status') && 'toda_status' in updatePayload) {
-      delete updatePayload.toda_status;
-      updatePayload.account_status = 'Pending Verification';
-    } else {
-      console.error('[todaApiService] resubmitTodaApplication error:', error);
-      throw error;
-    }
-  }
-
-  await recordTodaAuditAction({
-    actionType: 'TODA_APPLICATION_RESUBMITTED',
-    targetId: todaId,
-    details: `Corrected and resubmitted TODA accreditation application for '${updatedDataResult?.toda_name || todaId}'.`,
-  });
-
-  return { success: true, data: updatedDataResult };
+/**
+ * Sends an application the LGU returned for correction back into review (Pending Verification). The corrected files are submitted first with
+ * updateTodaComplianceDocument(); this is the explicit "I corrected it" step. Only the TODA's own application, and only while it is returned.
+ */
+export async function resubmitTodaApplication(note?: string): Promise<void> {
+  const { data, error } = await supabase.rpc('toda_resubmit_application', { p_note: note?.trim() || null });
+  todaRpcResult(data, error, 'The application could not be resubmitted. Please try again.');
+  announceTodaProfileChanged();
 }
 
 
@@ -1391,8 +1365,8 @@ export async function postTodaAnnouncement(
   todaId?: string
 ) {
   const effectiveTodaId = await getEffectiveTodaId(todaId);
-  const { data: { user } } = await supabase.auth.getUser();
 
+  // The database writes who posted it (created_by points at the TODA administrator's own row, not at the login id) and when.
   const { data, error } = await supabase.from('announcement').insert([
     {
       title,
@@ -1400,8 +1374,6 @@ export async function postTodaAnnouncement(
       urgency: urgency === 'High Priority' ? 'Urgent' : 'Normal',
       is_published: true,
       toda_id: effectiveTodaId,
-      created_by: user?.id || null,
-      created_at: new Date().toISOString(),
     },
   ]).select().single();
 

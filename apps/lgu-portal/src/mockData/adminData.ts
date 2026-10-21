@@ -28,6 +28,12 @@ export interface TodaApplicationRecord {
   /** False when the TODA never uploaded a Barangay Clearance (the database refuses an approval without one) */
   hasBarangayClearance?: boolean;
   certificateNumber?: string | null;
+  /** What the TODA says its Barangay Clearance is valid until (YYYY-MM-DD); the reviewer confirms it against the document */
+  declaredClearanceValidUntil?: string | null;
+  /** When the current clearance file was submitted (ISO) */
+  clearanceSubmittedAt?: string | null;
+  /** A renewed clearance of an accredited TODA that waits for the LGU Administrator to record it (ISO) */
+  renewalSubmittedAt?: string | null;
   isOverdue5Days?: boolean;
   officers?: {
     president: string;
@@ -67,6 +73,12 @@ export interface AccreditedTodaRecord {
   clearanceStatus: 'Valid' | 'Expiring Soon' | 'Expired' | 'Under Review';
   hasBarangayClearance?: boolean;
   certificateNumber?: string | null;
+  /** What the TODA says its Barangay Clearance is valid until (YYYY-MM-DD); the reviewer confirms it against the document */
+  declaredClearanceValidUntil?: string | null;
+  /** When the current clearance file was submitted (ISO) */
+  clearanceSubmittedAt?: string | null;
+  /** A renewed clearance of an accredited TODA that waits for the LGU Administrator to record it (ISO) */
+  renewalSubmittedAt?: string | null;
 
   confirmedIncidents: number;
   flaggedForReview: boolean;

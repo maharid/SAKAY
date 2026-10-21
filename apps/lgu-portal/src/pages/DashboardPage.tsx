@@ -83,6 +83,17 @@ const describeFlagDetails = (flag: any): string[] => {
   if (flag?.flag_type === 'TRIP_MANUAL_RECONCILIATION') {
     return ['Booking ' + d.booking_id + ' has been without a driver location for 30 minutes. Close it from Live Trips after contacting both parties.'];
   }
+  if (flag?.flag_type === 'TODA_RENEWAL_SUBMITTED') {
+    return [
+      (d.toda_name ?? 'A TODA') + ' sent a renewed Barangay Clearance' + (d.file_name ? ' ("' + d.file_name + '")' : '') + '.',
+      d.declared_valid_until ? 'The TODA states it is valid until ' + d.declared_valid_until + '. Read the date on the document yourself.' : 'The TODA stated no validity date: read it from the document.',
+      'Open the TODA under Accredited TODAs, check the document, then press Record Renewal. The accreditation and the certificate stay as they are until you do (Rule 24.3).',
+    ];
+  }
+  if (flag?.flag_type === 'DUPLICATE_LICENSE' || flag?.flag_type === 'DUPLICATE_PLATE' || flag?.flag_type === 'DUPLICATE_MTOP') {
+    const what = flag.flag_type === 'DUPLICATE_LICENSE' ? "Driver's License number" : flag.flag_type === 'DUPLICATE_PLATE' ? 'plate number' : 'MTOP franchise number';
+    return ['A driver application uses a ' + what + (d.number ? ' (' + d.number + ')' : '') + ' that another driver already has (Rule 3.2). The application is not auto-approved: verify the documents of both drivers.'];
+  }
   // Batch 11 (Sections 15, 19, 26; Rules 2.5, 29.19, 29.20, 29.22)
   if (flag?.flag_type === 'TODA_EXCESS_INCIDENTS') {
     return [d.upheld_reports + ' incident reports about drivers of this TODA were upheld in ' + d.window_days + ' days (the threshold is ' + d.threshold + ', Rule 2.5). Supervisory review; nothing is imposed automatically.'];
@@ -291,9 +302,9 @@ export const DashboardPage: React.FC = () => {
     passengers: { total: 0, active: 0, inactive: 0 },
     drivers: { total: 0, active: 0, inactive: 0 },
     todas: { total: 0, pendingReview: 0 },
-    trips: { total: 0, ongoing: 0, allBookings: 0 },
+    trips: { total: 0, ongoing: 0, allBookings: 0, cancelled: 0 },
     verifications: { pending: 0, overdue5Days: 0 },
-    incidents: { open: 0, total: 0 },
+    incidents: { open: 0, total: 0, resolved: 0 },
   };
 
   const flaggedTodas = stats?.flaggedTodas || [];
@@ -672,7 +683,7 @@ export const DashboardPage: React.FC = () => {
               {isLoading ? <CircularProgress size={20} /> : kpis.trips.total.toLocaleString()}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
-              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.trips.ongoing} In Transit</span> • {kpis.trips.allBookings} Total
+              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.trips.ongoing} In Transit</span> • <span style={{ fontWeight: 600, color: '#D93025' }}>{kpis.trips.cancelled} Cancelled</span> • {kpis.trips.allBookings} Total
             </Typography>
           </CardContent>
         </Card>
@@ -730,7 +741,7 @@ export const DashboardPage: React.FC = () => {
               {isLoading ? <CircularProgress size={20} /> : kpis.incidents.open.toLocaleString()}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
-              {kpis.incidents.total} Total Complaints
+              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.incidents.resolved} Resolved</span> • {kpis.incidents.total} Total Complaints
             </Typography>
           </CardContent>
         </Card>

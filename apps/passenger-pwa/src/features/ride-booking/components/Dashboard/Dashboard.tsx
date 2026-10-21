@@ -306,11 +306,13 @@ const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    // an announcement is for everybody or for passengers (not the ones meant for drivers or TODA administrators), and only a published one
+    // an announcement is for everybody or for passengers (not the ones meant for drivers or TODA administrators), only a published one, and only a city-wide one:
+    // a TODA's notices are for that TODA's members, and a passenger belongs to no TODA (the database applies the same rule)
     void supabase
       .from("announcement")
       .select("*")
       .or("target_audience.is.null,target_audience.in.(All,Passenger)")
+      .is("toda_id", null)
       .neq("is_published", false)
       .order("created_at", { ascending: false })
       .limit(20)
