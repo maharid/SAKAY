@@ -3,11 +3,16 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+// The number to check is passed on the command line, never written in this file: npx tsx scripts/verifyPhone.ts 09XXXXXXXXX
+const phone: string = process.argv[2] ?? '';
+if (!phone) {
+  console.error('Usage: npx tsx scripts/verifyPhone.ts <mobile number, e.g. 09XXXXXXXXX>');
+  process.exit(1);
+}
+
 const supabaseUrl = process.env.VITE_SUPABASE_URL as string;
 const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string;
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-const phone = '09606938525';
 
 async function verify() {
   const { data: passenger, error: pErr } = await supabase
