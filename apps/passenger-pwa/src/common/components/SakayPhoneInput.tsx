@@ -73,7 +73,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
     const val = e.target.value;
     const cleanD10 = extractPhDigits10(val);
     setDigits10(cleanD10);
-    // Emits standard 11-digit national phone string starting with 09 (e.g. 09350357698)
+    // Emits standard 11-digit national phone string starting with 09 (e.g. 09123456789)
     const fullNational = cleanD10 ? (cleanD10.startsWith('0') ? cleanD10 : `0${cleanD10}`) : '';
     onChange(fullNational);
   };

@@ -1,6 +1,13 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', 'server', '.env') });
 const { Client } = require('pg');
 
-const DATABASE_URL = "postgresql://postgres:S@k@y_@rangk@d@@db.thxcltvgwwluvsfpciyr.supabase.co:5432/postgres";
+// The connection string is read from DATABASE_URL (server/.env or the shell). It must never be written in this file.
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Put it in server/.env (not committed) or set it for this terminal window.');
+  process.exit(1);
+}
 
 async function forceDeletePhone(inputPhone) {
   const client = new Client({
@@ -108,7 +115,7 @@ async function forceDeletePhone(inputPhone) {
 
 const inputPhone = process.argv[2];
 if (!inputPhone) {
-  console.log("Please provide a phone number as an argument. Example: node forceDeletePhoneSql.js '0960 693 8525'");
+  console.log("Please provide a phone number as an argument. Example: node forceDeletePhoneSql.js '09XX XXX XXXX'");
   process.exit(1);
 }
 
