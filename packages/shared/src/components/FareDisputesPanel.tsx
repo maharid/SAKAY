@@ -32,9 +32,9 @@ export interface FareDisputesPanelProps {
 }
 
 const KIND_LABELS: Record<FareDisputeRow['kind'], string> = {
-  FARE_DISCREPANCY: 'Fare discrepancy reported by the passenger (Rule 18.4)',
-  SAFETY_REVIEW: 'Review of a Safety Concern early end - provisional fare (Rule 13.5)',
-  NON_PAYMENT: 'The driver reports the confirmed fare was not paid (Rule 18.6)',
+  FARE_DISCREPANCY: 'Fare discrepancy reported by the passenger',
+  SAFETY_REVIEW: 'Review of a Safety Concern early end - provisional fare',
+  NON_PAYMENT: 'The driver reports the confirmed fare was not paid',
 };
 const OUTCOME_LABELS: Record<string, string> = {
   FARE_CONFIRMED: 'Confirm the fare (it stands)',
@@ -140,7 +140,7 @@ export const FareDisputesPanel: React.FC<FareDisputesPanelProps> = ({ role, disp
   return (
     <Paper elevation={0} sx={{ mb: 3, borderRadius: '16px', border: '1px solid #FDBA74', backgroundColor: '#FFF7ED', overflow: 'hidden' }}>
       <Box sx={{ p: '16px 20px', borderBottom: '1px solid #FED7AA' }}>
-        <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#9A3412' }}>Fare disputes ({open.length} waiting) - Rules 13.5, 18.4, 18.6</Typography>
+        <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#9A3412' }}>Fare disputes ({open.length} waiting)</Typography>
         <Typography sx={{ fontSize: '12.5px', color: '#7C2D12', mt: 0.5, lineHeight: 1.45 }}>
           {role === 'toda_admin'
             ? 'Read both statements, contact the parties if you need to, then decide within 2 business days, or escalate to the LGU Administrator. The payment stays disputed until you decide.'

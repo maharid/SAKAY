@@ -60,7 +60,7 @@ export const ReportDriverAvailabilityDialog: React.FC<ReportDriverAvailabilityDi
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report a driver (Rules 5.3 / 5.7)</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report a driver</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
         <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
           This files a report only. A strike is issued only when an administrator confirms it, after checking the terminal queue, the dispatch log or the passenger's account.
@@ -69,7 +69,7 @@ export const ReportDriverAvailabilityDialog: React.FC<ReportDriverAvailabilityDi
           {drivers.map((d) => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
         </TextField>
         <TextField select size="small" label="What was seen" value={kind} onChange={(e) => setKind(e.target.value as AvailabilityKind)} fullWidth>
-          {AVAILABILITY_KINDS.map((k) => <MenuItem key={k.kind} value={k.kind}>{k.en} ({k.rule})</MenuItem>)}
+          {AVAILABILITY_KINDS.map((k) => <MenuItem key={k.kind} value={k.kind}>{k.en}</MenuItem>)}
         </TextField>
         <TextField multiline minRows={3} size="small" label="What you observed (where, when, what the driver did)" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth />
         {error && <Alert severity="error" sx={{ borderRadius: '10px' }}>{error}</Alert>}

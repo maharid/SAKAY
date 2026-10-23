@@ -41,7 +41,7 @@ const Stat: React.FC<{ label: string; value: React.ReactNode }> = ({ label, valu
  */
 export const DeclineHistoryDialog: React.FC<DeclineHistoryDialogProps> = ({ open, onClose, driverName, history, loading, failed }) => (
   <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-    <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Booking offers of {driverName} (Rule 7.9)</DialogTitle>
+    <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Booking offers of {driverName}</DialogTitle>
     <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress size={28} /></Box>}
       {failed && !loading && <Alert severity="warning">The history could not be read. It is available only for a driver of your own TODA, or to the LGU Administrator.</Alert>}

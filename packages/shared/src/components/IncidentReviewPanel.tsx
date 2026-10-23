@@ -155,7 +155,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
       )}
       {readOnlyForToda && !decided && !withdrawn && (
         <Alert severity="warning">
-          This report is with the LGU Administrator ({incident.priority === 'Serious' ? 'Rule 19.8: assault, harassment, threats and crime go straight to the LGU' : 'escalated'}). You can read it; only the LGU decides it.
+          This report is with the LGU Administrator ({incident.priority === 'Serious' ? 'assault, harassment, threats and crime go straight to the LGU' : 'escalated'}). You can read it; only the LGU decides it.
         </Alert>
       )}
       {message && <Alert severity={message.severity}>{message.text}</Alert>}
@@ -193,7 +193,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <TextField size="small" multiline rows={2} fullWidth label="Why (at least 10 characters)" value={reason} onChange={(e) => setReason(e.target.value)} />
               <FormControlLabel control={<Checkbox size="small" checked={serious} onChange={(e) => setSerious(e.target.checked)} />}
-                label={<Typography sx={{ fontSize: '13px' }}>This describes an assault, harassment, a threat or a crime (Rule 19.8): reclassify it as serious</Typography>} />
+                label={<Typography sx={{ fontSize: '13px' }}>This describes an assault, harassment, a threat or a crime: reclassify it as serious</Typography>} />
               <Button size="small" variant="contained" color="error" disabled={flight.busy || reason.trim().length < 10} onClick={() => void run(() => onEscalate(reason.trim(), serious), 'The report was sent to the LGU Administrator.')} sx={{ textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}>
                 {flight.busy ? 'Sending...' : 'Send to the LGU Administrator'}
               </Button>
@@ -203,7 +203,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
           {mode === 'refer' && onRefer && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography sx={{ fontSize: '12.5px', color: '#475569', lineHeight: 1.5 }}>
-                The report goes back to the TODA Administrator of the driver's TODA, who is told and has a fresh time to act. It is recorded in the audit log under your name. A serious report (Rule 19.8) cannot be referred.
+                The report goes back to the TODA Administrator of the driver's TODA, who is told and has a fresh time to act. It is recorded in the audit log under your name. A serious report cannot be referred.
               </Typography>
               <TextField size="small" multiline rows={2} fullWidth label="Why it goes back to the TODA (at least 10 characters)" value={reason} onChange={(e) => setReason(e.target.value)} />
               <Button size="small" variant="contained" disabled={flight.busy || reason.trim().length < 10} onClick={() => void run(() => onRefer(reason.trim()), 'The report was referred to the TODA Administrator.')} sx={{ textTransform: 'none', fontWeight: 700, alignSelf: 'flex-start' }}>
@@ -215,7 +215,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
           {mode === 'lost' && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography sx={{ fontSize: '12.5px', color: '#475569', lineHeight: 1.5 }}>
-                Rule 29.19: connect the passenger and the driver by phone or SMS (their numbers are in the trip details), then record what came of it. No strike for either party (Rule 19.6).
+                Connect the passenger and the driver by phone or SMS (their numbers are in the trip details), then record what came of it. No strike for either party.
               </Typography>
               <TextField select size="small" fullWidth label="Status" value={lostStatus} onChange={(e) => setLostStatus(e.target.value as Exclude<LostItemStatus, 'Open'>)}>
                 {LOST_ITEM_STEPS.map((s) => (
@@ -240,7 +240,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
               </TextField>
               {(outcome === 'UPHELD' || outcome === 'FABRICATED') && (
                 <>
-                  <TextField select size="small" fullWidth label={outcome === 'FABRICATED' ? 'Strike on the REPORTER (Rule 19.5)' : 'Strike (Rule 19.4: only when you confirm it)'} value={strike} onChange={(e) => { setStrike(e.target.value); setPoints(''); }}>
+                  <TextField select size="small" fullWidth label={outcome === 'FABRICATED' ? 'Strike on the REPORTER' : 'Strike (only when you confirm it)'} value={strike} onChange={(e) => { setStrike(e.target.value); setPoints(''); }}>
                     <MenuItem value="">No strike: record the outcome only</MenuItem>
                     {options.map((o) => (
                       <MenuItem key={o.code} value={o.code} disabled={role === 'toda_admin' && o.lguOnly}>
@@ -260,7 +260,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
               )}
               {outcome === 'UPHELD' && (klass === 'SERIOUS' || klass === 'EMERGENCY') && (
                 <Typography sx={{ fontSize: '12px', color: '#64748B', lineHeight: 1.5 }}>
-                  The reporter is the confirmed victim of a safety incident: any strike of theirs from the trip's own events (a no-show, a late cancellation) is removed (Rule 26.4).
+                  The reporter is the confirmed victim of a safety incident: any strike of theirs from the trip's own events (a no-show, a late cancellation) is removed.
                 </Typography>
               )}
               <TextField size="small" multiline rows={3} fullWidth label="Findings and reason (at least 10 characters)" value={note} onChange={(e) => setNote(e.target.value)} />

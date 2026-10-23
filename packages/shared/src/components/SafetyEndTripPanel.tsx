@@ -63,7 +63,7 @@ export const SafetyEndTripPanel: React.FC<SafetyEndTripPanelProps> = ({ trips, o
         <Box sx={{ flex: 1, minWidth: 240 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '15px', color: '#0F172A' }}>End a trip for safety</Typography>
           <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5 }}>
-            A driver who was detained or arrested, a driver who became ill, an accident, or a passenger in danger (Rules 29.20 - 29.22): you end the trip, nobody is struck.
+            A driver who was detained or arrested, a driver who became ill, an accident, or a passenger in danger: you end the trip, nobody is struck.
           </Typography>
         </Box>
         <Button variant={open ? 'outlined' : 'contained'} color="error" onClick={() => setOpen(!open)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', boxShadow: 'none' }}>
@@ -90,7 +90,7 @@ export const SafetyEndTripPanel: React.FC<SafetyEndTripPanelProps> = ({ trips, o
             helperText="The passenger pays the distance travelled at most (the system computes it).">
             <MenuItem value="">Leave the trip open: the passenger confirms the fare, the payment is recorded as usual</MenuItem>
             <MenuItem value="Paid">Close it now: the cash was received (Paid)</MenuItem>
-            <MenuItem value="Waived">Close it now: no fare (Waived, Rule 26.3)</MenuItem>
+            <MenuItem value="Waived">Close it now: no fare (Waived)</MenuItem>
           </TextField>
           {message && message.severity === 'error' && <Alert severity="error">{message.text}</Alert>}
           {!confirming ? (

@@ -174,7 +174,7 @@ export const TripReconciliationPanel: React.FC<TripReconciliationPanelProps> = (
     <Paper elevation={0} sx={{ mb: 3, borderRadius: '16px', border: '1px solid #FCD34D', backgroundColor: '#FFFBEB', overflow: 'hidden' }}>
       <Box sx={{ p: '16px 20px', borderBottom: '1px solid #FDE68A' }}>
         <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#92400E' }}>
-          Trips waiting for manual reconciliation ({trips.length}) — Rule 9.5
+          Trips waiting for manual reconciliation ({trips.length})
         </Typography>
         <Typography sx={{ fontSize: '12.5px', color: '#78350F', mt: 0.5, lineHeight: 1.45 }}>
           The driver of each trip below has sent no location for 30 minutes while the passenger was on board, so the system did not cancel it. Phone or text
@@ -274,11 +274,11 @@ export const TripReconciliationPanel: React.FC<TripReconciliationPanelProps> = (
       </Dialog>
 
       <Dialog open={reporting !== null} onClose={() => setReporting(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report a deliberate offline (Rule 9.6)</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report a deliberate offline</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
           <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>
             Only when there is evidence that {reporting?.driverName} switched off on purpose to avoid completing a booking. The LGU Administrator confirms the
-            report (2 strikes, with no appeal under Rule 9.4) or dismisses it. The driver&apos;s recent interruptions are attached to the report automatically.
+            report (2 strikes, with no appeal) or dismisses it. The driver&apos;s recent interruptions are attached to the report automatically.
           </Typography>
           <TextField select size="small" label="Evidence" value={evidence} onChange={(e) => setEvidence(e.target.value as DeliberateOfflineEvidence)} fullWidth>
             {DELIBERATE_OFFLINE_EVIDENCE.map((e) => (

@@ -30,11 +30,11 @@ export const fileUrgentSafetyReport = (client: RpcCapableClient, bookingId: stri
 
 // ---- the administrator ends a trip for safety (Rules 29.20 - 29.22, 26.3) -------------------------------------------------------------------------------------
 export const SAFETY_END_REASONS = [
-  { code: 'driver_detained', en: 'The driver was detained or arrested', note: 'The driver is held for the TODA and LGU review (Rule 29.20).' },
-  { code: 'driver_incapacitated', en: 'The driver is medically incapacitated', note: 'No strike; the TODA reviews it (Rule 29.22).' },
-  { code: 'accident', en: 'There was an accident', note: 'No automatic strike (Rule 15.5).' },
-  { code: 'passenger_in_danger', en: 'The passenger is in danger', note: 'Rule 26.2.' },
-  { code: 'emergency', en: 'Another emergency', note: 'Rule 26.3.' },
+  { code: 'driver_detained', en: 'The driver was detained or arrested', note: 'The driver is held for the TODA and LGU review.' },
+  { code: 'driver_incapacitated', en: 'The driver is medically incapacitated', note: 'No strike; the TODA reviews it.' },
+  { code: 'accident', en: 'There was an accident', note: 'No automatic strike.' },
+  { code: 'passenger_in_danger', en: 'The passenger is in danger', note: '' },
+  { code: 'emergency', en: 'Another emergency', note: '' },
 ] as const;
 export type SafetyEndReason = (typeof SAFETY_END_REASONS)[number]['code'];
 export interface SafetyEnd {
@@ -117,7 +117,7 @@ export const shareLifetimeText = (language: SafetyLanguage): string =>
 export const CALAMITY_KINDS = ['Typhoon', 'Flood', 'Earthquake', 'Road Closure', 'Declared Emergency', 'Other'] as const;
 export type CalamityKind = (typeof CALAMITY_KINDS)[number];
 export const CALAMITY_SCOPES = [
-  { code: 'CANCEL_STALL_NOSHOW', en: 'Cancellations, stalls and no-shows (Rule 29.6)' },
+  { code: 'CANCEL_STALL_NOSHOW', en: 'Cancellations, stalls and no-shows' },
   { code: 'ALL', en: 'Every violation that can be paused (serious and safety violations never are)' },
 ] as const;
 export type CalamityScope = (typeof CALAMITY_SCOPES)[number]['code'];
