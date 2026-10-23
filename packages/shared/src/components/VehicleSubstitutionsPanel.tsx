@@ -77,7 +77,7 @@ export const VehicleSubstitutionsPanel: React.FC<VehicleSubstitutionsPanelProps>
 
   return (
     <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: '16px', border: '1px solid #E2E8F0' }}>
-      <Typography sx={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', mb: 0.5 }}>Vehicle substitution requests (Rule 29.18)</Typography>
+      <Typography sx={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', mb: 0.5 }}>Vehicle substitution requests</Typography>
       <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5, mb: 1.5 }}>
         A driver may use another vehicle only after the TODA Administrator and then the LGU Administrator approve, for 1 to 7 days. Check the unit and its franchise before you approve:
         {role === 'lgu_admin' ? ' your approval puts the substitute in place until the days are over.' : ' your approval sends it to the LGU Administrator.'}

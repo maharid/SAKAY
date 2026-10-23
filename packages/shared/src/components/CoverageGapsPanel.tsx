@@ -25,7 +25,7 @@ const manila = (iso: string): string => {
  */
 export const CoverageGapsPanel: React.FC<CoverageGapsPanelProps> = ({ gaps, audience, loading = false }) => (
   <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: '16px', border: '1px solid #E2E8F0' }}>
-    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', mb: 0.5 }}>Coverage gaps (Rule 7.10)</Typography>
+    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', mb: 0.5 }}>Coverage gaps</Typography>
     <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5, mb: 1.5 }}>
       A zone is logged when {gaps?.events[0]?.threshold ?? 5} or more bookings reach the live search or end with no driver found within {gaps?.events[0]?.windowHours ?? 24} hours. For service
       planning and resource allocation only: nobody is penalised.{audience === 'toda_admin' ? ' You see your own zone.' : ''}
