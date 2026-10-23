@@ -114,7 +114,7 @@ export const AppealsPage: React.FC = () => {
 
   const cards = [
     { key: 'Waiting for the LGU', label: 'Waiting for the LGU', count: waiting.length, note: 'Passenger appeals, and driver appeals escalated to you', color: 'var(--sakay-orange)', Icon: HourglassEmptyIcon },
-    { key: 'Overdue', label: 'Overdue', count: overdue.length, note: 'Past the three business days (Rule 25.6)', color: '#B91C1C', Icon: ScheduleIcon },
+    { key: 'Overdue', label: 'Overdue', count: overdue.length, note: 'Past the three business days', color: '#B91C1C', Icon: ScheduleIcon },
     { key: 'With a TODA', label: 'With a TODA', count: withToda.length, note: 'Drivers\' appeals the TODA is still reviewing', color: '#1565C0', Icon: GavelIcon },
     { key: 'Decided', label: 'Decided', count: decided.length, note: 'Full or partial waiver, or denied', color: '#2E7D32', Icon: CheckCircleIcon },
   ];

@@ -61,7 +61,7 @@ export const TripCorrectionSection: React.FC<TripCorrectionSectionProps> = ({ bo
 
   return (
     <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid var(--mac-border-color)' }}>
-      <SectionTitle>{closing ? 'Close this trip (Payment Received was never tapped)' : 'Administrative correction (Rule 16.3)'}</SectionTitle>
+      <SectionTitle>{closing ? 'Close this trip (Payment Received was never tapped)' : 'Administrative correction'}</SectionTitle>
       <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 2 }}>
         {closing
           ? 'Contact the driver and the passenger first, then close the trip as Paid (the cash was received) or Waived (no fare). The reason says who was reached and what they said. Both are told.'

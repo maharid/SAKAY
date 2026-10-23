@@ -130,14 +130,14 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
             <Alert severity={appeal.status === 'Denied' ? 'error' : 'success'} sx={{ borderRadius: '10px' }}>
               <strong>{appeal.status}</strong>
               {appeal.pointsWaived !== null && appeal.status !== 'Denied' ? ` (${appeal.pointsWaived} point(s) removed)` : ''}
-              {appeal.autoDenied ? ' - denied by the system: the same cause was used three times in 30 days (Rule 25.7)' : ''}
+              {appeal.autoDenied ? ' - denied by the system: the same cause was used three times in 30 days' : ''}
               {appeal.decisionReason ? `: ${appeal.decisionReason}` : ''}
             </Alert>
           )}
 
           {pending && !mine && (
             <Alert severity="info" sx={{ borderRadius: '10px' }}>
-              This appeal is with the TODA Administrator of the driver (Rule 25.4). It comes here only if the TODA escalates it, or if it involves a suspension or deactivation, or the TODA is a party to the dispute.
+              This appeal is with the TODA Administrator of the driver. It comes here only if the TODA escalates it, or if it involves a suspension or deactivation, or the TODA is a party to the dispute.
             </Alert>
           )}
 

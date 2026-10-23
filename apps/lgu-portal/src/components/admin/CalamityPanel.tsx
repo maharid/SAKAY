@@ -94,7 +94,7 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
         ) : (
           <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', lineHeight: 1.5, mt: 0.5 }}>
             When a typhoon, a flood, an earthquake, a road closure or an officially declared emergency disrupts trips, publish a platform-wide announcement and suspend strikes for
-            cancellations, stalls and no-shows (Rules 15.4 and 29.6) in ONE recorded action, instead of waiving them case by case.
+            cancellations, stalls and no-shows in ONE recorded action, instead of waiving them case by case.
           </Typography>
         )}
         {done && <Alert severity="success" sx={{ mt: 1.5 }} onClose={() => setDone(null)}>{done}</Alert>}

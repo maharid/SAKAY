@@ -554,7 +554,7 @@ export const PassengerManagementPage: React.FC = () => {
                       "{fb.comment}"
                     </Typography>
                     {fb.excluded && (
-                      <Typography sx={{ fontSize: '10.4px', fontWeight: 700, color: '#92400E', mt: 0.5 }}>Excluded from the Average Rating (Rule 23.5)</Typography>
+                      <Typography sx={{ fontSize: '10.4px', fontWeight: 700, color: '#92400E', mt: 0.5 }}>Excluded from the Average Rating</Typography>
                     )}
                     {fb.ratingId && (
                       <Button size="small" variant="outlined" onClick={() => setExcludeTarget({ ratingId: fb.ratingId as string, excluded: Boolean(fb.excluded) })} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '10px', mt: 0.5 }}>
@@ -631,7 +631,7 @@ export const PassengerManagementPage: React.FC = () => {
         title={excludeTarget?.excluded ? 'Count this rating again' : 'Exclude this rating'}
         message={excludeTarget?.excluded
           ? 'The rating will count in the Average Rating again.'
-          : 'Only a rating that was submitted maliciously or in retaliation, found so after an investigation, is excluded (Rule 23.5). It leaves both the total and the count of the Average Rating.'}
+          : 'Only a rating that was submitted maliciously or in retaliation, found so after an investigation, is excluded. It leaves both the total and the count of the Average Rating.'}
         confirmLabel={excludeTarget?.excluded ? 'Count again' : 'Exclude rating'}
         confirmVariant="danger"
         requireReason
