@@ -1033,7 +1033,7 @@ export const MOCK_INCIDENT_REPORTS_DETAILED: IncidentReportRecord[] = [
     status: 'Dismissed',
     description: 'Passenger refused to board after driver arrived within 2 minutes of booking acceptance.',
     evidenceFiles: [],
-    findings: 'Unfounded claim; passenger cancelled within the 1-minute grace period (Rule 12.1). Report dismissed.',
+    findings: 'Unfounded claim; passenger cancelled within the 1-minute grace period. Report dismissed.',
     relatedIncidentsCount: 0,
     statusHistory: [
       { step: 'Report Submitted by Driver', timestamp: 'May 08, 2026 • 08:10 PM', actor: 'Aurelio Bautista' },

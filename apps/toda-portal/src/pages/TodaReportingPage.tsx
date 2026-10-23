@@ -640,7 +640,7 @@ export const TodaReportingPage: React.FC = () => {
 
             <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
               <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
-                The trip (Rule 19.2)
+                The trip
               </Typography>
               <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
                 Trip {selectedIncident.tripId.slice(0, 8).toUpperCase()} · {selectedIncident.route}

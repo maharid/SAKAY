@@ -108,7 +108,7 @@ export const DispatchSettingsCard: React.FC = () => {
           <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Driver Search Settings</Typography>
         </Box>
         {message && <Alert severity={message.type}>{message.text}</Alert>}
-        {row('offer_window_seconds', 'Offer response window', 'How long one driver has to accept or decline an offer (Rule 7.3).', offerWindow, setOfferWindow,
+        {row('offer_window_seconds', 'Offer response window', 'How long one driver has to accept or decline an offer.', offerWindow, setOfferWindow,
           settings.offerWindowSeconds, settings.defaults.offerWindowSeconds, settings.limits.offerWindowSeconds)}
         {row('tier3_max_seconds', 'Longest search', 'How long the live search widens before the booking becomes "No Driver Found".', tier3Max, setTier3Max,
           settings.tier3MaxSeconds, settings.defaults.tier3MaxSeconds, settings.limits.tier3MaxSeconds)}

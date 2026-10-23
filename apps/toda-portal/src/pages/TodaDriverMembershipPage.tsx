@@ -648,7 +648,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
                 Official TODA Master Roster Registry
               </Typography>
               <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-secondary)', mt: 0.5 }}>
-                Pre-accredited drivers, vehicle plates, and franchise numbers. Driver applicants matching this registry pass Rule 2.4 screening.
+                Pre-accredited drivers, vehicle plates, and franchise numbers. Driver applicants matching this registry pass roster screening.
               </Typography>
             </Box>
             <Button
@@ -720,7 +720,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell sx={{ py: 2, px: 3 }}>
-                        <Chip label="Rule 2.4 Active Roster" size="small" sx={{ backgroundColor: '#E6F4EA', color: '#137333', fontWeight: 600, fontSize: '11px' }} />
+                        <Chip label="Active Roster" size="small" sx={{ backgroundColor: '#E6F4EA', color: '#137333', fontWeight: 600, fontSize: '11px' }} />
                       </TableCell>
                       <TableCell sx={{ py: 2, px: 3 }} align="right">
                         <Button
@@ -902,7 +902,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
       {/* Add Master Roster Member Dialog (Rule 2.4) */}
       <Dialog open={rosterAddModalOpen} onClose={() => setRosterAddModalOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>
-          Add Official Master Roster Entry (Rule 2.4)
+          Add Official Master Roster Entry
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', mb: 2 }}>

@@ -876,11 +876,11 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             })}
             {driver.isPermanentlyDisqualified ? (
               <Alert severity="error" sx={{ mt: 1.5, borderRadius: '10px' }}>
-                Permanently disqualified (Rule 3.9): this applicant can never be cleared to re-apply.{driver.disqualificationReason ? ` Reason: ${driver.disqualificationReason}` : ''}
+                Permanently disqualified: this applicant can never be cleared to re-apply.{driver.disqualificationReason ? ` Reason: ${driver.disqualificationReason}` : ''}
               </Alert>
             ) : (
               <Button size="small" color="error" variant="text" onClick={() => setDisqualifyOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '11.5px', mt: 0.5, px: 0 }}>
-                Permanently disqualify this applicant (Rule 3.9)
+                Permanently disqualify this applicant
               </Button>
             )}
             <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
@@ -1156,7 +1156,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <ActionButton
-                  label="Booking offers (Rule 7.9)"
+                  label="Booking offers"
                   showArrow={false}
                   onClick={openDeclineHistory}
                   sx={{ height: 32, fontSize: '12px' }}
@@ -1297,7 +1297,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.vehiclePlate || 'Not recorded'}</Typography>
             </Box>
             <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Registered MTOP Operator (Rule 3.3)</Typography>
+              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Registered MTOP Operator</Typography>
               <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopOperatorName || 'Not recorded'}</Typography>
             </Box>
           </Box>
@@ -1322,7 +1322,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <VerifiedUserIcon sx={{ color: '#D97706', fontSize: 20 }} />
                 <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase' }}>
-                  Pending Document Renewal Application (Rule 24.2)
+                  Pending Document Renewal Application
                 </Typography>
               </Box>
               <Chip label="Pending LGU Verification" size="small" sx={{ backgroundColor: '#FEF3C7', color: '#92400E', fontWeight: 600, fontSize: '11px' }} />
@@ -1483,7 +1483,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         title={rosterOverrideNeeded ? 'Approve despite the Roster Mismatch?' : 'Approve Stage 2 Driver Verification?'}
         message={
           rosterOverrideNeeded
-            ? `"${driver.name}" is NOT on the ${decisionTodaLabel} master roster (open Roster Mismatch flag, Rule 2.4). You may still approve, but you must write why. The reason is recorded on the flag and in the audit log under your name.`
+            ? `"${driver.name}" is NOT on the ${decisionTodaLabel} master roster (open Roster Mismatch flag). You may still approve, but you must write why. The reason is recorded on the flag and in the audit log under your name.`
             : `Authorize driver "${driver.name}" (${decisionTodaLabel}) for official franchise operations in Calapan City.`
         }
         confirmLabel={rosterOverrideNeeded ? 'Approve with Override' : 'Approve Driver'}
@@ -1536,7 +1536,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
         <DialogContent sx={{ p: '24px !important', maxHeight: '65vh', overflowY: 'auto' }}>
           <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 2.5 }}>
-            Review the flagged document issues below before returning the application for <strong>{driver.name}</strong> ({driver.todaName}) under <strong>Rule 3.8 Return Flow</strong>. The driver will only be required to correct and re-upload the flagged document(s).
+            Review the flagged document issues below before returning the application for <strong>{driver.name}</strong> ({driver.todaName}) under the <strong>Return Flow</strong>. The driver will only be required to correct and re-upload the flagged document(s).
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -2074,7 +2074,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         open={reapplyTarget !== null}
         onClose={() => setReapplyTarget(null)}
         title="Allow this applicant to apply again?"
-        message="A rejection is final unless the LGU Administrator allows the applicant to be reviewed again (Rule 3.9). The application goes back to Submitted for its TODA. The earlier rejection reasons and your reason are kept in the audit log."
+        message="A rejection is final unless the LGU Administrator allows the applicant to be reviewed again. The application goes back to Submitted for its TODA. The earlier rejection reasons and your reason are kept in the audit log."
         confirmLabel="Allow re-application"
         confirmVariant="orange"
         requireReason
@@ -2099,7 +2099,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         open={disqualifyOpen}
         onClose={() => setDisqualifyOpen(false)}
         title="Permanently disqualify this applicant?"
-        message={`"${driver.name}" can never be cleared to re-apply, and every application is rejected (Rule 3.9). Use this only for fraud, falsified documents or a comparable ground. It cannot be undone.`}
+        message={`"${driver.name}" can never be cleared to re-apply, and every application is rejected. Use this only for fraud, falsified documents or a comparable ground. It cannot be undone.`}
         confirmLabel="Disqualify permanently"
         confirmVariant="danger"
         requireReason

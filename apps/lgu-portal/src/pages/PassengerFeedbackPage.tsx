@@ -254,7 +254,7 @@ export const PassengerFeedbackPage: React.FC = () => {
                 PASSENGER FEEDBACK COMMENT
               </TableCell>
               <TableCell align="right" sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
-                RULE 23.5
+                ACTION
               </TableCell>
             </TableRow>
           </TableHead>
@@ -319,7 +319,7 @@ export const PassengerFeedbackPage: React.FC = () => {
                     )}
                     {item.isExcluded && (
                       <Typography sx={{ fontSize: '9.3px', color: '#92400E', fontWeight: 700, mt: '4px' }}>
-                        Excluded from the Average Rating (Rule 23.5)
+                        Excluded from the Average Rating
                       </Typography>
                     )}
                   </TableCell>
@@ -354,7 +354,7 @@ export const PassengerFeedbackPage: React.FC = () => {
         title={excludeTarget?.isExcluded ? 'Count this rating again' : 'Exclude this rating'}
         message={excludeTarget?.isExcluded
           ? 'The rating will count in the Average Rating again.'
-          : 'Only a rating that was submitted maliciously or in retaliation, found so after an investigation, is excluded (Rule 23.5). It leaves both the total and the count of the Average Rating.'}
+          : 'Only a rating that was submitted maliciously or in retaliation, found so after an investigation, is excluded. It leaves both the total and the count of the Average Rating.'}
         confirmLabel={excludeTarget?.isExcluded ? 'Count again' : 'Exclude rating'}
         confirmVariant="danger"
         requireReason

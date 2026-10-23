@@ -127,7 +127,7 @@ export const IncidentReportsPage: React.FC = () => {
   ];
   const priorityOptions: FilterOption[] = [
     { label: 'All Priorities', value: 'All' },
-    { label: 'Serious (Rule 19.8)', value: 'Serious' },
+    { label: 'Serious', value: 'Serious' },
     { label: 'Emergency', value: 'Emergency' },
     { label: 'Standard', value: 'Standard' },
   ];
@@ -272,7 +272,7 @@ export const IncidentReportsPage: React.FC = () => {
                     <Typography sx={{ fontSize: '10px', color: 'var(--sakay-orange)', fontWeight: 600, mt: '3px' }}>{inc.category}</Typography>
                     {inc.priority && inc.priority !== 'Standard' && (
                       <Typography sx={{ fontSize: '10px', fontWeight: 700, mt: '2px', color: inc.priority === 'Serious' ? '#991B1B' : '#9A3412' }}>
-                        {inc.priority === 'Serious' ? 'SERIOUS (Rule 19.8)' : 'EMERGENCY'}
+                        {inc.priority === 'Serious' ? 'SERIOUS' : 'EMERGENCY'}
                       </Typography>
                     )}
                     {inc.overdue && <Typography sx={{ fontSize: '10px', fontWeight: 700, mt: '2px', color: '#B91C1C' }}>OVERDUE</Typography>}

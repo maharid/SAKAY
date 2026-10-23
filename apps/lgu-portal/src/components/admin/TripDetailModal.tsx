@@ -266,7 +266,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
           </Box>
           {trip.fareDeviation && (
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Route deviation (Rule 6.2.4)</Typography>
+              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Route deviation</Typography>
               <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#C25E00' }}>Recorded: the fare follows the distance travelled</Typography>
             </Box>
           )}
@@ -283,7 +283,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
           </Box>
           <Box sx={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', padding: '16px 20px', borderRadius: '12px' }}>
             {noDriver ? (
-              <Typography sx={{ fontSize: '11.6px', color: '#7F1D1D' }}>Every eligible driver declined, did not answer, or none was available. No strike applies to anyone (Rule 7.4).</Typography>
+              <Typography sx={{ fontSize: '11.6px', color: '#7F1D1D' }}>Every eligible driver declined, did not answer, or none was available. No strike applies to anyone.</Typography>
             ) : (
               <>
                 <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#7F1D1D' }}>

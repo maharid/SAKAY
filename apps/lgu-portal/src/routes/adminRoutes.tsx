@@ -144,7 +144,7 @@ export const AdminRoutes: React.FC = () => {
         path="/vehicle-substitutions"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Vehicle Substitutions" pageSubtitle="Approve a driver's request to use another vehicle for a few days (Rule 29.18).">
+            <AdminLayout pageTitle="Vehicle Substitutions" pageSubtitle="Approve a driver's request to use another vehicle for a few days.">
               <VehicleSubstitutionsPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -155,7 +155,7 @@ export const AdminRoutes: React.FC = () => {
         path="/appeals"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Strike Appeals" pageSubtitle="Decide the appeals of passengers and the driver appeals the TODAs escalate (Rule 25).">
+            <AdminLayout pageTitle="Strike Appeals" pageSubtitle="Decide the appeals of passengers and the driver appeals the TODAs escalate.">
               <AppealsPage />
             </AdminLayout>
           </ProtectedRoute>

@@ -105,7 +105,7 @@ export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps>
       <Box sx={{ mb: 3.5 }}>
         <Alert severity="error" action={goToAccount('Submit renewal')} sx={alertSx}>
           {title('Your accreditation has expired', '#991B1B')}
-          {body(`It expired on ${manilaDate(profile.accreditationExpiryIso as string)}. Your drivers are restricted from going Online until the LGU records the renewal (Rule 24.3).`, '#7F1D1D')}
+          {body(`It expired on ${manilaDate(profile.accreditationExpiryIso as string)}. Your drivers are restricted from going Online until the LGU records the renewal.`, '#7F1D1D')}
         </Alert>
       </Box>
     );
@@ -115,7 +115,7 @@ export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps>
       <Box sx={{ mb: 3.5 }}>
         <Alert severity="warning" action={goToAccount('Submit renewal')} sx={alertSx}>
           {title(`Your accreditation expires in ${days} day${days === 1 ? '' : 's'}`, '#9a6b00')}
-          {body(`Valid until ${manilaDate(profile.accreditationExpiryIso as string)}. Upload the renewed Barangay Clearance so the LGU can record it before then; after that date your drivers cannot go Online (Rule 24.3).`, '#664d03')}
+          {body(`Valid until ${manilaDate(profile.accreditationExpiryIso as string)}. Upload the renewed Barangay Clearance so the LGU can record it before then; after that date your drivers cannot go Online.`, '#664d03')}
         </Alert>
       </Box>
     );

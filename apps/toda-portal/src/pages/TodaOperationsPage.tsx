@@ -220,7 +220,7 @@ export const TodaOperationsPage: React.FC = () => {
           disabled={drivers.filter((d) => !String(d.id).startsWith('roster-')).length === 0}
           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
         >
-          Report a driver: queue conflict / availability (Rules 5.3, 5.7)
+          Report a driver: queue conflict / availability
         </Button>
       </Box>
       <ReportDriverAvailabilityDialog

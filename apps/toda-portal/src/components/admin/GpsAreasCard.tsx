@@ -56,7 +56,7 @@ export const GpsAreasCard: React.FC<GpsAreasCardProps> = ({ areas, minCount, win
     <Paper elevation={0} sx={{ mb: 3.5, borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', overflow: 'hidden' }}>
       <Box sx={{ p: '16px 22px', borderBottom: '1px solid var(--mac-border-color)' }}>
         <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-          Areas with repeated GPS-caused determinations — Rule 17.5
+          Areas with repeated GPS-caused determinations
         </Typography>
         <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5, lineHeight: 1.45 }}>
           {minCount} or more stall or lost-connection cancellations (waived ones included) of your drivers in the same square of about 550 m within {windowDays} days.

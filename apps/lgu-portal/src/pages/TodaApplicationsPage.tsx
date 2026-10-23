@@ -727,7 +727,7 @@ export const TodaApplicationsPage: React.FC = () => {
                     </Button>
                   }
                 >
-                  No Barangay Clearance was uploaded, so this TODA cannot be accredited yet (Rule 2.1).
+                  No Barangay Clearance was uploaded, so this TODA cannot be accredited yet.
                 </Alert>
               )}
             </Box>

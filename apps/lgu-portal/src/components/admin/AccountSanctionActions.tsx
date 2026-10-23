@@ -90,7 +90,7 @@ export const CloseAccountButton: React.FC<CloseAccountButtonProps> = ({ subjectT
         open={open}
         onClose={() => setOpen(false)}
         title="Close this account permanently?"
-        message={`This closes "${subjectName}" for good: the person can never log in again and cannot appeal. Confirm that you reviewed the full violation history shown above (Rule 22.2). To give the person another chance, reactivate the account instead.`}
+        message={`This closes "${subjectName}" for good: the person can never log in again and cannot appeal. Confirm that you reviewed the full violation history shown above. To give the person another chance, reactivate the account instead.`}
         confirmLabel="I reviewed the history - close permanently"
         confirmVariant="danger"
         requireReason
