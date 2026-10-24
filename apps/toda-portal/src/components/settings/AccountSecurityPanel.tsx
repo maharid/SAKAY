@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button } from '@mui/material';
+import { Alert, Button } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
@@ -10,13 +10,17 @@ import { ChangePasswordDialog } from '../common/ChangePasswordCard';
 import { SettingRow } from '../common/SettingRow';
 import { secondaryButtonSx } from '../common/pageButtons';
 import { OPS_TEXT } from '../operations/operationsTheme';
+import { AccountSummary } from './AccountSummary';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../hooks/useLanguage';
 import { FONT } from '../../styles/density';
 
 // Who is signed in, the password and the log-out. These are the account pages and the sign-out the portal already has; nothing here is new.
+// (The password used to be a card at the bottom of Account & Accreditation; it lives here now.)
 export const AccountSecurityPanel: React.FC = () => {
   const navigate = useNavigate();
   const { todaAdminProfile, user, signOut } = useAuth();
+  const { t } = useLanguage();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
@@ -33,15 +37,7 @@ export const AccountSecurityPanel: React.FC = () => {
 
   return (
     <>
-      <SettingRow
-        title="Signed in as"
-        description={
-          <>
-            <Box component="span" sx={{ display: 'block', fontWeight: 600, color: OPS_TEXT.primary }}>{adminName}</Box>
-            {adminEmail && <Box component="span" sx={{ display: 'block' }}>{adminEmail}</Box>}
-          </>
-        }
-      />
+      <AccountSummary name={adminName} email={adminEmail} />
       <SettingRow
         title="TODA profile and documents"
         description="Edit your TODA's details and officers, and send or replace its compliance documents."
@@ -64,16 +60,16 @@ export const AccountSecurityPanel: React.FC = () => {
             }}
             sx={secondaryButtonSx}
           >
-            Change Password
+            {t('password.change')}
           </Button>
         }
       >
         {passwordChanged && (
-          <Alert severity="success" onClose={() => setPasswordChanged(false)} sx={{ mt: '12px', borderRadius: '8px', fontSize: FONT.body }}>Your password was changed.</Alert>
+          <Alert severity="success" onClose={() => setPasswordChanged(false)} sx={{ mt: '12px', borderRadius: '8px', fontSize: FONT.body }}>{t('password.changed')}</Alert>
         )}
       </SettingRow>
       <SettingRow
-        title="Log out"
+        title={t('logout.title')}
         description="End your session on this device. You will need to sign in again."
         control={
           <Button
@@ -82,7 +78,7 @@ export const AccountSecurityPanel: React.FC = () => {
             onClick={() => setLogoutOpen(true)}
             sx={{ ...secondaryButtonSx, color: OPS_TEXT.danger, borderColor: 'rgba(185, 28, 28, 0.35)', '&:hover': { backgroundColor: '#FEF2F2', borderColor: OPS_TEXT.danger } }}
           >
-            Log Out
+            {t('logout.button')}
           </Button>
         }
       />

@@ -9,6 +9,7 @@ import { primaryButtonSx, secondaryButtonSx } from '../common/pageButtons';
 import { OPS_TEXT } from '../operations/operationsTheme';
 import { ACCREDITATION_HELP, SUPPORT_EMAIL } from '../../utils/appInfo';
 import { copyText, mailtoLink, openMailDraft } from '../../utils/mailto';
+import { useLanguage } from '../../hooks/useLanguage';
 import { FONT } from '../../styles/density';
 
 const COMMENT_MAX = 1000;
@@ -20,6 +21,7 @@ type CopyState = 'idle' | 'copied' | 'failed';
 // so both go by e-mail to the SAKAY team: the buttons open the person's own e-mail program with the message ready, and the person presses Send there.
 // Nothing is claimed as sent from this page.
 export const SupportFeedbackPanel: React.FC = () => {
+  const { t } = useLanguage();
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState('');
@@ -97,7 +99,8 @@ export const SupportFeedbackPanel: React.FC = () => {
             />
           </Box>
           <TextField
-            label="Your comments"
+            label={t('feedback.comments')}
+            placeholder={t('feedback.placeholder')}
             multiline
             minRows={3}
             fullWidth

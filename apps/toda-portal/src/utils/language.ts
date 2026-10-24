@@ -1,10 +1,12 @@
 // The language of the TODA portal.
 //
-// The portal's screens are written in English only: it has no translation files (unlike the Driver and Passenger apps, which carry English and Filipino texts).
-// So English is the only language offered, and it is the default. The choice is still kept the way those apps keep theirs (one key in the browser's own storage),
-// and a stored value that is not an AVAILABLE language is ignored, so adding a language later means adding its translations and one line to LANGUAGE_OPTIONS.
+// The portal offers the same two languages as the Driver and Passenger apps: English and Tagalog. English is the default. The choice is kept the way those apps
+// keep theirs: one key ("sakay_language", holding "en" or "tl") in the browser's own storage, and a stored value that is not one of the two is ignored.
+//
+// Not every screen of the portal has a Tagalog text yet. The texts that exist are the ones the Driver App already has (see utils/translations.ts and
+// utils/legalContent.ts); everything else stays in English instead of being translated here without review.
 
-export type PortalLanguage = 'en';
+export type PortalLanguage = 'en' | 'tl';
 
 export interface LanguageOption {
   code: PortalLanguage;
@@ -12,8 +14,10 @@ export interface LanguageOption {
   name: string;
 }
 
-/** Only languages whose texts really exist in the portal belong here. */
-export const LANGUAGE_OPTIONS: LanguageOption[] = [{ code: 'en', name: 'English' }];
+export const LANGUAGE_OPTIONS: LanguageOption[] = [
+  { code: 'en', name: 'English' },
+  { code: 'tl', name: 'Tagalog' },
+];
 
 export const DEFAULT_LANGUAGE: PortalLanguage = 'en';
 

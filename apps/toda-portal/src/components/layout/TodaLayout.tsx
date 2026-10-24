@@ -9,7 +9,6 @@ import { AccreditationStatusBanner } from '../common/AccreditationStatusBanner';
 import { TodaProfile } from '../../types/toda';
 import { SHELL } from '../../styles/density';
 import { createDensityTheme } from '../../styles/densityTheme';
-import { useLanguage } from '../../hooks/useLanguage';
 
 interface TodaLayoutProps {
   children?: React.ReactNode;
@@ -27,7 +26,6 @@ const TodaLayoutShell: React.FC<TodaLayoutProps> = ({
   pageSubtitle,
 }) => {
   const isCompactShell = useMediaQuery(COMPACT_SHELL_QUERY, { noSsr: true });
-  useLanguage(); // keeps the page's `lang` attribute equal to the chosen language
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isCompactShell);
   const [profile, setProfile] = useState<TodaProfile | null>(null);
 

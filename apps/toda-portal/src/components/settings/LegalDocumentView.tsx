@@ -3,6 +3,7 @@ import { Accordion, AccordionDetails, AccordionSummary, Box, Table, TableBody, T
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { OPS_BORDER, OPS_DIVIDER, OPS_TEXT, opsFocusRing } from '../operations/operationsTheme';
+import { SETTINGS_WIDE_MEDIA } from './SettingsNav';
 import { FONT } from '../../styles/density';
 import type { LegalDocument, LegalSection } from '../../utils/legalContent';
 
@@ -103,25 +104,28 @@ export const LegalDocumentView: React.FC<LegalDocumentViewProps> = ({ document: 
     aria-label={`${legal.title}, scrollable`}
     tabIndex={0}
     sx={{
-      maxWidth: 760,
+      minHeight: 280,
+      // narrow screen: the document has a height of its own and the page scrolls around it; wide screen: it takes all the room that is left in the card
+      flex: '0 0 auto',
       maxHeight: 'max(300px, calc(100dvh - 400px))',
+      [SETTINGS_WIDE_MEDIA]: { flex: '1 1 0', maxHeight: 'none' },
       overflowY: 'auto',
       border: `1px solid ${OPS_BORDER}`,
       borderRadius: '8px',
       p: '18px 20px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '18px',
       ...opsFocusRing,
     }}
   >
-    <Box>
-      <Typography component="h3" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>{legal.title}</Typography>
-      <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px' }}>{legal.lastUpdated}</Typography>
+    {/* the text keeps a readable line length however wide the card is, centred in the scrolling area */}
+    <Box sx={{ maxWidth: 800, mx: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <Box>
+        <Typography component="h3" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>{legal.title}</Typography>
+        <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px' }}>{legal.lastUpdated}</Typography>
+      </Box>
+      {legal.intro && <Typography sx={paragraphSx}>{legal.intro}</Typography>}
+      {legal.sections.map((section) => (
+        <Section key={section.title} section={section} />
+      ))}
     </Box>
-    {legal.intro && <Typography sx={paragraphSx}>{legal.intro}</Typography>}
-    {legal.sections.map((section) => (
-      <Section key={section.title} section={section} />
-    ))}
   </Box>
 );

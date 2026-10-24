@@ -1,14 +1,18 @@
-// The Privacy Policy and the Terms of Service as the SAKAY Driver App shows them (English), word for word and in the same order.
+// The Privacy Policy and the Terms of Service as the SAKAY Driver App shows them, in English and in Tagalog, word for word and in the same order.
 //
 // Sources:
 //   apps/driver-pwa/src/features/account-management/components/DriverPrivacyPolicy.tsx
 //   apps/driver-pwa/src/features/account-management/components/DriverTermsOfService.tsx
-//   apps/driver-pwa/src/utils/LanguageContext.tsx  (the "Last updated" line)
+//   apps/driver-pwa/src/utils/LanguageContext.tsx  (the titles and the "Last updated" line)
 // Items F to I of the privacy policy (why, how long, who receives it, your rights) are not written here: the Settings page adds them from @sakay/shared,
-// exactly as the Driver App does. server/test/todaLegalContent.test.ts reads the Driver App's files and fails if any line below stops matching them,
-// so the two cannot drift apart without somebody noticing.
+// in the chosen language, exactly as the Driver App does. server/test/todaSettingsContent.test.ts reads the Driver App's files and fails if any line below
+// stops matching them, so the two cannot drift apart without somebody noticing. The Tagalog of the Driver App is kept as it is, including the headings
+// of its Privacy Policy, which do not all say what the English headings say.
 //
 // In a text, **words between double stars** are shown in bold.
+
+import type { PortalLanguage } from './language';
+import { PRIVACY_POLICY_TL, TERMS_OF_SERVICE_TL } from './legalContentTagalog';
 
 export interface LegalItem {
   id: string;
@@ -35,7 +39,7 @@ export interface LegalDocument {
   sections: LegalSection[];
 }
 
-export const PRIVACY_POLICY: LegalDocument = {
+const PRIVACY_POLICY_EN: LegalDocument = {
   title: 'Privacy Policy',
   lastUpdated: 'Last updated: July 2026',
   intro: 'Your privacy matters to us. This policy explains what information SAKAY collects from you as a driver, how it is used, stored, and protected.',
@@ -122,7 +126,7 @@ export const PRIVACY_POLICY: LegalDocument = {
   ],
 };
 
-export const TERMS_OF_SERVICE: LegalDocument = {
+const TERMS_OF_SERVICE_EN: LegalDocument = {
   title: 'Terms of Service',
   lastUpdated: 'Last updated: July 2026',
   sections: [
@@ -199,3 +203,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
     },
   ],
 };
+
+/** The documents in each language. */
+export const PRIVACY_POLICY: Record<PortalLanguage, LegalDocument> = { en: PRIVACY_POLICY_EN, tl: PRIVACY_POLICY_TL };
+export const TERMS_OF_SERVICE: Record<PortalLanguage, LegalDocument> = { en: TERMS_OF_SERVICE_EN, tl: TERMS_OF_SERVICE_TL };

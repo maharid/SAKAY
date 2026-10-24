@@ -28,7 +28,6 @@ import { TodaProfile } from '../types/toda';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { AccreditationCard } from '../components/common/AccreditationCard';
-import { ChangePasswordCard } from '../components/common/ChangePasswordCard';
 import { ComplianceDocumentCard } from '../components/common/ComplianceDocumentCard';
 import { StatusPill } from '../components/common/DataTable';
 import { InfoItem, SectionCard } from '../components/common/SectionCard';
@@ -554,8 +553,8 @@ export const TodaAccountManagementPage: React.FC = () => {
         </SectionCard>
       </Box>
 
-      {/* 4. The compliance files: three cards side by side, one line of file name each */}
-      <Box sx={{ mb: SPACE.gapLarge }}>
+      {/* 4. The compliance files: three cards side by side, one line of file name each (the last block of the page) */}
+      <Box>
         <SectionCard
           icon={<FolderOpenOutlinedIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />}
           title="Compliance documents"
@@ -587,9 +586,6 @@ export const TodaAccountManagementPage: React.FC = () => {
           </Box>
         </SectionCard>
       </Box>
-
-      {/* 5. The administrator's own password (a slim row; the form opens in a window) */}
-      <ChangePasswordCard />
 
       {/* Edit the organisation and its officers */}
       <MacCenterModal

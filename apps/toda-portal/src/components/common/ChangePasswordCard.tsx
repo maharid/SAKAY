@@ -5,6 +5,7 @@ import { checkPassword } from '@sakay/shared';
 import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX } from '@sakay/shared/components/dialogStyles';
 
 import { supabase } from '../../services/supabaseClient';
+import { useLanguage } from '../../hooks/useLanguage';
 import { FONT, SPACE } from '../../styles/density';
 import { OPS_TEXT, opsCardSx } from '../operations/operationsTheme';
 import { primaryButtonSx, secondaryButtonSx } from './pageButtons';
@@ -21,6 +22,7 @@ interface ChangePasswordDialogProps {
  * the login system sets it for the signed-in user only. It is a window, so any page can offer it (Account & Accreditation and Settings do).
  */
 export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({ open, onClose, onChanged }) => {
+  const { t } = useLanguage();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
@@ -39,11 +41,11 @@ export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({ open
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!check.ok) {
-      setError('The password does not meet all four rules below.');
+      setError(t('password.rules'));
       return;
     }
     if (password !== confirm) {
-      setError('The two passwords do not match.');
+      setError(t('password.mismatch'));
       return;
     }
     setBusy(true);
@@ -70,12 +72,12 @@ export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({ open
   return (
     <Dialog open={open} onClose={() => !busy && onClose()} maxWidth="xs" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
       <form onSubmit={submit}>
-        <DialogTitle sx={DIALOG_TITLE_SX}>Change Password</DialogTitle>
+        <DialogTitle sx={DIALOG_TITLE_SX}>{t('password.change')}</DialogTitle>
         <DialogContent sx={DIALOG_CONTENT_SX}>
           <Typography sx={DIALOG_INTRO_SX}>Choose a new password for this administrator login.</Typography>
           {error && <Alert severity="error" sx={{ borderRadius: '8px', fontSize: FONT.body }}>{error}</Alert>}
-          <TextField fullWidth size="small" type="password" label="New password" autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
-          <TextField fullWidth size="small" type="password" label="Confirm new password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} disabled={busy} />
+          <TextField fullWidth size="small" type="password" label={t('password.new')} autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
+          <TextField fullWidth size="small" type="password" label={t('password.confirm')} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} disabled={busy} />
           <Box>
             {rule(check.length, 'At least 8 characters')}
             {rule(check.letters, 'Upper and lower case letters')}
@@ -89,7 +91,7 @@ export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({ open
             Cancel
           </Button>
           <Button type="submit" variant="contained" disableElevation disabled={busy || !password} sx={primaryButtonSx}>
-            {busy ? 'Saving...' : 'Change Password'}
+            {busy ? 'Saving...' : t('password.change')}
           </Button>
         </DialogActions>
       </form>
