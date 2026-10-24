@@ -1,28 +1,18 @@
-// What the Settings page says about SAKAY. Every line is taken from the project's own documents; nothing is made up:
-//  - the title, the school and the developers are on the title page of the SAKAY capstone paper (August 2026);
-//  - the privacy notice version and its "your rights" text (which names who to write to) come from the shared policy files the Driver and Passenger apps also use.
+// What the Settings page says about SAKAY. Every line comes from the project itself; nothing is made up:
+//  - the description and the developers' names come from the title page of the SAKAY paper (August 2026) and from the portal's own menu;
+//  - the e-mail address is the one the project team gave for questions and feedback.
 // The portal has no release version of its own (its package version is the unset 0.0.0), so none is shown.
-
-import { PRIVACY_NOTICE_VERSION, privacyNoticeExtraItems } from '@sakay/shared';
 
 export const ABOUT_SAKAY = {
   name: 'SAKAY',
   portal: 'TODA Administrator Portal',
-  title: 'SAKAY: A Mobile and Web-Based Supplementary Tricycle Booking System with Ride Sharing and Descriptive Transportation Analytics for Calapan City',
-  project: 'Capstone project for the Bachelor of Science in Information Technology',
-  school: 'School of Information Technology, Divine Word College of Calapan, Inc., Gov. Infantado St., Calapan City, Oriental Mindoro',
-  completed: 'August 2026',
+  description:
+    'SAKAY is a mobile and web-based tricycle booking system for Calapan City, with ride sharing and transportation reports. This portal is where TODA administrators review driver applications, manage their members and follow daily operations.',
   developers: ['Via Bianca A. Celis', 'Janna Marion S. Del Mundo', 'Mark R. Payo', 'Beah M. Rocero'],
 } as const;
 
-/** Who to ask for help. The portal already says this wherever the accreditation needs an answer from the City; no phone number or e-mail address is written anywhere in the project, so none is shown. */
-export const SUPPORT_NOTE = "For questions about your TODA's accreditation, contact the City Transport & Franchising Office.";
+/** Where the SAKAY team receives questions and feedback. */
+export const SUPPORT_EMAIL = 'teamsakay@gmail.com';
 
-/** The "your rights" part of the SAKAY privacy notice, word for word (the same text for drivers and passengers), without its letter ("I. "). */
-const rights = privacyNoticeExtraItems('passenger', 'en').find((item) => item.id === 'I');
-
-export const PRIVACY_INFO = {
-  version: PRIVACY_NOTICE_VERSION,
-  rightsTitle: rights ? rights.title.replace(/^[A-Z]\.\s*/, '') : 'Your rights',
-  rightsText: rights?.desc ?? '',
-} as const;
+/** Who to ask about the accreditation. The portal already says this wherever an accreditation needs an answer from the City. */
+export const ACCREDITATION_HELP = "For questions about your TODA's accreditation, contact the City Transport & Franchising Office.";

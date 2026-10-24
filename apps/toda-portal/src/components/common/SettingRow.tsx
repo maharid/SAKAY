@@ -33,7 +33,20 @@ export const SettingRow: React.FC<SettingRowProps> = ({ title, description, cont
           <Typography component="div" sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, lineHeight: 1.5, mt: '2px', overflowWrap: 'anywhere' }}>{description}</Typography>
         )}
       </Box>
-      {control && <Box sx={{ justifySelf: { xs: 'start' }, '@container (min-width: 520px)': { justifySelf: 'end' }, minWidth: 0, maxWidth: '100%' }}>{control}</Box>}
+      {control && (
+        <Box
+          sx={{
+            justifySelf: { xs: 'start' },
+            '@container (min-width: 520px)': { justifySelf: 'end' },
+            minWidth: 0,
+            maxWidth: '100%',
+            // a button with a long name wraps on a very narrow screen instead of sticking out of the card
+            '& .MuiButton-root': { maxWidth: '100%', whiteSpace: 'normal', lineHeight: 1.3 },
+          }}
+        >
+          {control}
+        </Box>
+      )}
     </Box>
     {children}
   </Box>
