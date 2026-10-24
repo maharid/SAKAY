@@ -55,9 +55,12 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
             textTransform: 'none',
             color: '#B34700',
             fontWeight: 600,
-            p: 0,
+            p: '4px 8px',
+            mr: '-8px',
             minWidth: 0,
             flexShrink: 0,
+            '@media (pointer: coarse)': { minHeight: 44 },
+            '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '1px' },
           }}
         >
           Mark all as read

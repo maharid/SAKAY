@@ -13,6 +13,10 @@ import {
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
+import { dangerButtonSx, primaryButtonSx, secondaryButtonSx } from '../common/pageButtons';
+import { OPS_TEXT } from '../operations/operationsTheme';
+import { FONT } from '../../styles/density';
+
 interface MacConfirmDialogProps {
   open: boolean;
   onClose: () => void;
@@ -29,6 +33,7 @@ interface MacConfirmDialogProps {
   onConfirm: (reason?: string) => void;
 }
 
+// A question with two answers. The button that confirms is the deep orange of every other main button; a red one is only for something that cannot be undone.
 export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
   open,
   onClose,
@@ -57,41 +62,19 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
     setError(false);
   };
 
-  const getConfirmButtonStyles = () => {
-    switch (confirmVariant) {
-      case 'danger':
-        return {
-          backgroundColor: '#DC2626',
-          '&:hover': { backgroundColor: '#B91C1C' },
-        };
-      case 'orange':
-        return {
-          backgroundColor: 'var(--sakay-orange)',
-          '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
-        };
-      default:
-        return {
-          backgroundColor: '#1E8E3E',
-          '&:hover': { backgroundColor: '#137333' },
-        };
-    }
-  };
-
   return (
     <Dialog
       open={open}
       onClose={onClose}
+      aria-labelledby="confirm-dialog-title"
       slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: 'rgba(0, 0, 0, 0.42)',
-            backdropFilter: 'blur(4px)',
-          },
-        },
+        // a plain, lighter shade: this question often opens on top of another window, and two blurred layers would make the page behind it muddy
+        backdrop: { sx: { backgroundColor: 'rgba(15, 23, 42, 0.32)' } },
         paper: {
           sx: {
-            width: '100%',
-            maxWidth: 384,
+            width: 'calc(100% - 32px)',
+            maxWidth: 420,
+            m: '16px',
             borderRadius: '14px',
             backgroundColor: '#FFFFFF',
             boxShadow: 'var(--mac-shadow-popover)',
@@ -103,22 +86,20 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
     >
       <DialogTitle sx={{ padding: '16px 19px 10px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {confirmVariant === 'danger' && (
-            <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 19 }} />
-          )}
-          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          {confirmVariant === 'danger' && <WarningAmberIcon aria-hidden sx={{ color: '#B91C1C', fontSize: 19 }} />}
+          <Typography id="confirm-dialog-title" component="span" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>
             {title}
           </Typography>
         </Box>
       </DialogTitle>
 
       <DialogContent sx={{ padding: '0 19px 16px' }}>
-        <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? '13px' : 0 }}>
+        <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, lineHeight: 1.55, overflowWrap: 'anywhere', mb: requireReason ? '13px' : 0 }}>
           {message}
         </Typography>
 
         {errorMessage && (
-          <Alert severity="error" sx={{ mt: '13px', borderRadius: '8px', fontSize: '11px' }}>
+          <Alert severity="error" sx={{ mt: '13px', borderRadius: '8px', fontSize: FONT.body }}>
             {errorMessage}
           </Alert>
         )}
@@ -137,10 +118,11 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
               }}
               error={error}
               helperText={error ? 'Reason is required for this action' : ''}
+              slotProps={{ htmlInput: { 'aria-label': 'Reason' } }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
-                  fontSize: '11px',
+                  fontSize: FONT.body,
                   backgroundColor: '#FAFAFC',
                 },
               }}
@@ -149,46 +131,19 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '10px 19px 13px', gap: '6px' }}>
-        <Button
-          variant="outlined"
-          onClick={onClose}
-          sx={{
-            height: 30,
-            padding: '0 13px',
-            borderRadius: '6.5px',
-            border: '1.5px solid #94A3B8',
-            color: '#334155',
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'none',
-            backgroundColor: '#FFFFFF',
-            '&:hover': {
-              backgroundColor: '#F1F5F9',
-              borderColor: '#64748B',
-              color: '#0F172A',
-            },
-          }}
-        >
+      <DialogActions sx={{ padding: '10px 19px 13px', gap: '10px' }}>
+        <Button variant="outlined" onClick={onClose} sx={secondaryButtonSx}>
           {cancelLabel}
         </Button>
 
         <Button
           variant="contained"
+          disableElevation
           disabled={isLoading}
           onClick={handleConfirm}
-          sx={{
-            height: 30,
-            padding: '0 16px',
-            borderRadius: '6.5px',
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'none',
-            color: '#FFFFFF',
-            ...getConfirmButtonStyles(),
-          }}
+          sx={confirmVariant === 'danger' ? dangerButtonSx : primaryButtonSx}
         >
-          {isLoading ? <CircularProgress size={16} color="inherit" /> : confirmLabel}
+          {isLoading ? <CircularProgress size={16} color="inherit" aria-label="Please wait" /> : confirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

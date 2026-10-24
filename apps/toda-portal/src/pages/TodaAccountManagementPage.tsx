@@ -5,7 +5,6 @@ import {
   Card,
   Button,
   TextField,
-  Chip,
   Avatar,
   Select,
   MenuItem,
@@ -14,26 +13,27 @@ import {
   IconButton,
   CircularProgress,
   Divider,
-  Paper,
   Snackbar,
   Alert,
 } from '@mui/material';
-import VerifiedIcon from '@mui/icons-material/Verified';
 import BusinessIcon from '@mui/icons-material/Business';
 import GroupsIcon from '@mui/icons-material/Groups';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import EditIcon from '@mui/icons-material/Edit';
-import DescriptionIcon from '@mui/icons-material/Description';
-import ShieldIcon from '@mui/icons-material/Shield';
+import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 import { TodaProfile } from '../types/toda';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
+import { AccreditationCard } from '../components/common/AccreditationCard';
+import { ChangePasswordCard } from '../components/common/ChangePasswordCard';
+import { ComplianceDocumentCard } from '../components/common/ComplianceDocumentCard';
+import { StatusPill } from '../components/common/DataTable';
+import { InfoItem, SectionCard } from '../components/common/SectionCard';
+import { primaryButtonSx, secondaryButtonSx } from '../components/common/pageButtons';
+import { OPS_BORDER, OPS_TEXT, opsCardSx } from '../components/operations/operationsTheme';
 import {
   fetchTodaProfile,
   updateTodaProfile,
@@ -42,10 +42,14 @@ import {
   updateTodaComplianceDocument,
   resubmitTodaApplication,
 } from '../services/todaApiService';
-import { AccreditationCard } from '../components/common/AccreditationCard';
-import { ChangePasswordCard } from '../components/common/ChangePasswordCard';
-import { accreditationChip, documentChip } from '../utils/accreditation';
+import { complianceDocumentStatus, submittedDateOfStoredFile } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
+import { FONT, SHELL, SPACE } from '../styles/density';
+
+// the heading of a group of fields inside a form window
+const FormSectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Typography component="h3" sx={{ fontSize: FONT.heading, fontWeight: 700, color: OPS_TEXT.brand, mb: '13px' }}>{children}</Typography>
+);
 
 const CALAPAN_BARANGAYS = [
   'Balingayan', 'Balite', 'Baruyan', 'Batino', 'Bayanan I', 'Bayanan II', 'Biga', 'Bondoc', 'Bucayao', 'Buhuan',
@@ -391,12 +395,12 @@ export const TodaAccountManagementPage: React.FC = () => {
     setUploadSnackbar({ open: true, message: 'The application was resubmitted. It is back with the LGU for review.', severity: 'success' });
   };
 
-  if (isLoading || !profile) {
+  if (isLoading) {
     return (
-      <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
-        <Box sx={{ textAlign: 'center' }}>
+      <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
+        <Box role="status" sx={{ textAlign: 'center' }}>
           <CircularProgress size={29} sx={{ color: 'var(--sakay-orange)', mb: '13px' }} />
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
+          <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, fontWeight: 500 }}>
             Loading association account records...
           </Typography>
         </Box>
@@ -404,723 +408,190 @@ export const TodaAccountManagementPage: React.FC = () => {
     );
   }
 
+  // the records could not be read: say so and let the president try again
+  if (!profile) {
+    return (
+      <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
+        <Box sx={{ textAlign: 'center', maxWidth: 420 }}>
+          <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: OPS_TEXT.primary }}>Your account details could not be loaded</Typography>
+          <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, mt: '4px', mb: '14px' }}>Check your internet connection, then try again.</Typography>
+          <Button variant="outlined" onClick={loadProfile} sx={secondaryButtonSx}>Try Again</Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  // the three compliance files: what each one is called, the file that was sent, its status, and what it says under the name
+  const renewalPending = Boolean(profile.renewalSubmittedAt);
+  const sentOn = (fileName: string, savedDate: string) => submittedDateOfStoredFile(fileName) || savedDate;
+  const submittedLine = (date: string) => (date ? `Submitted ${date}` : 'No file submitted yet');
+  const documents = [
+    {
+      key: 'clearance',
+      category: 'Barangay Clearance' as const,
+      title: 'Barangay Clearance for TODA Accreditation',
+      fileName: profile.barangayClearanceFile.name,
+      fileUrl: profile.barangayClearanceFile.url || '',
+      status: complianceDocumentStatus('clearance', profile.accreditationStatus, renewalPending),
+      details: [submittedLine(profile.barangayClearanceFile.date)],
+    },
+    {
+      key: 'roster',
+      category: 'Driver Roster' as const,
+      title: 'Driver Roster',
+      fileName: profile.rosterFile.name,
+      fileUrl: profile.rosterFile.url || '',
+      status: complianceDocumentStatus('roster', profile.accreditationStatus, renewalPending),
+      details: [submittedLine(sentOn(profile.rosterFile.name, profile.rosterFile.date)), `${profile.rosterFile.count} accredited members`],
+    },
+    {
+      key: 'bylaws',
+      category: 'Internal Bylaws' as const,
+      title: 'Internal TODA Bylaws & Constitution',
+      fileName: profile.bylawsFile?.name || 'TODA_Bylaws.pdf',
+      fileUrl: profile.bylawsFile?.url || '',
+      status: complianceDocumentStatus('bylaws', profile.accreditationStatus, renewalPending),
+      details: [submittedLine(profile.bylawsFile?.name ? sentOn(profile.bylawsFile.name, profile.bylawsFile.date) : '')],
+    },
+  ];
+
+  const officers = [
+    { role: 'President', name: profile.officers?.president, contact: profile.officers?.presidentContact },
+    { role: 'Vice President', name: profile.officers?.vicePresident, contact: profile.officers?.vicePresidentContact },
+    { role: 'Secretary', name: profile.officers?.secretary, contact: profile.officers?.secretaryContact },
+    { role: 'Treasurer', name: profile.officers?.treasurer, contact: profile.officers?.treasurerContact },
+  ];
+
+  const openUploadFor = (category: 'Barangay Clearance' | 'Driver Roster' | 'Internal Bylaws') => {
+    setDocCategory(category);
+    setSelectedFile(null);
+    setUploadDocModalOpen(true);
+  };
+
   return (
-    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
-      {/* 1. Header Banner & Status Summary with Interactive TODA Logo Upload */}
-      <Card
-        elevation={0}
-        sx={{
-          p: '22px',
-          borderRadius: '14px',
-          border: '1px solid var(--mac-border-color)',
-          backgroundColor: '#FFFFFF',
-          boxShadow: 'var(--mac-shadow-card)',
-          mb: '22px',
-        }}
-      >
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px' }}>
+      {/* 1. Who this account is, and the one thing to do with it */}
+      <Card elevation={0} sx={{ ...opsCardSx, p: SPACE.cardLarge, mb: SPACE.gapLarge }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Interactive TODA Avatar Logo with Upload Overlay */}
-            <Box sx={{ position: 'relative' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0 }}>
+            <Box sx={{ position: 'relative', flexShrink: 0 }}>
               <Avatar
                 src={logoImage || undefined}
-                sx={{
-                  width: 58,
-                  height: 58,
-                  background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
-                  fontSize: '22px',
-                  fontWeight: 700,
-                  boxShadow: '0 10px 24px rgba(255, 102, 0, 0.22)',
-                }}
+                sx={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)', fontSize: '20px', fontWeight: 700 }}
               >
                 {!logoImage && (profile.acronym ? profile.acronym.charAt(0) : 'T')}
               </Avatar>
               <IconButton
                 component="label"
+                aria-label="Change the TODA logo"
                 size="small"
                 sx={{
                   position: 'absolute',
-                  bottom: -3,
-                  right: -3,
+                  bottom: -4,
+                  right: -4,
                   backgroundColor: '#FFFFFF',
-                  border: '1px solid var(--mac-border-color)',
-                  boxShadow: 'var(--mac-shadow-subtle)',
+                  border: `1px solid ${OPS_BORDER}`,
                   p: '5px',
-                  color: 'var(--sakay-orange)',
+                  color: OPS_TEXT.brand,
                   '&:hover': { backgroundColor: 'var(--sakay-orange-soft)' },
+                  '&:focus-within': { outline: `2px solid ${OPS_TEXT.brand}`, outlineOffset: '2px' },
                 }}
               >
-                <PhotoCameraIcon sx={{ fontSize: 13 }} />
+                <PhotoCameraIcon aria-hidden sx={{ fontSize: 14 }} />
                 <input type="file" hidden accept="image/*" onChange={handleLogoChange} />
               </IconButton>
             </Box>
 
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                  {profile.name}
-                </Typography>
-                <Chip
-                  icon={<VerifiedIcon sx={{ fontSize: 14, color: accreditationChip(profile.accreditationStatus).color }} />}
-                  label={accreditationChip(profile.accreditationStatus).label}
-                  size="small"
-                  sx={{
-                    backgroundColor: accreditationChip(profile.accreditationStatus).bg,
-                    color: accreditationChip(profile.accreditationStatus).color,
-                    fontWeight: 600,
-                    fontSize: '11px',
-                  }}
-                />
-              </Box>
-            </Box>
+            <Typography component="h2" sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>
+              {profile.name}
+            </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: '10px' }}>
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              onClick={() => {
-                populateFormFields(profile);
-                setEditProfileModalOpen(true);
-              }}
-              sx={{
-                height: 34,
-                px: '16px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'none',
-                backgroundColor: 'var(--sakay-orange)',
-                '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
-              }}
-            >
-              Edit TODA Profile
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<UploadFileIcon />}
-              onClick={() => setUploadDocModalOpen(true)}
-              sx={{
-                height: 34,
-                px: '16px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'none',
-                color: 'var(--mac-text-primary)',
-                borderColor: 'var(--mac-border-color)',
-                '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' },
-              }}
-            >
-              Annual Compliance Upload
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            disableElevation
+            startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+            onClick={() => {
+              populateFormFields(profile);
+              setEditProfileModalOpen(true);
+            }}
+            sx={primaryButtonSx}
+          >
+            Edit TODA Profile
+          </Button>
         </Box>
       </Card>
 
-      {/* 1b. Accreditation status, the LGU's reason, and the Resubmit step */}
+      {/* 2. Accreditation: status, certificate, validity, and the Resubmit step when the LGU returned the application */}
       <AccreditationCard profile={profile} onResubmit={handleResubmit} />
 
-      {/* 2. Balanced 2-Column Grid Layout for TODA Information */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: '19px', alignItems: 'start' }}>
-        {/* Left Column: TODA Organization Information & Authorized Officers */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
-          {/* TODA Organization Information Card */}
-          <Card
-            elevation={0}
-            sx={{
-              p: '19px',
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              backgroundColor: '#FFFFFF',
-              boxShadow: 'none',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', mb: '16px' }}>
-              <BusinessIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
-              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                TODA Organization Information
-              </Typography>
-            </Box>
+      {/* 3. The organisation and its officers, side by side */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' }, gap: SPACE.gapLarge, mb: SPACE.gapLarge }}>
+        <SectionCard icon={<BusinessIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="TODA information">
+          <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
+            <InfoItem label="Date established">{formatDisplayDate(profile.dateEstablished)}</InfoItem>
+            <InfoItem label="Operating barangay">{profile.barangay || 'San Vicente Central'}</InfoItem>
+            <InfoItem label="Terminal location">{profile.terminalLocation || 'Calapan City Terminal'}</InfoItem>
+            <InfoItem label="Terminal coordinates">
+              {profile.terminalLatitude && profile.terminalLongitude ? `${profile.terminalLatitude}, ${profile.terminalLongitude}` : 'None specified'}
+            </InfoItem>
+          </Box>
+        </SectionCard>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Official TODA Name</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.name}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Date Established</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {formatDisplayDate(profile.dateEstablished)}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Terminal Location</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.terminalLocation || 'Calapan City Terminal'}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Terminal Coordinates</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.terminalLatitude && profile.terminalLongitude
-                    ? `${profile.terminalLatitude}, ${profile.terminalLongitude}`
-                    : 'None specified'}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Operating Barangay</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.barangay || 'San Vicente Central'}
-                </Typography>
-              </Box>
-            </Box>
-          </Card>
-
-          {/* Officers Card */}
-          <Card
-            elevation={0}
-            sx={{
-              p: '19px',
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              backgroundColor: '#FFFFFF',
-              boxShadow: 'none',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', mb: '13px' }}>
-              <GroupsIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
-              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                Authorized TODA Officers
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '13px' }}>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>President</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.officers?.president || 'N/A'}
-                </Typography>
-                {profile.officers?.presidentContact && (
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                    {profile.officers.presidentContact}
+        <SectionCard icon={<GroupsIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="Authorized TODA officers">
+          <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
+            {officers.map((officer) => (
+              <InfoItem key={officer.role} label={officer.role}>
+                {officer.name || 'Not provided'}
+                {officer.contact && (
+                  <Typography component="span" sx={{ display: 'block', fontSize: FONT.small, fontWeight: 400, color: OPS_TEXT.secondary }}>
+                    {officer.contact}
                   </Typography>
                 )}
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Vice President</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.officers?.vicePresident || 'N/A'}
-                </Typography>
-                {profile.officers?.vicePresidentContact && (
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                    {profile.officers.vicePresidentContact}
-                  </Typography>
-                )}
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Secretary</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.officers?.secretary || 'N/A'}
-                </Typography>
-                {profile.officers?.secretaryContact && (
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                    {profile.officers.secretaryContact}
-                  </Typography>
-                )}
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Treasurer</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {profile.officers?.treasurer || 'N/A'}
-                </Typography>
-                {profile.officers?.treasurerContact && (
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                    {profile.officers.treasurerContact}
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-          </Card>
-        </Box>
-
-        {/* Right Column: Annual Compliance & Accreditation Renewal */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
-          <Card
-            elevation={0}
-            sx={{
-              p: '19px',
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              backgroundColor: '#FFFFFF',
-              boxShadow: 'none',
-              height: '100%',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '13px', flexWrap: 'wrap', gap: '13px' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <ShieldIcon sx={{ color: '#059669', fontSize: 19 }} />
-                <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  Annual Compliance & Accreditation Renewal
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                <Chip
-                  label={accreditationChip(profile.accreditationStatus).label}
-                  size="small"
-                  sx={{
-                    backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
-                    color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                    fontWeight: 600,
-                    fontSize: '11px',
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<UploadFileIcon fontSize="small" />}
-                  onClick={() => {
-                    setDocCategory('Barangay Clearance');
-                    setSelectedFile(null);
-                    setUploadDocModalOpen(true);
-                  }}
-                  sx={{
-                    textTransform: 'none',
-                    backgroundColor: 'var(--sakay-orange)',
-                    fontWeight: 700,
-                    borderRadius: '6.5px',
-                    fontSize: '11px',
-                    px: '13px',
-                    height: 27,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    boxShadow: 'none',
-                    '&:hover': {
-                      backgroundColor: '#E65C00',
-                      boxShadow: 'none',
-                    },
-                  }}
-                >
-                  Re-upload Document
-                </Button>
-              </Box>
-            </Box>
-
-            <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mb: '13px' }}>
-              Official compliance files forwarded to City LGU Franchising Office for accreditation review. You can view, drag-and-drop, or re-upload updated files anytime.
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
-              {/* Document 1: Barangay Clearance */}
-              <Box
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.dataTransfer.dropEffect = 'copy';
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory('clearance');
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory(null);
-                  if (e.dataTransfer.files?.[0]) {
-                    handleDroppedFileForCategory(e.dataTransfer.files[0], 'Barangay Clearance');
-                  }
-                }}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  p: '14px',
-                  borderRadius: '10px',
-                  backgroundColor: activeDropCategory === 'clearance' ? '#FFF7ED' : '#FAFAFC',
-                  border: activeDropCategory === 'clearance' ? '2px dashed var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, mr: '19px', pointerEvents: 'none' }}>
-                  <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19, flexShrink: 0, mt: '2.5px' }} />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '6px' }}>
-                      Barangay Clearance for TODA Accreditation
-                    </Typography>
-
-                    <Box sx={{ mb: '6px' }}>
-                      <Chip
-                        label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
-                        size="small"
-                        sx={{
-                          height: 18,
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
-                          color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                          borderRadius: '5px',
-                        }}
-                      />
-                    </Box>
-
-                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
-                      {profile.barangayClearanceFile.name}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: '#64748B', mt: '3px' }}>
-                      {profile.barangayClearanceFile.date ? `Submitted ${profile.barangayClearanceFile.date}` : 'No file submitted yet'}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, minWidth: '88px' }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<VisibilityIcon fontSize="small" />}
-                    onClick={() =>
-                      setReviewModalState({
-                        open: true,
-                        title: 'Barangay Clearance for TODA Accreditation',
-                        fileName: profile.barangayClearanceFile.name,
-                        fileUrl: profile.barangayClearanceFile.url || '',
-                      })
-                    }
-                    sx={{
-                      height: 26,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      justifyContent: 'center',
-                      color: 'var(--sakay-orange)',
-                      borderColor: 'var(--sakay-orange-border)',
-                      backgroundColor: 'var(--sakay-orange-soft)',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 102, 0, 0.16)',
-                        borderColor: 'var(--sakay-orange)',
-                      },
-                    }}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<UploadFileIcon fontSize="small" />}
-                    onClick={() => {
-                      setDocCategory('Barangay Clearance');
-                      setSelectedFile(null);
-                      setUploadDocModalOpen(true);
-                    }}
-                    sx={{
-                      height: 26,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      justifyContent: 'center',
-                      color: '#1565C0',
-                      borderColor: '#BBDEFB',
-                      backgroundColor: '#F0F7FF',
-                      '&:hover': {
-                        backgroundColor: '#E3F2FD',
-                        borderColor: '#1565C0',
-                      },
-                    }}
-                  >
-                    Re-upload
-                  </Button>
-                </Box>
-              </Box>
-
-              {/* Document 2: Driver Roster */}
-              <Box
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.dataTransfer.dropEffect = 'copy';
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory('roster');
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory(null);
-                  if (e.dataTransfer.files?.[0]) {
-                    handleDroppedFileForCategory(e.dataTransfer.files[0], 'Driver Roster');
-                  }
-                }}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  p: '14px',
-                  borderRadius: '10px',
-                  backgroundColor: activeDropCategory === 'roster' ? '#FFF7ED' : '#FAFAFC',
-                  border: activeDropCategory === 'roster' ? '2px dashed var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, mr: '19px', pointerEvents: 'none' }}>
-                  <DescriptionIcon sx={{ color: '#1565C0', fontSize: 19, flexShrink: 0, mt: '2.5px' }} />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '6px' }}>
-                      Driver Roster
-                    </Typography>
-
-                    <Box sx={{ mb: '6px' }}>
-                      <Chip
-                        label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
-                        size="small"
-                        sx={{
-                          height: 18,
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
-                          color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                          borderRadius: '5px',
-                        }}
-                      />
-                    </Box>
-
-                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
-                      {profile.rosterFile.name}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: '#64748B', mt: '3px' }}>
-                      {profile.rosterFile.count} Accredited Members
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, minWidth: '88px' }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<VisibilityIcon fontSize="small" />}
-                    onClick={() =>
-                      setReviewModalState({
-                        open: true,
-                        title: 'Driver Roster',
-                        fileName: profile.rosterFile.name,
-                        fileUrl: profile.rosterFile.url || '',
-                      })
-                    }
-                    sx={{
-                      height: 26,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      justifyContent: 'center',
-                      color: 'var(--sakay-orange)',
-                      borderColor: 'var(--sakay-orange-border)',
-                      backgroundColor: 'var(--sakay-orange-soft)',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 102, 0, 0.16)',
-                        borderColor: 'var(--sakay-orange)',
-                      },
-                    }}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<UploadFileIcon fontSize="small" />}
-                    onClick={() => {
-                      setDocCategory('Driver Roster');
-                      setSelectedFile(null);
-                      setUploadDocModalOpen(true);
-                    }}
-                    sx={{
-                      height: 26,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      justifyContent: 'center',
-                      color: '#1565C0',
-                      borderColor: '#BBDEFB',
-                      backgroundColor: '#F0F7FF',
-                      '&:hover': {
-                        backgroundColor: '#E3F2FD',
-                        borderColor: '#1565C0',
-                      },
-                    }}
-                  >
-                    Re-upload
-                  </Button>
-                </Box>
-              </Box>
-
-              {/* Document 3: Internal TODA Bylaws */}
-              <Box
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.dataTransfer.dropEffect = 'copy';
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory('bylaws');
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveDropCategory(null);
-                  if (e.dataTransfer.files?.[0]) {
-                    handleDroppedFileForCategory(e.dataTransfer.files[0], 'Internal Bylaws');
-                  }
-                }}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  p: '14px',
-                  borderRadius: '10px',
-                  backgroundColor: activeDropCategory === 'bylaws' ? '#FFF7ED' : '#FAFAFC',
-                  border: activeDropCategory === 'bylaws' ? '2px dashed var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, mr: '19px', pointerEvents: 'none' }}>
-                  <DescriptionIcon sx={{ color: '#059669', fontSize: 19, flexShrink: 0, mt: '2.5px' }} />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '6px' }}>
-                      Internal TODA Bylaws & Constitution
-                    </Typography>
-
-                    <Box sx={{ mb: '6px' }}>
-                      <Chip
-                        label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
-                        size="small"
-                        sx={{
-                          height: 18,
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
-                          color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                          borderRadius: '5px',
-                        }}
-                      />
-                    </Box>
-
-                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
-                      {profile.bylawsFile?.name || 'TODA_Bylaws.pdf'}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: '#64748B', mt: '3px' }}>
-                      {profile.bylawsFile?.date ? `Submitted ${profile.bylawsFile.date}` : 'No file submitted yet'}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, minWidth: '88px' }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<VisibilityIcon fontSize="small" />}
-                    onClick={() =>
-                      setReviewModalState({
-                        open: true,
-                        title: 'Internal TODA Bylaws & Constitution',
-                        fileName: profile.bylawsFile?.name || 'TODA_Bylaws.pdf',
-                        fileUrl: profile.bylawsFile?.url || '',
-                      })
-                    }
-                    sx={{
-                      height: 26,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      justifyContent: 'center',
-                      color: 'var(--sakay-orange)',
-                      borderColor: 'var(--sakay-orange-border)',
-                      backgroundColor: 'var(--sakay-orange-soft)',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 102, 0, 0.16)',
-                        borderColor: 'var(--sakay-orange)',
-                      },
-                    }}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<UploadFileIcon fontSize="small" />}
-                    onClick={() => {
-                      setDocCategory('Internal Bylaws');
-                      setSelectedFile(null);
-                      setUploadDocModalOpen(true);
-                    }}
-                    sx={{
-                      height: 26,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      justifyContent: 'center',
-                      color: '#1565C0',
-                      borderColor: '#BBDEFB',
-                      backgroundColor: '#F0F7FF',
-                      '&:hover': {
-                        backgroundColor: '#E3F2FD',
-                        borderColor: '#1565C0',
-                      },
-                    }}
-                  >
-                    Re-upload
-                  </Button>
-                </Box>
-              </Box>
-            </Box>
-          </Card>
-        </Box>
+              </InfoItem>
+            ))}
+          </Box>
+        </SectionCard>
       </Box>
 
-      {/* 2b. The administrator's own password */}
+      {/* 4. The compliance files: three cards side by side, one line of file name each */}
+      <Box sx={{ mb: SPACE.gapLarge }}>
+        <SectionCard
+          icon={<FolderOpenOutlinedIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />}
+          title="Compliance documents"
+          action={
+            <Button variant="outlined" startIcon={<UploadFileIcon sx={{ fontSize: 16 }} />} onClick={() => openUploadFor('Barangay Clearance')} sx={secondaryButtonSx}>
+              Upload a Document
+            </Button>
+          }
+        >
+          <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, lineHeight: 1.5, mb: '13px' }}>
+            Files you send go to the City LGU Franchising Office. Press View to read a file, or Replace file to send a new one. You can also drag a new file onto a document.
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+            {documents.map((doc) => (
+              <ComplianceDocumentCard
+                key={doc.key}
+                title={doc.title}
+                statusLabel={doc.status.label}
+                statusTone={doc.status.tone}
+                fileName={doc.fileName}
+                details={doc.details}
+                dragging={activeDropCategory === doc.key}
+                onDragActive={(active) => setActiveDropCategory(active ? doc.key : null)}
+                onDropFile={(file) => handleDroppedFileForCategory(file, doc.category)}
+                onView={() => setReviewModalState({ open: true, title: doc.title, fileName: doc.fileName, fileUrl: doc.fileUrl })}
+                onReplace={() => openUploadFor(doc.category)}
+              />
+            ))}
+          </Box>
+        </SectionCard>
+      </Box>
+
+      {/* 5. The administrator's own password (a slim row; the form opens in a window) */}
       <ChangePasswordCard />
 
-      {/* 3. Edit TODA Organizational Profile Centered Modal (Exact TODA Registration Labels & Layout) */}
+      {/* Edit the organisation and its officers */}
       <MacCenterModal
         open={editProfileModalOpen}
         onClose={() => setEditProfileModalOpen(false)}
@@ -1132,16 +603,13 @@ export const TodaAccountManagementPage: React.FC = () => {
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setEditProfileModalOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px', pt: '6px' }}>
-          {/* Section 1: Association Information */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge, pt: '6px' }}>
           <Box>
-            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: '13px', letterSpacing: '0.5px' }}>
-              1. Association Information
-            </Typography>
+            <FormSectionTitle>Association information</FormSectionTitle>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
               <TextField
-                label="Official Association / TODA Name *"
+                label="Official Association / TODA Name"
                 placeholder="e.g. Calapan Central Tricycle Operators & Drivers Association"
                 value={editTodaName}
                 onChange={(e) => setEditTodaName(e.target.value)}
@@ -1150,7 +618,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                 size="small"
               />
               <TextField
-                label="TODA Acronym *"
+                label="TODA Acronym"
                 placeholder="e.g. CCTODA"
                 value={editTodaAcronym}
                 onChange={(e) => setEditTodaAcronym(e.target.value.toUpperCase())}
@@ -1160,12 +628,12 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="edit-barangay-label">Operating Barangay *</InputLabel>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
+              <FormControl fullWidth size="small" required>
+                <InputLabel id="edit-barangay-label">Operating Barangay</InputLabel>
                 <Select
                   labelId="edit-barangay-label"
-                  label="Operating Barangay *"
+                  label="Operating Barangay"
                   value={editBarangay}
                   onChange={(e) => setEditBarangay(e.target.value)}
                 >
@@ -1178,7 +646,7 @@ export const TodaAccountManagementPage: React.FC = () => {
               </FormControl>
 
               <TextField
-                label="Date Established *"
+                label="Date Established"
                 type="date"
                 value={editDateEst}
                 onChange={(e) => setEditDateEst(e.target.value)}
@@ -1189,9 +657,9 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
               <TextField
-                label="Terminal Location *"
+                label="Terminal Location"
                 placeholder="e.g. Calapan Public Market, J.P. Rizal St."
                 value={editTerminalLoc}
                 onChange={(e) => setEditTerminalLoc(e.target.value)}
@@ -1210,18 +678,14 @@ export const TodaAccountManagementPage: React.FC = () => {
             </Box>
           </Box>
 
-          <Divider sx={{ borderColor: 'var(--mac-border-color)' }} />
+          <Divider sx={{ borderColor: OPS_BORDER }} />
 
-          {/* Section 2: Authorized Association Officers */}
           <Box>
-            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: '13px', letterSpacing: '0.5px' }}>
-              2. Executive Officers
-            </Typography>
+            <FormSectionTitle>Executive officers</FormSectionTitle>
 
-            {/* President */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
               <TextField
-                label="President Full Name *"
+                label="President Full Name"
                 placeholder="e.g. Roberto Alcantara"
                 value={editPresident}
                 onChange={(e) => setEditPresident(e.target.value)}
@@ -1230,7 +694,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                 size="small"
               />
               <TextField
-                label="President Mobile Contact *"
+                label="President Mobile Contact"
                 placeholder="e.g. 0917 555 1001"
                 value={editPresidentContact}
                 onChange={(e) => setEditPresidentContact(formatPhoneNumber(e.target.value))}
@@ -1240,8 +704,7 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            {/* Vice President */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
               <TextField
                 label="Vice President Name"
                 placeholder="e.g. Eduardo Perez"
@@ -1260,8 +723,7 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            {/* Secretary */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
               <TextField
                 label="Secretary Name"
                 placeholder="e.g. Leticia Cruz"
@@ -1280,8 +742,7 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            {/* Treasurer */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
               <TextField
                 label="Treasurer Name"
                 placeholder="e.g. Mario Hernandez"
@@ -1303,7 +764,7 @@ export const TodaAccountManagementPage: React.FC = () => {
         </Box>
       </MacCenterModal>
 
-      {/* 4. Upload Annual Compliance Document Centered Modal */}
+      {/* Send a compliance document to the LGU */}
       <MacCenterModal
         open={uploadDocModalOpen}
         onClose={() => setUploadDocModalOpen(false)}
@@ -1315,11 +776,9 @@ export const TodaAccountManagementPage: React.FC = () => {
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setUploadDocModalOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap }}>
           <FormControl fullWidth size="small">
-            <InputLabel id="doc-select-label" sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)' }}>
-              Document
-            </InputLabel>
+            <InputLabel id="doc-select-label">Document</InputLabel>
             <Select
               labelId="doc-select-label"
               label="Document"
@@ -1328,33 +787,16 @@ export const TodaAccountManagementPage: React.FC = () => {
                 setDocCategory(e.target.value as any);
                 setSelectedFile(null);
               }}
-              sx={{
-                borderRadius: '8px',
-                backgroundColor: '#FFFFFF',
-                fontSize: '12px',
-                fontWeight: 600,
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'var(--sakay-orange) !important',
-                  borderWidth: '2px',
-                },
-              }}
             >
-              <MenuItem value="Barangay Clearance" sx={{ fontSize: '12px', py: '8px' }}>
-                Barangay Clearance
-              </MenuItem>
-              <MenuItem value="Driver Roster" sx={{ fontSize: '12px', py: '8px' }}>
-                Driver Roster
-              </MenuItem>
-              <MenuItem value="Internal Bylaws" sx={{ fontSize: '12px', py: '8px' }}>
-                Internal Bylaws
-              </MenuItem>
+              <MenuItem value="Barangay Clearance">Barangay Clearance</MenuItem>
+              <MenuItem value="Driver Roster">Driver Roster</MenuItem>
+              <MenuItem value="Internal Bylaws">Internal Bylaws</MenuItem>
             </Select>
           </FormControl>
 
-          {/* Real Drag & Drop File Upload Zone */}
           <Box>
-            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: '6px' }}>
-              Attach Compliance Document File
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, mb: '6px' }}>
+              Attach the file
             </Typography>
 
             <Box
@@ -1404,22 +846,14 @@ export const TodaAccountManagementPage: React.FC = () => {
                 justifyContent: 'center',
                 padding: '22px 16px',
                 borderRadius: '10px',
-                border: isDraggingModalZone
-                  ? '2px solid var(--sakay-orange)'
-                  : '2px dashed var(--sakay-orange-border)',
-                backgroundColor: isDraggingModalZone
-                  ? 'rgba(255, 102, 0, 0.16)'
-                  : 'var(--sakay-orange-soft)',
-                boxShadow: isDraggingModalZone ? '0 0 0 4px rgba(255, 102, 0, 0.2)' : 'none',
+                border: isDraggingModalZone ? '2px solid var(--sakay-orange)' : '2px dashed var(--sakay-orange-border)',
+                backgroundColor: isDraggingModalZone ? 'rgba(255, 102, 0, 0.12)' : 'var(--sakay-orange-soft)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 102, 0, 0.12)',
-                  borderColor: 'var(--sakay-orange)',
-                },
-                '& > *': {
-                  pointerEvents: 'none',
-                },
+                transition: 'background-color 0.2s ease',
+                textAlign: 'center',
+                '&:hover': { backgroundColor: 'rgba(255, 102, 0, 0.12)', borderColor: 'var(--sakay-orange)' },
+                '&:focus-within': { outline: `2px solid ${OPS_TEXT.brand}`, outlineOffset: '2px' },
+                '& > *': { pointerEvents: 'none' },
               }}
             >
               <input
@@ -1429,11 +863,11 @@ export const TodaAccountManagementPage: React.FC = () => {
                 accept={getCategoryFileSupport().accept}
                 onChange={handleFileSelect}
               />
-              <UploadFileIcon sx={{ fontSize: 32, color: 'var(--sakay-orange)', mb: '6px' }} />
-              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                {isDraggingModalZone ? 'Drop file to attach' : selectedFile ? selectedFile.name : 'Click or Drag File to Attach'}
+              <UploadFileIcon aria-hidden sx={{ fontSize: 30, color: OPS_TEXT.brand, mb: '6px' }} />
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>
+                {isDraggingModalZone ? 'Drop file to attach' : selectedFile ? selectedFile.name : 'Click or drag a file here'}
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+              <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '3px' }}>
                 {selectedFile
                   ? `${(selectedFile.size / 1024).toFixed(1)} KB • Ready for upload`
                   : getCategoryFileSupport().text}
@@ -1446,20 +880,21 @@ export const TodaAccountManagementPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: '10px',
                   mt: '10px',
-                  p: '10px',
+                  p: '10px 12px',
                   borderRadius: '8px',
-                  backgroundColor: '#F5F5F7',
-                  border: '1px solid var(--mac-border-color)',
+                  backgroundColor: '#FAFAF8',
+                  border: `1px solid ${OPS_BORDER}`,
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <InsertDriveFileIcon sx={{ color: 'var(--sakay-orange)' }} />
-                  <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <InsertDriveFileIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 18, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>
                     {selectedFile.name}
                   </Typography>
                 </Box>
-                <Chip label="Selected File" size="small" color="primary" sx={{ fontSize: '11px', fontWeight: 600 }} />
+                <StatusPill label="Selected file" tone="neutral" />
               </Box>
             )}
           </Box>
@@ -1477,7 +912,7 @@ export const TodaAccountManagementPage: React.FC = () => {
             />
           )}
 
-          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', lineHeight: 1.4 }}>
+          <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, lineHeight: 1.5 }}>
             {profile.accreditationStatus === 'Active'
               ? 'A renewed Barangay Clearance goes to the City LGU Franchising Office. Your accreditation stays as it is until the LGU records the renewal.'
               : 'Submitted compliance files go directly to the City LGU Franchising Office for review.'}
@@ -1485,7 +920,7 @@ export const TodaAccountManagementPage: React.FC = () => {
         </Box>
       </MacCenterModal>
 
-      {/* Document Review Modal (Identical to TODA Registration Review Modal) */}
+      {/* Read one of the documents */}
       <DocumentReviewModal
         open={reviewModalState.open}
         onClose={() => setReviewModalState((prev) => ({ ...prev, open: false }))}
@@ -1494,7 +929,7 @@ export const TodaAccountManagementPage: React.FC = () => {
         fileUrl={reviewModalState.fileUrl}
       />
 
-      {/* Alert / Feedback Snackbar */}
+      {/* What just happened */}
       <Snackbar
         open={uploadSnackbar.open}
         autoHideDuration={6000}
@@ -1505,7 +940,7 @@ export const TodaAccountManagementPage: React.FC = () => {
           onClose={() => setUploadSnackbar((prev) => ({ ...prev, open: false }))}
           severity={uploadSnackbar.severity}
           variant="filled"
-          sx={{ width: '100%', fontWeight: 600, borderRadius: '8px' }}
+          sx={{ width: '100%', fontWeight: 600, fontSize: FONT.body, borderRadius: '8px' }}
         >
           {uploadSnackbar.message}
         </Alert>

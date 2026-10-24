@@ -156,7 +156,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
       setTableData(rows);
     } catch (err: any) {
       console.error('[DocumentReviewModal] Parsing error:', err);
-      setError(err.message || 'Unable to parse spreadsheet contents.');
+      setError(err.message || 'The spreadsheet could not be read.');
     } finally {
       setLoading(false);
     }
@@ -212,7 +212,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
           backgroundColor: '#FAFAFC',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
           {isSpreadsheet ? (
             <TableChartOutlinedIcon sx={{ color: '#16A34A', fontSize: 24 }} />
           ) : isPdf ? (
@@ -223,19 +223,20 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
             <InsertDriveFileOutlinedIcon sx={{ color: '#64748B', fontSize: 24 }} />
           )}
 
-          <Box>
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Box sx={{ minWidth: 0 }}>
+            {/* a long stored file name stays on one line; the whole name is in the tooltip */}
+            <Typography noWrap title={fileName || documentTitle} sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               {fileName || documentTitle}
             </Typography>
             {fileName && fileName !== documentTitle && (
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
+              <Typography sx={{ fontSize: '12px', color: '#4d4d52', fontWeight: 500 }}>
                 {documentTitle}
               </Typography>
             )}
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
           {effectiveUrl && (
             <Button
               size="small"
@@ -244,17 +245,18 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
               onClick={() => window.open(effectiveUrl, '_blank', 'noopener,noreferrer')}
               sx={{
                 textTransform: 'none',
-                color: 'var(--sakay-orange)',
+                color: '#B34700',
                 fontSize: '12.5px',
                 fontWeight: 600,
                 px: 1,
+                whiteSpace: 'nowrap',
               }}
             >
               Open in New Window
             </Button>
           )}
 
-          <IconButton size="small" onClick={onClose} sx={{ color: '#64748B' }}>
+          <IconButton size="small" onClick={onClose} aria-label="Close" sx={{ color: '#4d4d52' }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -315,7 +317,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 1.5 }}>
                 <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
                 <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
-                  Parsing spreadsheet data...
+                  Reading the spreadsheet...
                 </Typography>
               </Box>
             ) : error ? (
@@ -325,7 +327,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
             ) : tableData.length === 0 ? (
               <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
                 <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
-                  No data rows could be extracted from this spreadsheet.
+                  No rows could be read from this spreadsheet.
                 </Typography>
               </Paper>
             ) : (
@@ -480,7 +482,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
           ) : (
             <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
               <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
-                No PDF file URL found to display.
+                There is no PDF file to show.
               </Typography>
             </Paper>
           )

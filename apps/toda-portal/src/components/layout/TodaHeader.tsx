@@ -34,7 +34,7 @@ const headerButtonSx = {
 
 export const TodaHeader: React.FC<TodaHeaderProps> = ({
   pageTitle = 'Operations Monitoring',
-  pageSubtitle = 'Real-time overview of TODA terminal and driver fleet',
+  pageSubtitle = 'Your drivers, your trips, and what needs your attention',
 }) => {
   const navigate = useNavigate();
   const { todaAdminProfile, user, signOut } = useAuth();

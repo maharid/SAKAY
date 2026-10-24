@@ -14,12 +14,15 @@ import CloseIcon from '@mui/icons-material/Close';
 import DescriptionIcon from '@mui/icons-material/Description';
 import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { refreshStorageUrl } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
+import { primaryButtonSx, secondaryButtonSx } from '../common/pageButtons';
+import { OPS_TEXT, opsFocusRing } from '../operations/operationsTheme';
+import { FONT } from '../../styles/density';
 
 interface DocumentPreviewModalProps {
   open: boolean;
@@ -33,7 +36,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   open,
   onClose,
   documentName,
-  documentType = 'Official Document Proof',
+  documentType = 'Document',
   imageUrl: sourceUrl,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -94,6 +97,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     <Dialog
       open={open}
       onClose={onClose}
+      aria-labelledby="document-preview-title"
       slotProps={{
         backdrop: {
           sx: {
@@ -103,8 +107,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         },
         paper: {
           sx: {
-            width: '100%',
+            width: 'calc(100% - 32px)',
             maxWidth: 624,
+            m: '16px',
+            maxHeight: 'calc(100% - 32px)',
             borderRadius: '18px',
             backgroundColor: '#FFFFFF',
             boxShadow: 'var(--mac-shadow-popover)',
@@ -127,11 +133,11 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
           <Box>
-            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Typography id="document-preview-title" component="span" sx={{ display: 'block', fontSize: FONT.heading, fontWeight: 700, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>
               {documentName}
             </Typography>
-            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-              {documentType} • Official TODA / Municipal Compliance Submission
+            <Typography component="span" sx={{ display: 'block', fontSize: FONT.small, color: OPS_TEXT.secondary }}>
+              {documentType}
             </Typography>
           </Box>
         </Box>
@@ -139,21 +145,21 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {imageUrl && !imgError && (
             <>
-              <IconButton size="small" onClick={handleZoomOut} title="Zoom Out" sx={{ color: 'var(--mac-text-secondary)' }}>
+              <IconButton size="small" onClick={handleZoomOut} aria-label="Zoom out" title="Zoom out" sx={{ color: OPS_TEXT.secondary, ...opsFocusRing }}>
                 <ZoomOutIcon fontSize="small" />
               </IconButton>
-              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', minWidth: 30, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary, minWidth: 36, textAlign: 'center' }}>
                 {Math.round(zoomLevel * 100)}%
               </Typography>
-              <IconButton size="small" onClick={handleZoomIn} title="Zoom In" sx={{ color: 'var(--mac-text-secondary)' }}>
+              <IconButton size="small" onClick={handleZoomIn} aria-label="Zoom in" title="Zoom in" sx={{ color: OPS_TEXT.secondary, ...opsFocusRing }}>
                 <ZoomInIcon fontSize="small" />
               </IconButton>
-              <IconButton size="small" onClick={handleResetZoom} title="Reset Zoom" sx={{ color: 'var(--mac-text-secondary)' }}>
+              <IconButton size="small" onClick={handleResetZoom} aria-label="Reset zoom" title="Reset zoom" sx={{ color: OPS_TEXT.secondary, ...opsFocusRing }}>
                 <RestartAltIcon fontSize="small" />
               </IconButton>
             </>
           )}
-          <IconButton onClick={onClose} size="small" sx={{ ml: '6px' }}>
+          <IconButton onClick={onClose} size="small" aria-label="Close" sx={{ ml: '6px', color: OPS_TEXT.secondary, ...opsFocusRing }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -165,7 +171,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             sx={{
               position: 'relative',
               width: '100%',
-              height: 384,
+              height: 'min(384px, 52vh)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -177,7 +183,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             {imgLoading && (
               <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                 <CircularProgress size={29} sx={{ color: 'var(--sakay-orange)' }} />
-                <Typography sx={{ fontSize: '11px', color: '#A1A1AA' }}>Loading captured document...</Typography>
+                <Typography sx={{ fontSize: FONT.body, color: '#D4D4D8' }}>Loading photo...</Typography>
               </Box>
             )}
             <Box
@@ -205,7 +211,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         ) : resolving ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
             <CircularProgress size={29} sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '11px', color: '#A1A1AA' }}>Preparing secure link...</Typography>
+            <Typography sx={{ fontSize: FONT.body, color: '#D4D4D8' }}>Getting the photo ready...</Typography>
           </Box>
         ) : (
           <Box
@@ -223,80 +229,33 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               textAlign: 'center',
             }}
           >
-            <VerifiedUserIcon sx={{ fontSize: 38, color: '#1E8E3E', mb: '13px' }} />
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: '6px' }}>
-              {documentName}
+            <ImageNotSupportedOutlinedIcon aria-hidden sx={{ fontSize: 38, color: '#8A8A90', mb: '13px' }} />
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: OPS_TEXT.primary, mb: '6px' }}>
+              {imgError ? 'The photo could not be loaded' : 'No photo to show'}
             </Typography>
-            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', maxWidth: 352, mb: '6px' }}>
-              {imgError
-                ? 'Unable to load high-resolution image preview. You may still inspect the document record below.'
-                : 'Captured document metadata is registered with Calapan City TODA Administrative Board.'}
+            <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, maxWidth: 352 }}>
+              {imgError ? 'Close this window and try again in a moment.' : 'This document does not have a photo to show.'}
             </Typography>
           </Box>
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', display: 'flex', justifyContent: 'space-between' }}>
-        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-          {imageUrl ? 'High-Resolution Captured Submission' : 'Document Submission Record'}
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: '10px' }}>
-          {imageUrl && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<OpenInNewIcon fontSize="small" />}
-              onClick={handleOpenOriginal}
-              sx={{
-                textTransform: 'none',
-                borderRadius: '6.5px',
-                borderColor: 'var(--mac-border-color)',
-                color: 'var(--mac-text-secondary)',
-                fontSize: '11px',
-                fontWeight: 600,
-              }}
-            >
-              Open Full Resolution
-            </Button>
-          )}
-
-          {imageUrl && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<DownloadIcon fontSize="small" />}
-              onClick={handleDownload}
-              sx={{
-                textTransform: 'none',
-                borderRadius: '6.5px',
-                backgroundColor: 'var(--sakay-orange)',
-                color: '#FFFFFF',
-                fontSize: '11px',
-                fontWeight: 600,
-                '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
-              }}
-            >
-              Download Photo
-            </Button>
-          )}
-
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={onClose}
-            sx={{
-              textTransform: 'none',
-              borderRadius: '6.5px',
-              borderColor: 'var(--mac-border-color)',
-              color: 'var(--mac-text-primary)',
-              fontSize: '11px',
-              fontWeight: 600,
-            }}
-          >
-            Close
+      <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '10px' }}>
+        {imageUrl && (
+          <Button variant="outlined" startIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />} onClick={handleOpenOriginal} sx={secondaryButtonSx}>
+            Open Full Size
           </Button>
-        </Box>
+        )}
+
+        {imageUrl && (
+          <Button variant="contained" disableElevation startIcon={<DownloadIcon sx={{ fontSize: 16 }} />} onClick={handleDownload} sx={primaryButtonSx}>
+            Download Photo
+          </Button>
+        )}
+
+        <Button variant="outlined" onClick={onClose} sx={secondaryButtonSx}>
+          Close
+        </Button>
       </DialogActions>
     </Dialog>
   );

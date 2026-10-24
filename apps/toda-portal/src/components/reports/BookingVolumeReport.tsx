@@ -1,23 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Box,
-  Card,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
+import { Box, TableBody, TableCell, TableRow, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 
 import { serviceUtilization, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike, ReportTable, VolumePeriod } from '@sakay/shared';
 
 import { PILOT_COVERAGE_TEXT } from '../common/PilotCoverageNote';
+import { DataTableCard, DataTableMessageRow } from '../common/DataTable';
+import { OperationsStatStrip } from '../operations/OperationsStatStrip';
+import type { OperationsStat } from '../operations/OperationsStatStrip';
+import { OPS_BORDER, OPS_TEXT, opsFocusRing } from '../operations/operationsTheme';
+import { CONTROL, FONT, SPACE } from '../../styles/density';
 import { ReportExportButtons } from './ReportExportButtons';
 import type { ExportFormat } from './ReportExportButtons';
 
@@ -37,9 +29,6 @@ const PERIOD_LABEL: Record<VolumePeriod, string> = { day: 'Daily', week: 'Weekly
 const PERIOD_COLUMN: Record<VolumePeriod, string> = { day: 'DAY', week: 'WEEK (MON-SUN)', month: 'MONTH' };
 const peso = (n: number): string => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const cardSx = { borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' };
-const headCell = { fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '13px' };
-
 export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips, todaName, onExported }) => {
   const [period, setPeriod] = useState<VolumePeriod>('day');
 
@@ -58,34 +47,38 @@ export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips,
     [period, rows, todaName]
   );
 
-  const kpis: Array<[string, string, string, string]> = [
-    ['Platform Booking Volume', String(totals.requests), 'All booking requests recorded for your TODA', 'var(--mac-text-primary)'],
-    ['Completed Trips', String(totals.completed), `${totals.completionRate}% of requests`, '#059669'],
-    ['Cancelled / No Driver', `${totals.cancelled + totals.noDriverFound}`, `${totals.cancelled} cancelled, ${totals.noDriverFound} no driver found`, '#DC2626'],
-    ['Estimated Gross Fare Value', peso(totals.grossFare), `Average ${peso(totals.averageFare)} per completed trip`, 'var(--sakay-orange)'],
+  const stats: OperationsStat[] = [
+    { key: 'volume', label: 'Platform booking volume', value: String(totals.requests), note: 'All booking requests recorded for your TODA' },
+    { key: 'completed', label: 'Completed trips', value: String(totals.completed), note: `${totals.completionRate}% of requests`, tone: totals.completed > 0 ? 'success' : 'neutral' },
+    { key: 'cancelled', label: 'Cancelled / no driver', value: `${totals.cancelled + totals.noDriverFound}`, note: `${totals.cancelled} cancelled, ${totals.noDriverFound} no driver found`, tone: totals.cancelled + totals.noDriverFound > 0 ? 'danger' : 'neutral' },
+    { key: 'fare', label: 'Estimated gross fare value', value: peso(totals.grossFare), note: `Average ${peso(totals.averageFare)} per completed trip`, tone: 'brand' },
   ];
 
   return (
     <>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '16px', mb: '22px' }}>
-        {kpis.map(([title, value, caption, color]) => (
-          <Card key={title} sx={cardSx}>
-            <Box sx={{ p: '16px 19px' }}>
-              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>{title}</Typography>
-              <Typography sx={{ fontSize: '24px', fontWeight: 700, color }}>{value}</Typography>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>{caption}</Typography>
-            </Box>
-          </Card>
-        ))}
-      </Box>
+      <OperationsStatStrip stats={stats} />
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px', mb: '13px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px', mb: SPACE.gap }}>
         <ToggleButtonGroup
           exclusive
-          size="small"
           value={period}
+          aria-label="Report period"
           onChange={(_, next: VolumePeriod | null) => next && setPeriod(next)}
-          sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, px: '13px' }, '& .Mui-selected': { color: 'var(--sakay-orange) !important' } }}
+          sx={{
+            '& .MuiToggleButton-root': {
+              textTransform: 'none',
+              fontSize: FONT.body,
+              fontWeight: 600,
+              px: '16px',
+              minHeight: CONTROL.height,
+              color: OPS_TEXT.primary,
+              backgroundColor: '#FFFFFF',
+              border: `1px solid ${OPS_BORDER}`,
+              '@media (pointer: coarse)': { minHeight: CONTROL.touchHeight },
+              ...opsFocusRing,
+              '&.Mui-selected': { color: OPS_TEXT.brand, backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' },
+            },
+          }}
         >
           {(Object.keys(PERIOD_LABEL) as VolumePeriod[]).map((p) => (
             <ToggleButton key={p} value={p}>{PERIOD_LABEL[p]}</ToggleButton>
@@ -94,37 +87,40 @@ export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips,
         <ReportExportButtons table={table} generatedBy={`${todaName} Administrator`} onExported={onExported} />
       </Box>
 
-      <TableContainer component={Paper} elevation={0} sx={{ ...cardSx, overflow: 'hidden' }}>
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={headCell}>{PERIOD_COLUMN[period]}</TableCell>
-              <TableCell sx={headCell} align="right">REQUESTS</TableCell>
-              <TableCell sx={headCell} align="right">COMPLETED</TableCell>
-              <TableCell sx={headCell} align="right">CANCELLED</TableCell>
-              <TableCell sx={headCell} align="right">NO DRIVER</TableCell>
-              <TableCell sx={headCell} align="right">SHARED</TableCell>
-              <TableCell sx={headCell} align="right">EST. GROSS FARE</TableCell>
-              <TableCell sx={headCell} align="right">COMPLETION</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.key} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                <TableCell sx={{ px: '13px', fontWeight: 600 }}>{r.label}</TableCell>
-                <TableCell sx={{ px: '13px' }} align="right">{r.total}</TableCell>
-                <TableCell sx={{ px: '13px', color: '#059669', fontWeight: 600 }} align="right">{r.completed}</TableCell>
-                <TableCell sx={{ px: '13px', color: r.cancelled ? '#DC2626' : undefined }} align="right">{r.cancelled}</TableCell>
-                <TableCell sx={{ px: '13px' }} align="right">{r.noDriverFound}</TableCell>
-                <TableCell sx={{ px: '13px' }} align="right">{r.sharedTrips}</TableCell>
-                <TableCell sx={{ px: '13px', fontWeight: 600 }} align="right">{peso(r.grossFare)}</TableCell>
-                <TableCell sx={{ px: '13px' }} align="right">{r.total > 0 ? `${r.completionRate}%` : '-'}</TableCell>
+      <DataTableCard
+        label="Booking volume"
+        minWidth={820}
+        columns={[
+          { label: PERIOD_COLUMN[period] },
+          { label: 'Requests', numeric: true },
+          { label: 'Completed', numeric: true },
+          { label: 'Cancelled', numeric: true },
+          { label: 'No driver', numeric: true },
+          { label: 'Shared', numeric: true },
+          { label: 'Est. gross fare', numeric: true },
+          { label: 'Completion', numeric: true },
+        ]}
+      >
+        <TableBody>
+          {rows.length > 0 ? (
+            rows.map((r) => (
+              <TableRow key={r.key}>
+                <TableCell sx={{ fontWeight: 600 }}>{r.label}</TableCell>
+                <TableCell>{r.total}</TableCell>
+                <TableCell sx={{ color: OPS_TEXT.success, fontWeight: 600 }}>{r.completed}</TableCell>
+                <TableCell sx={{ color: r.cancelled ? OPS_TEXT.danger : undefined }}>{r.cancelled}</TableCell>
+                <TableCell>{r.noDriverFound}</TableCell>
+                <TableCell>{r.sharedTrips}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{peso(r.grossFare)}</TableCell>
+                <TableCell>{r.total > 0 ? `${r.completionRate}%` : '-'}</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '10px' }}>
+            ))
+          ) : (
+            <DataTableMessageRow colSpan={8} kind="empty" title="No bookings yet" hint="Booking requests of your TODA are counted here by day, week or month." />
+          )}
+        </TableBody>
+      </DataTableCard>
+      <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '10px', lineHeight: 1.5 }}>
         {todaName}: counted by the day the booking was created (Asia/Manila). Estimated gross fare value is the sum of the final fares of completed trips, paid in cash.
       </Typography>
     </>

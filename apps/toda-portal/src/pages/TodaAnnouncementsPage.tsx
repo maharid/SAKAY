@@ -1,24 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Button,
-  TextField,
-  MenuItem,
-  Chip,
-} from '@mui/material';
+import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem } from '@mui/material';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import DeleteIcon from '@mui/icons-material/Delete';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import InboxIcon from '@mui/icons-material/Inbox';
+import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
 
 import { TodaAnnouncement } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -26,6 +10,13 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { SendReminderDialog } from '../components/announcements/SendReminderDialog';
+import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
+import type { OperationsStat } from '../components/operations/OperationsStatStrip';
+import { DataTableCard, DataTableMessageRow, StatusPill } from '../components/common/DataTable';
+import { PageNotice } from '../components/common/PageNotice';
+import { primaryButtonSx, rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
+import { OPS_TEXT } from '../components/operations/operationsTheme';
+import { FONT, SHELL, SPACE } from '../styles/density';
 import {
   fetchTodaAnnouncements,
   postTodaAnnouncement,
@@ -171,270 +162,156 @@ export const TodaAnnouncementsPage: React.FC = () => {
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
 
+  // The three numbers at the top
+  const stats: OperationsStat[] = [
+    { key: 'total', label: 'All announcements', value: totalCount },
+    { key: 'published', label: 'Published', value: publishedCount, note: 'Seen by your drivers', tone: publishedCount > 0 ? 'brand' : 'neutral' },
+    { key: 'drafts', label: 'Drafts', value: draftCount, note: 'Not published yet' },
+  ];
+
+  // Why the list is empty, in words: nothing exists, or nothing matches the search and filters
+  const hasActiveFilter = searchQuery.trim() !== '' || categoryFilter !== 'All' || statusFilter !== 'All';
+
+  const actions = (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+      <Button onClick={() => setReminderOpen(true)} startIcon={<NotificationsActiveIcon sx={{ fontSize: 16 }} />} variant="outlined" sx={secondaryButtonSx}>
+        Send Reminder
+      </Button>
+      <Button onClick={handleOpenCreate} startIcon={<CampaignIcon sx={{ fontSize: 16 }} />} variant="contained" disableElevation sx={primaryButtonSx}>
+        New Announcement
+      </Button>
+    </Box>
+  );
+
   return (
-    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
-      {/* 1. Summary KPI Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-          gap: '16px',
-          mb: '22px',
-        }}
-      >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Total TODA Announcements</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
-        </Box>
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px' }}>
+      {/* 1. The numbers */}
+      <OperationsStatStrip stats={stats} />
 
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Published to Driver App</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{publishedCount}</Typography>
-        </Box>
-
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Saved Drafts</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-muted)' }}>{draftCount}</Typography>
-        </Box>
-      </Box>
-
-      {/* 2. Floating Filter Toolbar + New Announcement Button */}
-      <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', md: 'stretch' }, gap: '13px', mb: '22px', flexWrap: 'wrap' }}>
-        <Box sx={{ flex: 1, minWidth: 224 }}>
-          <FilterToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search announcement title or message content..."
-            disableMarginBottom
-            selectFilters={[
-              {
-                id: 'category',
-                label: 'Category',
-                value: categoryFilter,
-                options: categoryOptions,
-                onChange: setCategoryFilter,
-              },
-              {
-                id: 'status',
-                label: 'Publication Status',
-                value: statusFilter,
-                options: statusOptions,
-                onChange: setStatusFilter,
-              },
-            ]}
-            onResetFilters={() => {
-              setSearchQuery('');
-              setCategoryFilter('All');
-              setStatusFilter('All');
-            }}
-          />
-        </Box>
-
-        <Button
-          onClick={handleOpenCreate}
-          startIcon={<CampaignIcon />}
-          sx={{
-            height: 'auto',
-            alignSelf: 'stretch',
-            px: '19px',
-            borderRadius: '10px',
-            fontSize: '12px',
-            fontWeight: 600,
-            textTransform: 'none',
-            backgroundColor: 'var(--sakay-orange)',
-            color: '#FFFFFF',
-            boxShadow: '0 8px 18px rgba(255, 102, 0, 0.24)',
-            whiteSpace: 'nowrap',
-            '&:hover': {
-              backgroundColor: 'var(--sakay-orange-hover)',
-            },
-          }}
-        >
-          New Announcement
-        </Button>
-        <Button
-          onClick={() => setReminderOpen(true)}
-          startIcon={<NotificationsActiveIcon />}
-          variant="outlined"
-          sx={{
-            height: 'auto',
-            alignSelf: 'stretch',
-            px: '19px',
-            borderRadius: '10px',
-            fontSize: '12px',
-            fontWeight: 600,
-            textTransform: 'none',
-            borderColor: 'var(--sakay-orange)',
-            color: 'var(--sakay-orange)',
-            whiteSpace: 'nowrap',
-            '&:hover': { borderColor: 'var(--sakay-orange-hover)', backgroundColor: 'var(--sakay-orange-soft)' },
-          }}
-        >
-          Send Reminder
-        </Button>
-      </Box>
-
+      {/* 2. After a reminder was sent */}
       {reminderNotice && (
-        <Box sx={{ mb: '16px', p: '10px 14px', borderRadius: '8px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: '11px', fontWeight: 600 }}>
-          {reminderNotice}
-        </Box>
+        <PageNotice tone="success">{reminderNotice}</PageNotice>
       )}
 
       <SendReminderDialog
         open={reminderOpen}
         onClose={() => setReminderOpen(false)}
-        onSent={(count) => setReminderNotice(`Reminder sent to ${count} driver${count === 1 ? '' : 's'}. They will see it under Abiso in the Driver App.`)}
+        onSent={(count) => setReminderNotice(`Reminder sent to ${count} driver${count === 1 ? '' : 's'}. They will see it under Alerts in the Driver App.`)}
       />
 
-      {/* 3. Announcements List Table with Clean Fixed Action Column */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: '14px',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
+      {/* 3. Search, filters and the two things a president does here */}
+      <FilterToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search title or message"
+        selectFilters={[
+          {
+            id: 'category',
+            label: 'Category',
+            value: categoryFilter,
+            options: categoryOptions,
+            onChange: setCategoryFilter,
+            width: 176,
+          },
+          {
+            id: 'status',
+            label: 'Publication Status',
+            value: statusFilter,
+            options: statusOptions,
+            onChange: setStatusFilter,
+            width: 164,
+          },
+        ]}
+        onResetFilters={() => {
+          setSearchQuery('');
+          setCategoryFilter('All');
+          setStatusFilter('All');
         }}
+        actionButton={actions}
+      />
+
+      {/* 4. The announcements, one per row */}
+      <DataTableCard
+        label="Announcements"
+        minWidth={820}
+        columns={[{ label: 'Announcement' }, { label: 'Category' }, { label: 'Posted by' }, { label: 'Status' }, { label: 'Action', align: 'right' }]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Announcement Title</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Category</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Target Recipients</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Created By & Date</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Status</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px', width: 112 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredAnnouncements.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: '45px' }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <InboxIcon sx={{ fontSize: 38, color: 'var(--mac-text-tertiary)' }} />
-                    <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                      No Announcements Found
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                      There are currently no announcements matching the "{statusFilter !== 'All' ? statusFilter : 'selected'}" filter criteria.
-                    </Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={5} kind="loading" loadingText="Loading announcements..." />
+          ) : filteredAnnouncements.length > 0 ? (
+            filteredAnnouncements.map((ann) => (
+              <TableRow key={ann.id}>
+                <TableCell sx={{ maxWidth: 420 }}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 8px' }}>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{ann.title}</Typography>
+                    {ann.urgency === 'High Priority' && <StatusPill label="High priority" tone="danger" icon={<PriorityHighIcon aria-hidden sx={{ fontSize: 13 }} />} />}
+                  </Box>
+                  <Typography
+                    sx={{
+                      fontSize: FONT.small,
+                      color: OPS_TEXT.secondary,
+                      mt: '2px',
+                      overflowWrap: 'anywhere',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {ann.message}
+                  </Typography>
+                </TableCell>
+
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{ann.category}</TableCell>
+
+                <TableCell>
+                  <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary }}>{ann.createdBy}</Typography>
+                  <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>{ann.createdAt}</Typography>
+                </TableCell>
+
+                <TableCell>
+                  <StatusBadge status={ann.isPublished ? 'Published' : 'Draft'} highContrast />
+                </TableCell>
+
+                <TableCell align="right">
+                  <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <Button variant="outlined" onClick={() => setSelectedAnn(ann)} sx={rowActionSx('neutral')}>
+                      View
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setSelectedAnn(ann);
+                        setDeleteDialogOpen(true);
+                      }}
+                      sx={rowActionSx('danger')}
+                    >
+                      Delete
+                    </Button>
                   </Box>
                 </TableCell>
               </TableRow>
-            ) : (
-              filteredAnnouncements.map((ann) => (
-                <TableRow key={ann.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      {ann.title}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '11px',
-                        color: 'var(--mac-text-muted)',
-                        mt: '1.5px',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 1,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {ann.message}
-                    </Typography>
-                  </TableCell>
+            ))
+          ) : totalCount === 0 ? (
+            <DataTableMessageRow colSpan={5} kind="empty" title="No announcements yet" hint="Press New Announcement to write your first notice for your drivers." />
+          ) : (
+            <DataTableMessageRow
+              colSpan={5}
+              kind="noResults"
+              title="No announcements match"
+              hint={hasActiveFilter ? 'Try other words or another filter, or press Reset to see them all.' : 'Press Reset to see every announcement.'}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Chip
-                      label={ann.category}
-                      size="small"
-                      sx={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        backgroundColor: ann.urgency === 'High Priority' ? '#FEF2F2' : '#F1F3F4',
-                        color: ann.urgency === 'High Priority' ? '#DC2626' : 'var(--mac-text-secondary)',
-                      }}
-                    />
-                  </TableCell>
-
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      TODA Driver App Members
-                    </Typography>
-                  </TableCell>
-
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-primary)', fontWeight: 500 }}>
-                      {ann.createdBy}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                      {ann.createdAt}
-                    </Typography>
-                  </TableCell>
-
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <StatusBadge status={ann.isPublished ? 'Published' : 'Draft'} />
-                  </TableCell>
-
-                  <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
-                    <Box sx={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<VisibilityIcon sx={{ fontSize: 12 }} />}
-                        onClick={() => setSelectedAnn(ann)}
-                        sx={{
-                          height: 27,
-                          px: '11px',
-                          borderRadius: '6.5px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          textTransform: 'none',
-                          whiteSpace: 'nowrap',
-                          color: 'var(--mac-text-primary)',
-                          borderColor: 'var(--mac-border-color)',
-                          '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' },
-                        }}
-                      >
-                        View
-                      </Button>
-
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          setSelectedAnn(ann);
-                          setDeleteDialogOpen(true);
-                        }}
-                        sx={{
-                          height: 27,
-                          width: 27,
-                          minWidth: 27,
-                          padding: 0,
-                          borderRadius: '6.5px',
-                          color: '#DC2626',
-                          borderColor: '#FECACA',
-                          '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#DC2626' },
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 13 }} />
-                      </Button>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* 4. Create / Edit Announcement Centered Modal */}
+      {/* 5. Write or edit an announcement */}
       <MacCenterModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         title={editingAnn ? "Edit TODA Announcement" : "Create New TODA Announcement"}
-        subtitle="Broadcast notice to TODA drivers via their Driver App"
+        subtitle="Your drivers read it in their Driver App"
         maxWidth={560}
         primaryActionLabel={isFormValid ? (editingAnn ? "Save Announcement" : "Publish Announcement") : undefined}
         onPrimaryAction={isFormValid ? () => handleSaveAnnouncement(true) : undefined}
@@ -447,44 +324,22 @@ export const TodaAnnouncementsPage: React.FC = () => {
           }
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Title Field */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap }}>
           <TextField
             fullWidth
             label="Announcement Title"
             placeholder="e.g. Mandatory General Assembly Meeting on May 20..."
             value={formTitle}
             onChange={(e) => setFormTitle(e.target.value)}
-            slotProps={{
-              input: {
-                sx: {
-                  borderRadius: '10px',
-                  '& fieldset': { borderColor: '#E5E5EA' },
-                  '&:hover fieldset': { borderColor: '#C7C7CC' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-                },
-              },
-            }}
           />
 
-          {/* Category & Urgency Selectors */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '13px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: '13px' }}>
             <TextField
               select
               fullWidth
               label="Category"
               value={formCategory}
               onChange={(e) => setFormCategory(e.target.value as any)}
-              slotProps={{
-                input: {
-                  sx: {
-                    borderRadius: '10px',
-                    '& fieldset': { borderColor: '#E5E5EA' },
-                    '&:hover fieldset': { borderColor: '#C7C7CC' },
-                    '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-                  },
-                },
-              }}
             >
               {categoryOptions.filter((c) => c.value !== 'All').map((opt) => (
                 <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
@@ -497,23 +352,12 @@ export const TodaAnnouncementsPage: React.FC = () => {
               label="Urgency Priority"
               value={formUrgency}
               onChange={(e) => setFormUrgency(e.target.value as any)}
-              slotProps={{
-                input: {
-                  sx: {
-                    borderRadius: '10px',
-                    '& fieldset': { borderColor: '#E5E5EA' },
-                    '&:hover fieldset': { borderColor: '#C7C7CC' },
-                    '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-                  },
-                },
-              }}
             >
               <MenuItem value="Standard">Standard Priority</MenuItem>
               <MenuItem value="High Priority">High Priority (Urgent Advisory)</MenuItem>
             </TextField>
           </Box>
 
-          {/* Message Content Area */}
           <TextField
             fullWidth
             multiline
@@ -522,45 +366,25 @@ export const TodaAnnouncementsPage: React.FC = () => {
             placeholder="Provide clear details and instructions for TODA member drivers..."
             value={formMessage}
             onChange={(e) => setFormMessage(e.target.value)}
-            slotProps={{
-              input: {
-                sx: {
-                  borderRadius: '10px',
-                  '& fieldset': { borderColor: '#E5E5EA' },
-                  '&:hover fieldset': { borderColor: '#C7C7CC' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-                },
-              },
-            }}
           />
 
-          <Box
-            sx={{
-              backgroundColor: '#ECFDF5',
-              border: '1px solid #A7F3D0',
-              borderRadius: '8px',
-              padding: '11px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
-          >
-            <NotificationsActiveIcon sx={{ color: '#059669', fontSize: 19 }} />
-            <Typography sx={{ fontSize: '11px', color: '#065F46', lineHeight: 1.4 }}>
-              <strong>Notice:</strong> All member drivers will automatically be notified in their Driver App when an announcement is published or updated.
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <NotificationsActiveIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 17, mt: '1px', flexShrink: 0 }} />
+            <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, lineHeight: 1.5 }}>
+              All member drivers are notified in their Driver App when an announcement is published or updated.
             </Typography>
           </Box>
         </Box>
       </MacCenterModal>
 
-      {/* 5. View Announcement Detail Centered Modal (Publish & Edit triggers inside modal!) */}
+      {/* 6. Read an announcement (publish or edit from here) */}
       {selectedAnn && !deleteDialogOpen && (
         <MacCenterModal
           open={Boolean(selectedAnn)}
           onClose={() => setSelectedAnn(null)}
           title={selectedAnn.title}
           subtitle={`Created: ${selectedAnn.createdAt} • ${selectedAnn.createdBy}`}
-          badge={<StatusBadge status={selectedAnn.isPublished ? 'Published' : 'Draft'} />}
+          badge={<StatusBadge status={selectedAnn.isPublished ? 'Published' : 'Draft'} highContrast />}
           maxWidth={528}
           primaryActionLabel={selectedAnn.isPublished ? "Edit Announcement" : "Publish Announcement"}
           onPrimaryAction={() => {
@@ -579,16 +403,20 @@ export const TodaAnnouncementsPage: React.FC = () => {
             }
           }}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
-            <Box sx={{ backgroundColor: '#F5F5F7', padding: '14px 16px', borderRadius: '10px' }}>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mb: '6px' }}>Category & Priority</Typography>
-              <Chip label={selectedAnn.category} size="small" sx={{ mr: '6px', fontWeight: 600, fontSize: '11px' }} />
-              <Chip label={selectedAnn.urgency} size="small" color={selectedAnn.urgency === 'High Priority' ? 'error' : 'default'} sx={{ fontWeight: 600, fontSize: '11px' }} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary }}>Category and priority</Typography>
+              <StatusPill label={selectedAnn.category} tone="neutral" />
+              {selectedAnn.urgency === 'High Priority' ? (
+                <StatusPill label="High priority" tone="danger" icon={<PriorityHighIcon aria-hidden sx={{ fontSize: 13 }} />} />
+              ) : (
+                <StatusPill label="Standard" tone="neutral" />
+              )}
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mb: '6px' }}>Full Announcement Message</Typography>
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', lineHeight: 1.6, backgroundColor: '#FFFFFF', border: '1px solid var(--mac-border-color)', padding: '13px 16px', borderRadius: '8px' }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary, mb: '6px' }}>Message</Typography>
+              <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere', backgroundColor: '#FAFAF8', border: '1px solid rgba(15, 23, 42, 0.12)', p: '13px 16px', borderRadius: '8px' }}>
                 {selectedAnn.message}
               </Typography>
             </Box>
@@ -596,7 +424,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
         </MacCenterModal>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete confirmation */}
       <MacConfirmDialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}

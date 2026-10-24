@@ -36,7 +36,11 @@ export interface FilterToolbarProps {
   disableMarginBottom?: boolean;
 }
 
-// floating card container for search and table filter dropdowns
+// The controls share one height: 36px for a mouse, 44px for a finger.
+const CONTROL_HEIGHT = 36;
+const touchHeight = { '@media (pointer: coarse)': { height: 44 } };
+
+// card with the search box, the filters and Reset together on the left (they wrap onto a new line on a narrow screen), and the page's own action on the right
 export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   searchQuery = '',
   onSearchChange,
@@ -61,25 +65,25 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
       <Box
         sx={{
           display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'stretch', md: 'center' },
-          justifyContent: 'space-between',
-          gap: '13px',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '10px',
         }}
       >
-        {/* search field on the left */}
-        <Box sx={{ flex: { xs: '1 1 100%', md: '0 1 360px' } }}>
-          {onSearchChange && (
+        {/* search: takes the room it needs (up to 440px) so the placeholder is readable */}
+        {onSearchChange && (
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 260px' }, maxWidth: { sm: 440 }, minWidth: 0 }}>
             <TextField
               size="small"
               placeholder={searchPlaceholder}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               slotProps={{
+                htmlInput: { 'aria-label': searchPlaceholder },
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: 14 }} />
+                      <SearchIcon fontSize="small" sx={{ color: 'var(--mac-text-secondary)', fontSize: 16 }} />
                     </InputAdornment>
                   ),
                 },
@@ -89,11 +93,13 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '8px',
                   backgroundColor: '#FAFAFC',
-                  fontSize: '11.5px',
-                  height: 34,
-                  border: '1px solid var(--mac-border-color)',
+                  fontSize: '12px',
+                  height: CONTROL_HEIGHT,
+                  border: '1px solid rgba(15, 23, 42, 0.14)',
                   transition: 'var(--mac-transition-fast)',
+                  ...touchHeight,
                   '& fieldset': { border: 'none' },
+                  '& input::placeholder': { color: '#65656a', opacity: 1 },
                   '&:hover': {
                     backgroundColor: '#FFFFFF',
                     borderColor: 'var(--sakay-orange-border)',
@@ -106,95 +112,87 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 },
               }}
             />
-          )}
-        </Box>
+          </Box>
+        )}
 
-        {/* filter dropdowns and reset button pushed to the rightmost edge */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: { xs: 'flex-start', md: 'flex-end' },
-            gap: '10px',
-            ml: { md: 'auto' },
-          }}
-        >
-          {selectFilters.map((filter) => (
-            <FormControl
-              key={filter.id}
-              size="small"
+        {/* the filters, each one a drop-down; on a phone they use the full width */}
+        {selectFilters.map((filter) => (
+          <FormControl
+            key={filter.id}
+            size="small"
+            sx={{
+              minWidth: { xs: '100%', sm: filter.width || 168 },
+              flex: { xs: '1 1 100%', sm: '0 0 auto' },
+            }}
+          >
+            <Select
+              value={filter.value}
+              onChange={(e) => filter.onChange(e.target.value)}
+              displayEmpty
+              SelectDisplayProps={filter.label ? { 'aria-label': filter.label } : undefined}
               sx={{
-                minWidth: filter.width || 160,
-                flexShrink: 0,
-              }}
-            >
-              <Select
-                value={filter.value}
-                onChange={(e) => filter.onChange(e.target.value)}
-                displayEmpty
-                sx={{
-                  borderRadius: '8px',
-                  backgroundColor: '#FAFAFC',
-                  fontSize: '11.5px',
-                  fontWeight: 500,
-                  color: 'var(--mac-text-primary)',
-                  height: 34,
-                  border: '1px solid var(--mac-border-color)',
-                  '& fieldset': { border: 'none' },
-                  '&:hover': {
-                    borderColor: 'var(--sakay-orange-border)',
-                    backgroundColor: '#FFFFFF',
-                  },
-                  '&.Mui-focused': {
-                    boxShadow: '0 0 0 3px var(--sakay-orange-glow)',
-                    border: '1px solid var(--sakay-orange)',
-                    backgroundColor: '#FFFFFF',
-                  },
-                }}
-              >
-                {filter.options.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '11.5px' }}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          ))}
-
-          {onResetFilters && (
-            <Button
-              size="small"
-              onClick={onResetFilters}
-              startIcon={<RestartAltIcon fontSize="small" sx={{ fontSize: 14 }} />}
-              sx={{
-                height: 34,
-                padding: '0 13px',
                 borderRadius: '8px',
-                border: '1px solid var(--mac-border-color)',
                 backgroundColor: '#FAFAFC',
-                color: 'var(--mac-text-secondary)',
-                fontSize: '11.5px',
+                fontSize: '12px',
                 fontWeight: 500,
-                textTransform: 'none',
-                flexShrink: 0,
+                color: 'var(--mac-text-primary)',
+                height: CONTROL_HEIGHT,
+                border: '1px solid rgba(15, 23, 42, 0.14)',
+                ...touchHeight,
+                '& fieldset': { border: 'none' },
                 '&:hover': {
-                  backgroundColor: 'var(--sakay-orange-soft)',
-                  color: 'var(--sakay-orange)',
                   borderColor: 'var(--sakay-orange-border)',
+                  backgroundColor: '#FFFFFF',
+                },
+                '&.Mui-focused': {
+                  boxShadow: '0 0 0 3px var(--sakay-orange-glow)',
+                  border: '1px solid var(--sakay-orange)',
+                  backgroundColor: '#FFFFFF',
                 },
               }}
             >
-              Reset
-            </Button>
-          )}
+              {filter.options.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '12px' }}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ))}
 
-          {actionButton && (
-            <Box sx={{ flexShrink: 0, ml: '3px' }}>
-              {actionButton}
-            </Box>
-          )}
-        </Box>
+        {onResetFilters && (
+          <Button
+            size="small"
+            onClick={onResetFilters}
+            startIcon={<RestartAltIcon fontSize="small" sx={{ fontSize: 16 }} />}
+            sx={{
+              height: CONTROL_HEIGHT,
+              padding: '0 13px',
+              borderRadius: '8px',
+              border: '1px solid rgba(15, 23, 42, 0.14)',
+              backgroundColor: '#FFFFFF',
+              color: 'var(--mac-text-primary)',
+              fontSize: '12px',
+              fontWeight: 600,
+              textTransform: 'none',
+              flexShrink: 0,
+              ...touchHeight,
+              '&:hover': {
+                backgroundColor: 'var(--sakay-orange-soft)',
+                borderColor: 'var(--sakay-orange-border)',
+              },
+              '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '2px' },
+            }}
+          >
+            Reset
+          </Button>
+        )}
+
+        {actionButton && (
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' }, minWidth: 0, ml: { sm: 'auto' } }}>
+            {actionButton}
+          </Box>
+        )}
       </Box>
     </Card>
   );

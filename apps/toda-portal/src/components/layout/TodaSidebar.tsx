@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Box, Typography, Avatar, IconButton } from '@mui/material';
+import { Box, Typography, Avatar, ButtonBase, IconButton, Popover, Divider, Button } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -10,16 +10,20 @@ import CampaignIcon from '@mui/icons-material/Campaign';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SecurityIcon from '@mui/icons-material/Security';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import CloseIcon from '@mui/icons-material/Close';
 
 import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
-import { StatusBadge } from '../common/StatusBadge';
-import { MacCenterModal } from '../admin/MacCenterModal';
+import { ToneStatusPill } from '../common/DataTable';
+import { primaryButtonSx } from '../common/pageButtons';
+import { OPS_BORDER, OPS_TEXT, opsFocusRing } from '../operations/operationsTheme';
 import { TodaProfile } from '../../types/toda';
 import { fetchTodaProfile, fetchDriverApplicants, onTodaProfileChanged } from '../../services/todaApiService';
-import { isTodaLocked } from '../../utils/accreditation';
+import { accreditationChip, accreditationTone, isTodaLocked } from '../../utils/accreditation';
+import { CONTROL, FONT, SHELL } from '../../styles/density';
 
 interface TodaSidebarProps {
   collapsed: boolean;
@@ -32,7 +36,6 @@ interface NavItem {
   path: string;
   icon: React.ReactNode;
   badge?: number | string;
-  badgeType?: 'orange' | 'green';
   disabled?: boolean;
 }
 
@@ -41,11 +44,17 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// the moves of the sidebar are quick and plain: no sliding or growing on hover
+const SLOW = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+const ITEM_HEIGHT = 38;
+// the deep orange of the main buttons: white text on it stays readable (4.9:1); the bright brand orange is for the logo and the accents
+const ACTIVE_BACKGROUND = '#C75000';
+
 // sidebar layout with collapsible width and fixed app icon header
 export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCollapse }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
   const [profile, setProfile] = useState<TodaProfile | null>(null);
   const [applicantCount, setApplicantCount] = useState<number>(0);
 
@@ -62,52 +71,144 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
     return onTodaProfileChanged(loadProfile);
   }, []);
 
+  const locked = isTodaLocked(profile?.accreditationStatus);
   const navGroups: NavGroup[] = [
     {
-      groupTitle: 'MAIN',
+      groupTitle: 'Main',
       items: [
-        { id: 'operations', label: 'Operations Monitoring', path: '/operations', icon: <DashboardIcon fontSize="small" /> },
+        { id: 'operations', label: 'Operations Monitoring', path: '/operations', icon: <DashboardIcon /> },
       ],
     },
     {
-      groupTitle: 'DRIVERS & FLEET',
+      groupTitle: 'Drivers',
       items: [
-        { id: 'driver-verification', label: 'Driver Verification', path: '/driver-verification', icon: <AssignmentIcon fontSize="small" />, badge: applicantCount > 0 ? applicantCount : undefined, badgeType: 'orange', disabled: isTodaLocked(profile?.accreditationStatus) },
-        { id: 'drivers', label: 'Driver Membership', path: '/drivers', icon: <PeopleIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
-        { id: 'fleet', label: 'Tricycle Fleet', path: '/fleet', icon: <DirectionsCarIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
+        { id: 'driver-verification', label: 'Driver Verification', path: '/driver-verification', icon: <AssignmentIcon />, badge: applicantCount > 0 ? applicantCount : undefined, disabled: locked },
+        { id: 'drivers', label: 'Driver Membership', path: '/drivers', icon: <PeopleIcon />, disabled: locked },
       ],
     },
     {
-      groupTitle: 'COMMUNICATIONS',
+      groupTitle: 'Communications',
       items: [
-        { id: 'announcements', label: 'Announcements', path: '/announcements', icon: <CampaignIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
+        { id: 'announcements', label: 'Announcements', path: '/announcements', icon: <CampaignIcon />, disabled: locked },
       ],
     },
     {
-      groupTitle: 'PERFORMANCE & AUDIT',
+      groupTitle: 'Performance & Audit',
       items: [
-        { id: 'reports', label: 'TODA Reports & Incidents', path: '/reports', icon: <AssessmentIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
-        { id: 'audit-logs', label: 'Audit Logs', path: '/audit-logs', icon: <SecurityIcon fontSize="small" />, disabled: isTodaLocked(profile?.accreditationStatus) },
+        { id: 'reports', label: 'TODA Reports & Incidents', path: '/reports', icon: <AssessmentIcon />, disabled: locked },
+        { id: 'audit-logs', label: 'Audit Logs', path: '/audit-logs', icon: <SecurityIcon />, disabled: locked },
       ],
     },
     {
-      groupTitle: 'ORGANIZATION',
+      groupTitle: 'Organization',
       items: [
-        { id: 'account', label: 'Account & Accreditation', path: '/account', icon: <ManageAccountsIcon fontSize="small" /> },
+        { id: 'account', label: 'Account & Accreditation', path: '/account', icon: <ManageAccountsIcon /> },
+        { id: 'settings', label: 'Settings', path: '/settings', icon: <SettingsOutlinedIcon /> },
       ],
     },
   ];
+
+  const presidentName = profile?.officers.president || 'TODA Officer';
+  const initial = presidentName.charAt(0).toUpperCase();
+  const profileOpen = Boolean(profileAnchor);
+
+  const closeProfile = () => setProfileAnchor(null);
+
+  const renderItem = (item: NavItem) => {
+    const isActive = location.pathname === item.path || (item.path === '/operations' && location.pathname === '/');
+
+    const button = (
+      <ButtonBase
+        onClick={() => { if (!item.disabled) navigate(item.path); }}
+        aria-current={isActive ? 'page' : undefined}
+        aria-disabled={item.disabled || undefined}
+        aria-label={collapsed ? item.label : undefined}
+        focusRipple={false}
+        disableRipple
+        sx={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          gap: '8px',
+          width: collapsed ? 40 : '100%',
+          height: ITEM_HEIGHT,
+          px: collapsed ? 0 : '9px',
+          borderRadius: '10px',
+          textAlign: 'left',
+          overflow: 'hidden',
+          flexShrink: 0,
+          cursor: item.disabled ? 'not-allowed' : 'pointer',
+          opacity: item.disabled ? 0.55 : 1,
+          color: isActive ? '#FFFFFF' : OPS_TEXT.primary,
+          backgroundColor: isActive ? ACTIVE_BACKGROUND : 'transparent',
+          transition: `background-color 0.18s ${SLOW}`,
+          '& .MuiSvgIcon-root': { fontSize: 18, flexShrink: 0, color: isActive ? '#FFFFFF' : OPS_TEXT.secondary },
+          '&:hover': { backgroundColor: isActive ? '#A84300' : item.disabled ? 'transparent' : 'rgba(17, 24, 39, 0.06)' },
+          '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+          ...opsFocusRing,
+        }}
+      >
+        {item.icon}
+        {!collapsed && (
+          <>
+            <Typography
+              component="span"
+              sx={{ flex: 1, minWidth: 0, fontSize: FONT.body, fontWeight: isActive ? 700 : 500, color: 'inherit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              {item.label}
+            </Typography>
+            {item.badge !== undefined && (
+              <Box
+                component="span"
+                aria-label={`${item.badge} waiting`}
+                sx={{
+                  flexShrink: 0,
+                  minWidth: 22,
+                  px: '6px',
+                  py: '1px',
+                  borderRadius: '999px',
+                  fontSize: FONT.caption,
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.24)' : 'var(--sakay-orange-soft)',
+                  color: isActive ? '#FFFFFF' : OPS_TEXT.brand,
+                }}
+              >
+                {item.badge}
+              </Box>
+            )}
+          </>
+        )}
+        {/* in the narrow strip the badge is only a dot (the number is in the tooltip) */}
+        {collapsed && item.badge !== undefined && (
+          <Box aria-hidden sx={{ position: 'absolute', top: 7, right: 9, width: 8, height: 8, borderRadius: '50%', backgroundColor: isActive ? '#FFFFFF' : 'var(--sakay-orange)' }} />
+        )}
+      </ButtonBase>
+    );
+
+    const tip = item.disabled
+      ? `${item.label}: available once the LGU accredits your TODA`
+      : collapsed
+      ? item.badge !== undefined ? `${item.label} (${item.badge} waiting)` : item.label
+      : '';
+    return tip ? (
+      <MacTooltip key={item.id} title={tip} placement="right">
+        {button}
+      </MacTooltip>
+    ) : (
+      <React.Fragment key={item.id}>{button}</React.Fragment>
+    );
+  };
 
   return (
     <Box
       component="aside"
       sx={{
-        width: collapsed ? 60 : 220,
+        width: collapsed ? SHELL.sidebarRailWidth : SHELL.sidebarWidth,
         // fills the row it sits in (100vh is taller than the visible screen on a phone with a moving address bar)
         height: '100%',
-        background: 'rgba(255, 255, 255, 0.88)',
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
+        background: 'rgba(255, 255, 255, 0.92)',
         borderRight: '1px solid var(--mac-border-color)',
         display: 'flex',
         flexDirection: 'column',
@@ -116,40 +217,38 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
         transition: 'var(--mac-sidebar-transition)',
         zIndex: 90,
         userSelect: 'none',
-        boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.6)',
-        // menu icons at the compact size
-        '& .MuiSvgIcon-fontSizeSmall': { fontSize: 16 },
       }}
     >
-      {/* Sidebar Collapse Toggle Button */}
+      {/* Collapse / expand: sits on the edge of the sidebar, level with the logo */}
       <IconButton
         onClick={onToggleCollapse}
         size="small"
+        aria-label={collapsed ? 'Expand the sidebar' : 'Collapse the sidebar'}
+        aria-expanded={!collapsed}
         sx={{
           position: 'absolute',
-          top: 'calc(var(--mac-header-height) / 2)',
-          transform: 'translateY(-50%)',
-          right: -11,
+          top: 'calc(var(--mac-header-height) / 2 - 12px)',
+          right: -12,
           width: 24,
           height: 24,
           backgroundColor: '#FFFFFF',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-subtle)',
-          color: 'var(--mac-text-secondary)',
+          color: OPS_TEXT.secondary,
           zIndex: 100,
-          transition: 'all 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          '@media (pointer: coarse)': { width: 32, height: 32, right: -16, top: 'calc(var(--mac-header-height) / 2 - 16px)' },
           '&:hover': {
             backgroundColor: 'var(--sakay-orange-soft)',
-            color: 'var(--sakay-orange)',
+            color: OPS_TEXT.brand,
             borderColor: 'var(--sakay-orange-border)',
-            transform: 'translateY(-50%) scale(1.08)',
           },
+          ...opsFocusRing,
         }}
       >
         {collapsed ? <ChevronRightIcon sx={{ fontSize: 16 }} /> : <ChevronLeftIcon sx={{ fontSize: 16 }} />}
       </IconButton>
 
-      {/* Header Logo Lockup with Explicit TODA ADMIN Pill */}
+      {/* Logo row: the app icon always, the name when the sidebar is open */}
       <Box
         sx={{
           height: 'var(--mac-header-height)',
@@ -160,74 +259,24 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           padding: collapsed ? 0 : '0 14px 0 16px',
           borderBottom: '1px solid var(--mac-border-color)',
           overflow: 'hidden',
-          transition: 'padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
           width: '100%',
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            width: '100%',
-          }}
-        >
-          {/* App Icon — FIXED EXACT SAME SIZE (28px x 28px) ALWAYS */}
-          <Box
-            component="img"
-            src={appIcon}
-            alt="SAKAY App Icon"
-            sx={{
-              width: 22,
-              height: 22,
-              minWidth: 22,
-              minHeight: 22,
-              objectFit: 'contain',
-              flexShrink: 0,
-            }}
-          />
-          {/* Logo Text Orange + TODA Admin Lockup */}
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              opacity: collapsed ? 0 : 1,
-              maxWidth: collapsed ? 0 : 152,
-              marginLeft: collapsed ? 0 : '8px',
-              overflow: 'hidden',
-              transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
-            }}
-          >
-            <Box
-              component="img"
-              src={logoTextOrange}
-              alt="SAKAY Logo"
-              sx={{
-                height: 18,
-                width: 'auto',
-                objectFit: 'contain',
-                alignSelf: 'flex-start',
-              }}
-            />
-            <Typography
-              sx={{
-                fontSize: '9.5px',
-                fontWeight: 700,
-                color: '#B34700',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                mt: '2px',
-                lineHeight: 1,
-              }}
-            >
+        <Box component="img" src={appIcon} alt="SAKAY" sx={{ width: 22, height: 22, minWidth: 22, objectFit: 'contain', flexShrink: 0 }} />
+        {!collapsed && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', ml: '8px', minWidth: 0 }}>
+            <Box component="img" src={logoTextOrange} alt="" sx={{ height: 18, width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />
+            <Typography sx={{ fontSize: '9.5px', fontWeight: 700, color: OPS_TEXT.brand, letterSpacing: '0.06em', textTransform: 'uppercase', mt: '2px', lineHeight: 1 }}>
               TODA Admin
             </Typography>
           </Box>
-        </Box>
+        )}
       </Box>
 
-      {/* Nav Groups Container */}
+      {/* Navigation: the groups, each with its title (the titles hide in the narrow strip, where a thin line separates the groups) */}
       <Box
+        component="nav"
+        aria-label="Main navigation"
         sx={{
           flex: 1,
           overflowY: 'auto',
@@ -235,353 +284,143 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           display: 'flex',
           flexDirection: 'column',
           alignItems: collapsed ? 'center' : 'stretch',
-          padding: collapsed ? '11px 0' : '13px 11px',
-          transition: 'padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          padding: collapsed ? '12px 0' : '12px 8px',
         }}
       >
         {navGroups.map((group, groupIdx) => (
-          <Box
-            key={group.groupTitle}
-            sx={{
-              mb: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              width: '100%',
-              alignItems: collapsed ? 'center' : 'stretch',
-            }}
-          >
-            {/* Section Header Title */}
-            <Typography
-              sx={{
-                fontSize: '10.5px',
-                fontWeight: 700,
-                color: '#65656a',
-                letterSpacing: '0.1em',
-                padding: collapsed ? '0' : '5px 8px 6px',
-                textTransform: 'uppercase',
-                opacity: collapsed ? 0 : 1,
-                maxHeight: collapsed ? 0 : 24,
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                transition: 'opacity 0.18s ease, max-height 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
-              }}
-            >
-              {group.groupTitle}
-            </Typography>
-
-            {collapsed && groupIdx > 0 && (
-              <Box
-                sx={{
-                  width: '22px',
-                  height: '1px',
-                  backgroundColor: 'var(--mac-divider)',
-                  margin: '5px auto',
-                  transition: 'opacity 0.2s ease',
-                }}
-              />
+          <Box key={group.groupTitle} component="section" aria-label={group.groupTitle} sx={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch', width: '100%', mb: '14px' }}>
+            {collapsed ? (
+              groupIdx > 0 && <Box aria-hidden sx={{ width: 24, height: '1px', backgroundColor: OPS_BORDER, margin: '0 auto 8px' }} />
+            ) : (
+              <Typography component="h2" sx={{ fontSize: FONT.small, fontWeight: 700, color: OPS_TEXT.secondary, padding: '4px 10px 6px', whiteSpace: 'nowrap' }}>
+                {group.groupTitle}
+              </Typography>
             )}
-
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '100%',
-                alignItems: collapsed ? 'center' : 'stretch',
-                gap: '4px',
-              }}
-            >
-              {group.items.map((item) => {
-                const isActive =
-                  location.pathname === item.path ||
-                  (item.path === '/operations' && location.pathname === '/');
-
-                const navContent = (
-                  <Box
-                    onClick={() => { if (!item.disabled) navigate(item.path); }}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: collapsed ? 'center' : 'space-between',
-                      width: collapsed ? 36 : '100%',
-                      height: collapsed ? 36 : 37,
-                      borderRadius: '10px',
-                      padding: collapsed ? 0 : '0 10px 0 10px',
-                      cursor: item.disabled ? 'not-allowed' : 'pointer',
-                      flexShrink: 0,
-                      margin: collapsed ? '0 auto' : 0,
-                      background: isActive
-                        ? 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)'
-                        : 'transparent',
-                      color: isActive ? '#FFFFFF' : item.disabled ? 'var(--mac-text-muted)' : 'var(--mac-text-primary)',
-                      boxShadow: isActive ? '0 10px 24px rgba(255, 102, 0, 0.22)' : 'none',
-                      transition: 'all 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                      overflow: 'hidden',
-                      opacity: item.disabled ? 0.5 : 1,
-                      '&:hover': {
-                        background: isActive
-                          ? 'linear-gradient(135deg, var(--sakay-orange-hover) 0%, #ff8b46 100%)'
-                          : item.disabled ? 'transparent' : 'rgba(17, 24, 39, 0.04)',
-                        transform: item.disabled ? 'none' : 'translateX(1px)',
-                      },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: collapsed ? 'center' : 'flex-start',
-                        width: collapsed ? '100%' : 'auto',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: isActive ? '#FFFFFF' : 'var(--mac-text-secondary)',
-                          flexShrink: 0,
-                          width: collapsed ? '100%' : 'auto',
-                        }}
-                      >
-                        {item.icon}
-                      </Box>
-                      
-                      {/* Nav Label Text — AMple Width so active text NEVER truncates */}
-                      <Typography
-                        sx={{
-                          fontSize: '12px',
-                          fontWeight: isActive ? 700 : 500,
-                          letterSpacing: '-0.01em',
-                          whiteSpace: 'nowrap',
-                          opacity: collapsed ? 0 : 1,
-                          maxWidth: collapsed ? 0 : 152,
-                          marginLeft: collapsed ? 0 : '8px',
-                          overflow: 'hidden',
-                          transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                        }}
-                      >
-                        {item.label}
-                      </Typography>
-                    </Box>
-
-                    {/* Nav Item Badge */}
-                    {!collapsed && item.badge !== undefined && (
-                      <Box
-                        sx={{
-                          backgroundColor:
-                            item.badgeType === 'green'
-                              ? 'transparent'
-                              : isActive
-                              ? 'rgba(255, 255, 255, 0.22)'
-                              : 'var(--sakay-orange-soft)',
-                          color:
-                            item.badgeType === 'green'
-                              ? '#30a46c'
-                              : isActive
-                              ? '#FFFFFF'
-                              : 'var(--sakay-orange)',
-                          fontSize: item.badgeType === 'green' ? '11.5px' : '10.5px',
-                          fontWeight: 700,
-                          padding: item.badgeType === 'green' ? '0' : '2px 6px',
-                          borderRadius: '999px',
-                          minWidth: item.badgeType === 'green' ? 'auto' : '21px',
-                          textAlign: 'center',
-                          opacity: 1,
-                          maxWidth: 32,
-                          marginLeft: '5px',
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                          transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                        }}
-                      >
-                        {item.badge}
-                      </Box>
-                    )}
-                  </Box>
-                );
-
-                return collapsed ? (
-                  <MacTooltip key={item.id} title={item.label}>
-                    {navContent}
-                  </MacTooltip>
-                ) : (
-                  <React.Fragment key={item.id}>{navContent}</React.Fragment>
-                );
-              })}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'stretch', gap: '3px', width: '100%' }}>
+              {group.items.map(renderItem)}
             </Box>
           </Box>
         ))}
       </Box>
 
-      {/* Footer Profile Box */}
-      <Box
-        onClick={() => setProfileModalOpen(true)}
+      {/* The signed-in officer: opens the account popup */}
+      <ButtonBase
+        onClick={(e) => setProfileAnchor(e.currentTarget)}
+        aria-haspopup="dialog"
+        aria-expanded={profileOpen}
+        aria-label={collapsed ? `Account of ${presidentName}` : undefined}
+        disableRipple
         sx={{
-          height: 54,
           flexShrink: 0,
-          borderTop: '1px solid var(--mac-border-color)',
-          padding: collapsed ? 0 : '0 11px 0 10px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
-          background: 'rgba(250,250,252,0.74)',
-          overflow: 'hidden',
-          transition: 'all 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          gap: '10px',
           width: '100%',
-          cursor: 'pointer',
-          '&:hover': {
-            backgroundColor: 'var(--sakay-orange-soft)',
-            '& .MuiAvatar-root': {
-              transform: 'scale(1.06)',
+          minHeight: 58,
+          px: collapsed ? 0 : '12px',
+          borderTop: '1px solid var(--mac-border-color)',
+          backgroundColor: profileOpen ? 'var(--sakay-orange-soft)' : 'rgba(250, 250, 252, 0.9)',
+          textAlign: 'left',
+          '&:hover': { backgroundColor: 'var(--sakay-orange-soft)' },
+          ...opsFocusRing,
+          '&:focus-visible': { outline: `2px solid ${OPS_TEXT.brand}`, outlineOffset: '-3px' },
+        }}
+      >
+        <Avatar sx={{ width: 30, height: 30, flexShrink: 0, fontSize: FONT.body, fontWeight: 700, color: '#FFFFFF', backgroundColor: ACTIVE_BACKGROUND }}>{initial}</Avatar>
+        {!collapsed && (
+          <>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {presidentName}
+              </Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: OPS_TEXT.brand, fontWeight: 600, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {profile?.acronym || 'TODA'} • President
+              </Typography>
+            </Box>
+            <UnfoldMoreIcon aria-hidden sx={{ fontSize: 18, color: OPS_TEXT.secondary, flexShrink: 0 }} />
+          </>
+        )}
+      </ButtonBase>
+
+      {/* Account popup: who is signed in and which TODA, then the one thing to do next */}
+      <Popover
+        open={profileOpen}
+        anchorEl={profileAnchor}
+        onClose={closeProfile}
+        // opens above the profile area; beside the narrow strip it opens to the right so it never covers the strip's own icons
+        anchorOrigin={collapsed ? { vertical: 'bottom', horizontal: 'right' } : { vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            role: 'dialog',
+            'aria-label': 'Your account',
+            sx: {
+              ml: collapsed ? '8px' : '10px',
+              mt: collapsed ? 0 : '-8px',
+              width: 316,
+              maxWidth: 'calc(100vw - 24px)',
+              borderRadius: '13px',
+              border: `1px solid ${OPS_BORDER}`,
+              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.16)',
+              backgroundColor: '#FFFFFF',
+              overflow: 'hidden',
             },
           },
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            width: '100%',
-            overflow: 'hidden',
-          }}
-        >
-          <Avatar
-            sx={{
-              width: 29,
-              height: 29,
-              background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
-              fontSize: '11.5px',
-              fontWeight: 700,
-              boxShadow: '0 10px 18px rgba(255, 102, 0, 0.18)',
-              flexShrink: 0,
-              transition: 'transform 0.2s ease',
-            }}
-          >
-            T
-          </Avatar>
-          <Box
-            sx={{
-              maxWidth: collapsed ? 0 : 144,
-              opacity: collapsed ? 0 : 1,
-              marginLeft: collapsed ? 0 : '8px',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
-            }}
-          >
-            <Typography sx={{ fontWeight: 700, fontSize: '11.5px', color: 'var(--mac-text-primary)', lineHeight: 1.2, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-              {profile?.officers.president || 'TODA Officer'}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '12px', p: '14px 14px 12px' }}>
+          <Avatar aria-hidden sx={{ width: 40, height: 40, flexShrink: 0, fontSize: FONT.cardTitle, fontWeight: 700, color: '#FFFFFF', backgroundColor: ACTIVE_BACKGROUND }}>{initial}</Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: OPS_TEXT.primary, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{profile?.officers.president || 'TODA President'}</Typography>
+            <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.brand, fontWeight: 600, lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+              TODA President — {profile?.name || 'TODA Association'}
             </Typography>
-            <Typography sx={{ fontSize: '10.5px', color: '#B34700', fontWeight: 600, lineHeight: 1.2, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-              {profile?.acronym || 'TODA'} • President
-            </Typography>
+            {profile && (
+              <Box sx={{ mt: '6px' }}>
+                <ToneStatusPill label={accreditationChip(profile.accreditationStatus).label} tone={accreditationTone(profile.accreditationStatus)} />
+              </Box>
+            )}
           </Box>
+          <IconButton size="small" aria-label="Close" onClick={closeProfile} sx={{ mt: '-4px', mr: '-6px', color: OPS_TEXT.secondary, ...opsFocusRing }}>
+            <CloseIcon sx={{ fontSize: 16 }} />
+          </IconButton>
         </Box>
-      </Box>
 
-      {/* Profile Modal */}
-      <MacCenterModal
-        open={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-        title="TODA Administrator Account Profile"
-        subtitle="Active session credentials & authorized officer information"
-        badge={<StatusBadge status="Active" />}
-        maxWidth={620}
-        primaryActionLabel="View Organization Details"
-        onPrimaryAction={() => {
-          setProfileModalOpen(false);
-          navigate('/account');
-        }}
-        secondaryActionLabel="Close"
-        onSecondaryAction={() => setProfileModalOpen(false)}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2.5,
-              backgroundColor: '#FAFAFC',
-              padding: '20px',
-              borderRadius: '12px',
-              border: '1px solid var(--mac-border-color)',
-            }}
-          >
-            <Avatar
-              sx={{
-                width: 60,
-                height: 60,
-                background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
-                fontSize: '24px',
-                fontWeight: 700,
-                boxShadow: '0 10px 24px rgba(255, 102, 0, 0.22)',
-              }}
-            >
-              T
-            </Avatar>
-            <Box>
-              <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                {profile?.officers.president || 'TODA President'}
-              </Typography>
-              <Typography sx={{ fontSize: '15px', color: 'var(--sakay-orange)', fontWeight: 600, mt: '2px' }}>
-                TODA President — {profile?.name || 'TODA Association'}
-              </Typography>
-              <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                Authorized TODA Officer for SAKAY Platform Dispatch & Roster Oversight
-              </Typography>
-            </Box>
-          </Box>
+        <Divider />
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 2,
-              backgroundColor: '#F5F5F7',
-              padding: '18px 20px',
-              borderRadius: '12px',
-            }}
-          >
-            <Box>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>
-                TODA Organization
-              </Typography>
-              <Typography sx={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {profile?.name || 'Your TODA'}{profile?.acronym ? ` (${profile.acronym})` : ''}
-              </Typography>
+        <Box component="dl" sx={{ m: 0, display: 'grid', gap: '10px', p: '12px 14px' }}>
+          {[
+            { label: 'TODA organization', value: `${profile?.name || 'Your TODA'}${profile?.acronym ? ` (${profile.acronym})` : ''}` },
+            { label: 'Official email', value: profile?.email || 'Not provided' },
+            { label: 'Accreditation permit number', value: profile?.accreditationNo ? `#${profile.accreditationNo}` : 'Not issued yet' },
+            { label: 'Terminal', value: profile?.terminalLocation ? `${profile.terminalLocation}${profile.barangay ? ` (${profile.barangay})` : ''}` : 'Not provided' },
+          ].map((row) => (
+            <Box key={row.label} sx={{ minWidth: 0 }}>
+              <Typography component="dt" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>{row.label}</Typography>
+              <Typography component="dd" sx={{ m: 0, fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{row.value}</Typography>
             </Box>
-
-            <Box>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>
-                Official Email
-              </Typography>
-              <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {profile?.email || 'toda.calapan@gmail.com'}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>
-                Accreditation Permit Number
-              </Typography>
-              <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#1E8E3E' }}>
-                {profile?.accreditationNo ? `#${profile.accreditationNo}` : 'Not issued yet'}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>
-                Terminal Jurisdiction
-              </Typography>
-              <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {profile?.terminalLocation || 'Calapan City Corridor'} ({profile?.barangay || 'San Vicente Central'})
-              </Typography>
-            </Box>
-          </Box>
+          ))}
         </Box>
-      </MacCenterModal>
+
+        <Divider />
+
+        <Box sx={{ p: '10px 14px 12px' }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disableElevation
+            autoFocus
+            onClick={() => {
+              closeProfile();
+              navigate('/account');
+            }}
+            sx={primaryButtonSx}
+          >
+            View Organization Details
+          </Button>
+        </Box>
+      </Popover>
     </Box>
   );
 };

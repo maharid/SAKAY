@@ -7,7 +7,7 @@ import type { ReminderAudience } from '../../services/todaApiService';
 
 /**
  * Send a reminder to the TODA's drivers (checklist: TODA Administrator > Manage Announcements > Send reminders).
- * It goes to each driver's notifications (Abiso in the Driver app). The database decides who receives it: only the verified
+ * It goes to each driver's notifications (Alerts in the Driver app). The database decides who receives it: only the verified
  * members of this TODA, and for "expiring documents" only those whose Driver's License or MTOP is expired or ends within 30 days.
  */
 interface SendReminderDialogProps {
@@ -81,16 +81,6 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           label="Who should receive it"
           value={audience}
           onChange={(e) => setAudience(e.target.value as ReminderAudience)}
-          slotProps={{
-            input: {
-              sx: {
-                borderRadius: '10px',
-                '& fieldset': { borderColor: '#E5E5EA' },
-                '&:hover fieldset': { borderColor: '#C7C7CC' },
-                '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-              },
-            },
-          }}
         >
           {AUDIENCES.map((a) => (
             <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
@@ -104,16 +94,6 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
           placeholder="e.g. Renew your Driver's License"
           helperText={`${title.length}/${TITLE_MAX}`}
-          slotProps={{
-            input: {
-              sx: {
-                borderRadius: '10px',
-                '& fieldset': { borderColor: '#E5E5EA' },
-                '&:hover fieldset': { borderColor: '#C7C7CC' },
-                '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-              },
-            },
-          }}
         />
 
         <TextField
@@ -125,20 +105,10 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX))}
           placeholder="What should the drivers do, and by when?"
           helperText={`${message.length}/${MESSAGE_MAX}`}
-          slotProps={{
-            input: {
-              sx: {
-                borderRadius: '10px',
-                '& fieldset': { borderColor: '#E5E5EA' },
-                '&:hover fieldset': { borderColor: '#C7C7CC' },
-                '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-              },
-            },
-          }}
         />
 
-        {error && <Alert severity="error" sx={{ borderRadius: '8px' }}>{error}</Alert>}
-        {result && <Alert severity={result.startsWith('No driver') ? 'info' : 'success'} sx={{ borderRadius: '8px' }}>{result}</Alert>}
+        {error && <Alert severity="error" sx={{ borderRadius: '8px', fontSize: '12px' }}>{error}</Alert>}
+        {result && <Alert severity={result.startsWith('No driver') ? 'info' : 'success'} sx={{ borderRadius: '8px', fontSize: '12px' }}>{result}</Alert>}
       </Box>
     </MacCenterModal>
   );

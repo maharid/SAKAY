@@ -2,17 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Table,
   TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
   TableRow,
-  Paper,
   Button,
   Tabs,
   Tab,
-  Avatar,
   Chip,
   Alert,
   Dialog,
@@ -25,7 +20,6 @@ import PeopleIcon from '@mui/icons-material/People';
 import GavelIcon from '@mui/icons-material/Gavel';
 import DescriptionIcon from '@mui/icons-material/Description';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import ShieldIcon from '@mui/icons-material/Shield';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 
@@ -35,9 +29,16 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { STRIKE_LADDER } from '@sakay/shared/config/policyConfig';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { SakayToast } from '../components/common/SakayToast';
-import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { DataTableCard, DataTableMessageRow, CellStack, PersonCell } from '../components/common/DataTable';
+import { FeatureLockedNotice } from '../components/common/FeatureLockedNotice';
+import { primaryButtonSx, rowActionSx } from '../components/common/pageButtons';
+import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
+import type { OperationsStat } from '../components/operations/OperationsStatStrip';
+import { OPS_TEXT } from '../components/operations/operationsTheme';
+import { FONT, SHELL, SPACE } from '../styles/density';
+import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX } from '@sakay/shared/components/dialogStyles';
 import {
   fetchTodaDriverMembers,
   suspendTodaDriver,
@@ -344,37 +345,46 @@ export const TodaDriverMembershipPage: React.FC = () => {
     await loadExemptions();
   };
 
+  // The four numbers of the roster view: the counts are the ones computed above; the number is coloured only when it is above zero.
+  const stats: OperationsStat[] = [
+    { key: 'total', label: 'Driver roster', value: totalCount },
+    { key: 'active', label: 'Active accredited drivers', value: activeCount, tone: activeCount > 0 ? 'success' : 'neutral' },
+    { key: 'review', label: 'Pending governance reviews', value: reviewCount, note: 'Under LGU endorsement review', tone: reviewCount > 0 ? 'brand' : 'neutral' },
+    { key: 'suspended', label: 'Suspended / deactivated', value: suspendedCount, tone: suspendedCount > 0 ? 'danger' : 'neutral' },
+  ];
+
+  const filtersActive = Boolean(searchQuery) || statusFilter !== 'All';
+  const dateOf = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
   return (
-    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: SPACE.section }}>
       {isTodaLocked(todaStatus) ? (
-        <Box sx={{ mt: '13px', textAlign: 'center', p: '38px', backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)' }}>
-          <ShieldIcon sx={{ fontSize: 38, color: '#D1D5DB', mb: '13px' }} />
-          <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>Feature Unavailable</Typography>
-          <Typography sx={{ color: 'var(--mac-text-secondary)', mt: '6px', maxWidth: 400, mx: 'auto' }}>
-            This feature will become available once your TODA has been approved and accredited by the LGU.
-          </Typography>
-        </Box>
+        <FeatureLockedNotice />
       ) : (
         <>
-      {/* 1. Page Sub-Header Navigation Tabs */}
-      <Box sx={{ borderBottom: '1px solid var(--mac-border-color)', mb: '22px' }}>
+      {/* 1. The three views of this page */}
+      <Box sx={{ borderBottom: '1px solid var(--mac-border-color)', mb: SPACE.gapLarge }}>
         <Tabs
           value={activeTab}
           onChange={(_, val) => setActiveTab(val)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{
-            minHeight: 37,
+            minHeight: 40,
             '& .MuiTab-root': {
               textTransform: 'none',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 600,
-              minHeight: 37,
-              color: 'var(--mac-text-muted)',
-              '&.Mui-selected': { color: 'var(--sakay-orange)' },
+              minHeight: 40,
+              color: OPS_TEXT.secondary,
+              '&.Mui-selected': { color: OPS_TEXT.brand },
+              '&.Mui-focusVisible': { outline: `2px solid ${OPS_TEXT.brand}`, outlineOffset: '-2px' },
             },
-            '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 2.5 },
+            '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 3 },
           }}
         >
-          <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Accredited Driver Roster (${totalCount})`} />
+          <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Driver Members (${totalCount})`} />
           <Tab icon={<GavelIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Strike Exemption Appeals (${exemptions.length})`} />
           <Tab icon={<DescriptionIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Master Roster (${rosterEntries.length})`} />
         </Tabs>
@@ -382,49 +392,27 @@ export const TodaDriverMembershipPage: React.FC = () => {
 
       {activeTab === 0 ? (
         <>
-          {/* 2. KPI Summary Panels */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-              gap: '16px',
-              mb: '22px',
-            }}
-          >
-            <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-              <Typography sx={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Driver Roster</Typography>
-              <Typography sx={{ fontSize: '27px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
-            </Box>
+          {/* what this list is, in one line (the Master Roster tab is a different list) */}
+          <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, lineHeight: 1.5, mb: SPACE.gap, maxWidth: '100ch' }}>
+            The drivers of your TODA, with their SAKAY account status and strikes. Request a suspension or a reactivation here.
+          </Typography>
 
-            <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-              <Typography sx={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Active Accredited Drivers</Typography>
-              <Typography sx={{ fontSize: '27px', fontWeight: 700, color: '#059669' }}>{activeCount}</Typography>
-            </Box>
+          {/* 2. Summary numbers */}
+          <OperationsStatStrip stats={stats} />
 
-            <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-              <Typography sx={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Pending Governance Reviews</Typography>
-              <Typography sx={{ fontSize: '27px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{reviewCount}</Typography>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Under LGU endorsement review</Typography>
-            </Box>
-
-            <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-              <Typography sx={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Suspended / Deactivated</Typography>
-              <Typography sx={{ fontSize: '27px', fontWeight: 700, color: '#DC2626' }}>{suspendedCount}</Typography>
-            </Box>
-          </Box>
-
-          {/* 3. Filter Toolbar */}
+          {/* 3. Search and filter */}
           <FilterToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder="Search driver name, plate, franchise, or membership ID..."
+            searchPlaceholder="Search name, plate, franchise or membership ID"
             selectFilters={[
               {
                 id: 'status',
-                label: 'Account Status',
+                label: 'Account status',
                 value: statusFilter,
                 options: statusOptions,
                 onChange: setStatusFilter,
+                width: 220,
               },
             ]}
             onResetFilters={() => {
@@ -433,197 +421,147 @@ export const TodaDriverMembershipPage: React.FC = () => {
             }}
           />
 
-          {/* 4. Accredited Drivers Roster Table */}
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              overflow: 'hidden',
-            }}
-          >
-            <Table>
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Driver Member</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Franchise & Plate</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Service Zone</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Strikes Record</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Account Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px', width: 176, whiteSpace: 'nowrap' }}>Governance Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredDrivers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: '45px' }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                        <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                          No Drivers Found
-                        </Typography>
-                        <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>
-                          There are currently no driver members matching the "{statusFilter !== 'All' ? statusFilter : 'selected'}" filter criteria.
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
+          {/* 4. Accredited drivers */}
+          <DataTableCard label="Driver members" minWidth={860} columns={[{ label: 'Driver member' }, { label: 'Franchise and plate' }, { label: 'Service zone' }, { label: 'Strikes' }, { label: 'Account status' }, { label: 'Action', align: 'right' }]}>
+            <TableBody>
+              {isLoading ? (
+                <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading drivers..." />
+              ) : filteredDrivers.length === 0 ? (
+                filtersActive || drivers.length > 0 ? (
+                  <DataTableMessageRow
+                    colSpan={6}
+                    kind="noResults"
+                    title="No drivers match"
+                    hint={statusFilter !== 'All' ? `No driver members match the "${statusFilter}" status${searchQuery ? ' and your search' : ''}. Try another filter, or press Reset.` : 'No driver members match your search. Try other words, or press Reset.'}
+                  />
                 ) : (
-                  filteredDrivers.map((drv) => (
-                    <TableRow key={drv.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-                          <Avatar
-                            sx={{
-                              width: 34,
-                              height: 34,
-                              backgroundColor: 'var(--sakay-orange-soft)',
-                              color: 'var(--sakay-orange)',
-                              fontWeight: 700,
-                              fontSize: '12px',
-                            }}
-                          >
-                            {drv.name.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                              {drv.name}
-                            </Typography>
-                            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                              {drv.membershipNo} • Lic: {drv.licenseNo}
-                            </Typography>
-                          </Box>
-                        </Box>
+                  <DataTableMessageRow
+                    colSpan={6}
+                    kind="empty"
+                    title="No drivers yet"
+                    hint="Accredited driver members of this TODA will be listed here."
+                  />
+                )
+              ) : (
+                filteredDrivers.map((drv) => {
+                  const highStrikes = drv.strikesCount >= STRIKE_LADDER.ADMIN_REVIEW_AT;
+                  return (
+                    <TableRow key={drv.id}>
+                      <TableCell>
+                        <PersonCell name={drv.name} detail={`${drv.membershipNo} • License: ${drv.licenseNo}`} />
                       </TableCell>
 
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {drv.vehiclePlate}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          {drv.franchiseNo}
-                        </Typography>
+                      <TableCell>
+                        <CellStack primary={drv.vehiclePlate} secondary={drv.franchiseNo} />
                       </TableCell>
 
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)' }}>
-                          {drv.serviceZone}
-                        </Typography>
+                      <TableCell sx={{ color: OPS_TEXT.secondary, maxWidth: 260 }}>
+                        {drv.serviceZone}
                       </TableCell>
 
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <Chip
-                            label={`${drv.strikesCount} / ${STRIKE_LADDER.DEACTIVATION_AT} Strikes`}
-                            size="small"
-                            sx={{
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              backgroundColor: drv.strikesCount >= STRIKE_LADDER.ADMIN_REVIEW_AT ? '#FEF2F2' : '#F1F3F4',
-                              color: drv.strikesCount >= STRIKE_LADDER.ADMIN_REVIEW_AT ? '#DC2626' : 'var(--mac-text-secondary)',
-                            }}
-                          />
-                        </Box>
+                      <TableCell>
+                        {/* the icon and the red colour both mark a driver who has reached the review level; the numbers say it in words */}
+                        <Chip
+                          icon={highStrikes ? <WarningAmberIcon sx={{ fontSize: '14px !important', color: '#B91C1C !important' }} /> : undefined}
+                          label={`${drv.strikesCount} / ${STRIKE_LADDER.DEACTIVATION_AT} Strikes`}
+                          size="small"
+                          sx={{
+                            height: 24,
+                            fontSize: FONT.small,
+                            fontWeight: 600,
+                            backgroundColor: highStrikes ? '#FEF2F2' : '#F1F3F4',
+                            color: highStrikes ? '#B91C1C' : OPS_TEXT.secondary,
+                          }}
+                        />
                       </TableCell>
 
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <StatusBadge status={drv.accountStatus} />
+                      <TableCell>
+                        <StatusBadge status={drv.accountStatus} highContrast sx={{ height: '24px', fontSize: FONT.small }} />
                       </TableCell>
 
-                      <TableCell align="right" sx={{ py: '13px', px: '19px', whiteSpace: 'nowrap' }}>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                         {isTodaLocked(todaStatus) ? (
-                          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+                          <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>
                             Temporarily Locked
                           </Typography>
                         ) : drv.accountStatus === 'Active' ? (
-                          <ActionButton
-                            label="Request Suspension"
+                          <Button
+                            variant="outlined"
+                            sx={rowActionSx('danger')}
                             onClick={() => {
                               setSelectedDriver(drv);
                               setSuspendDialogOpen(true);
                             }}
-                          />
+                          >
+                            Request Suspension
+                          </Button>
                         ) : drv.accountStatus === 'TODA Suspended' || drv.accountStatus === 'Suspension Review' ? (
-                          <ActionButton
-                            label="Request Reactivation"
+                          <Button
+                            variant="outlined"
+                            sx={rowActionSx('neutral')}
                             onClick={() => {
                               setSelectedDriver(drv);
                               setReactivateDialogOpen(true);
                             }}
-                          />
+                          >
+                            Request Reactivation
+                          </Button>
                         ) : (
-                          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+                          <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>
                             Under LGU Jurisdiction
                           </Typography>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  );
+                })
+              )}
+            </TableBody>
+          </DataTableCard>
         </>
       ) : activeTab === 1 ? (
         /* 5. Strike Exemption Appeals Tab */
-        <TableContainer
-          component={Paper}
-          elevation={0}
-          sx={{
-            borderRadius: '14px',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            overflow: 'hidden',
-          }}
-        >
-          <Table>
-            <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Driver</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Incident Category</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Submitted Evidence</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Appeal Date</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Status</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {exemptions.map((ex) => (
-                <TableRow key={ex.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ py: '13px', px: '19px', fontWeight: 600, fontSize: '12px' }}>
+        <DataTableCard label="Strike exemption appeals" minWidth={760} columns={[{ label: 'Driver' }, { label: 'Incident category' }, { label: 'Submitted evidence' }, { label: 'Appeal date' }, { label: 'Status' }, { label: 'Action', align: 'right' }]}>
+          <TableBody>
+            {exemptions.length === 0 ? (
+              <DataTableMessageRow
+                colSpan={6}
+                kind="empty"
+                title="No strike exemption appeals"
+                hint="When a driver appeals a strike, the appeal will be listed here for your review."
+              />
+            ) : (
+              exemptions.map((ex) => (
+                <TableRow key={ex.id}>
+                  <TableCell sx={{ fontWeight: 600 }}>
                     {ex.driverName}
                   </TableCell>
 
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      {ex.incidentCategory}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                      Strike Ref: {ex.strikeId}
-                    </Typography>
+                  <TableCell>
+                    <CellStack primary={ex.incidentCategory} secondary={`Strike Ref: ${ex.strikeId}`} quiet />
                   </TableCell>
 
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
+                  <TableCell>
                     <Chip
-                      icon={<DescriptionIcon sx={{ fontSize: 13 }} />}
-                      label={`${ex.evidenceFiles.length} Evidence Document${ex.evidenceFiles.length > 1 ? 's' : ''}`}
+                      icon={<DescriptionIcon sx={{ fontSize: '14px !important', color: `${OPS_TEXT.brand} !important` }} />}
+                      label={`${ex.evidenceFiles.length} Evidence Document${ex.evidenceFiles.length === 1 ? '' : 's'}`}
                       size="small"
-                      sx={{ backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)', fontWeight: 600, fontSize: '11px' }}
+                      sx={{ height: 24, backgroundColor: 'var(--sakay-orange-soft)', color: OPS_TEXT.brand, fontWeight: 600, fontSize: FONT.small }}
                     />
                   </TableCell>
 
-                  <TableCell sx={{ py: '13px', px: '19px', fontSize: '11.5px', color: 'var(--mac-text-secondary)' }}>
+                  <TableCell sx={{ color: OPS_TEXT.secondary }}>
                     {ex.submittedAt}
                   </TableCell>
 
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <StatusBadge status={ex.status} />
+                  <TableCell>
+                    <StatusBadge status={ex.status} highContrast sx={{ height: '24px', fontSize: FONT.small }} />
                   </TableCell>
 
-                  <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
-                    <ActionButton
-                      label={ex.status === 'Pending TODA Review' ? 'Review Appeal' : 'View Appeal'}
+                  <TableCell align="right">
+                    <Button
+                      variant="outlined"
+                      sx={rowActionSx(ex.status === 'Pending TODA Review' ? 'brand' : 'neutral')}
                       onClick={() => {
                         setSelectedExemption(ex);
                         setDecisionOutcome('FULL');
@@ -632,113 +570,88 @@ export const TodaDriverMembershipPage: React.FC = () => {
                         setDecisionError(null);
                         setExemptionDecisionModalOpen(true);
                       }}
-                    />
+                    >
+                      {ex.status === 'Pending TODA Review' ? 'Review Appeal' : 'View Appeal'}
+                    </Button>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              ))
+            )}
+          </TableBody>
+        </DataTableCard>
       ) : (
         /* 6. Official Master Roster Tab (Rule 2.4) */
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '19px' }}>
-            <Box>
-              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                Official TODA Master Roster Registry
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px', mb: SPACE.gap }}>
+            <Box sx={{ minWidth: 0, flex: '1 1 320px' }}>
+              <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>
+                Master Roster
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-secondary)', mt: '3px' }}>
-                Pre-accredited drivers, vehicle plates, and franchise numbers. Driver applicants matching this registry pass roster screening.
+              <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px', lineHeight: 1.5, maxWidth: '90ch' }}>
+                The franchise and plate numbers your TODA vouches for. When a driver applies to your TODA, Driver Verification checks the application against this list.
               </Typography>
             </Box>
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
               onClick={() => {
                 setRosterError(null);
                 setRosterAddModalOpen(true);
               }}
-              sx={{
-                backgroundColor: 'var(--sakay-orange)',
-                '&:hover': { backgroundColor: '#D97706' },
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: '6.5px',
-                px: '16px',
-              }}
+              sx={primaryButtonSx}
             >
               Add Roster Member
             </Button>
           </Box>
 
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              overflow: 'hidden',
-            }}
-          >
-            <Table>
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Member Full Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Franchise Number</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Vehicle Plate Number</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Date Added</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Screening Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }} align="right">Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rosterEntries.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: '38px', color: 'var(--mac-text-muted)' }}>
-                      No master roster entries recorded yet. Click "Add Roster Member" to register franchise members.
+          <DataTableCard label="Master roster" minWidth={760} columns={[{ label: 'Member full name' }, { label: 'Franchise number' }, { label: 'Vehicle plate number' }, { label: 'Date added' }, { label: 'Screening status' }, { label: 'Action', align: 'right' }]}>
+            <TableBody>
+              {rosterEntries.length === 0 ? (
+                <DataTableMessageRow
+                  colSpan={6}
+                  kind="empty"
+                  title="No master roster entries yet"
+                  hint='Click "Add Roster Member" to register franchise members.'
+                />
+              ) : (
+                rosterEntries.map((entry) => (
+                  <TableRow key={entry.roster_id || `${entry.franchise_number}-${entry.plate_number}`}>
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      {entry.member_name}
+                    </TableCell>
+                    <TableCell>
+                      {entry.franchise_number}
+                    </TableCell>
+                    <TableCell>
+                      {entry.plate_number}
+                    </TableCell>
+                    <TableCell sx={{ color: OPS_TEXT.secondary }}>
+                      {entry.created_at ? dateOf(entry.created_at) : 'Registered'}
+                      {entry.updated_at && (
+                        <Typography component="div" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>
+                          Edited {dateOf(entry.updated_at)}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status="Active" label="Active Roster" highContrast sx={{ height: '24px', fontSize: FONT.small }} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        variant="outlined"
+                        startIcon={<EditIcon sx={{ fontSize: 14 }} />}
+                        disabled={!entry.entry_id}
+                        onClick={() => openEditEntry(entry)}
+                        sx={rowActionSx('brand')}
+                      >
+                        Edit
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  rosterEntries.map((entry) => (
-                    <TableRow key={entry.roster_id || `${entry.franchise_number}-${entry.plate_number}`}>
-                      <TableCell sx={{ py: '13px', px: '19px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                        {entry.member_name}
-                      </TableCell>
-                      <TableCell sx={{ py: '13px', px: '19px', color: 'var(--mac-text-primary)' }}>
-                        {entry.franchise_number}
-                      </TableCell>
-                      <TableCell sx={{ py: '13px', px: '19px', color: 'var(--mac-text-primary)' }}>
-                        {entry.plate_number}
-                      </TableCell>
-                      <TableCell sx={{ py: '13px', px: '19px', color: 'var(--mac-text-muted)', fontSize: '11px' }}>
-                        {entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Registered'}
-                        {entry.updated_at && (
-                          <Typography component="div" sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                            Edited {new Date(entry.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Chip label="Active Roster" size="small" sx={{ backgroundColor: '#E6F4EA', color: '#137333', fontWeight: 600, fontSize: '11px' }} />
-                      </TableCell>
-                      <TableCell sx={{ py: '13px', px: '19px' }} align="right">
-                        <Button
-                          size="small"
-                          startIcon={<EditIcon sx={{ fontSize: 13 }} />}
-                          disabled={!entry.entry_id}
-                          onClick={() => openEditEntry(entry)}
-                          sx={{ textTransform: 'none', fontWeight: 600, color: 'var(--sakay-orange)' }}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                ))
+              )}
+            </TableBody>
+          </DataTableCard>
         </Box>
       )}
 
@@ -847,7 +760,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
             {/* Section 2: Supporting Evidence Attachments (Clickable & Viewable with explicit View button) */}
             <Box>
               <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '10px' }}>
-                Submitted Supporting Evidence ({selectedExemption.evidenceFiles.length} Attachments)
+                Supporting evidence ({selectedExemption.evidenceFiles.length} {selectedExemption.evidenceFiles.length === 1 ? 'attachment' : 'attachments'})
               </Typography>
 
               {selectedExemption.evidenceFiles.length === 0 ? (
@@ -900,59 +813,55 @@ export const TodaDriverMembershipPage: React.FC = () => {
       />
 
       {/* Add Master Roster Member Dialog (Rule 2.4) */}
-      <Dialog open={rosterAddModalOpen} onClose={() => setRosterAddModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '13px' }}>
+      <Dialog open={rosterAddModalOpen} onClose={() => setRosterAddModalOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+        <DialogTitle sx={DIALOG_TITLE_SX}>
           Add Official Master Roster Entry
         </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-secondary)', mb: '13px' }}>
+        <DialogContent sx={DIALOG_CONTENT_SX}>
+          <Typography sx={DIALOG_INTRO_SX}>
             Register driver and franchise details in the official TODA master roster. Applications matching this record will be verified automatically.
           </Typography>
           {rosterError && (
-            <Alert severity="error" sx={{ mb: '13px' }}>
+            <Alert severity="error">
               {rosterError}
             </Alert>
           )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '13px', mt: '6px' }}>
-            <TextField
-              label="Member Full Name"
-              required
-              fullWidth
-              value={newMemberName}
-              onChange={(e) => setNewMemberName(e.target.value)}
-              placeholder="e.g. Juan dela Cruz"
-            />
-            <TextField
-              label="Franchise Number"
-              required
-              fullWidth
-              value={newFranchiseNumber}
-              onChange={(e) => setNewFranchiseNumber(e.target.value)}
-              placeholder="e.g. FR-CAL-2026-001"
-            />
-            <TextField
-              label="Vehicle Plate Number"
-              fullWidth
-              value={newPlateNumber}
-              onChange={(e) => setNewPlateNumber(e.target.value)}
-              placeholder="e.g. 123-ABC"
-            />
-          </Box>
+          <TextField
+            label="Member Full Name"
+            required
+            fullWidth
+            size="small"
+            value={newMemberName}
+            onChange={(e) => setNewMemberName(e.target.value)}
+            placeholder="e.g. Juan dela Cruz"
+          />
+          <TextField
+            label="Franchise Number"
+            required
+            fullWidth
+            size="small"
+            value={newFranchiseNumber}
+            onChange={(e) => setNewFranchiseNumber(e.target.value)}
+            placeholder="e.g. FR-CAL-2026-001"
+          />
+          <TextField
+            label="Vehicle Plate Number"
+            fullWidth
+            size="small"
+            value={newPlateNumber}
+            onChange={(e) => setNewPlateNumber(e.target.value)}
+            placeholder="e.g. 123-ABC"
+          />
         </DialogContent>
-        <DialogActions sx={{ p: '13px' }}>
-          <Button onClick={() => setRosterAddModalOpen(false)} sx={{ textTransform: 'none' }}>
+        <DialogActions sx={DIALOG_ACTIONS_SX}>
+          <Button onClick={() => setRosterAddModalOpen(false)} sx={{ textTransform: 'none', color: OPS_TEXT.secondary, fontWeight: 600 }}>
             Cancel
           </Button>
           <Button
             onClick={handleAddRosterSubmit}
             variant="contained"
             disabled={rosterSubmitting}
-            sx={{
-              backgroundColor: 'var(--sakay-orange)',
-              '&:hover': { backgroundColor: '#D97706' },
-              textTransform: 'none',
-              fontWeight: 600,
-            }}
+            sx={primaryButtonSx}
           >
             {rosterSubmitting ? 'Adding...' : 'Add to Master Roster'}
           </Button>
@@ -960,33 +869,31 @@ export const TodaDriverMembershipPage: React.FC = () => {
       </Dialog>
 
       {/* Edit Master Roster Member Dialog */}
-      <Dialog open={Boolean(editingEntry)} onClose={() => !editSubmitting && setEditingEntry(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '13px' }}>Update Master Roster Entry</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-secondary)', mb: '13px' }}>
+      <Dialog open={Boolean(editingEntry)} onClose={() => !editSubmitting && setEditingEntry(null)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+        <DialogTitle sx={DIALOG_TITLE_SX}>Update Master Roster Entry</DialogTitle>
+        <DialogContent sx={DIALOG_CONTENT_SX}>
+          <Typography sx={DIALOG_INTRO_SX}>
             Correct this member's details. A new franchise or plate number counts for applications submitted from now on; applications already
             submitted keep the roster result they had. Every change is recorded in the audit log.
           </Typography>
           {editError && (
-            <Alert severity="error" sx={{ mb: '13px' }}>
+            <Alert severity="error">
               {editError}
             </Alert>
           )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '13px', mt: '6px' }}>
-            <TextField label="Member Full Name" required fullWidth value={editName} onChange={(e) => setEditName(e.target.value)} />
-            <TextField label="Franchise Number" required fullWidth value={editFranchise} onChange={(e) => setEditFranchise(e.target.value)} />
-            <TextField label="Vehicle Plate Number" fullWidth value={editPlate} onChange={(e) => setEditPlate(e.target.value)} />
-          </Box>
+          <TextField label="Member Full Name" required fullWidth size="small" value={editName} onChange={(e) => setEditName(e.target.value)} />
+          <TextField label="Franchise Number" required fullWidth size="small" value={editFranchise} onChange={(e) => setEditFranchise(e.target.value)} />
+          <TextField label="Vehicle Plate Number" fullWidth size="small" value={editPlate} onChange={(e) => setEditPlate(e.target.value)} />
         </DialogContent>
-        <DialogActions sx={{ p: '13px' }}>
-          <Button onClick={() => setEditingEntry(null)} disabled={editSubmitting} sx={{ textTransform: 'none' }}>
+        <DialogActions sx={DIALOG_ACTIONS_SX}>
+          <Button onClick={() => setEditingEntry(null)} disabled={editSubmitting} sx={{ textTransform: 'none', color: OPS_TEXT.secondary, fontWeight: 600 }}>
             Cancel
           </Button>
           <Button
             onClick={handleEditRosterSubmit}
             variant="contained"
             disabled={editSubmitting}
-            sx={{ backgroundColor: 'var(--sakay-orange)', '&:hover': { backgroundColor: '#D97706' }, textTransform: 'none', fontWeight: 600 }}
+            sx={primaryButtonSx}
           >
             {editSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>

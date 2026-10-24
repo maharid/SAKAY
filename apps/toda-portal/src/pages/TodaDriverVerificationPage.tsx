@@ -2,18 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Table,
   TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
   TableRow,
-  Paper,
   Button,
   Chip,
   Checkbox,
   FormControlLabel,
-  Avatar,
   Alert,
   Dialog,
   DialogTitle,
@@ -26,10 +21,7 @@ import {
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import InboxIcon from '@mui/icons-material/Inbox';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import ShieldIcon from '@mui/icons-material/Shield';
-import DescriptionIcon from '@mui/icons-material/Description';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import { DriverApplicant } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -51,6 +43,16 @@ import { useAuth } from '../contexts/AuthContext';
 import type { DocumentReturnInput } from '../services/todaApiService';
 import { REJECTION_REASON_CODES, REJECTION_REASON_LABEL, rejectionReasonParts } from '@sakay/shared';
 import type { RejectionReasonCode, ReturnReasonCode, ReviewDocumentType } from '@sakay/shared';
+import { DataTableCard, DataTableMessageRow, CellStack, PersonCell, StatusPill } from '../components/common/DataTable';
+import { FeatureLockedNotice } from '../components/common/FeatureLockedNotice';
+import { PageNotice } from '../components/common/PageNotice';
+import { ReviewDocumentRow } from '../components/common/ReviewDocumentRow';
+import { dangerButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
+import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
+import type { OperationsStat } from '../components/operations/OperationsStatStrip';
+import { OPS_BORDER, OPS_TEXT } from '../components/operations/operationsTheme';
+import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX } from '@sakay/shared/components/dialogStyles';
+import { FONT, SHELL, SPACE } from '../styles/density';
 
 // ---- Return for correction (Rules 3.6, 3.8): the TODA names the documents and says why. Rejecting (fraud / ineligible) is a different action.
 const RETURN_DOCUMENTS: { value: ReviewDocumentType; label: string }[] = [
@@ -83,6 +85,17 @@ const documentLabelOf = (doc: string): string => RETURN_DOCUMENTS.find((d) => d.
 
 const formatWhen = (iso?: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }) : '';
+
+// the look shared by the notices inside the review window
+const reviewAlertSx = { borderRadius: '10px', fontSize: FONT.body } as const;
+
+// a titled block of the review window
+const ReviewSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <Box component="section">
+    <Typography component="h3" sx={{ fontSize: FONT.heading, fontWeight: 700, color: OPS_TEXT.primary, mb: '8px' }}>{title}</Typography>
+    {children}
+  </Box>
+);
 
 /** Stage statuses in which the TODA can still decide (endorse, return or reject). */
 const DECIDABLE_STAGES = ['Awaiting Screening', 'Submitted', 'TODA Review'];
@@ -235,7 +248,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
   /** What the database (or the network) said, as a sentence for the TODA administrator. Never empty. */
   const reasonOf = (err: unknown): string => {
     const text = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
-    return text.trim() || 'Walang detalyeng ibinalik ng server.';
+    return text.trim() || 'The server did not give any details.';
   };
 
   /**
@@ -246,8 +259,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
     if (!rosterChecked || !photoChecked) {
       const missing = [!rosterChecked && 'roster', !photoChecked && 'photo'].filter(Boolean);
       setToastMessage(
-        `Kumpletuhin muna ang TODA Officer Screening Checklist bago mag-endorse: lagyan ng tsek ang ${
-          missing.length === 2 ? 'dalawang kahon (roster at larawan)' : missing[0] === 'roster' ? 'kahon ng roster' : 'kahon ng larawan'
+        `Finish the screening checklist before you endorse: tick ${
+          missing.length === 2 ? 'both boxes (roster and photo)' : missing[0] === 'roster' ? 'the roster box' : 'the photo box'
         }.`
       );
       setToastSeverity('error');
@@ -270,7 +283,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
         const detail = reasonOf((res as any)?.error ?? 'Database save returned unsuccessful status');
         console.error('[TodaVerification] Endorsement update failed in Supabase:', detail);
         setForwardError(detail);
-        setToastMessage(`Hindi ma-endorse ang aplikasyon sa LGU: ${detail}`);
+        setToastMessage(`The application could not be endorsed to the LGU: ${detail}`);
         setToastSeverity('error');
         setToastOpen(true);
         return;
@@ -291,7 +304,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       });
 
       setForwardDialogOpen(false);
-      setToastMessage('Matagumpay na na-endorse ang aplikasyon sa LGU.');
+      setToastMessage('The application was endorsed to the LGU.');
       setToastSeverity('success');
       setToastOpen(true);
       setCelebrateDialogOpen(true);
@@ -302,7 +315,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       console.error('[TodaVerification] Endorsement exception:', err);
       const detail = reasonOf(err);
       setForwardError(detail);
-      setToastMessage(`Hindi ma-endorse ang aplikasyon sa LGU: ${detail}`);
+      setToastMessage(`The application could not be endorsed to the LGU: ${detail}`);
       setToastSeverity('error');
       setToastOpen(true);
     } finally {
@@ -319,7 +332,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       if (!rejectRes || !rejectRes.success) {
         // Each affiliation is decided by the database: show its refusal instead of pretending the application was rejected.
         console.error('[TodaVerification] Rejection was not saved:', (rejectRes as any)?.error);
-        setToastMessage(`Hindi na-save ang pagtanggi sa aplikasyon: ${reasonOf((rejectRes as any)?.error)}`);
+        setToastMessage(`The rejection was not saved: ${reasonOf((rejectRes as any)?.error)}`);
         setToastSeverity('error');
         setToastOpen(true);
         return;
@@ -370,7 +383,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       await requestDriverResubmission(selectedApplicant.id, documents);
 
       setToastMessage(
-        `Naibalik ang aplikasyon ni ${selectedApplicant.name}. Hihilingin lamang sa drayber: ${returnSelection.map((d) => d.label).join(', ')}.`
+        `The application of ${selectedApplicant.name} was returned. The driver will only be asked for: ${returnSelection.map((d) => d.label).join(', ')}.`
       );
       setToastSeverity('success');
       setToastOpen(true);
@@ -379,7 +392,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       loadApplicants(true);
     } catch (err) {
       console.error('[TodaVerification] Return for correction error:', err);
-      setToastMessage(`Hindi naibalik ang aplikasyon: ${(err as Error)?.message || 'Pakisubukang muli.'}`);
+      setToastMessage(`The application could not be returned: ${(err as Error)?.message || 'Please try again.'}`);
       setToastSeverity('error');
       setToastOpen(true);
     } finally {
@@ -389,142 +402,82 @@ export const TodaDriverVerificationPage: React.FC = () => {
 
   const canEndorse = rosterChecked && photoChecked;
 
+  // the five files an applicant sends, as the review window lists them
+  const reviewDocuments = selectedApplicant
+    ? [
+        { docType: 'license', title: "Driver's License (Front)", description: `License number: ${selectedApplicant.licenseNo} • LTO official card`, type: 'Identification Proof', url: selectedApplicant.licenseFrontUrl },
+        { docType: 'license', title: "Driver's License (Back)", description: 'Back of the license: conditions and restrictions', type: 'Identification Proof', url: selectedApplicant.licenseBackUrl },
+        { docType: 'mtop', title: 'MTOP Franchise Permit', description: `Franchise number: ${selectedApplicant.franchiseNo} • Calapan City Franchising`, type: 'Municipal Regulatory Permit', url: selectedApplicant.mtopUrl },
+        { docType: 'tricycle', title: 'Tricycle Photo', description: `Plate number: ${selectedApplicant.vehiclePlate} • Side view of the tricycle`, type: 'Vehicle Compliance Photo', url: selectedApplicant.tricyclePhotoUrl },
+        { docType: 'selfie', title: 'Face Photo (Selfie)', description: 'Live photo of the driver\'s face, taken in the app', type: 'Biometric Verification', url: selectedApplicant.selfieUrl },
+      ]
+    : [];
+
+  // The four numbers: the counts are the ones computed above; the number is coloured only when it is above zero.
+  const stats: OperationsStat[] = [
+    {
+      key: 'pending',
+      label: 'Awaiting TODA screening',
+      value: pendingCount,
+      note: 'Applications waiting for your review',
+      tone: pendingCount > 0 ? 'brand' : 'neutral',
+      extra:
+        resubmittedCount > 0 ? (
+          <Chip
+            label={`${resubmittedCount} resubmitted by the driver`}
+            size="small"
+            onClick={() => setStatusFilter('Resubmitted')}
+            sx={{ backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 700, fontSize: FONT.small, height: 24, cursor: 'pointer' }}
+          />
+        ) : undefined,
+    },
+    { key: 'overdue', label: 'Overdue (over 3 days)', value: overdueCount, note: 'Past the 3-day limit', tone: overdueCount > 0 ? 'danger' : 'neutral' },
+    { key: 'endorsed', label: 'Endorsed to LGU', value: endorsedCount, note: 'Sent to the City LGU Franchising Office' },
+    { key: 'verified', label: 'Verified drivers (LGU accredited)', value: lguVerifiedCount, note: 'Verified by the City Franchising Office', tone: lguVerifiedCount > 0 ? 'success' : 'neutral' },
+  ];
+
+  const filtersActive = Boolean(searchQuery) || statusFilter !== 'All' || rosterFilter !== 'All';
+  const stillDecidable = (app: DriverApplicant) => app.todaStageStatus === 'Awaiting Screening' || app.todaStageStatus === 'Submitted' || app.todaStageStatus === 'TODA Review';
+
   return (
-    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: SPACE.section }}>
       {isTodaLocked(todaStatus) ? (
-        <Box sx={{ mt: '13px', textAlign: 'center', p: '38px', backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)' }}>
-          <ShieldIcon sx={{ fontSize: 38, color: '#D1D5DB', mb: '13px' }} />
-          <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>Feature Unavailable</Typography>
-          <Typography sx={{ color: 'var(--mac-text-secondary)', mt: '6px', maxWidth: 400, mx: 'auto' }}>
-            This feature will become available once your TODA has been approved and accredited by the LGU.
-          </Typography>
-        </Box>
+        <FeatureLockedNotice />
       ) : (
         <>
-      {/* 1. 3-Day Operational Governance Banner (Simplified Non-Technical Language) */}
-      <Box
-        sx={{
-          mb: '22px',
-          backgroundColor: '#FFF7ED',
-          border: '1px solid #FDBA74',
-          borderRadius: '14px',
-          padding: '14px 19px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--mac-shadow-subtle)',
-        }}
+      {/* 1. The deadline rule: a calm, always-visible reminder. An application past the deadline is marked Overdue in the table and counted below. */}
+      <PageNotice
+        title="Review deadline"
+        badge={<StatusPill tone="warning" label="3 calendar days" icon={<ScheduleIcon aria-hidden sx={{ fontSize: 14 }} />} />}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '13px' }}>
-          <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 21, flexShrink: 0 }} />
-          <Box>
-            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#9A3412', mb: '2.5px' }}>
-              TODA Operational Governance Rule — 3-Calendar-Day Review Deadline
-            </Typography>
-            <Typography sx={{ fontSize: '11px', color: '#C2410C', lineHeight: 1.4 }}>
-              TODA Officers must screen new driver applications against the active TODA Driver Master Roster and endorse or return them within <strong>3 calendar days</strong> of submission. Applications exceeding this 3-day standard processing window are flagged as Overdue.
-            </Typography>
-          </Box>
-        </Box>
-        <Chip
-          label="3-Day Processing Deadline"
-          size="small"
-          sx={{ backgroundColor: '#EA580C', color: '#FFFFFF', fontWeight: 700, fontSize: '11px', px: '6px', height: 21 }}
-        />
-      </Box>
+        Screen each new driver application against the TODA Master Roster, then endorse it or return it within <strong>3 calendar days</strong> of
+        submission. After 3 days the application is marked Overdue.
+      </PageNotice>
 
-      {/* 2. Clear KPI Breakdown Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: '16px',
-          mb: '22px',
-        }}
-      >
-        {/* Pending TODA Action */}
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', mb: '6px' }}>
-            Awaiting TODA Screening
-          </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
-            {pendingCount}
-          </Typography>
-          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
-            Applications requiring TODA manual screening
-          </Typography>
-          {resubmittedCount > 0 && (
-            <Chip
-              label={`${resubmittedCount} resubmitted by the driver`}
-              size="small"
-              onClick={() => setStatusFilter('Resubmitted')}
-              sx={{ mt: '6px', backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
-            />
-          )}
-        </Box>
+      {/* 2. The four numbers */}
+      <OperationsStatStrip stats={stats} />
 
-        {/* Overdue (>3 Days) */}
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', mb: '6px' }}>
-            Overdue Screening (&gt;3 Days)
-          </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#DC2626' }}>
-            {overdueCount}
-          </Typography>
-          <Typography sx={{ fontSize: '11px', color: '#DC2626', fontWeight: 600, mt: '3px' }}>
-            Exceeds 3-day standard processing time
-          </Typography>
-        </Box>
-
-        {/* Endorsed to LGU */}
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', mb: '6px' }}>
-            Endorsed to LGU
-          </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#1565C0' }}>
-            {endorsedCount}
-          </Typography>
-          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
-            Sent to City LGU Franchising Office
-          </Typography>
-        </Box>
-
-        {/* LGU Verified Drivers Card */}
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '6px' }}>
-            <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)' }}>
-              Verified Drivers (LGU Accredited)
-            </Typography>
-            <VerifiedIcon sx={{ color: '#1E8E3E', fontSize: 14 }} />
-          </Box>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#1E8E3E' }}>
-            {lguVerifiedCount}
-          </Typography>
-          <Typography sx={{ fontSize: '11px', color: '#1E8E3E', fontWeight: 600, mt: '3px' }}>
-            Active & verified by City Franchising Office
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* 3. Floating Filter Toolbar with Rightmost Filter Alignment */}
+      {/* 3. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search driver applicant, plate, license, or franchise..."
+        searchPlaceholder="Search name, plate, license or franchise"
         selectFilters={[
           {
             id: 'status',
-            label: 'Stage Status',
+            label: 'Stage status',
             value: statusFilter,
             options: statusOptions,
             onChange: setStatusFilter,
+            width: 230,
           },
           {
             id: 'roster',
-            label: 'Roster Matching',
+            label: 'Roster check',
             value: rosterFilter,
             options: rosterOptions,
             onChange: setRosterFilter,
+            width: 200,
           },
         ]}
         onResetFilters={() => {
@@ -534,166 +487,97 @@ export const TodaDriverVerificationPage: React.FC = () => {
         }}
       />
 
-      {/* 4. Applications Roster Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: '14px',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Driver Applicant</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Vehicle & Franchise</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Master Roster Check</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Submission & Age</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Stage Status</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px', width: 144 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredApplicants.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: '45px' }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <InboxIcon sx={{ fontSize: 38, color: 'var(--mac-text-tertiary)' }} />
-                    <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                      No Driver Applications Found
+      {/* 4. The applications */}
+      <DataTableCard label="Driver applications" minWidth={880} columns={[{ label: 'Driver applicant' }, { label: 'Vehicle and franchise' }, { label: 'Master roster check' }, { label: 'Submitted' }, { label: 'Stage status' }, { label: 'Action', align: 'right' }]}>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading driver applications..." />
+          ) : filteredApplicants.length === 0 ? (
+            applicants.length === 0 && !filtersActive ? (
+              <DataTableMessageRow
+                colSpan={6}
+                kind="empty"
+                title="No driver applications yet"
+                hint="New applications from drivers who choose your TODA will appear here."
+              />
+            ) : (
+              <DataTableMessageRow
+                colSpan={6}
+                kind="noResults"
+                title="No applications match"
+                hint="Try other words or another filter, or press Reset to see every application."
+              />
+            )
+          ) : (
+            filteredApplicants.map((app) => (
+              <TableRow key={app.id}>
+                <TableCell>
+                  <PersonCell name={app.name} detail={<><span style={{ display: 'block', whiteSpace: 'nowrap' }}>License: {app.licenseNo}</span><span style={{ display: 'block', whiteSpace: 'nowrap' }}>{app.phone}</span></>} />
+                </TableCell>
+
+                <TableCell>
+                  <CellStack primary={`Plate: ${app.vehiclePlate}`} secondary={<span style={{ whiteSpace: 'nowrap' }}>MTOP: {app.franchiseNo}</span>} />
+                </TableCell>
+
+                <TableCell>
+                  {/* the roster result: words, colour and icon agree; a mismatch is the one that stands out */}
+                  {app.rosterMatchKnown === false ? (
+                    <StatusPill tone="neutral" label="Roster not checked" />
+                  ) : app.onSubmittedRoster ? (
+                    <StatusPill tone="success" label="Master Roster Verified" icon={<CheckCircleIcon aria-hidden sx={{ fontSize: 14 }} />} />
+                  ) : (
+                    <StatusPill tone="danger" label="Roster Mismatch Flag" icon={<WarningAmberIcon aria-hidden sx={{ fontSize: 14 }} />} />
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, fontWeight: 500 }}>
+                    {app.isResubmitted ? `Resubmitted ${formatWhen(app.resubmittedAt)}` : app.submittedDate}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '3px 8px', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>
+                      {app.todaStageStatus === 'Resubmission Required'
+                        ? 'Waiting for the driver'
+                        : `${app.daysPending} day(s) ${app.isResubmitted ? 'since resubmission' : 'ago'}`}
                     </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                      There are currently no driver applications matching the "{statusFilter !== 'All' ? statusFilter : 'selected'}" filter criteria.
-                    </Typography>
+                    {app.isOverdue && stillDecidable(app) && (
+                      <StatusPill tone="danger" label="Overdue (>3 Days)" icon={<WarningAmberIcon aria-hidden sx={{ fontSize: 14 }} />} />
+                    )}
                   </Box>
                 </TableCell>
+
+                <TableCell>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                    <StatusBadge status={app.todaStageStatus} highContrast sx={{ height: '24px', fontSize: FONT.small }} />
+                    {app.isResubmitted && <StatusPill tone="violet" label="Resubmitted" />}
+                  </Box>
+                </TableCell>
+
+                <TableCell align="right">
+                  {/* an application that still needs a decision gets the orange button; one already sent on is only viewed (grey) */}
+                  <Button
+                    variant="outlined"
+                    startIcon={<VisibilityIcon sx={{ fontSize: 15 }} />}
+                    onClick={() => handleOpenReview(app)}
+                    disabled={isTodaLocked(todaStatus)}
+                    sx={rowActionSx(app.todaStageStatus === 'Endorsed to LGU' ? 'neutral' : 'brand')}
+                  >
+                    {app.todaStageStatus === 'Endorsed to LGU' ? 'View Details' : 'Screen Application'}
+                  </Button>
+                </TableCell>
               </TableRow>
-            ) : (
-              filteredApplicants.map((app) => (
-                <TableRow key={app.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Avatar sx={{ width: 30, height: 30, backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)', fontSize: '12px', fontWeight: 700 }}>
-                        {app.name.charAt(0)}
-                      </Avatar>
-                      <Box>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {app.name}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          License: {app.licenseNo} • {app.phone}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
+            ))
+          )}
+        </TableBody>
+      </DataTableCard>
 
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      Plate: {app.vehiclePlate}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                      MTOP: {app.franchiseNo}
-                    </Typography>
-                  </TableCell>
 
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    {app.rosterMatchKnown === false ? (
-                      <Chip label="Roster not checked" size="small" sx={{ backgroundColor: '#F1F3F5', color: '#64748B', fontWeight: 600, fontSize: '11px' }} />
-                    ) : app.onSubmittedRoster ? (
-                      <Chip
-                        icon={<CheckCircleIcon sx={{ fontSize: 12, color: '#1E8E3E' }} />}
-                        label="Master Roster Verified"
-                        size="small"
-                        sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E', fontWeight: 600, fontSize: '11px' }}
-                      />
-                    ) : (
-                      <Chip
-                        icon={<WarningAmberIcon sx={{ fontSize: 12, color: '#DC2626' }} />}
-                        label="Roster Mismatch Flag"
-                        size="small"
-                        sx={{ backgroundColor: '#FEF2F2', color: '#DC2626', fontWeight: 600, fontSize: '11px' }}
-                      />
-                    )}
-                  </TableCell>
-
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-primary)', fontWeight: 500 }}>
-                      {app.isResubmitted ? `Resubmitted ${formatWhen(app.resubmittedAt)}` : app.submittedDate}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', mt: '1.5px' }}>
-                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                        {app.todaStageStatus === 'Resubmission Required'
-                          ? 'Waiting for the driver'
-                          : `${app.daysPending} day(s) ${app.isResubmitted ? 'since resubmission' : 'ago'}`}
-                      </Typography>
-                      {app.isOverdue && (app.todaStageStatus === 'Awaiting Screening' || app.todaStageStatus === 'Submitted' || app.todaStageStatus === 'TODA Review') && (
-                        <Chip label="Overdue (>3 Days)" size="small" sx={{ backgroundColor: '#FEF2F2', color: '#DC2626', fontSize: '11px', fontWeight: 700, height: 16 }} />
-                      )}
-                    </Box>
-                  </TableCell>
-
-                  <TableCell sx={{ py: '13px', px: '19px' }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
-                      <StatusBadge status={app.todaStageStatus} />
-                      {app.isResubmitted && (
-                        <Chip
-                          label="Resubmitted"
-                          size="small"
-                          sx={{ backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 700, fontSize: '11px', height: 16 }}
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-
-                  <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<VisibilityIcon fontSize="small" />}
-                      onClick={() => handleOpenReview(app)}
-                      disabled={isTodaLocked(todaStatus)}
-                      sx={{
-                        height: 27,
-                        px: '13px',
-                        borderRadius: '6.5px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        textTransform: 'none',
-                        color: 'var(--sakay-orange)',
-                        borderColor: 'var(--sakay-orange-border)',
-                        backgroundColor: 'var(--sakay-orange-soft)',
-                        whiteSpace: 'nowrap',
-                        '&:hover': {
-                          backgroundColor: 'var(--sakay-orange)',
-                          color: '#FFFFFF',
-                          borderColor: 'var(--sakay-orange)',
-                        },
-                        '&.Mui-disabled': {
-                          borderColor: '#E5E5EA',
-                          color: '#C7C7CC',
-                          backgroundColor: '#F2F2F7',
-                        }
-                      }}
-                    >
-                      {app.todaStageStatus === 'Endorsed to LGU' ? 'View Details' : 'Screen Application'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* 5. Driver Application Review Centered Modal */}
+      {/* 5. Review window for one application */}
       {selectedApplicant && (
         <MacCenterModal
           open={Boolean(selectedApplicant)}
           onClose={() => setSelectedApplicant(null)}
-          title={`Screen Driver Application — ${selectedApplicant.name}`}
+          title={`Screen Application — ${selectedApplicant.name}`}
           subtitle={
             selectedApplicant.isResubmitted
               ? `Resubmitted: ${formatWhen(selectedApplicant.resubmittedAt)} • ${selectedApplicant.daysPending} days since resubmission`
@@ -701,13 +585,11 @@ export const TodaDriverVerificationPage: React.FC = () => {
           }
           badge={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <StatusBadge status={selectedApplicant.todaStageStatus} />
-              {selectedApplicant.isResubmitted && (
-                <Chip label="Resubmitted" size="small" sx={{ backgroundColor: '#EDE9FE', color: '#4C1D95', fontWeight: 700, fontSize: '11px' }} />
-              )}
+              <StatusBadge status={selectedApplicant.todaStageStatus} highContrast />
+              {selectedApplicant.isResubmitted && <StatusPill label="Resubmitted" tone="violet" />}
             </Box>
           }
-          maxWidth={608}
+          maxWidth={640}
           primaryActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Endorse to City LGU" : undefined}
           onPrimaryAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? handleEndorseClick : undefined}
           secondaryActionLabel="Close"
@@ -717,14 +599,14 @@ export const TodaDriverVerificationPage: React.FC = () => {
           middleActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Return for Correction" : undefined}
           onMiddleAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? openReturnDialog : undefined}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge }}>
             {/* Resubmitted: what changed, and what this review asked for before (so the reviewer can compare) */}
             {selectedApplicant.isResubmitted && (
-              <Alert severity="info" icon={false} sx={{ borderRadius: '10px', backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE', color: '#4C1D95' }}>
-                <Typography sx={{ fontWeight: 800, fontSize: '11.5px', mb: '3px' }}>
+              <Alert severity="info" icon={false} sx={{ ...reviewAlertSx, backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE', color: '#4C1D95' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: FONT.body, mb: '3px' }}>
                   Resubmitted by the driver on {formatWhen(selectedApplicant.resubmittedAt)}
                 </Typography>
-                <Typography sx={{ fontSize: '11px', mb: '6px' }}>
+                <Typography sx={{ fontSize: FONT.small, mb: '6px' }}>
                   The 5-calendar-day review period restarted on that date. Replaced:{' '}
                   <strong>
                     {(selectedApplicant.documentReviews || [])
@@ -738,10 +620,10 @@ export const TodaDriverVerificationPage: React.FC = () => {
                   .filter((r) => r.state === 'resubmitted')
                   .map((r) => (
                     <Box key={r.documentType} sx={{ borderTop: '1px solid #DDD6FE', pt: '5px', mt: '5px' }}>
-                      <Typography sx={{ fontSize: '11px', fontWeight: 700 }}>
+                      <Typography sx={{ fontSize: FONT.small, fontWeight: 700 }}>
                         {documentLabelOf(r.documentType)} — previous return ({formatWhen(r.returnedAt)}): {reasonLabelOf(r.reasonCode)}
                       </Typography>
-                      <Typography sx={{ fontSize: '11px', fontStyle: 'italic' }}>"{r.reason}"</Typography>
+                      <Typography sx={{ fontSize: FONT.small, fontStyle: 'italic' }}>"{r.reason}"</Typography>
                     </Box>
                   ))}
               </Alert>
@@ -749,12 +631,12 @@ export const TodaDriverVerificationPage: React.FC = () => {
 
             {/* Returned: waiting for the driver */}
             {selectedApplicant.todaStageStatus === 'Resubmission Required' && (
-              <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                <Typography sx={{ fontWeight: 800, fontSize: '11.5px', mb: '3px' }}>Returned to the driver — waiting for the corrected documents</Typography>
+              <Alert severity="warning" sx={reviewAlertSx}>
+                <Typography sx={{ fontWeight: 700, fontSize: FONT.body, mb: '3px' }}>Returned to the driver — waiting for the corrected documents</Typography>
                 {(selectedApplicant.documentReviews || [])
                   .filter((r) => r.state === 'returned')
                   .map((r) => (
-                    <Typography key={r.documentType} sx={{ fontSize: '11px' }}>
+                    <Typography key={r.documentType} sx={{ fontSize: FONT.small }}>
                       <strong>{documentLabelOf(r.documentType)}</strong> ({formatWhen(r.returnedAt)}): {reasonLabelOf(r.reasonCode)} — {r.reason}
                     </Typography>
                   ))}
@@ -763,11 +645,11 @@ export const TodaDriverVerificationPage: React.FC = () => {
 
             {/* A shared document that another review flagged or replaced (no reason: that is the other review's judgement) */}
             {(selectedApplicant.documentReviews || []).some((r) => r.state === 'returned_elsewhere' || r.state === 'replaced_elsewhere') && (
-              <Alert severity="info" sx={{ borderRadius: '10px' }}>
+              <Alert severity="info" sx={reviewAlertSx}>
                 {(selectedApplicant.documentReviews || [])
                   .filter((r) => r.state === 'returned_elsewhere' || r.state === 'replaced_elsewhere')
                   .map((r) => (
-                    <Typography key={r.documentType} sx={{ fontSize: '11px' }}>
+                    <Typography key={r.documentType} sx={{ fontSize: FONT.small }}>
                       <strong>{documentLabelOf(r.documentType)}</strong>{' '}
                       {r.state === 'returned_elsewhere'
                         ? 'was returned to the driver in another review and has not been replaced yet. Your review is not affected.'
@@ -781,9 +663,9 @@ export const TodaDriverVerificationPage: React.FC = () => {
             {selectedApplicant.todaStageStatus === 'Rejected' && (() => {
               const parts = rejectionReasonParts(selectedApplicant.rejectionReason);
               return (
-                <Alert severity="error" icon={<WarningAmberIcon fontSize="inherit" />} sx={{ borderRadius: '10px', alignItems: 'flex-start' }}>
-                  <Typography sx={{ fontSize: '11.5px', fontWeight: 800, mb: '3px' }}>Rejected: final.</Typography>
-                  <Typography sx={{ fontSize: '11px', lineHeight: 1.5 }}>
+                <Alert severity="error" icon={<WarningAmberIcon fontSize="inherit" />} sx={{ ...reviewAlertSx, alignItems: 'flex-start' }}>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, mb: '3px' }}>Rejected: final.</Typography>
+                  <Typography sx={{ fontSize: FONT.small, lineHeight: 1.5 }}>
                     {parts.label ? <><strong>Reason:</strong> {parts.label}.{parts.note ? ` ${parts.note}` : ''} </> : null}
                     The applicant cannot re-apply to your TODA or send new documents. Only the City LGU can reopen a rejected application, with a
                     written reason that goes to the audit log.
@@ -792,331 +674,217 @@ export const TodaDriverVerificationPage: React.FC = () => {
               );
             })()}
 
-            {/* Master Roster Cross-Check Badge Banner: decided by the database, by franchise or plate number (never by name) */}
+            {/* Master Roster check: decided by the database, by franchise or plate number (never by name) */}
             {selectedApplicant.rosterMatchKnown === false ? (
-              <Alert severity="info" sx={{ borderRadius: '10px', fontWeight: 600 }}>
-                <strong>Hindi nasuri ang Master Roster.</strong> Hindi nakuha ang resulta ng roster check. I-refresh ang pahina bago mag-desisyon.
+              <Alert severity="info" sx={reviewAlertSx}>
+                <strong>Roster check unavailable.</strong> The result of the roster check could not be loaded. Refresh the page before you decide.
               </Alert>
             ) : selectedApplicant.onSubmittedRoster ? (
-              <Alert severity="success" sx={{ borderRadius: '10px', fontWeight: 600 }}>
-                <strong>Tugma sa Master Roster:</strong> Ang franchise number o plaka ng aplikante ay nakatala sa Master Roster ng TODA (bago isinumite ang aplikasyon).
+              <Alert severity="success" sx={reviewAlertSx}>
+                <strong>Found on the Master Roster.</strong> The applicant's franchise number or plate number is on your TODA's Master Roster (added before the application was submitted).
               </Alert>
             ) : (
-              <Alert severity="warning" sx={{ borderRadius: '10px', fontWeight: 600 }}>
-                <strong>Walang tugma sa Master Roster:</strong> Walang roster entry na may parehong franchise number o plaka ng aplikante (mula bago isinumite ang aplikasyon). Hindi sapat ang pangalan lamang.
-                Maaari mo pa ring i-endorse ang aplikasyon, pero magkakaroon ito ng Roster Mismatch flag para sa LGU, na kailangang magbigay ng nakasulat na dahilan bago mag-apruba.
+              <Alert severity="warning" sx={reviewAlertSx}>
+                <strong>Not found on the Master Roster.</strong> No roster entry has the same franchise number or plate number (from before the application was submitted). A name alone is not enough.
+                You can still endorse the application, but it will carry a Roster Mismatch flag for the LGU, which must give a written reason before approving.
               </Alert>
             )}
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '13px', backgroundColor: '#F8F9FA', p: '16px', borderRadius: '10px' }}>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Driver License No.</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedApplicant.licenseNo}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Vehicle Plate Number</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedApplicant.vehiclePlate}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Chassis Number</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedApplicant.chassisNo}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Motor Number</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedApplicant.motorNo}</Typography>
-              </Box>
-            </Box>
-
-            {/* Checklist items */}
-            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-              TODA Officer Screening Checklist
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={rosterChecked}
-                    onChange={(e) => setRosterChecked(e.target.checked)}
-                    sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }}
-                  />
-                }
-                label={
-                  <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                    Verify membership against active TODA Driver Roster
-                    {!rosterChecked && selectedApplicant.rosterMatchKnown !== false && !selectedApplicant.onSubmittedRoster && (
-                      <Typography component="span" sx={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#B45309' }}>
-                        Walang tugma sa roster. Lagyan ng tsek kapag na-verify mo na ang membership sa ibang paraan; maaari pa ring i-endorse (magkakaroon ng Roster Mismatch flag).
-                      </Typography>
-                    )}
-                  </Typography>
-                }
-              />
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={photoChecked}
-                    onChange={(e) => setPhotoChecked(e.target.checked)}
-                    sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }}
-                  />
-                }
-                label={
-                  <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                    Inspect tricycle unit photograph & plate specifications
-                  </Typography>
-                }
-              />
-            </Box>
-
-            {/* Supporting Evidence View */}
-            <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: '6px' }}>
-              Submitted Verification Documents & Photos (5)
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                {
-                  docType: 'license',
-                  title: "Driver's License (Harap / Front)",
-                  subtitle: `Numero ng Lisensya: ${selectedApplicant.licenseNo} • LTO Official Card`,
-                  type: 'Identification Proof',
-                  url: selectedApplicant.licenseFrontUrl,
-                },
-                {
-                  docType: 'license',
-                  title: "Driver's License (Likod / Back)",
-                  subtitle: 'Official LTO Conditions & Restrictions Card',
-                  type: 'Identification Proof',
-                  url: selectedApplicant.licenseBackUrl,
-                },
-                {
-                  docType: 'mtop',
-                  title: 'MTOP Franchise Permit',
-                  subtitle: `Franchise Blg: ${selectedApplicant.franchiseNo} • Calapan City Franchising`,
-                  type: 'Municipal Regulatory Permit',
-                  url: selectedApplicant.mtopUrl,
-                },
-                {
-                  docType: 'tricycle',
-                  title: 'Larawan ng Tricycle Unit',
-                  subtitle: `Plaka Blg: ${selectedApplicant.vehiclePlate} • Side/Body View`,
-                  type: 'Vehicle Compliance Photo',
-                  url: selectedApplicant.tricyclePhotoUrl,
-                },
-                {
-                  docType: 'selfie',
-                  title: 'Facial Verification / Selfie Photo',
-                  subtitle: 'Real-time Driver Liveness Biometric Verification',
-                  type: 'Biometric Verification',
-                  url: selectedApplicant.selfieUrl,
-                },
-              ].map((doc, idx) => (
-                <Box
-                  key={idx}
-                  sx={{
-                    p: '12px',
-                    borderRadius: '8px',
-                    backgroundColor: '#FAFAFC',
-                    border: '1px solid var(--mac-border-color)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Avatar
-                      src={doc.url || ''}
-                      variant="rounded"
-                      sx={{
-                        width: 38,
-                        height: 38,
-                        backgroundColor: 'var(--sakay-orange-soft)',
-                        border: '1px solid var(--mac-border-color)',
-                      }}
-                    >
-                      <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
-                    </Avatar>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {doc.title}
-                        </Typography>
-                        {(() => {
-                          const rv = (selectedApplicant.documentReviews || []).find((r) => r.documentType === doc.docType);
-                          if (!rv || rv.state === 'not_returned') return null;
-                          const tone =
-                            rv.state === 'resubmitted'
-                              ? { backgroundColor: '#EDE9FE', color: '#4C1D95' }
-                              : rv.state === 'returned'
-                              ? { backgroundColor: '#FEF3C7', color: '#92400E' }
-                              : { backgroundColor: '#E2E8F0', color: '#475569' };
-                          const label =
-                            rv.state === 'resubmitted'
-                              ? `Resubmitted · ${formatWhen(rv.resubmittedAt)}`
-                              : rv.state === 'returned'
-                              ? 'Returned — waiting for driver'
-                              : rv.state === 'returned_elsewhere'
-                              ? 'Flagged in another review'
-                              : `Replaced · ${formatWhen(rv.resubmittedAt)} (another review)`;
-                          return <Chip label={label} size="small" sx={{ ...tone, fontWeight: 700, fontSize: '11px', height: 16 }} />;
-                        })()}
-                      </Box>
-                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                        {doc.subtitle}
-                      </Typography>
-                    </Box>
+            <ReviewSection title="Applicant details">
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: '12px 16px', backgroundColor: '#FAFAF8', border: `1px solid ${OPS_BORDER}`, p: '14px 16px', borderRadius: '10px' }}>
+                {[
+                  { label: 'Driver license number', value: selectedApplicant.licenseNo },
+                  { label: 'Vehicle plate number', value: selectedApplicant.vehiclePlate },
+                  { label: 'Chassis number', value: selectedApplicant.chassisNo },
+                  { label: 'Motor number', value: selectedApplicant.motorNo },
+                ].map((field) => (
+                  <Box key={field.label} sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>{field.label}</Typography>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{field.value}</Typography>
                   </Box>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<VisibilityIcon fontSize="small" />}
-                    onClick={() =>
-                      setPreviewDocData({
-                        name: `${doc.title} — ${selectedApplicant.name}`,
-                        type: doc.type,
-                        url: doc.url,
-                      })
-                    }
-                    sx={{
-                      height: 27,
-                      px: '13px',
-                      borderRadius: '6.5px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      color: 'var(--sakay-orange)',
-                      borderColor: 'var(--sakay-orange-border)',
-                      backgroundColor: 'var(--sakay-orange-soft)',
-                      '&:hover': {
-                        backgroundColor: 'var(--sakay-orange)',
-                        color: '#FFFFFF',
-                      },
-                    }}
-                  >
-                    Suriin ang Larawan
-                  </Button>
-                </Box>
-              ))}
-            </Box>
+                ))}
+              </Box>
+            </ReviewSection>
+
+            <ReviewSection title="Screening checklist">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <FormControlLabel
+                  sx={{ alignItems: 'flex-start', m: 0 }}
+                  control={
+                    <Checkbox
+                      checked={rosterChecked}
+                      onChange={(e) => setRosterChecked(e.target.checked)}
+                      sx={{ pt: '2px', color: OPS_TEXT.brand, '&.Mui-checked': { color: OPS_TEXT.brand }, '&.Mui-focusVisible': { outline: `2px solid ${OPS_TEXT.brand}` } }}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, pt: '2px' }}>
+                      Check membership against the TODA driver roster
+                      {!rosterChecked && selectedApplicant.rosterMatchKnown !== false && !selectedApplicant.onSubmittedRoster && (
+                        <Typography component="span" sx={{ display: 'block', fontSize: FONT.small, fontWeight: 500, color: '#92400E' }}>
+                          No match was found on the roster. Tick this once you have confirmed the membership another way. You can still endorse; a Roster Mismatch flag will be added.
+                        </Typography>
+                      )}
+                    </Typography>
+                  }
+                />
+
+                <FormControlLabel
+                  sx={{ alignItems: 'flex-start', m: 0 }}
+                  control={
+                    <Checkbox
+                      checked={photoChecked}
+                      onChange={(e) => setPhotoChecked(e.target.checked)}
+                      sx={{ pt: '2px', color: OPS_TEXT.brand, '&.Mui-checked': { color: OPS_TEXT.brand }, '&.Mui-focusVisible': { outline: `2px solid ${OPS_TEXT.brand}` } }}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, pt: '2px' }}>
+                      Check the tricycle photo and the plate details
+                    </Typography>
+                  }
+                />
+              </Box>
+            </ReviewSection>
+
+            <ReviewSection title={`Submitted documents and photos (${reviewDocuments.length})`}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {reviewDocuments.map((doc, idx) => {
+                  const rv = (selectedApplicant.documentReviews || []).find((r) => r.documentType === doc.docType);
+                  const badge =
+                    !rv || rv.state === 'not_returned' ? null : rv.state === 'resubmitted' ? (
+                      <StatusPill label={`Resubmitted · ${formatWhen(rv.resubmittedAt)}`} tone="violet" />
+                    ) : rv.state === 'returned' ? (
+                      <StatusPill label="Returned — waiting for driver" tone="warning" />
+                    ) : rv.state === 'returned_elsewhere' ? (
+                      <StatusPill label="Flagged in another review" tone="neutral" />
+                    ) : (
+                      <StatusPill label={`Replaced · ${formatWhen(rv.resubmittedAt)} (another review)`} tone="neutral" />
+                    );
+                  return (
+                    <ReviewDocumentRow
+                      key={idx}
+                      thumbnailUrl={doc.url}
+                      title={doc.title}
+                      description={doc.description}
+                      badges={badge}
+                      onView={() =>
+                        setPreviewDocData({
+                          name: `${doc.title} — ${selectedApplicant.name}`,
+                          type: doc.type,
+                          url: doc.url,
+                        })
+                      }
+                    />
+                  );
+                })}
+              </Box>
+            </ReviewSection>
           </Box>
         </MacCenterModal>
       )}
 
-      {/* Confirmation Dialogs */}
+      {/* Confirm: endorse to the LGU */}
       <MacConfirmDialog
         open={forwardDialogOpen}
         onClose={() => { if (!isSubmitting) { setForwardDialogOpen(false); setForwardError(null); } }}
-        title="Endorse ang Aplikasyon?"
+        title="Endorse Application?"
         message={
-          `Kumpirmahin ang pag-endorse sa aplikasyon ni ${selectedApplicant?.name} (${selectedApplicant?.vehiclePlate}). Ang aplikasyong ito ay ipapasa sa LGU para sa susunod na pagsusuri.` +
+          `Confirm that you are endorsing the application of ${selectedApplicant?.name} (${selectedApplicant?.vehiclePlate}). It will be sent to the LGU for the next review.` +
           (selectedApplicant && selectedApplicant.rosterMatchKnown !== false && !selectedApplicant.onSubmittedRoster
-            ? ' Walang tugma sa Master Roster ang aplikante: maaari pa rin itong i-endorse, pero magkakaroon ng Roster Mismatch flag at kailangang magbigay ng nakasulat na dahilan ang LGU bago mag-apruba.'
+            ? ' The applicant is not on the Master Roster. You can still endorse, but the application will carry a Roster Mismatch flag, and the LGU must give a written reason before approving.'
             : '')
         }
-        confirmLabel="Kumpirmahin ang Endorsement"
+        confirmLabel="Confirm Endorsement"
         confirmVariant="primary"
         isLoading={isSubmitting}
         errorMessage={forwardError}
         onConfirm={handleForwardConfirm}
       />
 
-      {/* Celebratory Endorsement Popup Modal */}
+      {/* Done: the application was endorsed */}
       <Dialog
         open={celebrateDialogOpen}
         onClose={() => {
           setCelebrateDialogOpen(false);
           setSelectedApplicant(null);
         }}
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: '19px',
-              p: '19px',
-              maxWidth: 336,
-              textAlign: 'center',
-            },
-          },
-        }}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { ...DIALOG_PAPER_SX, textAlign: 'center', p: '22px 19px 19px' } } }}
       >
         <Box
+          aria-hidden
           sx={{
-            width: 58,
-            height: 58,
+            width: 52,
+            height: 52,
             borderRadius: '50%',
-            backgroundColor: '#ECFDF5',
-            color: '#10B981',
+            backgroundColor: '#DCFCE7',
+            color: '#166534',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             mx: 'auto',
-            mb: '13px',
-            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.2)',
+            mb: '12px',
           }}
         >
-          <CheckCircleIcon sx={{ fontSize: 35 }} />
+          <CheckCircleIcon sx={{ fontSize: 32 }} />
         </Box>
-        <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', mb: '6px' }}>
-          Matagumpay na na-endorse!
+        <Typography component="h2" sx={{ fontSize: FONT.sectionTitle, fontWeight: 700, color: OPS_TEXT.primary, mb: '4px' }}>
+          Application endorsed
         </Typography>
-        <Typography sx={{ fontSize: '11.5px', color: '#64748B', lineHeight: 1.45, mb: '19px' }}>
-          Naipasa na ang aplikasyon sa LGU para sa susunod na pagsusuri.
+        <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, lineHeight: 1.5, mb: '18px' }}>
+          The application was sent to the LGU for the next review.
         </Typography>
         <Button
           fullWidth
           variant="contained"
+          disableElevation
+          autoFocus
           onClick={() => {
             setCelebrateDialogOpen(false);
             setSelectedApplicant(null);
           }}
-          sx={{
-            borderRadius: '11px',
-            backgroundColor: '#FF6600',
-            color: '#FFFFFF',
-            fontWeight: 700,
-            py: '8px',
-            textTransform: 'none',
-            fontSize: '12px',
-            '&:hover': { backgroundColor: '#E05D00' },
-          }}
+          sx={primaryButtonSx}
         >
-          Okay
+          Done
         </Button>
       </Dialog>
 
-      {/* Return for Correction: which documents, and why (Rules 3.6, 3.8). The driver is asked for ONLY these. */}
+      {/* Return for correction: which documents, and why (Rules 3.6, 3.8). The driver is asked for ONLY these. */}
       <Dialog
         open={returnDialogOpen}
         onClose={() => !isSubmitting && setReturnDialogOpen(false)}
-        slotProps={{ paper: { sx: { borderRadius: '16px', p: '16px', maxWidth: 448, width: '100%' } } }}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '14px', p: 0, mb: '6px', color: '#0F172A' }}>
-          Ibalik para sa Pagwawasto (Return for Correction)
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, pt: '6px' }}>
-          <Typography sx={{ fontSize: '11.5px', color: '#64748B', mb: '13px' }}>
-            Piliin ang dokumento na kailangang ipasa muli ni <strong>{selectedApplicant?.name}</strong> at isulat kung ano ang mali. Ang drayber ay hihingian
-            lamang ng mga dokumentong ito; ang iba ay mananatili.
+        <DialogTitle sx={DIALOG_TITLE_SX}>Return for Correction</DialogTitle>
+        <DialogContent sx={DIALOG_CONTENT_SX}>
+          <Typography sx={DIALOG_INTRO_SX}>
+            Choose the documents <strong>{selectedApplicant?.name}</strong> must send again, and say what is wrong. The driver will only be asked for
+            these documents; the others stay as they are.
           </Typography>
 
           {RETURN_DOCUMENTS.map((d) => {
             const row = returnForm[d.value];
             const flagged = (selectedApplicant?.documentReviews || []).find((r) => r.documentType === d.value)?.state === 'returned_elsewhere';
             return (
-              <Box key={d.value} sx={{ mb: '10px', p: '10px', borderRadius: '10px', border: `1px solid ${row.checked ? '#F59E0B' : '#E2E8F0'}`, backgroundColor: row.checked ? '#FFFBEB' : '#FFFFFF' }}>
+              <Box key={d.value} sx={{ p: '10px 12px', borderRadius: '10px', border: `1px solid ${row.checked ? '#D97706' : OPS_BORDER}`, backgroundColor: row.checked ? '#FFFBEB' : '#FFFFFF' }}>
                 <FormControlLabel
+                  sx={{ m: 0 }}
                   control={
                     <Checkbox
                       checked={row.checked}
                       onChange={(e) => setReturnForm((prev) => ({ ...prev, [d.value]: { ...prev[d.value], checked: e.target.checked } }))}
-                      sx={{ color: '#D97706', '&.Mui-checked': { color: '#D97706' } }}
+                      sx={{ color: '#92400E', '&.Mui-checked': { color: '#92400E' }, '&.Mui-focusVisible': { outline: `2px solid ${OPS_TEXT.brand}` } }}
                     />
                   }
                   label={
-                    <Typography sx={{ fontSize: '11.5px', fontWeight: 700 }}>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: OPS_TEXT.primary }}>
                       {d.label}
                       {flagged && (
-                        <Typography component="span" sx={{ fontSize: '11px', fontWeight: 500, color: '#64748B', ml: '6px' }}>
+                        <Typography component="span" sx={{ fontSize: FONT.small, fontWeight: 500, color: OPS_TEXT.secondary, ml: '6px' }}>
                           (already flagged in another review)
                         </Typography>
                       )}
@@ -1124,12 +892,12 @@ export const TodaDriverVerificationPage: React.FC = () => {
                   }
                 />
                 {row.checked && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', mt: '3px', pl: '6px' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px', mt: '8px', pl: '6px' }}>
                     <TextField
                       select
                       size="small"
                       fullWidth
-                      label="Dahilan (preset)"
+                      label="Reason (choose one)"
                       value={row.code}
                       onChange={(e) => setReturnForm((prev) => ({ ...prev, [d.value]: { ...prev[d.value], code: e.target.value as ReturnReasonCode } }))}
                     >
@@ -1145,8 +913,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
                       multiline
                       rows={2}
                       required
-                      label="Ano ang mali? (kailangan)"
-                      placeholder="Isulat ang eksaktong dahilan para sa drayber..."
+                      label="What is wrong?"
+                      placeholder="Write the exact reason for the driver..."
                       value={row.reason}
                       error={row.reason.length > 0 && row.reason.trim().length === 0}
                       onChange={(e) => setReturnForm((prev) => ({ ...prev, [d.value]: { ...prev[d.value], reason: e.target.value } }))}
@@ -1157,30 +925,17 @@ export const TodaDriverVerificationPage: React.FC = () => {
               </Box>
             );
           })}
-          <Typography sx={{ fontSize: '11px', color: '#64748B' }}>
-            Ang pagbabalik ay hindi pagtanggi: nananatili ang aplikasyon at magre-restart ang 5-araw na review period kapag naipasa muli ng drayber ang mga dokumento.
-            Hindi naaapektuhan ang pagsusuri ng ibang TODA.
+          <Typography sx={DIALOG_INTRO_SX}>
+            Returning is not rejecting: the application stays open, and the 5-calendar-day review period restarts when the driver sends the documents again.
+            It does not affect reviews by other TODAs.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 0, pt: '19px', display: 'flex', gap: '10px' }}>
-          <Button
-            onClick={() => setReturnDialogOpen(false)}
-            disabled={isSubmitting}
-            sx={{ borderRadius: '10px', backgroundColor: '#F1F3F5', color: '#0F172A', fontWeight: 700, textTransform: 'none', px: '13px' }}
-          >
-            Kanselahin
+        <DialogActions sx={DIALOG_ACTIONS_SX}>
+          <Button onClick={() => setReturnDialogOpen(false)} disabled={isSubmitting} variant="outlined" sx={secondaryButtonSx}>
+            Cancel
           </Button>
-          <Button
-            onClick={handleReturnConfirm}
-            variant="contained"
-            disabled={!returnIsComplete || isSubmitting}
-            sx={{ flex: 1, borderRadius: '10px', fontWeight: 700, textTransform: 'none', backgroundColor: '#D97706', '&:hover': { backgroundColor: '#B45309' } }}
-          >
-            {isSubmitting
-              ? 'Ibinabalik...'
-              : returnSelection.length > 1
-              ? `Ibalik ang ${returnSelection.length} Dokumento`
-              : 'Ibalik ang Dokumento sa Drayber'}
+          <Button onClick={handleReturnConfirm} variant="contained" disableElevation disabled={!returnIsComplete || isSubmitting} sx={primaryButtonSx}>
+            {isSubmitting ? 'Returning...' : returnSelection.length > 1 ? `Return ${returnSelection.length} Documents` : 'Return Document to Driver'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1189,17 +944,17 @@ export const TodaDriverVerificationPage: React.FC = () => {
       <Dialog
         open={rejectDialogOpen}
         onClose={() => (isSubmitting ? undefined : setRejectDialogOpen(false))}
-        slotProps={{ paper: { sx: { borderRadius: '16px', p: '16px', maxWidth: 400, width: '100%' } } }}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: '14px', p: 0, mb: '10px', color: '#0F172A' }}>
-          Reject Application
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, pt: '3px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
-          <Alert severity="error" icon={<WarningAmberIcon fontSize="inherit" />} sx={{ borderRadius: '10px', alignItems: 'flex-start' }}>
-            <Typography sx={{ fontSize: '11.5px', fontWeight: 800, mb: '3px' }}>Rejection is final.</Typography>
-            <Typography sx={{ fontSize: '11px', lineHeight: 1.5 }}>
+        <DialogTitle sx={DIALOG_TITLE_SX}>Reject Application</DialogTitle>
+        <DialogContent sx={DIALOG_CONTENT_SX}>
+          <Alert severity="error" icon={<WarningAmberIcon fontSize="inherit" />} sx={{ ...reviewAlertSx, alignItems: 'flex-start' }}>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 700, mb: '3px' }}>Rejection is final.</Typography>
+            <Typography sx={{ fontSize: FONT.small, lineHeight: 1.5 }}>
               <strong>{selectedApplicant?.name}</strong> cannot re-apply to your TODA and cannot send new documents. They will be told the reason you
-              choose below. (Pinal ang pagtanggi. Hindi na makakapag-apply muli ang aplikante sa inyong TODA.)
+              choose below.
             </Typography>
           </Alert>
 
@@ -1232,42 +987,31 @@ export const TodaDriverVerificationPage: React.FC = () => {
           />
 
           {/* Kept apart on purpose: a fixable problem is not a rejection */}
-          <Box sx={{ border: '1px solid #FDE68A', backgroundColor: '#FFFBEB', borderRadius: '10px', p: '11px' }}>
-            <Typography sx={{ fontSize: '11px', fontWeight: 800, color: '#92400E', mb: '3px' }}>Is the problem fixable?</Typography>
-            <Typography sx={{ fontSize: '11px', color: '#78350F', lineHeight: 1.5, mb: '8px' }}>
+          <Box sx={{ border: '1px solid #FDE68A', backgroundColor: '#FFFBEB', borderRadius: '10px', p: '11px 13px' }}>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: '#92400E', mb: '3px' }}>Is the problem fixable?</Typography>
+            <Typography sx={{ fontSize: FONT.small, color: '#78350F', lineHeight: 1.5, mb: '10px' }}>
               A blurry photo, an expired or wrong document, or details that do not match can be corrected by the applicant. Do not reject for
               these: return the documents instead, and the applicant can send new ones.
             </Typography>
             <Button
-              size="small"
               variant="outlined"
               disabled={isSubmitting}
               onClick={() => {
                 setRejectDialogOpen(false);
                 openReturnDialog();
               }}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, color: '#B45309', borderColor: '#D97706', '&:hover': { backgroundColor: '#FEF3C7', borderColor: '#B45309' } }}
+              sx={{ ...secondaryButtonSx, color: '#92400E', borderColor: '#D97706', '&:hover': { backgroundColor: '#FEF3C7', borderColor: '#92400E' } }}
             >
-              Return for correction instead
+              Return for Correction Instead
             </Button>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 0, pt: '19px', display: 'flex', gap: '10px' }}>
-          <Button
-            onClick={() => setRejectDialogOpen(false)}
-            disabled={isSubmitting}
-            sx={{ borderRadius: '10px', backgroundColor: '#F1F3F5', color: '#0F172A', fontWeight: 700, textTransform: 'none', px: '13px' }}
-          >
+        <DialogActions sx={DIALOG_ACTIONS_SX}>
+          <Button onClick={() => setRejectDialogOpen(false)} disabled={isSubmitting} variant="outlined" sx={secondaryButtonSx}>
             Cancel
           </Button>
-          <Button
-            onClick={handleRejectConfirm}
-            variant="contained"
-            color="error"
-            disabled={!rejectReason || isSubmitting}
-            sx={{ flex: 1, borderRadius: '10px', fontWeight: 700, textTransform: 'none' }}
-          >
-            {isSubmitting ? 'Rejecting...' : 'Reject permanently'}
+          <Button onClick={handleRejectConfirm} variant="contained" disableElevation disabled={!rejectReason || isSubmitting} sx={dangerButtonSx}>
+            {isSubmitting ? 'Rejecting...' : 'Reject Permanently'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1298,7 +1042,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
             width: '100%',
             borderRadius: '10px',
             fontWeight: 600,
-            fontSize: '11.5px',
+            fontSize: FONT.body,
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
           }}
         >

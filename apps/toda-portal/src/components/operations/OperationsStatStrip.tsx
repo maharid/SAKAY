@@ -10,8 +10,10 @@ export interface OperationsStat {
   key: string;
   label: string;
   value: string | number;
-  /** One short line under the number */
-  note: string;
+  /** One short line under the number (optional) */
+  note?: string;
+  /** Something extra under the note, such as a clickable chip (optional) */
+  extra?: React.ReactNode;
   /** Colours the number only when it says something; the label and note always say the same in words */
   tone?: OperationsStatTone;
   /** Colours the note green, for good news such as "online now" */
@@ -77,12 +79,15 @@ export const OperationsStatStrip: React.FC<OperationsStatStripProps> = ({ stats 
             >
               {stat.value}
             </Typography>
-            <Typography
-              component="dd"
-              sx={{ m: 0, mt: '5px', fontSize: FONT.small, lineHeight: 1.4, fontWeight: stat.noteTone === 'success' ? 600 : 400, color: stat.noteTone === 'success' ? OPS_TEXT.success : OPS_TEXT.secondary }}
-            >
-              {stat.note}
-            </Typography>
+            {stat.note && (
+              <Typography
+                component="dd"
+                sx={{ m: 0, mt: '5px', fontSize: FONT.small, lineHeight: 1.4, fontWeight: stat.noteTone === 'success' ? 600 : 400, color: stat.noteTone === 'success' ? OPS_TEXT.success : OPS_TEXT.secondary }}
+              >
+                {stat.note}
+              </Typography>
+            )}
+            {stat.extra && <Box component="dd" sx={{ m: 0, mt: '6px' }}>{stat.extra}</Box>}
           </Box>
         ))}
       </Box>

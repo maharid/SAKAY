@@ -1,42 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Tabs,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Button,
-  Chip,
-  Card,
-  LinearProgress,
-  CircularProgress,
-} from '@mui/material';
+import { Box, Typography, Tabs, Tab, TableBody, TableCell, TableRow, Button } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PeopleIcon from '@mui/icons-material/People';
 import EventNoteIcon from '@mui/icons-material/EventNote';
-import CloseIcon from '@mui/icons-material/Close';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import { TodaBooking, TodaIncident } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { BookingVolumeReport } from '../components/reports/BookingVolumeReport';
 import { DriverActivityReport } from '../components/reports/DriverActivityReport';
 import type { ActivityDriver } from '../components/reports/DriverActivityReport';
 import { ReportExportButtons } from '../components/reports/ReportExportButtons';
 import type { ExportFormat } from '../components/reports/ReportExportButtons';
-import { PILOT_COVERAGE_TEXT, PilotCoverageNote } from '../components/common/PilotCoverageNote';
+import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
+import type { OperationsStat } from '../components/operations/OperationsStatStrip';
+import { CellStack, DataTableCard, DataTableMessageRow, StatusPill } from '../components/common/DataTable';
+import { rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
+import { OPS_BORDER, OPS_TEXT, opsFocusRing } from '../components/operations/operationsTheme';
+import { FONT, SHELL, SPACE } from '../styles/density';
+import { PILOT_COVERAGE_TEXT } from '../components/common/PilotCoverageNote';
 import { IncidentReviewPanel, incidentClocks, type BookingLike, type IncidentRecord, type ReportTable } from '@sakay/shared';
 import {
   fetchTodaDrivers,
@@ -259,112 +247,69 @@ export const TodaReportingPage: React.FC = () => {
     return problem;
   };
 
+  // The four numbers over the trip ledger
+  const ledgerStats: OperationsStat[] = [
+    { key: 'total', label: 'Total dispatched trips', value: bookings.length, note: 'Recorded bookings' },
+    { key: 'completed', label: 'Completed trips', value: bookings.filter((b) => b.status === 'Completed').length, note: 'Successful arrivals', tone: bookings.some((b) => b.status === 'Completed') ? 'success' : 'neutral' },
+    { key: 'shared', label: 'Shared rides', value: bookings.filter((b) => b.tripMode === 'Shared Ride').length, note: 'Multi-passenger carpools' },
+    { key: 'cancelled', label: 'Cancelled rides', value: bookings.filter((b) => b.status === 'Cancelled').length, tone: bookings.some((b) => b.status === 'Cancelled') ? 'danger' : 'neutral' },
+  ];
+
+  // Why a list is empty, in words: nothing was recorded, or nothing matches the search and filters
+  const bookingFilterActive = bookingSearch.trim() !== '' || modeFilter !== 'All';
+  const incidentFilterActive = incidentSearch.trim() !== '' || incidentStatusFilter !== 'All' || incidentPriorityFilter !== 'All';
+
+  const modalLabel = { fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary, mb: '6px' } as const;
+  const modalPanel = { backgroundColor: '#FAFAF8', p: '16px', borderRadius: '10px', border: `1px solid ${OPS_BORDER}` } as const;
+
   return (
-    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
-      {/* 1. Page Header & Refresh Control */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '22px', flexWrap: 'wrap', gap: '13px' }}>
-        <Box>
-          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-            TODA Operations Reports & Incident Grievances
-          </Typography>
-          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '2.5px' }}>
-            Official operational trip audits and passenger complaints for {todaName}
-          </Typography>
-          <Box sx={{ mt: '5px', maxWidth: 720 }}>
-            <PilotCoverageNote />
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', gap: '10px' }}>
-          {(activeTab === 0 || activeTab === 3) && (
-            <ReportExportButtons table={activeTab === 0 ? ledgerTable : incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
-          )}
-          <Button
-            onClick={loadData}
-            startIcon={<RefreshIcon />}
-            variant="outlined"
-            size="small"
-            sx={{ textTransform: 'none', borderColor: 'var(--mac-border-color)', color: 'var(--mac-text-primary)' }}
-          >
-            Refresh
-          </Button>
-        </Box>
-      </Box>
-
-      {/* 2. Top Navigation Tabs */}
-      <Box sx={{ borderBottom: '1px solid var(--mac-border-color)', mb: '22px' }}>
-        <Tabs
-          value={activeTab}
-          onChange={(_, val) => setActiveTab(val)}
-          sx={{
-            minHeight: 37,
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontSize: '12px',
-              fontWeight: 600,
-              minHeight: 37,
-              color: 'var(--mac-text-muted)',
-              '&.Mui-selected': { color: 'var(--sakay-orange)' },
-            },
-            '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 2.5 },
-          }}
-        >
-          <Tab icon={<AssessmentIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Operations Trip Ledger (${bookings.length})`} />
-          <Tab icon={<EventNoteIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Booking Volume & Fares" />
-          <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Driver Activity" />
-          <Tab icon={<ReportProblemIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Incident Reports & Complaints (${incidents.length})`} />
-        </Tabs>
-      </Box>
-
-      {/* Active Tab Content */}
-      {activeTab === 0 ? (
-        <>
-          {/* 3. Operational Summary KPI Cards */}
-          <Box
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px' }}>
+      {/* 1. The four reports, and Refresh. (The note about what the figures cover is no longer shown on the page; every exported file still carries it.) */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 13px', borderBottom: { xs: 'none', md: `1px solid ${OPS_BORDER}` }, mb: SPACE.gapLarge }}>
+        {/* on a phone the tabs take the whole row (and Refresh drops under them); from a tablet up they share one row */}
+        <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 0' }, minWidth: 0, borderBottom: { xs: `1px solid ${OPS_BORDER}`, md: 'none' } }}>
+          <Tabs
+            value={activeTab}
+            onChange={(_, val) => setActiveTab(val)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-              gap: '16px',
-              mb: '22px',
+              minHeight: 40,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontSize: FONT.body,
+                fontWeight: 600,
+                minHeight: 40,
+                color: OPS_TEXT.secondary,
+                ...opsFocusRing,
+                '&.Mui-selected': { color: OPS_TEXT.brand },
+              },
+              '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 2.5 },
             }}
           >
-            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '16px 19px' }}>
-                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Total Dispatched Trips</Typography>
-                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{bookings.length}</Typography>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Recorded bookings</Typography>
-              </Box>
-            </Card>
+            <Tab icon={<AssessmentIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Operations Trip Ledger (${bookings.length})`} />
+            <Tab icon={<EventNoteIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Booking Volume & Fares" />
+            <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Driver Activity" />
+            <Tab icon={<ReportProblemIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Incident Reports & Complaints (${incidents.length})`} />
+          </Tabs>
+        </Box>
+        <Button onClick={loadData} startIcon={<RefreshIcon sx={{ fontSize: 16 }} />} variant="outlined" sx={{ ...secondaryButtonSx, mb: { xs: 0, md: '6px' }, ml: { xs: 'auto', md: 0 } }}>
+          Refresh
+        </Button>
+      </Box>
 
-            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '16px 19px' }}>
-                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Completed Trips</Typography>
-                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#059669' }}>{bookings.filter((b) => b.status === 'Completed').length}</Typography>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Successful arrivals</Typography>
-              </Box>
-            </Card>
+      {/* Active tab content */}
+      {activeTab === 0 ? (
+        <>
+          {/* 3. The trip numbers */}
+          <OperationsStatStrip stats={ledgerStats} />
 
-            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '16px 19px' }}>
-                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Shared Rides</Typography>
-                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{bookings.filter((b) => b.tripMode === 'Shared Ride').length}</Typography>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Multi-passenger carpools</Typography>
-              </Box>
-            </Card>
-
-            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '16px 19px' }}>
-                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Cancelled Rides</Typography>
-                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#DC2626' }}>{bookings.filter((b) => b.status === 'Cancelled').length}</Typography>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Cancelled trips</Typography>
-              </Box>
-            </Card>
-          </Box>
-
-          {/* 4. Filter Toolbar */}
+          {/* 4. Search, filter, export */}
           <FilterToolbar
             searchQuery={bookingSearch}
             onSearchChange={setBookingSearch}
-            searchPlaceholder="Search trip code, passenger, driver, or plate..."
+            searchPlaceholder="Search trip code, passenger, driver or plate"
             selectFilters={[
               {
                 id: 'mode',
@@ -372,117 +317,70 @@ export const TodaReportingPage: React.FC = () => {
                 value: modeFilter,
                 options: modeOptions,
                 onChange: setModeFilter,
+                width: 168,
               },
             ]}
             onResetFilters={() => {
               setBookingSearch('');
               setModeFilter('All');
             }}
+            actionButton={<ReportExportButtons table={ledgerTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />}
           />
 
-          {/* 5. Bookings History Table */}
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              overflow: 'hidden',
-            }}
+          {/* 5. The trips */}
+          <DataTableCard
+            label="Operations trip ledger"
+            minWidth={900}
+            columns={[{ label: 'Booking code' }, { label: 'Passenger' }, { label: 'Driver' }, { label: 'Route and distance' }, { label: 'Mode and fare' }, { label: 'Status' }]}
           >
-            <Table>
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>BOOKING CODE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>PASSENGER</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>ASSIGNED DRIVER</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>ROUTE DISTANCE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>TRIP MODE & FARE</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>STATUS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: '38px' }}>
-                      <CircularProgress size={22} sx={{ color: 'var(--sakay-orange)', mb: '6px' }} />
-                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Loading trip records...</Typography>
+            <TableBody>
+              {isLoading ? (
+                <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading trip records..." />
+              ) : filteredBookings.length > 0 ? (
+                filteredBookings.map((bkg) => (
+                  <TableRow key={bkg.id}>
+                    <TableCell sx={{ fontWeight: 700, color: OPS_TEXT.brand, whiteSpace: 'nowrap' }}>{bkg.bookingCode}</TableCell>
+                    <TableCell>
+                      <CellStack primary={bkg.passengerName} secondary={bkg.passengerPhone} />
+                    </TableCell>
+                    <TableCell>
+                      <CellStack primary={bkg.driverName} secondary={bkg.vehiclePlate} />
+                    </TableCell>
+                    <TableCell>
+                      <CellStack primary={`${bkg.pickupLocation} → ${bkg.dropoffLocation}`} secondary={`${bkg.distanceKm} km`} />
+                    </TableCell>
+                    <TableCell>
+                      <CellStack primary={`₱${bkg.fareAmount}`} secondary={`${bkg.tripMode} (Cash)`} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={bkg.status} highContrast />
                     </TableCell>
                   </TableRow>
-                ) : filteredBookings.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: '38px' }}>
-                      <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Trip Records Found</Typography>
-                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
-                        There are currently no trip records matching your selected filter.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredBookings.map((bkg) => (
-                    <TableRow key={bkg.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: '13px', px: '19px', fontWeight: 600, fontSize: '12px', color: 'var(--sakay-orange)' }}>
-                        {bkg.bookingCode}
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {bkg.passengerName}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          {bkg.passengerPhone}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {bkg.driverName}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          {bkg.vehiclePlate}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)' }}>
-                          {bkg.pickupLocation} → {bkg.dropoffLocation}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          {bkg.distanceKm} km
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          ₱{bkg.fareAmount}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          {bkg.tripMode} (Cash)
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
-                        <StatusBadge status={bkg.status} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                ))
+              ) : bookings.length === 0 ? (
+                <DataTableMessageRow colSpan={6} kind="empty" title="No trips recorded yet" hint="Trips booked with your drivers will be listed here." />
+              ) : (
+                <DataTableMessageRow
+                  colSpan={6}
+                  kind="noResults"
+                  title="No trips match"
+                  hint={bookingFilterActive ? 'Try other words or another trip mode, or press Reset to see every trip.' : 'Press Reset to see every trip.'}
+                />
+              )}
+            </TableBody>
+          </DataTableCard>
         </>
       ) : activeTab === 1 ? (
         <BookingVolumeReport trips={rawTrips} todaName={todaName} onExported={recordExport} />
       ) : activeTab === 2 ? (
         <DriverActivityReport trips={rawTrips} drivers={activityDrivers} onExported={recordExport} generatedBy={`${todaName} Administrator`} />
       ) : (
-        /* 6. Incident Management Tab */
+        /* 6. Incident reports and complaints */
         <>
           <FilterToolbar
             searchQuery={incidentSearch}
             onSearchChange={setIncidentSearch}
-            searchPlaceholder="Search incident ID, driver name, category, or description..."
+            searchPlaceholder="Search incident ID, driver, category or description"
             selectFilters={[
               {
                 id: 'status',
@@ -490,6 +388,7 @@ export const TodaReportingPage: React.FC = () => {
                 value: incidentStatusFilter,
                 options: incidentStatusOptions,
                 onChange: setIncidentStatusFilter,
+                width: 204,
               },
               {
                 id: 'priority',
@@ -497,6 +396,7 @@ export const TodaReportingPage: React.FC = () => {
                 value: incidentPriorityFilter,
                 options: incidentPriorityOptions,
                 onChange: setIncidentPriorityFilter,
+                width: 196,
               },
             ]}
             onResetFilters={() => {
@@ -504,122 +404,81 @@ export const TodaReportingPage: React.FC = () => {
               setIncidentStatusFilter('All');
               setIncidentPriorityFilter('All');
             }}
+            actionButton={<ReportExportButtons table={incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />}
           />
 
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              borderRadius: '14px',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              overflow: 'hidden',
-            }}
+          <DataTableCard
+            label="Incident reports"
+            minWidth={980}
+            columns={[
+              { label: 'Incident ID' },
+              { label: 'Driver involved' },
+              { label: 'Category and reporter' },
+              { label: 'Priority' },
+              { label: 'Date submitted' },
+              { label: 'Status' },
+              { label: 'Action', align: 'right' },
+            ]}
           >
-            <Table>
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>INCIDENT ID</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>INVOLVED DRIVER</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>COMPLAINT CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>PRIORITY</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>DATE SUBMITTED</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>STATUS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>ACTIONS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: '38px' }}>
-                      <CircularProgress size={22} sx={{ color: 'var(--sakay-orange)', mb: '6px' }} />
-                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
+            <TableBody>
+              {isLoading ? (
+                <DataTableMessageRow colSpan={7} kind="loading" loadingText="Loading incident reports..." />
+              ) : filteredIncidents.length > 0 ? (
+                filteredIncidents.map((inc) => (
+                  <TableRow key={inc.id}>
+                    <TableCell sx={{ fontWeight: 700, color: OPS_TEXT.brand, whiteSpace: 'nowrap' }}>#{inc.incidentCode || inc.id.slice(0, 8).toUpperCase()}</TableCell>
+
+                    <TableCell>
+                      <CellStack primary={inc.driverName} secondary={`Plate: ${inc.vehiclePlate}`} />
+                    </TableCell>
+
+                    <TableCell>
+                      <CellStack primary={inc.category} secondary={`Reporter: ${inc.reporterName} (${inc.reporterRole})`} />
+                    </TableCell>
+
+                    <TableCell>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                        {inc.priority === 'Serious' ? (
+                          <StatusPill label="Serious" tone="danger" icon={<ErrorOutlineIcon aria-hidden sx={{ fontSize: 13 }} />} />
+                        ) : inc.priority === 'Emergency' ? (
+                          <StatusPill label="Emergency" tone="warning" icon={<WarningAmberIcon aria-hidden sx={{ fontSize: 13 }} />} />
+                        ) : (
+                          <StatusPill label={inc.priority ?? 'Standard'} tone="neutral" />
+                        )}
+                        {inc.overdue && <StatusPill label="Overdue" tone="danger" icon={<ScheduleIcon aria-hidden sx={{ fontSize: 13 }} />} />}
+                        {inc.routing === 'LGU' && <StatusPill label="With the LGU" tone="neutral" />}
+                      </Box>
+                    </TableCell>
+
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{inc.submittedAt}</TableCell>
+
+                    <TableCell>
+                      <StatusBadge status={inc.status} highContrast />
+                    </TableCell>
+
+                    <TableCell align="right">
+                      <Button variant="outlined" onClick={() => setSelectedIncidentId(inc.id)} sx={rowActionSx('brand')}>
+                        Review Complaint
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : filteredIncidents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: '38px' }}>
-                      <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Incident Reports Found</Typography>
-                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
-                        There are currently no passenger complaints recorded.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredIncidents.map((inc) => (
-                    <TableRow key={inc.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: '13px', px: '19px', fontWeight: 600, fontSize: '12px', color: 'var(--sakay-orange)' }}>
-                        #{inc.incidentCode || inc.id.slice(0, 8).toUpperCase()}
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {inc.driverName}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          Plate: {inc.vehiclePlate}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                          {inc.category}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          Reporter: {inc.reporterName} ({inc.reporterRole})
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <Typography sx={{ fontSize: '11px', fontWeight: 700, color: inc.priority === 'Serious' ? '#991B1B' : inc.priority === 'Emergency' ? '#9A3412' : 'var(--mac-text-muted)' }}>{inc.priority ?? 'Standard'}</Typography>
-                        {inc.overdue && <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#B91C1C' }}>Overdue</Typography>}
-                        {inc.routing === 'LGU' && <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>With the LGU</Typography>}
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px', fontSize: '11.5px', color: 'var(--mac-text-secondary)' }}>
-                        {inc.submittedAt}
-                      </TableCell>
-
-                      <TableCell sx={{ py: '13px', px: '19px' }}>
-                        <StatusBadge status={inc.status} />
-                      </TableCell>
-
-                      <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<VisibilityIcon fontSize="small" />}
-                          onClick={() => setSelectedIncidentId(inc.id)}
-                          sx={{
-                            height: 29,
-                            px: '13px',
-                            borderRadius: '6.5px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textTransform: 'none',
-                            color: 'var(--sakay-orange)',
-                            borderColor: 'var(--sakay-orange-border)',
-                            backgroundColor: 'var(--sakay-orange-soft)',
-                            whiteSpace: 'nowrap',
-                            '&:hover': {
-                              backgroundColor: 'var(--sakay-orange)',
-                              color: '#FFFFFF',
-                            },
-                          }}
-                        >
-                          Review Complaint
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                ))
+              ) : incidents.length === 0 ? (
+                <DataTableMessageRow colSpan={7} kind="empty" title="No incident reports" hint="No complaints have been recorded about your drivers." />
+              ) : (
+                <DataTableMessageRow
+                  colSpan={7}
+                  kind="noResults"
+                  title="No incident reports match"
+                  hint={incidentFilterActive ? 'Try other words, another status or priority, or press Reset to see every report.' : 'Press Reset to see every report.'}
+                />
+              )}
+            </TableBody>
+          </DataTableCard>
         </>
       )}
 
-      {/* Incident Review Detail Modal */}
+      {/* Incident review window */}
       {selectedIncident && selectedIncident.record && (
         <MacCenterModal
           open={Boolean(selectedIncident)}
@@ -628,39 +487,35 @@ export const TodaReportingPage: React.FC = () => {
           subtitle={`Category: ${selectedIncident.category} • Submitted by ${selectedIncident.reporterName}`}
           maxWidth={544}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
-            <Box sx={{ backgroundColor: '#F8FAFC', p: '16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
-                Complaint Description
-              </Typography>
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge }}>
+            <Box sx={modalPanel}>
+              <Typography sx={modalLabel}>Complaint description</Typography>
+              <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere' }}>
                 {selectedIncident.description || 'No detailed description provided.'}
               </Typography>
             </Box>
 
-            <Box sx={{ backgroundColor: '#F8FAFC', p: '16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
-                The trip
-              </Typography>
-              <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+            <Box sx={modalPanel}>
+              <Typography sx={modalLabel}>The trip</Typography>
+              <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere' }}>
                 Trip {selectedIncident.tripId.slice(0, 8).toUpperCase()} · {selectedIncident.route}
               </Typography>
-              <Box sx={{ display: 'flex', gap: '26px', flexWrap: 'wrap', mt: '10px' }}>
+              <Box sx={{ display: 'flex', gap: '10px 26px', flexWrap: 'wrap', mt: '12px' }}>
                 {[
                   { label: 'Passenger', name: selectedIncident.passengerName, phone: selectedIncident.passengerPhone },
                   { label: `Driver (${selectedIncident.vehiclePlate})`, name: selectedIncident.driverName, phone: selectedIncident.driverPhone },
                 ].map((p) => (
                   <Box key={p.label} sx={{ minWidth: 144 }}>
-                    <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>{p.label}</Typography>
-                    <Typography sx={{ fontSize: '11.5px', fontWeight: 600 }}>{p.name || '-'}</Typography>
+                    <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, fontWeight: 600 }}>{p.label}</Typography>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary }}>{p.name || '-'}</Typography>
                     {p.phone ? (
-                      <Typography sx={{ fontSize: '11px' }}>
-                        <a href={`tel:${p.phone}`} style={{ color: '#2563EB', fontWeight: 600 }}>{p.phone}</a>
+                      <Typography sx={{ fontSize: FONT.small }}>
+                        <a href={`tel:${p.phone}`} style={{ color: '#1D4ED8', fontWeight: 600 }}>{p.phone}</a>
                         {' · '}
-                        <a href={`sms:${p.phone}`} style={{ color: '#2563EB' }}>SMS</a>
+                        <a href={`sms:${p.phone}`} style={{ color: '#1D4ED8' }}>SMS</a>
                       </Typography>
                     ) : (
-                      <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>no number on record</Typography>
+                      <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>no number on record</Typography>
                     )}
                   </Box>
                 ))}
@@ -668,14 +523,12 @@ export const TodaReportingPage: React.FC = () => {
             </Box>
 
             {(selectedIncident.evidenceFiles?.length ?? 0) > 0 && (
-              <Box sx={{ backgroundColor: '#F8FAFC', p: '16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
-                  Attached Photo Evidence ({selectedIncident.evidenceFiles?.length})
-                </Typography>
+              <Box sx={modalPanel}>
+                <Typography sx={modalLabel}>Attached photo evidence ({selectedIncident.evidenceFiles?.length})</Typography>
                 <Box sx={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {selectedIncident.evidenceFiles?.map((file) => (
-                    <Box key={file.url} component="a" href={file.url} target="_blank" rel="noreferrer" sx={{ display: 'block', lineHeight: 0 }}>
-                      <Box component="img" src={file.url} alt={file.name} sx={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--mac-border-color)' }} />
+                    <Box key={file.url} component="a" href={file.url} target="_blank" rel="noreferrer" sx={{ display: 'block', lineHeight: 0, borderRadius: '8px', ...opsFocusRing }}>
+                      <Box component="img" src={file.url} alt={file.name} sx={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '8px', border: `1px solid ${OPS_BORDER}` }} />
                     </Box>
                   ))}
                 </Box>
@@ -683,15 +536,13 @@ export const TodaReportingPage: React.FC = () => {
             )}
 
             {selectedIncident.findings && (
-              <Box sx={{ backgroundColor: '#EFF6FF', p: '16px', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
-                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#1D4ED8', textTransform: 'uppercase', mb: '6px' }}>
-                  Review Notes
-                </Typography>
-                <Typography sx={{ fontSize: '11.5px', color: '#1E3A8A', lineHeight: 1.6 }}>{selectedIncident.findings}</Typography>
+              <Box sx={{ ...modalPanel, backgroundColor: '#FFFFFF', borderColor: 'var(--sakay-orange-border)' }}>
+                <Typography sx={{ ...modalLabel, color: OPS_TEXT.brand }}>Review notes</Typography>
+                <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere' }}>{selectedIncident.findings}</Typography>
               </Box>
             )}
 
-            <Box sx={{ pt: '13px', borderTop: '1px solid var(--mac-border-color)' }}>
+            <Box sx={{ pt: '13px', borderTop: `1px solid ${OPS_BORDER}` }}>
               <IncidentReviewPanel
                 role="toda_admin"
                 incident={selectedIncident.record}

@@ -11,6 +11,9 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
+import { CONTROL, FONT } from '../../styles/density';
+import { OPS_TEXT, opsFocusRing } from '../operations/operationsTheme';
+
 interface MacCenterModalProps {
   open: boolean;
   onClose: () => void;
@@ -30,6 +33,20 @@ interface MacCenterModalProps {
   onMiddleAction?: () => void;
   maxWidth?: number | string;
 }
+
+// every footer button: the same height as the other buttons of the portal (taller on a touch screen), readable text, a clear keyboard focus ring
+const footerButton = {
+  height: CONTROL.height,
+  padding: '0 16px',
+  borderRadius: CONTROL.radius,
+  fontSize: FONT.body,
+  fontWeight: 600,
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+  ...opsFocusRing,
+} as const;
 
 // macos-style centered modal with blurred backdrop and action buttons
 export const MacCenterModal: React.FC<MacCenterModalProps> = ({
@@ -85,15 +102,15 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
           justifyContent: 'space-between',
         }}
       >
-        <Box sx={{ pr: '13px' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', mb: subtitle ? '4px' : 0 }}>
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+        <Box sx={{ pr: '13px', flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 10px', mb: subtitle ? '4px' : 0 }}>
+            <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               {title}
             </Typography>
             {badge}
           </Box>
           {subtitle && (
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', fontWeight: 400 }}>
+            <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, fontWeight: 400 }}>
               {subtitle}
             </Typography>
           )}
@@ -102,9 +119,13 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
         <IconButton
           onClick={onClose}
           size="small"
+          aria-label="Close"
           sx={{
-            color: 'var(--mac-text-muted)',
+            flexShrink: 0,
+            color: OPS_TEXT.secondary,
             backgroundColor: 'var(--mac-canvas-bg)',
+            ...opsFocusRing,
+            '@media (pointer: coarse)': { width: CONTROL.touchHeight, height: CONTROL.touchHeight },
             '&:hover': {
               backgroundColor: 'rgba(0,0,0,0.06)',
               color: 'var(--mac-text-primary)',
@@ -128,6 +149,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
             borderTop: '1px solid var(--mac-border-color)',
             backgroundColor: '#FAFAFC',
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '10px',
@@ -140,14 +162,9 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
                 color="error"
                 onClick={onLeftAction}
                 sx={{
-                  height: 32,
-                  padding: '0 16px',
-                  borderRadius: '6.5px',
+                  ...footerButton,
                   border: '1.5px solid #EF4444',
-                  color: '#DC2626',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
+                  color: '#B91C1C',
                   backgroundColor: '#FFFFFF',
                   '&:hover': {
                     backgroundColor: '#FEF2F2',
@@ -160,20 +177,15 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', ml: 'auto' }}>
             {secondaryActionLabel && (
               <Button
                 variant="outlined"
                 onClick={onSecondaryAction || onClose}
                 sx={{
-                  height: 32,
-                  padding: '0 16px',
-                  borderRadius: '6.5px',
+                  ...footerButton,
                   border: '1.5px solid #94A3B8',
                   color: '#334155',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
                   backgroundColor: '#FFFFFF',
                   '&:hover': {
                     backgroundColor: '#F1F5F9',
@@ -191,14 +203,9 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
                 variant="outlined"
                 onClick={onMiddleAction}
                 sx={{
-                  height: 32,
-                  padding: '0 16px',
-                  borderRadius: '6.5px',
+                  ...footerButton,
                   border: '1.5px solid #D97706',
-                  color: '#B45309',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
+                  color: '#92400E',
                   backgroundColor: '#FFFFFF',
                   '&:hover': { backgroundColor: '#FFFBEB', borderColor: '#B45309' },
                 }}
@@ -213,17 +220,14 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
                 onClick={onPrimaryAction}
                 color={primaryActionColor}
                 sx={{
-                  height: 32,
+                  ...footerButton,
                   padding: '0 18px',
-                  borderRadius: '6.5px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  backgroundColor:
-                    primaryActionColor === 'primary' ? 'var(--sakay-orange)' : undefined,
+                  boxShadow: 'none',
+                  // the same deep orange as the page buttons, so the white text stays readable
+                  backgroundColor: primaryActionColor === 'primary' ? '#C75000' : undefined,
                   '&:hover': {
-                    backgroundColor:
-                      primaryActionColor === 'primary' ? 'var(--sakay-orange-hover)' : undefined,
+                    boxShadow: 'none',
+                    backgroundColor: primaryActionColor === 'primary' ? '#A84300' : undefined,
                   },
                 }}
               >

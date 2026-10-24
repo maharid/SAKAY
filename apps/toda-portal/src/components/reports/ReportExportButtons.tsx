@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Alert, Box, Button } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
 import { exportReportCsv, exportReportXlsx, printReportPdf } from '@sakay/shared';
 import type { ReportTable, XlsxLike } from '@sakay/shared';
+
+import { secondaryButtonSx } from '../common/pageButtons';
 
 export type ExportFormat = 'Excel' | 'CSV' | 'PDF';
 
@@ -44,19 +45,19 @@ export const ReportExportButtons: React.FC<ReportExportButtonsProps> = ({ table,
 
   const disabled = !table || busy !== null;
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <Button onClick={() => void run('Excel')} disabled={disabled} startIcon={<DownloadIcon />} variant="contained" size="small" sx={{ textTransform: 'none', backgroundColor: 'var(--sakay-orange)', fontWeight: 600 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'stretch', sm: 'flex-end' }, gap: '8px' }}>
+      <Box sx={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <Button onClick={() => void run('Excel')} disabled={disabled} variant="outlined" sx={secondaryButtonSx}>
           {busy === 'Excel' ? 'Exporting...' : 'Excel (.xlsx)'}
         </Button>
-        <Button onClick={() => void run('CSV')} disabled={disabled} variant="outlined" size="small" sx={{ textTransform: 'none', fontWeight: 600 }}>
+        <Button onClick={() => void run('CSV')} disabled={disabled} variant="outlined" sx={secondaryButtonSx}>
           CSV
         </Button>
-        <Button onClick={() => void run('PDF')} disabled={disabled} variant="outlined" size="small" sx={{ textTransform: 'none', fontWeight: 600 }}>
+        <Button onClick={() => void run('PDF')} disabled={disabled} variant="outlined" sx={secondaryButtonSx}>
           {busy === 'PDF' ? 'Preparing...' : 'Save as PDF'}
         </Button>
       </Box>
-      {problem && <Alert severity="error" onClose={() => setProblem(null)} sx={{ py: 0 }}>{problem}</Alert>}
+      {problem && <Alert severity="error" onClose={() => setProblem(null)} sx={{ py: 0, borderRadius: '8px' }}>{problem}</Alert>}
     </Box>
   );
 };

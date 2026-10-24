@@ -1,27 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Avatar,
-  Chip,
-  Button,
-  Alert,
-} from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { Box, Typography, TableBody, TableCell, TableRow, Avatar, Button, Alert } from '@mui/material';
 
 import { TodaAuditLog } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
+import { DataTableCard, DataTableMessageRow, StatusPill } from '../components/common/DataTable';
+import { rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
+import { OPS_TEXT } from '../components/operations/operationsTheme';
+import { FONT, SHELL, SPACE } from '../styles/density';
 import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
 import { fetchTodaAuditLogs, exportTodaAuditLog } from '../services/todaApiService';
+
+// The time zone is said once in the column heading, so each row only needs the date and the time
+const MANILA_SUFFIX = ' (Asia/Manila)';
+const withoutZone = (stamp: string): string => (stamp.endsWith(MANILA_SUFFIX) ? stamp.slice(0, -MANILA_SUFFIX.length) : stamp);
+// A long identifier is shortened in the table (the whole value is in its tooltip and in the details window)
+const shortId = (id: string): string => (id.length > 14 ? `${id.slice(0, 8)}…` : id);
 
 export const TodaAuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<TodaAuditLog[]>([]);
@@ -117,30 +111,30 @@ export const TodaAuditLogsPage: React.FC = () => {
     { label: 'Last 30 Days', value: 'Last 30 Days' },
   ];
 
-  const getCategoryBadgeStyle = (category: TodaAuditLog['category']) => {
-    switch (category) {
-      case 'Driver Verification':
-        return { bg: 'rgba(21, 101, 192, 0.12)', color: '#1565C0', border: 'rgba(21, 101, 192, 0.3)' };
-      case 'Membership':
-        return { bg: 'rgba(234, 67, 53, 0.12)', color: '#D93025', border: 'rgba(234, 67, 53, 0.3)' };
-      case 'Incident':
-        return { bg: 'rgba(255, 102, 0, 0.12)', color: 'var(--sakay-orange)', border: 'rgba(255, 102, 0, 0.3)' };
-      case 'Announcement':
-        return { bg: 'rgba(46, 125, 50, 0.12)', color: '#2E7D32', border: 'rgba(46, 125, 50, 0.3)' };
-      case 'Account':
-        return { bg: 'rgba(106, 27, 154, 0.12)', color: '#6A1B9A', border: 'rgba(106, 27, 154, 0.3)' };
-      default:
-        return { bg: '#F1F3F4', color: '#5F6368', border: '#DADCE0' };
-    }
-  };
+  // Why the list is empty, in words: nothing was recorded, or nothing matches the search and filters
+  const hasActiveFilter = searchQuery.trim() !== '' || categoryFilter !== 'All' || dateFilter !== 'All';
+
+  const exportButtons = (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+      <Button variant="outlined" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={secondaryButtonSx}>
+        {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
+      </Button>
+      <Button variant="outlined" disabled={exporting !== null} onClick={() => void runExport('csv')} sx={secondaryButtonSx}>
+        {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
+      </Button>
+      <Button variant="outlined" disabled={exporting !== null} onClick={() => void runExport('pdf')} sx={secondaryButtonSx}>
+        {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
+      </Button>
+    </Box>
+  );
 
   return (
-    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
-      {/* 1. Floating Card Filter Toolbar with Date Filtering */}
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px' }}>
+      {/* 1. Search, filters and the export buttons (the export covers what the date filter and the search show) */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search TODA audit action, actor, target entity, or log ID..."
+        searchPlaceholder="Search action, officer, record or log ID"
         selectFilters={[
           {
             id: 'date',
@@ -148,6 +142,7 @@ export const TodaAuditLogsPage: React.FC = () => {
             value: dateFilter,
             options: dateOptions,
             onChange: setDateFilter,
+            width: 188,
           },
           {
             id: 'category',
@@ -155,6 +150,7 @@ export const TodaAuditLogsPage: React.FC = () => {
             value: categoryFilter,
             options: categoryOptions,
             onChange: setCategoryFilter,
+            width: 188,
           },
         ]}
         onResetFilters={() => {
@@ -162,171 +158,114 @@ export const TodaAuditLogsPage: React.FC = () => {
           setCategoryFilter('All');
           setDateFilter('All');
         }}
+        actionButton={exportButtons}
       />
 
-      {/* 1B. Export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', mb: '13px' }}>
-        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-          {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
-        </Button>
-        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('csv')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-          {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
-        </Button>
-        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('pdf')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-          {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
-        </Button>
-      </Box>
-      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: '13px' }}>{exportNote.text}</Alert>}
+      {exportNote && (
+        <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: SPACE.gapLarge, borderRadius: '8px', fontSize: FONT.body }}>
+          {exportNote.text}
+        </Alert>
+      )}
 
-      {/* 2. Audit Trail Log Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: '14px',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-        }}
+      {/* 2. The record, newest first */}
+      <DataTableCard
+        label="Audit log"
+        minWidth={960}
+        columns={[
+          { label: 'Date and time (Philippine time)' },
+          { label: 'Officer' },
+          { label: 'Category' },
+          { label: 'Record affected' },
+          { label: 'Details' },
+          { label: 'Action', align: 'right' },
+        ]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Timestamp & Log ID</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>TODA Officer</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Category</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Target Entity</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Details of Modification</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredLogs.map((log) => {
-              const catBadge = getCategoryBadgeStyle(log.category);
-              return (
-                <TableRow
-                  key={log.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: '14px', px: '19px' }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
-                      {log.performed_at}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', fontFamily: 'monospace' }}>
-                      {log.log_id}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: '14px', px: '19px' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Avatar sx={{ width: 29, height: 29, backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)', fontSize: '11.5px', fontWeight: 700 }}>
-                        {log.actor_name.charAt(0)}
-                      </Avatar>
-                      <Box>
-                        <Typography sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
-                          {log.actor_name}
-                        </Typography>
-                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
-                          TODA Administration
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ py: '14px', px: '19px' }}>
-                    <Chip
-                      label={log.category}
-                      size="small"
-                      sx={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        backgroundColor: catBadge.bg,
-                        color: catBadge.color,
-                        border: `1px solid ${catBadge.border}`,
-                        height: 21,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ py: '14px', px: '19px' }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
-                      {log.target_name}
-                    </Typography>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', fontFamily: 'monospace' }}>
-                      {log.target_id}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: '14px', px: '19px', maxWidth: 304 }}>
-                    <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.4 }}>
-                      {log.details}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: '14px', px: '19px' }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<VisibilityIcon fontSize="small" />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedLog(log);
-                      }}
-                      sx={{
-                        height: 27,
-                        px: '13px',
-                        borderRadius: '6.5px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        textTransform: 'none',
-                        color: 'var(--sakay-orange)',
-                        borderColor: 'var(--sakay-orange-border)',
-                        backgroundColor: 'var(--sakay-orange-soft)',
-                      }}
-                    >
-                      Inspect
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading the audit log..." />
+          ) : filteredLogs.length > 0 ? (
+            filteredLogs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary }}>{withoutZone(log.performed_at)}</Typography>
+                  <Typography title={log.log_id} sx={{ fontSize: FONT.caption, color: OPS_TEXT.secondary, fontFamily: 'monospace' }}>
+                    Log {shortId(log.log_id)}
+                  </Typography>
+                </TableCell>
 
-      {/* 3. Event Inspection Modal */}
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <Avatar aria-hidden sx={{ width: 28, height: 28, flexShrink: 0, backgroundColor: 'var(--sakay-orange-soft)', color: OPS_TEXT.brand, fontSize: FONT.body, fontWeight: 700 }}>
+                      {log.actor_name.charAt(0)}
+                    </Avatar>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{log.actor_name}</Typography>
+                  </Box>
+                </TableCell>
+
+                <TableCell>
+                  <StatusPill label={log.category} tone="neutral" />
+                </TableCell>
+
+                <TableCell>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{log.target_name}</Typography>
+                  <Typography title={log.target_id} sx={{ fontSize: FONT.caption, color: OPS_TEXT.secondary, fontFamily: 'monospace' }}>
+                    {shortId(log.target_id)}
+                  </Typography>
+                </TableCell>
+
+                <TableCell sx={{ maxWidth: 340 }}>
+                  <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.5, overflowWrap: 'anywhere' }}>{log.details}</Typography>
+                </TableCell>
+
+                <TableCell align="right">
+                  <Button variant="outlined" onClick={() => setSelectedLog(log)} sx={rowActionSx('neutral')}>
+                    View details
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : logs.length === 0 ? (
+            <DataTableMessageRow colSpan={6} kind="empty" title="Nothing has been recorded yet" hint="What you and your officers do in this portal will be listed here." />
+          ) : (
+            <DataTableMessageRow
+              colSpan={6}
+              kind="noResults"
+              title="No entries match"
+              hint={hasActiveFilter ? 'Try other words or another date or category, or press Reset to see the whole log.' : 'Press Reset to see the whole log.'}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
+
+      {/* 3. One entry in full */}
       {selectedLog && (
         <MacCenterModal
           open={Boolean(selectedLog)}
           onClose={() => setSelectedLog(null)}
-          title={`TODA Audit Trail Event — ${selectedLog.log_id}`}
-          subtitle={`Action Type: ${selectedLog.action_type}`}
-          badge={<Chip label={selectedLog.category} size="small" sx={{ ...getCategoryBadgeStyle(selectedLog.category), fontWeight: 700 }} />}
+          title="Audit entry"
+          subtitle={`Action: ${selectedLog.action_type}`}
+          badge={<StatusPill label={selectedLog.category} tone="neutral" />}
           maxWidth={528}
         >
-          <Box sx={{ mb: '19px' }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px', backgroundColor: '#F8F9FA', p: '16px', borderRadius: '10px', mb: '19px' }}>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Timestamp</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.performed_at}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Acting Officer</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.actor_name}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Target Entity ID</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--sakay-orange)', fontFamily: 'monospace' }}>{selectedLog.target_id}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Target Entity Name</Typography>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.target_name}</Typography>
-              </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '13px 16px', backgroundColor: '#FAFAF8', border: '1px solid rgba(15, 23, 42, 0.12)', p: '16px', borderRadius: '10px' }}>
+              {[
+                { label: 'Date and time (Philippine time)', value: withoutZone(selectedLog.performed_at), mono: false },
+                { label: 'Officer', value: selectedLog.actor_name, mono: false },
+                { label: 'Record affected', value: selectedLog.target_name, mono: false },
+                { label: 'Record ID', value: selectedLog.target_id, mono: true },
+                { label: 'Log ID', value: selectedLog.log_id, mono: true },
+              ].map((field) => (
+                <Box key={field.label} sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>{field.label}</Typography>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere', fontFamily: field.mono ? 'monospace' : undefined }}>{field.value}</Typography>
+                </Box>
+              ))}
             </Box>
 
-            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
-              Full Log Payload Details
-            </Typography>
-            <Box sx={{ p: '13px', borderRadius: '8px', backgroundColor: '#FAFAFC', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+            <Box>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary, mb: '6px' }}>Details</Typography>
+              <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere', border: '1px solid rgba(15, 23, 42, 0.12)', borderRadius: '8px', p: '13px 16px' }}>
                 {selectedLog.details}
               </Typography>
             </Box>

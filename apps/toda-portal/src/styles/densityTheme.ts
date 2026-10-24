@@ -19,9 +19,23 @@ const labelPosition = {
   '&.MuiInputLabel-shrink': { transform: `translate(${FIELD_SIDE_PADDING}, 4px) scale(0.875)`, maxWidth: 'calc(114% - 24px)' },
 } as const;
 
-const fieldInput = {
+// The tall top padding and the taller box exist to make room for the floating label, so they belong only to a field that HAS a label. The portal's theme
+// (main.tsx) and this one used to give that padding to EVERY outlined field, so a field without a label (the search box and the drop-downs of the filter bars,
+// the month and year pickers) had its text pushed 6-8px below the middle of the box. MUI draws the label right before the input box, which is what the
+// sibling selectors below look for. A field without a label gets no top or bottom padding at all: the box is centred by flex, so the text sits in the middle
+// whatever height the page gives the box (36px on a mouse, 44px on a touch screen).
+const LABELLED_BOX = '.MuiInputLabel-root + &';
+const LABELLED_INPUT = '.MuiInputLabel-root + .MuiOutlinedInput-root &';
+
+const labelledPadding = {
   paddingTop: `${FIELD_TOP_PADDING} !important`,
   paddingBottom: `${FIELD_BOTTOM_PADDING} !important`,
+} as const;
+
+// the same keys as the portal's theme, so these values replace its padding and its 52px minimum for a field without a label
+const plainInput = {
+  paddingTop: '0px !important',
+  paddingBottom: '0px !important',
   paddingLeft: FIELD_SIDE_PADDING,
   fontSize: FONT.body,
 } as const;
@@ -32,8 +46,8 @@ export const createDensityTheme = (outerTheme: Theme): Theme =>
       MuiInputLabel: { styleOverrides: { root: labelPosition } },
       MuiOutlinedInput: {
         styleOverrides: {
-          root: { borderRadius: '10px', minHeight: CONTROL.fieldHeight, fontSize: FONT.body },
-          input: fieldInput,
+          root: { borderRadius: '10px', minHeight: CONTROL.height, fontSize: FONT.body, [LABELLED_BOX]: { minHeight: CONTROL.fieldHeight } },
+          input: { ...plainInput, [LABELLED_INPUT]: labelledPadding },
         },
       },
       MuiTextField: {
@@ -42,9 +56,13 @@ export const createDensityTheme = (outerTheme: Theme): Theme =>
             '& .MuiInputLabel-root': labelPosition,
             '& .MuiOutlinedInput-root': {
               borderRadius: '10px',
-              minHeight: CONTROL.fieldHeight,
+              minHeight: CONTROL.height,
               fontSize: FONT.body,
-              '& .MuiOutlinedInput-input': fieldInput,
+              '& .MuiOutlinedInput-input': plainInput,
+            },
+            '& .MuiInputLabel-root + .MuiOutlinedInput-root': {
+              minHeight: CONTROL.fieldHeight,
+              '& .MuiOutlinedInput-input': labelledPadding,
             },
           },
         },

@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, Box, Button, Card, Chip, TextField, Typography } from '@mui/material';
-import ShieldIcon from '@mui/icons-material/Shield';
+import { Alert, Box, Button, Card, TextField, Typography } from '@mui/material';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 
 import type { TodaProfile } from '../../types/toda';
-import { accreditationChip, daysUntil } from '../../utils/accreditation';
+import { accreditationChip, accreditationTone, daysUntil } from '../../utils/accreditation';
+import { FONT, SPACE } from '../../styles/density';
+import { OPS_TEXT, opsCardSx } from '../operations/operationsTheme';
+import { ToneStatusPill } from './DataTable';
+import { primaryButtonSx } from './pageButtons';
 
 interface AccreditationCardProps {
   profile: TodaProfile;
@@ -16,15 +20,18 @@ const manilaDate = (iso: string): string =>
 const dayText = (ymd: string): string => manilaDate(`${ymd}T00:00:00+08:00`);
 
 const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <Box>
-    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>{label}</Typography>
-    <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{value}</Typography>
+  <Box sx={{ minWidth: 0 }}>
+    <Typography component="dt" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>{label}</Typography>
+    <Typography component="dd" sx={{ m: 0, fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{value}</Typography>
   </Box>
 );
+
+const noticeSx = { borderRadius: '8px', fontSize: FONT.body } as const;
 
 /**
  * Checklist B1: the application's status, the certificate and validity the LGU recorded, the validity the TODA declared, the LGU's correction or decline reason,
  * and the Resubmit step for an application that was returned. The files themselves are submitted from the compliance section below.
+ * The banner at the top of every page already announces a pending, declined, expiring or renewed accreditation, so only what needs an action stays here.
  */
 export const AccreditationCard: React.FC<AccreditationCardProps> = ({ profile, onResubmit }) => {
   const [note, setNote] = useState('');
@@ -47,19 +54,16 @@ export const AccreditationCard: React.FC<AccreditationCardProps> = ({ profile, o
   };
 
   return (
-    <Card
-      elevation={0}
-      sx={{ p: '19px', borderRadius: '14px', border: '1px solid var(--mac-border-color)', backgroundColor: '#FFFFFF', boxShadow: 'var(--mac-shadow-card)', mb: '22px' }}
-    >
+    <Card elevation={0} sx={{ ...opsCardSx, p: SPACE.cardLarge, mb: SPACE.gapLarge }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', mb: '13px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ShieldIcon sx={{ color: '#059669', fontSize: 19 }} />
-          <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>Accreditation Status</Typography>
+          <ShieldOutlinedIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />
+          <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>Accreditation</Typography>
         </Box>
-        <Chip label={chip.label} size="small" sx={{ backgroundColor: chip.bg, color: chip.color, fontWeight: 600, fontSize: '11px' }} />
+        <ToneStatusPill label={chip.label} tone={accreditationTone(profile.accreditationStatus)} />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: '16px' }}>
+      <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
         <Fact label="Certificate number" value={profile.accreditationNo || 'Not issued yet'} />
         <Fact
           label="Accreditation valid until"
@@ -74,19 +78,19 @@ export const AccreditationCard: React.FC<AccreditationCardProps> = ({ profile, o
       </Box>
 
       {profile.accreditationStatus === 'Pending Verification' && (
-        <Alert severity="info" sx={{ mt: '16px', borderRadius: '8px' }}>
-          The LGU is reviewing your application. It will either approve it, return it to you with a reason, or decline it. You will see the result here.
+        <Alert severity="info" sx={{ mt: '16px', ...noticeSx }}>
+          The LGU will approve your application, return it to you with a reason, or decline it. You will see the result here.
         </Alert>
       )}
 
       {profile.accreditationStatus === 'Resubmission Required' && (
         <Box sx={{ mt: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <Alert severity="error" sx={{ borderRadius: '8px' }}>
-            <Typography sx={{ fontWeight: 700, fontSize: '11.5px' }}>The LGU returned this application for correction</Typography>
-            <Typography sx={{ fontSize: '11.5px', mt: '3px' }}>{profile.resubmissionReason || 'The LGU did not write a reason. Contact the City Transport & Franchising Office.'}</Typography>
+          <Alert severity="error" sx={noticeSx}>
+            <Typography sx={{ fontWeight: 700, fontSize: FONT.body }}>The LGU returned this application for correction</Typography>
+            <Typography sx={{ fontSize: FONT.body, mt: '3px' }}>{profile.resubmissionReason || 'The LGU did not write a reason. Contact the City Transport & Franchising Office.'}</Typography>
           </Alert>
-          <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-secondary)' }}>
-            1. Upload the corrected file under Annual Compliance &amp; Accreditation Renewal below (a Barangay Clearance needs the date it is valid until).
+          <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, lineHeight: 1.6 }}>
+            1. Upload the corrected file under Compliance documents below (a Barangay Clearance needs the date it is valid until).
             <br />
             2. Press Resubmit. The application goes back to the LGU and this status changes to Pending Verification.
           </Typography>
@@ -100,28 +104,17 @@ export const AccreditationCard: React.FC<AccreditationCardProps> = ({ profile, o
             onChange={(e) => setNote(e.target.value)}
             slotProps={{ htmlInput: { maxLength: 500 } }}
           />
-          {error && <Alert severity="error" sx={{ borderRadius: '8px' }}>{error}</Alert>}
-          <Button
-            variant="contained"
-            disabled={busy}
-            onClick={() => void resubmit()}
-            sx={{ alignSelf: 'flex-start', textTransform: 'none', fontWeight: 700, backgroundColor: 'var(--sakay-orange)', borderRadius: '6.5px', '&:hover': { backgroundColor: '#E65C00' } }}
-          >
+          {error && <Alert severity="error" sx={noticeSx}>{error}</Alert>}
+          <Button variant="contained" disableElevation disabled={busy} onClick={() => void resubmit()} sx={{ ...primaryButtonSx, alignSelf: 'flex-start' }}>
             {busy ? 'Sending...' : 'Resubmit for LGU review'}
           </Button>
         </Box>
       )}
 
       {profile.accreditationStatus === 'Deactivated' && (
-        <Alert severity="error" sx={{ mt: '16px', borderRadius: '8px' }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '11.5px' }}>The LGU declined or deactivated this accreditation</Typography>
-          <Typography sx={{ fontSize: '11.5px', mt: '3px' }}>{profile.declineReason || 'No reason was recorded.'} Documents cannot be submitted while the accreditation is deactivated; contact the City Transport &amp; Franchising Office.</Typography>
-        </Alert>
-      )}
-
-      {profile.accreditationStatus === 'Active' && profile.renewalSubmittedAt && (
-        <Alert severity="info" sx={{ mt: '16px', borderRadius: '8px' }}>
-          Your renewed Barangay Clearance was sent on {manilaDate(profile.renewalSubmittedAt)}. The accreditation above stays as it is until the LGU records the renewal.
+        <Alert severity="error" sx={{ mt: '16px', ...noticeSx }}>
+          <Typography sx={{ fontWeight: 700, fontSize: FONT.body }}>The LGU declined or deactivated this accreditation</Typography>
+          <Typography sx={{ fontSize: FONT.body, mt: '3px' }}>{profile.declineReason || 'No reason was recorded.'} Documents cannot be submitted while the accreditation is deactivated; contact the City Transport &amp; Franchising Office.</Typography>
         </Alert>
       )}
     </Card>

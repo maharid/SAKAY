@@ -7,11 +7,11 @@ import { LoginPage } from '../pages/LoginPage';
 import { TodaOperationsPage } from '../pages/TodaOperationsPage';
 import { TodaDriverVerificationPage } from '../pages/TodaDriverVerificationPage';
 import { TodaDriverMembershipPage } from '../pages/TodaDriverMembershipPage';
-import { TodaFleetPage } from '../pages/TodaFleetPage';
 import { TodaAnnouncementsPage } from '../pages/TodaAnnouncementsPage';
 import { TodaReportingPage } from '../pages/TodaReportingPage';
 import { TodaAuditLogsPage } from '../pages/TodaAuditLogsPage';
 import { TodaAccountManagementPage } from '../pages/TodaAccountManagementPage';
+import { TodaSettingsPage } from '../pages/TodaSettingsPage';
 import { TodaRegistrationPage } from '../pages/TodaRegistrationPage';
 
 export const TodaRoutes: React.FC = () => {
@@ -69,24 +69,12 @@ export const TodaRoutes: React.FC = () => {
         }
       />
 
-      {/* Tricycle Fleet Management */}
-      <Route
-        path="/fleet"
-        element={
-          <ProtectedRoute>
-            <TodaLayout pageTitle="Tricycle Fleet Management" pageSubtitle="Manage authorized motorized tricycle units, franchise permits, and unit status">
-              <TodaFleetPage />
-            </TodaLayout>
-          </ProtectedRoute>
-        }
-      />
-
       {/* Announcements */}
       <Route
         path="/announcements"
         element={
           <ProtectedRoute>
-            <TodaLayout pageTitle="Announcements" pageSubtitle="Broadcast notices and terminal policy updates to TODA member drivers">
+            <TodaLayout pageTitle="Announcements" pageSubtitle="Send notices to your drivers. They read them in the Driver App">
               <TodaAnnouncementsPage />
             </TodaLayout>
           </ProtectedRoute>
@@ -98,7 +86,7 @@ export const TodaRoutes: React.FC = () => {
         path="/reports"
         element={
           <ProtectedRoute>
-            <TodaLayout pageTitle="TODA Reports & Incidents" pageSubtitle="Review TODA trip activity, gross fare ledgers, driver complaints, and LGU escalation">
+            <TodaLayout pageTitle="TODA Reports & Incidents" pageSubtitle="Trips, fares, driver activity and passenger complaints for your TODA">
               <TodaReportingPage />
             </TodaLayout>
           </ProtectedRoute>
@@ -110,7 +98,7 @@ export const TodaRoutes: React.FC = () => {
         path="/audit-logs"
         element={
           <ProtectedRoute>
-            <TodaLayout pageTitle="Audit Logs" pageSubtitle="Immutable security trail of TODA administrative actions and endorsements">
+            <TodaLayout pageTitle="Audit Logs" pageSubtitle="A record of what you and your officers did in this portal">
               <TodaAuditLogsPage />
             </TodaLayout>
           </ProtectedRoute>
@@ -122,8 +110,20 @@ export const TodaRoutes: React.FC = () => {
         path="/account"
         element={
           <ProtectedRoute>
-            <TodaLayout pageTitle="Account & Accreditation" pageSubtitle="Manage TODA organizational information, officers roster, and annual LGU accreditation">
+            <TodaLayout pageTitle="Account & Accreditation" pageSubtitle="Your TODA's details, officers, accreditation and documents">
               <TodaAccountManagementPage />
+            </TodaLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Settings */}
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <TodaLayout pageTitle="Settings" pageSubtitle="Manage your TODA account and application preferences.">
+              <TodaSettingsPage />
             </TodaLayout>
           </ProtectedRoute>
         }
