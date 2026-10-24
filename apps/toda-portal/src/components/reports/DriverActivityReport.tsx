@@ -40,8 +40,8 @@ interface DriverActivityReportProps {
 }
 
 const peso = (n: number): string => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const cardSx = { borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' };
-const headCell = { fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 2 };
+const cardSx = { borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' };
+const headCell = { fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '13px' };
 const dayOf = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : 'No completed trip yet';
 
@@ -75,19 +75,19 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({ trip
 
   return (
     <>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5, mb: 3.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '16px', mb: '22px' }}>
         {kpis.map(([title, value, caption, color]) => (
           <Card key={title} sx={cardSx}>
-            <Box sx={{ p: '20px 24px' }}>
-              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>{title}</Typography>
-              <Typography sx={{ fontSize: '30px', fontWeight: 700, color }}>{value}</Typography>
-              <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>{caption}</Typography>
+            <Box sx={{ p: '16px 19px' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>{title}</Typography>
+              <Typography sx={{ fontSize: '24px', fontWeight: 700, color }}>{value}</Typography>
+              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>{caption}</Typography>
             </Box>
           </Card>
         ))}
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: '13px' }}>
         <ReportExportButtons table={table} generatedBy={generatedBy} onExported={onExported} />
       </Box>
 
@@ -107,24 +107,24 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({ trip
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                  <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Registered Drivers Yet</Typography>
-                  <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Drivers appear here once their SAKAY application is endorsed and approved.</Typography>
+                <TableCell colSpan={7} align="center" sx={{ py: '38px' }}>
+                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Registered Drivers Yet</Typography>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Drivers appear here once their SAKAY application is endorsed and approved.</Typography>
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((r) => (
                 <TableRow key={r.driverId} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ px: 2 }}>
-                    <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{r.name}</Typography>
-                    <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>{r.plate || 'No plate on record'}</Typography>
+                  <TableCell sx={{ px: '13px' }}>
+                    <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{r.name}</Typography>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>{r.plate || 'No plate on record'}</Typography>
                   </TableCell>
-                  <TableCell sx={{ px: 2, fontWeight: 600, color: '#059669' }} align="right">{r.completed}</TableCell>
-                  <TableCell sx={{ px: 2, color: r.cancelled ? '#DC2626' : undefined }} align="right">{r.cancelled}</TableCell>
-                  <TableCell sx={{ px: 2 }} align="right">{r.km} km</TableCell>
-                  <TableCell sx={{ px: 2, fontWeight: 600 }} align="right">{peso(r.grossFare)}</TableCell>
-                  <TableCell sx={{ px: 2 }}>{dayOf(r.lastTripAt)}</TableCell>
-                  <TableCell sx={{ px: 2 }} align="center">
+                  <TableCell sx={{ px: '13px', fontWeight: 600, color: '#059669' }} align="right">{r.completed}</TableCell>
+                  <TableCell sx={{ px: '13px', color: r.cancelled ? '#DC2626' : undefined }} align="right">{r.cancelled}</TableCell>
+                  <TableCell sx={{ px: '13px' }} align="right">{r.km} km</TableCell>
+                  <TableCell sx={{ px: '13px', fontWeight: 600 }} align="right">{peso(r.grossFare)}</TableCell>
+                  <TableCell sx={{ px: '13px' }}>{dayOf(r.lastTripAt)}</TableCell>
+                  <TableCell sx={{ px: '13px' }} align="center">
                     <Chip
                       size="small"
                       label={r.activeInWindow ? 'Active' : 'Inactive'}

@@ -104,8 +104,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         paper: {
           sx: {
             width: '100%',
-            maxWidth: 780,
-            borderRadius: 'var(--mac-radius-xl)',
+            maxWidth: 624,
+            borderRadius: '18px',
             backgroundColor: '#FFFFFF',
             boxShadow: 'var(--mac-shadow-popover)',
             border: '1px solid var(--mac-border-color)',
@@ -116,7 +116,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     >
       <DialogTitle
         sx={{
-          padding: '18px 24px',
+          padding: '14px 19px',
           borderBottom: '1px solid var(--mac-border-color)',
           display: 'flex',
           alignItems: 'center',
@@ -124,25 +124,25 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           backgroundColor: '#FAFAFC',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24 }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
           <Box>
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               {documentName}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
               {documentType} • Official TODA / Municipal Compliance Submission
             </Typography>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {imageUrl && !imgError && (
             <>
               <IconButton size="small" onClick={handleZoomOut} title="Zoom Out" sx={{ color: 'var(--mac-text-secondary)' }}>
                 <ZoomOutIcon fontSize="small" />
               </IconButton>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', minWidth: 38, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', minWidth: 30, textAlign: 'center' }}>
                 {Math.round(zoomLevel * 100)}%
               </Typography>
               <IconButton size="small" onClick={handleZoomIn} title="Zoom In" sx={{ color: 'var(--mac-text-secondary)' }}>
@@ -153,31 +153,31 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               </IconButton>
             </>
           )}
-          <IconButton onClick={onClose} size="small" sx={{ ml: 1 }}>
+          <IconButton onClick={onClose} size="small" sx={{ ml: '6px' }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ padding: '20px', backgroundColor: '#18181B', minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <DialogContent sx={{ padding: '16px', backgroundColor: '#18181B', minHeight: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         {imageUrl && !imgError ? (
           <Box
             sx={{
               position: 'relative',
               width: '100%',
-              height: 480,
+              height: 384,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               overflow: 'auto',
-              borderRadius: '8px',
+              borderRadius: '6.5px',
               backgroundColor: '#09090B',
             }}
           >
             {imgLoading && (
-              <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-                <CircularProgress size={36} sx={{ color: 'var(--sakay-orange)' }} />
-                <Typography sx={{ fontSize: '13px', color: '#A1A1AA' }}>Loading captured document...</Typography>
+              <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                <CircularProgress size={29} sx={{ color: 'var(--sakay-orange)' }} />
+                <Typography sx={{ fontSize: '11px', color: '#A1A1AA' }}>Loading captured document...</Typography>
               </Box>
             )}
             <Box
@@ -196,38 +196,38 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 transformOrigin: 'center center',
                 transition: 'transform 0.15s ease-out',
                 objectFit: 'contain',
-                borderRadius: '6px',
+                borderRadius: '5px',
                 boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
                 display: imgLoading ? 'none' : 'block',
               }}
             />
           </Box>
         ) : resolving ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-            <CircularProgress size={36} sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '13px', color: '#A1A1AA' }}>Preparing secure link...</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            <CircularProgress size={29} sx={{ color: 'var(--sakay-orange)' }} />
+            <Typography sx={{ fontSize: '11px', color: '#A1A1AA' }}>Preparing secure link...</Typography>
           </Box>
         ) : (
           <Box
             sx={{
               width: '100%',
-              height: 380,
+              height: 304,
               backgroundColor: '#FAFAFC',
-              borderRadius: '12px',
+              borderRadius: '10px',
               border: '2px dashed var(--mac-border-color)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              p: 4,
+              p: '26px',
               textAlign: 'center',
             }}
           >
-            <VerifiedUserIcon sx={{ fontSize: 48, color: '#1E8E3E', mb: 2 }} />
-            <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
+            <VerifiedUserIcon sx={{ fontSize: 38, color: '#1E8E3E', mb: '13px' }} />
+            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: '6px' }}>
               {documentName}
             </Typography>
-            <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', maxWidth: 440, mb: 1 }}>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', maxWidth: 352, mb: '6px' }}>
               {imgError
                 ? 'Unable to load high-resolution image preview. You may still inspect the document record below.'
                 : 'Captured document metadata is registered with Calapan City TODA Administrative Board.'}
@@ -236,12 +236,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '16px 24px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', display: 'flex', justifyContent: 'space-between' }}>
-        <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+      <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', display: 'flex', justifyContent: 'space-between' }}>
+        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
           {imageUrl ? 'High-Resolution Captured Submission' : 'Document Submission Record'}
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: '10px' }}>
           {imageUrl && (
             <Button
               variant="outlined"
@@ -250,10 +250,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               onClick={handleOpenOriginal}
               sx={{
                 textTransform: 'none',
-                borderRadius: '8px',
+                borderRadius: '6.5px',
                 borderColor: 'var(--mac-border-color)',
                 color: 'var(--mac-text-secondary)',
-                fontSize: '12.5px',
+                fontSize: '11px',
                 fontWeight: 600,
               }}
             >
@@ -269,10 +269,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               onClick={handleDownload}
               sx={{
                 textTransform: 'none',
-                borderRadius: '8px',
+                borderRadius: '6.5px',
                 backgroundColor: 'var(--sakay-orange)',
                 color: '#FFFFFF',
-                fontSize: '12.5px',
+                fontSize: '11px',
                 fontWeight: 600,
                 '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
               }}
@@ -287,10 +287,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             onClick={onClose}
             sx={{
               textTransform: 'none',
-              borderRadius: '8px',
+              borderRadius: '6.5px',
               borderColor: 'var(--mac-border-color)',
               color: 'var(--mac-text-primary)',
-              fontSize: '12.5px',
+              fontSize: '11px',
               fontWeight: 600,
             }}
           >

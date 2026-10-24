@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, useMediaQuery } from '@mui/material';
+import { ThemeProvider } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
 import { TodaHeader } from './TodaHeader';
 import { TodaSidebar } from './TodaSidebar';
@@ -7,6 +8,7 @@ import { fetchTodaProfile, onTodaProfileChanged } from '../../services/todaApiSe
 import { AccreditationStatusBanner } from '../common/AccreditationStatusBanner';
 import { TodaProfile } from '../../types/toda';
 import { SHELL } from '../../styles/density';
+import { createDensityTheme } from '../../styles/densityTheme';
 
 interface TodaLayoutProps {
   children?: React.ReactNode;
@@ -18,7 +20,7 @@ interface TodaLayoutProps {
 const COMPACT_SHELL_QUERY = '(max-width: 899.95px)';
 const SIDEBAR_RAIL_WIDTH = SHELL.sidebarRailWidth;
 
-export const TodaLayout: React.FC<TodaLayoutProps> = ({
+const TodaLayoutShell: React.FC<TodaLayoutProps> = ({
   children,
   pageTitle,
   pageSubtitle,
@@ -130,3 +132,10 @@ export const TodaLayout: React.FC<TodaLayoutProps> = ({
     </Box>
   );
 };
+
+// Everything in the signed-in layout (header, sidebar, the page, and the popups and dialogs they open) is drawn at the compact density.
+export const TodaLayout: React.FC<TodaLayoutProps> = (props) => (
+  <ThemeProvider theme={createDensityTheme}>
+    <TodaLayoutShell {...props} />
+  </ThemeProvider>
+);

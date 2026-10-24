@@ -91,40 +91,40 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         paper: {
           sx: {
             width: '100%',
-            maxWidth: 480,
-            borderRadius: 'var(--mac-radius-lg)',
+            maxWidth: 384,
+            borderRadius: '14px',
             backgroundColor: '#FFFFFF',
             boxShadow: 'var(--mac-shadow-popover)',
             border: '1px solid var(--mac-border-color)',
-            padding: '8px',
+            padding: '6.5px',
           },
         },
       }}
     >
-      <DialogTitle sx={{ padding: '20px 24px 12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <DialogTitle sx={{ padding: '16px 19px 10px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {confirmVariant === 'danger' && (
-            <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 24 }} />
+            <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 19 }} />
           )}
-          <Typography sx={{ fontSize: '17px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
             {title}
           </Typography>
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ padding: '0 24px 20px' }}>
-        <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? 2 : 0 }}>
+      <DialogContent sx={{ padding: '0 19px 16px' }}>
+        <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? '13px' : 0 }}>
           {message}
         </Typography>
 
         {errorMessage && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: '10px', fontSize: '13px' }}>
+          <Alert severity="error" sx={{ mt: '13px', borderRadius: '8px', fontSize: '11px' }}>
             {errorMessage}
           </Alert>
         )}
 
         {requireReason && (
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: '13px' }}>
             <TextField
               fullWidth
               multiline
@@ -139,8 +139,8 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
               helperText={error ? 'Reason is required for this action' : ''}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '10px',
-                  fontSize: '13.5px',
+                  borderRadius: '8px',
+                  fontSize: '11px',
                   backgroundColor: '#FAFAFC',
                 },
               }}
@@ -149,17 +149,17 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '12px 24px 16px', gap: 1 }}>
+      <DialogActions sx={{ padding: '10px 19px 13px', gap: '6px' }}>
         <Button
           variant="outlined"
           onClick={onClose}
           sx={{
-            height: 38,
-            padding: '0 16px',
-            borderRadius: '8px',
+            height: 30,
+            padding: '0 13px',
+            borderRadius: '6.5px',
             border: '1.5px solid #94A3B8',
             color: '#334155',
-            fontSize: '13.5px',
+            fontSize: '11px',
             fontWeight: 600,
             textTransform: 'none',
             backgroundColor: '#FFFFFF',
@@ -178,17 +178,17 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
           disabled={isLoading}
           onClick={handleConfirm}
           sx={{
-            height: 38,
-            padding: '0 20px',
-            borderRadius: '8px',
-            fontSize: '13.5px',
+            height: 30,
+            padding: '0 16px',
+            borderRadius: '6.5px',
+            fontSize: '11px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
             ...getConfirmButtonStyles(),
           }}
         >
-          {isLoading ? <CircularProgress size={20} color="inherit" /> : confirmLabel}
+          {isLoading ? <CircularProgress size={16} color="inherit" /> : confirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

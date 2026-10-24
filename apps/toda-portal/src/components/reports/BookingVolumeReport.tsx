@@ -37,8 +37,8 @@ const PERIOD_LABEL: Record<VolumePeriod, string> = { day: 'Daily', week: 'Weekly
 const PERIOD_COLUMN: Record<VolumePeriod, string> = { day: 'DAY', week: 'WEEK (MON-SUN)', month: 'MONTH' };
 const peso = (n: number): string => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const cardSx = { borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' };
-const headCell = { fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 2 };
+const cardSx = { borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' };
+const headCell = { fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '13px' };
 
 export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips, todaName, onExported }) => {
   const [period, setPeriod] = useState<VolumePeriod>('day');
@@ -67,25 +67,25 @@ export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips,
 
   return (
     <>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5, mb: 3.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: '16px', mb: '22px' }}>
         {kpis.map(([title, value, caption, color]) => (
           <Card key={title} sx={cardSx}>
-            <Box sx={{ p: '20px 24px' }}>
-              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>{title}</Typography>
-              <Typography sx={{ fontSize: '30px', fontWeight: 700, color }}>{value}</Typography>
-              <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>{caption}</Typography>
+            <Box sx={{ p: '16px 19px' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>{title}</Typography>
+              <Typography sx={{ fontSize: '24px', fontWeight: 700, color }}>{value}</Typography>
+              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>{caption}</Typography>
             </Box>
           </Card>
         ))}
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px', mb: '13px' }}>
         <ToggleButtonGroup
           exclusive
           size="small"
           value={period}
           onChange={(_, next: VolumePeriod | null) => next && setPeriod(next)}
-          sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, px: 2 }, '& .Mui-selected': { color: 'var(--sakay-orange) !important' } }}
+          sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, px: '13px' }, '& .Mui-selected': { color: 'var(--sakay-orange) !important' } }}
         >
           {(Object.keys(PERIOD_LABEL) as VolumePeriod[]).map((p) => (
             <ToggleButton key={p} value={p}>{PERIOD_LABEL[p]}</ToggleButton>
@@ -111,20 +111,20 @@ export const BookingVolumeReport: React.FC<BookingVolumeReportProps> = ({ trips,
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.key} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                <TableCell sx={{ px: 2, fontWeight: 600 }}>{r.label}</TableCell>
-                <TableCell sx={{ px: 2 }} align="right">{r.total}</TableCell>
-                <TableCell sx={{ px: 2, color: '#059669', fontWeight: 600 }} align="right">{r.completed}</TableCell>
-                <TableCell sx={{ px: 2, color: r.cancelled ? '#DC2626' : undefined }} align="right">{r.cancelled}</TableCell>
-                <TableCell sx={{ px: 2 }} align="right">{r.noDriverFound}</TableCell>
-                <TableCell sx={{ px: 2 }} align="right">{r.sharedTrips}</TableCell>
-                <TableCell sx={{ px: 2, fontWeight: 600 }} align="right">{peso(r.grossFare)}</TableCell>
-                <TableCell sx={{ px: 2 }} align="right">{r.total > 0 ? `${r.completionRate}%` : '-'}</TableCell>
+                <TableCell sx={{ px: '13px', fontWeight: 600 }}>{r.label}</TableCell>
+                <TableCell sx={{ px: '13px' }} align="right">{r.total}</TableCell>
+                <TableCell sx={{ px: '13px', color: '#059669', fontWeight: 600 }} align="right">{r.completed}</TableCell>
+                <TableCell sx={{ px: '13px', color: r.cancelled ? '#DC2626' : undefined }} align="right">{r.cancelled}</TableCell>
+                <TableCell sx={{ px: '13px' }} align="right">{r.noDriverFound}</TableCell>
+                <TableCell sx={{ px: '13px' }} align="right">{r.sharedTrips}</TableCell>
+                <TableCell sx={{ px: '13px', fontWeight: 600 }} align="right">{peso(r.grossFare)}</TableCell>
+                <TableCell sx={{ px: '13px' }} align="right">{r.total > 0 ? `${r.completionRate}%` : '-'}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
-      <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 1.5 }}>
+      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '10px' }}>
         {todaName}: counted by the day the booking was created (Asia/Manila). Estimated gross fare value is the sum of the final fares of completed trips, paid in cash.
       </Typography>
     </>

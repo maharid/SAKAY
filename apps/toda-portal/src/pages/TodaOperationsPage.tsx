@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button } from '@mui/material';
-import { ThemeProvider } from '@mui/material/styles';
 
 import { DateCalendarPopover } from '../components/common/DateCalendarPopover';
 import { OperationsToolbar } from '../components/operations/OperationsToolbar';
@@ -12,7 +11,6 @@ import { DriverRosterTable } from '../components/operations/DriverRosterTable';
 import { BookingsTable } from '../components/operations/BookingsTable';
 import { FarePolicyNote } from '../components/operations/FarePolicyNote';
 import { opsButtonSx, OPS_BORDER, OPS_TEXT } from '../components/operations/operationsTheme';
-import { createOperationsTheme } from '../components/operations/operationsDensityTheme';
 import { SHELL, SPACE } from '../styles/density';
 import { TodaProfile, TodaDriverMember, TodaBooking } from '../types/toda';
 import {
@@ -45,7 +43,7 @@ import { driverActivity, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike } from '@sakay/shared';
 import { useAuth } from '../contexts/AuthContext';
 
-const TodaOperationsContent: React.FC = () => {
+export const TodaOperationsPage: React.FC = () => {
   const { todaAdminProfile } = useAuth();
   const targetTodaId = todaAdminProfile?.toda_id;
 
@@ -429,10 +427,3 @@ const TodaOperationsContent: React.FC = () => {
     </Box>
   );
 };
-
-// The tab is drawn at the compact density: its MUI parts (modals, menus, fields) get the matching sizes from a theme that only applies under this page.
-export const TodaOperationsPage: React.FC = () => (
-  <ThemeProvider theme={createOperationsTheme}>
-    <TodaOperationsContent />
-  </ThemeProvider>
-);

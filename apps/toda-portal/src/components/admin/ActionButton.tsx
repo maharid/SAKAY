@@ -20,15 +20,15 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
       variant="outlined"
       size="small"
       onClick={onClick}
-      endIcon={showArrow ? <ArrowForwardIosIcon sx={{ fontSize: '10px !important', ml: '-2px' }} /> : undefined}
+      endIcon={showArrow ? <ArrowForwardIosIcon sx={{ fontSize: '10px !important', ml: '-1.5px' }} /> : undefined}
       sx={{
-        height: '34px',
+        height: '27px',
         padding: showArrow ? '0 14px 0 16px' : '0 16px',
-        borderRadius: '9px',
+        borderRadius: '7px',
         borderColor: 'var(--mac-border-color)',
         backgroundColor: '#FFFFFF',
         color: 'var(--mac-text-primary)',
-        fontSize: '14px',
+        fontSize: '11.5px',
         fontWeight: 500,
         textTransform: 'none',
         // prevent text wrapping so label doesn't spill out of fixed height button

@@ -53,25 +53,25 @@ export const GpsAreasCard: React.FC<GpsAreasCardProps> = ({ areas, minCount, win
     });
 
   return (
-    <Paper elevation={0} sx={{ mb: 3.5, borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', overflow: 'hidden' }}>
-      <Box sx={{ p: '16px 22px', borderBottom: '1px solid var(--mac-border-color)' }}>
-        <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+    <Paper elevation={0} sx={{ mb: '22px', borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', overflow: 'hidden' }}>
+      <Box sx={{ p: '13px 18px', borderBottom: '1px solid var(--mac-border-color)' }}>
+        <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
           Areas with repeated GPS-caused determinations
         </Typography>
-        <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5, lineHeight: 1.45 }}>
+        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px', lineHeight: 1.45 }}>
           {minCount} or more stall or lost-connection cancellations (waived ones included) of your drivers in the same square of about 550 m within {windowDays} days.
           If the cause looks like weak GPS or signal in that place, report it so the LGU Administrator can consider a service-zone boundary adjustment.
         </Typography>
       </Box>
       {done && (
-        <Alert severity="success" onClose={() => setDone(null)} sx={{ m: 2, borderRadius: '10px' }}>
+        <Alert severity="success" onClose={() => setDone(null)} sx={{ m: '13px', borderRadius: '8px' }}>
           {done}
         </Alert>
       )}
       {areas.map((a) => (
-        <Box key={a.cellKey} sx={{ p: '14px 22px', borderTop: '1px solid var(--mac-border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box key={a.cellKey} sx={{ p: '11px 18px', borderTop: '1px solid var(--mac-border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '13px', flexWrap: 'wrap' }}>
           <Box>
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
               <a
                 href={`https://www.openstreetmap.org/?mlat=${a.centerLatitude}&mlon=${a.centerLongitude}#map=16/${a.centerLatitude}/${a.centerLongitude}`}
                 target="_blank"
@@ -82,12 +82,12 @@ export const GpsAreasCard: React.FC<GpsAreasCardProps> = ({ areas, minCount, win
               </a>{' '}
               — {a.determinations} determinations
             </Typography>
-            <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
               {a.stalls} stalls · {a.connectivity} lost connections · {manila(a.firstAt)} to {manila(a.lastAt)}
             </Typography>
           </Box>
           {a.reported ? (
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#059669' }}>Reported to the LGU</Typography>
+            <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#059669' }}>Reported to the LGU</Typography>
           ) : (
             <Button
               variant="outlined"
@@ -105,15 +105,15 @@ export const GpsAreasCard: React.FC<GpsAreasCardProps> = ({ areas, minCount, win
       ))}
 
       <Dialog open={target !== null} onClose={() => setTarget(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report this area to the LGU Administrator</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
-          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', lineHeight: 1.45 }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '13px' }}>Report this area to the LGU Administrator</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: '13px', pt: '6.5px !important' }}>
+          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-secondary)', lineHeight: 1.45 }}>
             The counts are attached by the system. Say what you have seen or heard in this area (for example a building, a barangay road, a place drivers say loses signal).
           </Typography>
           <TextField multiline minRows={3} size="small" label="What you observed" value={note} onChange={(e) => setNote(e.target.value)} fullWidth />
-          {error && <Alert severity="warning" sx={{ borderRadius: '10px' }}>{error}</Alert>}
+          {error && <Alert severity="warning" sx={{ borderRadius: '8px' }}>{error}</Alert>}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: '13px' }}>
           <Button onClick={() => setTarget(null)} sx={{ textTransform: 'none' }}>Cancel</Button>
           <Button variant="contained" disabled={flight.busy} onClick={send} sx={{ textTransform: 'none', fontWeight: 700 }}>
             Send report

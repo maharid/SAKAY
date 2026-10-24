@@ -135,7 +135,7 @@ export const TodaAuditLogsPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
       {/* 1. Floating Card Filter Toolbar with Date Filtering */}
       <FilterToolbar
         searchQuery={searchQuery}
@@ -165,7 +165,7 @@ export const TodaAuditLogsPage: React.FC = () => {
       />
 
       {/* 1B. Export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', mb: '13px' }}>
         <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={{ textTransform: 'none', fontWeight: 600 }}>
           {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
         </Button>
@@ -176,14 +176,14 @@ export const TodaAuditLogsPage: React.FC = () => {
           {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
         </Button>
       </Box>
-      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 2 }}>{exportNote.text}</Alert>}
+      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: '13px' }}>{exportNote.text}</Alert>}
 
       {/* 2. Audit Trail Log Table */}
       <TableContainer
         component={Paper}
         elevation={0}
         sx={{
-          borderRadius: 'var(--mac-radius-lg)',
+          borderRadius: '14px',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-card)',
           overflow: 'hidden',
@@ -192,12 +192,12 @@ export const TodaAuditLogsPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Timestamp & Log ID</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>TODA Officer</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Category</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Target Entity</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Details of Modification</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Timestamp & Log ID</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>TODA Officer</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Category</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Target Entity</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Details of Modification</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -211,57 +211,57 @@ export const TodaAuditLogsPage: React.FC = () => {
                     '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                   }}
                 >
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '15px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
                       {log.performed_at}
                     </Typography>
-                    <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', fontFamily: 'monospace' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', fontFamily: 'monospace' }}>
                       {log.log_id}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar sx={{ width: 36, height: 36, backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)', fontSize: '14px', fontWeight: 700 }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Avatar sx={{ width: 29, height: 29, backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)', fontSize: '11.5px', fontWeight: 700 }}>
                         {log.actor_name.charAt(0)}
                       </Avatar>
                       <Box>
-                        <Typography sx={{ fontWeight: 600, fontSize: '15px', color: 'var(--mac-text-primary)' }}>
+                        <Typography sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
                           {log.actor_name}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           TODA Administration
                         </Typography>
                       </Box>
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
                     <Chip
                       label={log.category}
                       size="small"
                       sx={{
-                        fontSize: '13px',
+                        fontSize: '11px',
                         fontWeight: 600,
                         backgroundColor: catBadge.bg,
                         color: catBadge.color,
                         border: `1px solid ${catBadge.border}`,
-                        height: 26,
+                        height: 21,
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '14.5px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
                       {log.target_name}
                     </Typography>
-                    <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', fontFamily: 'monospace' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', fontFamily: 'monospace' }}>
                       {log.target_id}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3, maxWidth: 380 }}>
-                    <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-secondary)', lineHeight: 1.4 }}>
+                  <TableCell sx={{ py: '14px', px: '19px', maxWidth: 304 }}>
+                    <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.4 }}>
                       {log.details}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                  <TableCell align="right" sx={{ py: '14px', px: '19px' }}>
                     <Button
                       variant="outlined"
                       size="small"
@@ -271,10 +271,10 @@ export const TodaAuditLogsPage: React.FC = () => {
                         setSelectedLog(log);
                       }}
                       sx={{
-                        height: 34,
-                        px: 2,
-                        borderRadius: '8px',
-                        fontSize: '13.5px',
+                        height: 27,
+                        px: '13px',
+                        borderRadius: '6.5px',
+                        fontSize: '11px',
                         fontWeight: 600,
                         textTransform: 'none',
                         color: 'var(--sakay-orange)',
@@ -300,33 +300,33 @@ export const TodaAuditLogsPage: React.FC = () => {
           title={`TODA Audit Trail Event — ${selectedLog.log_id}`}
           subtitle={`Action Type: ${selectedLog.action_type}`}
           badge={<Chip label={selectedLog.category} size="small" sx={{ ...getCategoryBadgeStyle(selectedLog.category), fontWeight: 700 }} />}
-          maxWidth={660}
+          maxWidth={528}
         >
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, backgroundColor: '#F8F9FA', p: 2.5, borderRadius: '12px', mb: 3 }}>
+          <Box sx={{ mb: '19px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px', backgroundColor: '#F8F9FA', p: '16px', borderRadius: '10px', mb: '19px' }}>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Timestamp</Typography>
-                <Typography sx={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.performed_at}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Timestamp</Typography>
+                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.performed_at}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Acting Officer</Typography>
-                <Typography sx={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.actor_name}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Acting Officer</Typography>
+                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.actor_name}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Target Entity ID</Typography>
-                <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--sakay-orange)', fontFamily: 'monospace' }}>{selectedLog.target_id}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Target Entity ID</Typography>
+                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--sakay-orange)', fontFamily: 'monospace' }}>{selectedLog.target_id}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Target Entity Name</Typography>
-                <Typography sx={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.target_name}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Target Entity Name</Typography>
+                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedLog.target_name}</Typography>
               </Box>
             </Box>
 
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
+            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
               Full Log Payload Details
             </Typography>
-            <Box sx={{ p: 2, borderRadius: '10px', backgroundColor: '#FAFAFC', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '15px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+            <Box sx={{ p: '13px', borderRadius: '8px', backgroundColor: '#FAFAFC', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
                 {selectedLog.details}
               </Typography>
             </Box>

@@ -105,10 +105,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, highCon
       size="small"
       variant="outlined"
       sx={{
-        height: '24px',
-        fontSize: '12px',
+        height: '19px',
+        fontSize: '11px',
         fontWeight: 600,
-        borderRadius: '6px',
+        borderRadius: '5px',
         borderWidth: '1px',
         ...styles,
         ...(highContrast && { color: `color-mix(in srgb, ${styles.color} 70%, #000)` }),

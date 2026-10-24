@@ -393,10 +393,10 @@ export const TodaAccountManagementPage: React.FC = () => {
 
   if (isLoading || !profile) {
     return (
-      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+      <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
         <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress size={36} sx={{ color: 'var(--sakay-orange)', mb: 2 }} />
-          <Typography sx={{ fontSize: '14.5px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
+          <CircularProgress size={29} sx={{ color: 'var(--sakay-orange)', mb: '13px' }} />
+          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
             Loading association account records...
           </Typography>
         </Box>
@@ -405,30 +405,30 @@ export const TodaAccountManagementPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
       {/* 1. Header Banner & Status Summary with Interactive TODA Logo Upload */}
       <Card
         elevation={0}
         sx={{
-          p: 3.5,
-          borderRadius: 'var(--mac-radius-lg)',
+          p: '22px',
+          borderRadius: '14px',
           border: '1px solid var(--mac-border-color)',
           backgroundColor: '#FFFFFF',
           boxShadow: 'var(--mac-shadow-card)',
-          mb: 3.5,
+          mb: '22px',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Interactive TODA Avatar Logo with Upload Overlay */}
             <Box sx={{ position: 'relative' }}>
               <Avatar
                 src={logoImage || undefined}
                 sx={{
-                  width: 72,
-                  height: 72,
+                  width: 58,
+                  height: 58,
                   background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
-                  fontSize: '28px',
+                  fontSize: '22px',
                   fontWeight: 700,
                   boxShadow: '0 10px 24px rgba(255, 102, 0, 0.22)',
                 }}
@@ -440,42 +440,42 @@ export const TodaAccountManagementPage: React.FC = () => {
                 size="small"
                 sx={{
                   position: 'absolute',
-                  bottom: -4,
-                  right: -4,
+                  bottom: -3,
+                  right: -3,
                   backgroundColor: '#FFFFFF',
                   border: '1px solid var(--mac-border-color)',
                   boxShadow: 'var(--mac-shadow-subtle)',
-                  p: 0.75,
+                  p: '5px',
                   color: 'var(--sakay-orange)',
                   '&:hover': { backgroundColor: 'var(--sakay-orange-soft)' },
                 }}
               >
-                <PhotoCameraIcon sx={{ fontSize: 16 }} />
+                <PhotoCameraIcon sx={{ fontSize: 13 }} />
                 <input type="file" hidden accept="image/*" onChange={handleLogoChange} />
               </IconButton>
             </Box>
 
             <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Typography sx={{ fontSize: '24px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                   {profile.name}
                 </Typography>
                 <Chip
-                  icon={<VerifiedIcon sx={{ fontSize: 18, color: accreditationChip(profile.accreditationStatus).color }} />}
+                  icon={<VerifiedIcon sx={{ fontSize: 14, color: accreditationChip(profile.accreditationStatus).color }} />}
                   label={accreditationChip(profile.accreditationStatus).label}
                   size="small"
                   sx={{
                     backgroundColor: accreditationChip(profile.accreditationStatus).bg,
                     color: accreditationChip(profile.accreditationStatus).color,
                     fontWeight: 600,
-                    fontSize: '13px',
+                    fontSize: '11px',
                   }}
                 />
               </Box>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', gap: '10px' }}>
             <Button
               variant="contained"
               startIcon={<EditIcon />}
@@ -484,10 +484,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                 setEditProfileModalOpen(true);
               }}
               sx={{
-                height: 42,
-                px: 2.5,
-                borderRadius: '10px',
-                fontSize: '14.5px',
+                height: 34,
+                px: '16px',
+                borderRadius: '8px',
+                fontSize: '12px',
                 fontWeight: 600,
                 textTransform: 'none',
                 backgroundColor: 'var(--sakay-orange)',
@@ -501,10 +501,10 @@ export const TodaAccountManagementPage: React.FC = () => {
               startIcon={<UploadFileIcon />}
               onClick={() => setUploadDocModalOpen(true)}
               sx={{
-                height: 42,
-                px: 2.5,
-                borderRadius: '10px',
-                fontSize: '14.5px',
+                height: 34,
+                px: '16px',
+                borderRadius: '8px',
+                fontSize: '12px',
                 fontWeight: 600,
                 textTransform: 'none',
                 color: 'var(--mac-text-primary)',
@@ -522,52 +522,52 @@ export const TodaAccountManagementPage: React.FC = () => {
       <AccreditationCard profile={profile} onResubmit={handleResubmit} />
 
       {/* 2. Balanced 2-Column Grid Layout for TODA Information */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: '19px', alignItems: 'start' }}>
         {/* Left Column: TODA Organization Information & Authorized Officers */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
           {/* TODA Organization Information Card */}
           <Card
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: 'var(--mac-radius-lg)',
+              p: '19px',
+              borderRadius: '14px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               boxShadow: 'none',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-              <BusinessIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24 }} />
-              <Typography sx={{ fontSize: '18px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', mb: '16px' }}>
+              <BusinessIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
+              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                 TODA Organization Information
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Official TODA Name</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Official TODA Name</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.name}
                 </Typography>
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Date Established</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Date Established</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {formatDisplayDate(profile.dateEstablished)}
                 </Typography>
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Terminal Location</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Terminal Location</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.terminalLocation || 'Calapan City Terminal'}
                 </Typography>
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Terminal Coordinates</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Terminal Coordinates</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.terminalLatitude && profile.terminalLongitude
                     ? `${profile.terminalLatitude}, ${profile.terminalLongitude}`
                     : 'None specified'}
@@ -575,8 +575,8 @@ export const TodaAccountManagementPage: React.FC = () => {
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Operating Barangay</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Operating Barangay</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.barangay || 'San Vicente Central'}
                 </Typography>
               </Box>
@@ -587,64 +587,64 @@ export const TodaAccountManagementPage: React.FC = () => {
           <Card
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: 'var(--mac-radius-lg)',
+              p: '19px',
+              borderRadius: '14px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               boxShadow: 'none',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <GroupsIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24 }} />
-              <Typography sx={{ fontSize: '18px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', mb: '13px' }}>
+              <GroupsIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
+              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                 Authorized TODA Officers
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '13px' }}>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>President</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>President</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.officers?.president || 'N/A'}
                 </Typography>
                 {profile.officers?.presidentContact && (
-                  <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                     {profile.officers.presidentContact}
                   </Typography>
                 )}
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Vice President</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Vice President</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.officers?.vicePresident || 'N/A'}
                 </Typography>
                 {profile.officers?.vicePresidentContact && (
-                  <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                     {profile.officers.vicePresidentContact}
                   </Typography>
                 )}
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Secretary</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Secretary</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.officers?.secretary || 'N/A'}
                 </Typography>
                 {profile.officers?.secretaryContact && (
-                  <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                     {profile.officers.secretaryContact}
                   </Typography>
                 )}
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>Treasurer</Typography>
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Treasurer</Typography>
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {profile.officers?.treasurer || 'N/A'}
                 </Typography>
                 {profile.officers?.treasurerContact && (
-                  <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                     {profile.officers.treasurerContact}
                   </Typography>
                 )}
@@ -654,26 +654,26 @@ export const TodaAccountManagementPage: React.FC = () => {
         </Box>
 
         {/* Right Column: Annual Compliance & Accreditation Renewal */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
           <Card
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: 'var(--mac-radius-lg)',
+              p: '19px',
+              borderRadius: '14px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               boxShadow: 'none',
               height: '100%',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <ShieldIcon sx={{ color: '#059669', fontSize: 24 }} />
-                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '13px', flexWrap: 'wrap', gap: '13px' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ShieldIcon sx={{ color: '#059669', fontSize: 19 }} />
+                <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   Annual Compliance & Accreditation Renewal
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                 <Chip
                   label={accreditationChip(profile.accreditationStatus).label}
                   size="small"
@@ -681,7 +681,7 @@ export const TodaAccountManagementPage: React.FC = () => {
                     backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
                     color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
                     fontWeight: 600,
-                    fontSize: '12.5px',
+                    fontSize: '11px',
                   }}
                 />
                 <Button
@@ -697,10 +697,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                     textTransform: 'none',
                     backgroundColor: 'var(--sakay-orange)',
                     fontWeight: 700,
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    px: 2,
-                    height: 34,
+                    borderRadius: '6.5px',
+                    fontSize: '11px',
+                    px: '13px',
+                    height: 27,
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                     boxShadow: 'none',
@@ -715,11 +715,11 @@ export const TodaAccountManagementPage: React.FC = () => {
               </Box>
             </Box>
 
-            <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)', mb: 2 }}>
+            <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mb: '13px' }}>
               Official compliance files forwarded to City LGU Franchising Office for accreditation review. You can view, drag-and-drop, or re-upload updated files anytime.
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
               {/* Document 1: Barangay Clearance */}
               <Box
                 onDragOver={(e) => {
@@ -749,44 +749,44 @@ export const TodaAccountManagementPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
-                  p: 2.2,
-                  borderRadius: '12px',
+                  p: '14px',
+                  borderRadius: '10px',
                   backgroundColor: activeDropCategory === 'clearance' ? '#FFF7ED' : '#FAFAFC',
                   border: activeDropCategory === 'clearance' ? '2px dashed var(--sakay-orange)' : '1px solid var(--mac-border-color)',
                   transition: 'all 0.2s ease',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flex: 1, minWidth: 0, mr: 3, pointerEvents: 'none' }}>
-                  <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24, flexShrink: 0, mt: '3px' }} />
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, mr: '19px', pointerEvents: 'none' }}>
+                  <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19, flexShrink: 0, mt: '2.5px' }} />
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1 }}>
+                    <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '6px' }}>
                       Barangay Clearance for TODA Accreditation
                     </Typography>
 
-                    <Box sx={{ mb: 1 }}>
+                    <Box sx={{ mb: '6px' }}>
                       <Chip
                         label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
                         size="small"
                         sx={{
-                          height: 22,
-                          fontSize: '11.5px',
+                          height: 18,
+                          fontSize: '11px',
                           fontWeight: 600,
                           backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
                           color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                          borderRadius: '6px',
+                          borderRadius: '5px',
                         }}
                       />
                     </Box>
 
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
+                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
                       {profile.barangayClearanceFile.name}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', mt: '3px' }}>
                       {profile.barangayClearanceFile.date ? `Submitted ${profile.barangayClearanceFile.date}` : 'No file submitted yet'}
                     </Typography>
                   </Box>
                 </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0, minWidth: '110px' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, minWidth: '88px' }}>
                   <Button
                     variant="outlined"
                     size="small"
@@ -800,10 +800,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                       })
                     }
                     sx={{
-                      height: 32,
-                      px: 2,
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
+                      height: 26,
+                      px: '13px',
+                      borderRadius: '6.5px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
@@ -829,10 +829,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                       setUploadDocModalOpen(true);
                     }}
                     sx={{
-                      height: 32,
-                      px: 2,
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
+                      height: 26,
+                      px: '13px',
+                      borderRadius: '6.5px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
@@ -880,44 +880,44 @@ export const TodaAccountManagementPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
-                  p: 2.2,
-                  borderRadius: '12px',
+                  p: '14px',
+                  borderRadius: '10px',
                   backgroundColor: activeDropCategory === 'roster' ? '#FFF7ED' : '#FAFAFC',
                   border: activeDropCategory === 'roster' ? '2px dashed var(--sakay-orange)' : '1px solid var(--mac-border-color)',
                   transition: 'all 0.2s ease',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flex: 1, minWidth: 0, mr: 3, pointerEvents: 'none' }}>
-                  <DescriptionIcon sx={{ color: '#1565C0', fontSize: 24, flexShrink: 0, mt: '3px' }} />
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, mr: '19px', pointerEvents: 'none' }}>
+                  <DescriptionIcon sx={{ color: '#1565C0', fontSize: 19, flexShrink: 0, mt: '2.5px' }} />
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1 }}>
+                    <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '6px' }}>
                       Driver Roster
                     </Typography>
 
-                    <Box sx={{ mb: 1 }}>
+                    <Box sx={{ mb: '6px' }}>
                       <Chip
                         label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
                         size="small"
                         sx={{
-                          height: 22,
-                          fontSize: '11.5px',
+                          height: 18,
+                          fontSize: '11px',
                           fontWeight: 600,
                           backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
                           color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                          borderRadius: '6px',
+                          borderRadius: '5px',
                         }}
                       />
                     </Box>
 
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
+                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
                       {profile.rosterFile.name}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', mt: '3px' }}>
                       {profile.rosterFile.count} Accredited Members
                     </Typography>
                   </Box>
                 </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0, minWidth: '110px' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, minWidth: '88px' }}>
                   <Button
                     variant="outlined"
                     size="small"
@@ -931,10 +931,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                       })
                     }
                     sx={{
-                      height: 32,
-                      px: 2,
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
+                      height: 26,
+                      px: '13px',
+                      borderRadius: '6.5px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
@@ -960,10 +960,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                       setUploadDocModalOpen(true);
                     }}
                     sx={{
-                      height: 32,
-                      px: 2,
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
+                      height: 26,
+                      px: '13px',
+                      borderRadius: '6.5px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
@@ -1011,44 +1011,44 @@ export const TodaAccountManagementPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
-                  p: 2.2,
-                  borderRadius: '12px',
+                  p: '14px',
+                  borderRadius: '10px',
                   backgroundColor: activeDropCategory === 'bylaws' ? '#FFF7ED' : '#FAFAFC',
                   border: activeDropCategory === 'bylaws' ? '2px dashed var(--sakay-orange)' : '1px solid var(--mac-border-color)',
                   transition: 'all 0.2s ease',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flex: 1, minWidth: 0, mr: 3, pointerEvents: 'none' }}>
-                  <DescriptionIcon sx={{ color: '#059669', fontSize: 24, flexShrink: 0, mt: '3px' }} />
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, mr: '19px', pointerEvents: 'none' }}>
+                  <DescriptionIcon sx={{ color: '#059669', fontSize: 19, flexShrink: 0, mt: '2.5px' }} />
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1 }}>
+                    <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '6px' }}>
                       Internal TODA Bylaws & Constitution
                     </Typography>
 
-                    <Box sx={{ mb: 1 }}>
+                    <Box sx={{ mb: '6px' }}>
                       <Chip
                         label={documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).label}
                         size="small"
                         sx={{
-                          height: 22,
-                          fontSize: '11.5px',
+                          height: 18,
+                          fontSize: '11px',
                           fontWeight: 600,
                           backgroundColor: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).bg,
                           color: documentChip(profile.accreditationStatus, Boolean(profile.renewalSubmittedAt)).color,
-                          borderRadius: '6px',
+                          borderRadius: '5px',
                         }}
                       />
                     </Box>
 
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
+                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#334155', wordBreak: 'break-all' }}>
                       {profile.bylawsFile?.name || 'TODA_Bylaws.pdf'}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: '#64748B', mt: 0.5 }}>
+                    <Typography sx={{ fontSize: '11px', color: '#64748B', mt: '3px' }}>
                       {profile.bylawsFile?.date ? `Submitted ${profile.bylawsFile.date}` : 'No file submitted yet'}
                     </Typography>
                   </Box>
                 </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0, minWidth: '110px' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, minWidth: '88px' }}>
                   <Button
                     variant="outlined"
                     size="small"
@@ -1062,10 +1062,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                       })
                     }
                     sx={{
-                      height: 32,
-                      px: 2,
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
+                      height: 26,
+                      px: '13px',
+                      borderRadius: '6.5px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
@@ -1091,10 +1091,10 @@ export const TodaAccountManagementPage: React.FC = () => {
                       setUploadDocModalOpen(true);
                     }}
                     sx={{
-                      height: 32,
-                      px: 2,
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
+                      height: 26,
+                      px: '13px',
+                      borderRadius: '6.5px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
@@ -1126,20 +1126,20 @@ export const TodaAccountManagementPage: React.FC = () => {
         onClose={() => setEditProfileModalOpen(false)}
         title="Edit TODA Organizational Profile"
         subtitle={`Update official TODA records and authorized officers for ${profile.name}`}
-        maxWidth={780}
+        maxWidth={624}
         primaryActionLabel={isSavingEdit ? 'Saving...' : 'Save Organizational Profile'}
         onPrimaryAction={handleEditProfileSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setEditProfileModalOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px', pt: '6px' }}>
           {/* Section 1: Association Information */}
           <Box>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 2, letterSpacing: '0.5px' }}>
+            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: '13px', letterSpacing: '0.5px' }}>
               1. Association Information
             </Typography>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
               <TextField
                 label="Official Association / TODA Name *"
                 placeholder="e.g. Calapan Central Tricycle Operators & Drivers Association"
@@ -1160,7 +1160,7 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
               <FormControl fullWidth size="small">
                 <InputLabel id="edit-barangay-label">Operating Barangay *</InputLabel>
                 <Select
@@ -1189,7 +1189,7 @@ export const TodaAccountManagementPage: React.FC = () => {
               />
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px' }}>
               <TextField
                 label="Terminal Location *"
                 placeholder="e.g. Calapan Public Market, J.P. Rizal St."
@@ -1214,12 +1214,12 @@ export const TodaAccountManagementPage: React.FC = () => {
 
           {/* Section 2: Authorized Association Officers */}
           <Box>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 2, letterSpacing: '0.5px' }}>
+            <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: '13px', letterSpacing: '0.5px' }}>
               2. Executive Officers
             </Typography>
 
             {/* President */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
               <TextField
                 label="President Full Name *"
                 placeholder="e.g. Roberto Alcantara"
@@ -1241,7 +1241,7 @@ export const TodaAccountManagementPage: React.FC = () => {
             </Box>
 
             {/* Vice President */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
               <TextField
                 label="Vice President Name"
                 placeholder="e.g. Eduardo Perez"
@@ -1261,7 +1261,7 @@ export const TodaAccountManagementPage: React.FC = () => {
             </Box>
 
             {/* Secretary */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px', mb: '16px' }}>
               <TextField
                 label="Secretary Name"
                 placeholder="e.g. Leticia Cruz"
@@ -1281,7 +1281,7 @@ export const TodaAccountManagementPage: React.FC = () => {
             </Box>
 
             {/* Treasurer */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '16px' }}>
               <TextField
                 label="Treasurer Name"
                 placeholder="e.g. Mario Hernandez"
@@ -1309,15 +1309,15 @@ export const TodaAccountManagementPage: React.FC = () => {
         onClose={() => setUploadDocModalOpen(false)}
         title={profile.accreditationStatus === 'Active' ? 'Submit a Renewed Document' : 'Submit a Compliance Document'}
         subtitle={profile.accreditationStatus === 'Resubmission Required' ? 'Replace a document the LGU returned for correction' : 'Submit accreditation compliance files for City LGU review'}
-        maxWidth={660}
+        maxWidth={528}
         primaryActionLabel={isUploadingDoc ? 'Uploading...' : selectedFile ? 'Submit Document for LGU Review' : undefined}
         onPrimaryAction={selectedFile && !isUploadingDoc && (docCategory !== 'Barangay Clearance' || clearanceValidUntil) ? handleDocumentUploadSubmit : undefined}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setUploadDocModalOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <FormControl fullWidth size="small">
-            <InputLabel id="doc-select-label" sx={{ fontSize: '15px', color: 'var(--mac-text-secondary)' }}>
+            <InputLabel id="doc-select-label" sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)' }}>
               Document
             </InputLabel>
             <Select
@@ -1329,9 +1329,9 @@ export const TodaAccountManagementPage: React.FC = () => {
                 setSelectedFile(null);
               }}
               sx={{
-                borderRadius: '10px',
+                borderRadius: '8px',
                 backgroundColor: '#FFFFFF',
-                fontSize: '15px',
+                fontSize: '12px',
                 fontWeight: 600,
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                   borderColor: 'var(--sakay-orange) !important',
@@ -1339,13 +1339,13 @@ export const TodaAccountManagementPage: React.FC = () => {
                 },
               }}
             >
-              <MenuItem value="Barangay Clearance" sx={{ fontSize: '15px', py: 1.2 }}>
+              <MenuItem value="Barangay Clearance" sx={{ fontSize: '12px', py: '8px' }}>
                 Barangay Clearance
               </MenuItem>
-              <MenuItem value="Driver Roster" sx={{ fontSize: '15px', py: 1.2 }}>
+              <MenuItem value="Driver Roster" sx={{ fontSize: '12px', py: '8px' }}>
                 Driver Roster
               </MenuItem>
-              <MenuItem value="Internal Bylaws" sx={{ fontSize: '15px', py: 1.2 }}>
+              <MenuItem value="Internal Bylaws" sx={{ fontSize: '12px', py: '8px' }}>
                 Internal Bylaws
               </MenuItem>
             </Select>
@@ -1353,7 +1353,7 @@ export const TodaAccountManagementPage: React.FC = () => {
 
           {/* Real Drag & Drop File Upload Zone */}
           <Box>
-            <Typography sx={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: '6px' }}>
               Attach Compliance Document File
             </Typography>
 
@@ -1402,8 +1402,8 @@ export const TodaAccountManagementPage: React.FC = () => {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '28px 20px',
-                borderRadius: '12px',
+                padding: '22px 16px',
+                borderRadius: '10px',
                 border: isDraggingModalZone
                   ? '2px solid var(--sakay-orange)'
                   : '2px dashed var(--sakay-orange-border)',
@@ -1429,11 +1429,11 @@ export const TodaAccountManagementPage: React.FC = () => {
                 accept={getCategoryFileSupport().accept}
                 onChange={handleFileSelect}
               />
-              <UploadFileIcon sx={{ fontSize: 40, color: 'var(--sakay-orange)', mb: 1 }} />
-              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+              <UploadFileIcon sx={{ fontSize: 32, color: 'var(--sakay-orange)', mb: '6px' }} />
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                 {isDraggingModalZone ? 'Drop file to attach' : selectedFile ? selectedFile.name : 'Click or Drag File to Attach'}
               </Typography>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
                 {selectedFile
                   ? `${(selectedFile.size / 1024).toFixed(1)} KB • Ready for upload`
                   : getCategoryFileSupport().text}
@@ -1446,20 +1446,20 @@ export const TodaAccountManagementPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  mt: 1.5,
-                  p: 1.5,
-                  borderRadius: '10px',
+                  mt: '10px',
+                  p: '10px',
+                  borderRadius: '8px',
                   backgroundColor: '#F5F5F7',
                   border: '1px solid var(--mac-border-color)',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <InsertDriveFileIcon sx={{ color: 'var(--sakay-orange)' }} />
-                  <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     {selectedFile.name}
                   </Typography>
                 </Box>
-                <Chip label="Selected File" size="small" color="primary" sx={{ fontSize: '12px', fontWeight: 600 }} />
+                <Chip label="Selected File" size="small" color="primary" sx={{ fontSize: '11px', fontWeight: 600 }} />
               </Box>
             )}
           </Box>
@@ -1477,7 +1477,7 @@ export const TodaAccountManagementPage: React.FC = () => {
             />
           )}
 
-          <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', lineHeight: 1.4 }}>
+          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', lineHeight: 1.4 }}>
             {profile.accreditationStatus === 'Active'
               ? 'A renewed Barangay Clearance goes to the City LGU Franchising Office. Your accreditation stays as it is until the LGU records the renewal.'
               : 'Submitted compliance files go directly to the City LGU Franchising Office for review.'}
@@ -1505,7 +1505,7 @@ export const TodaAccountManagementPage: React.FC = () => {
           onClose={() => setUploadSnackbar((prev) => ({ ...prev, open: false }))}
           severity={uploadSnackbar.severity}
           variant="filled"
-          sx={{ width: '100%', fontWeight: 600, borderRadius: '10px' }}
+          sx={{ width: '100%', fontWeight: 600, borderRadius: '8px' }}
         >
           {uploadSnackbar.message}
         </Alert>

@@ -172,35 +172,35 @@ export const TodaAnnouncementsPage: React.FC = () => {
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
       {/* 1. Summary KPI Cards */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-          gap: 2.5,
-          mb: 3.5,
+          gap: '16px',
+          mb: '22px',
         }}
       >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Total TODA Announcements</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: '11px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Total TODA Announcements</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
         </Box>
 
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Published to Driver App</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{publishedCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: '11px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Published to Driver App</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{publishedCount}</Typography>
         </Box>
 
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Saved Drafts</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-muted)' }}>{draftCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: '11px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: '6px' }}>Saved Drafts</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-muted)' }}>{draftCount}</Typography>
         </Box>
       </Box>
 
       {/* 2. Floating Filter Toolbar + New Announcement Button */}
-      <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', md: 'stretch' }, gap: 2, mb: 3.5, flexWrap: 'wrap' }}>
-        <Box sx={{ flex: 1, minWidth: 280 }}>
+      <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', md: 'stretch' }, gap: '13px', mb: '22px', flexWrap: 'wrap' }}>
+        <Box sx={{ flex: 1, minWidth: 224 }}>
           <FilterToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -236,9 +236,9 @@ export const TodaAnnouncementsPage: React.FC = () => {
           sx={{
             height: 'auto',
             alignSelf: 'stretch',
-            px: 3,
-            borderRadius: '12px',
-            fontSize: '14.5px',
+            px: '19px',
+            borderRadius: '10px',
+            fontSize: '12px',
             fontWeight: 600,
             textTransform: 'none',
             backgroundColor: 'var(--sakay-orange)',
@@ -259,9 +259,9 @@ export const TodaAnnouncementsPage: React.FC = () => {
           sx={{
             height: 'auto',
             alignSelf: 'stretch',
-            px: 3,
-            borderRadius: '12px',
-            fontSize: '14.5px',
+            px: '19px',
+            borderRadius: '10px',
+            fontSize: '12px',
             fontWeight: 600,
             textTransform: 'none',
             borderColor: 'var(--sakay-orange)',
@@ -275,7 +275,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
       </Box>
 
       {reminderNotice && (
-        <Box sx={{ mb: 2.5, p: '12px 18px', borderRadius: '10px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: '13.5px', fontWeight: 600 }}>
+        <Box sx={{ mb: '16px', p: '10px 14px', borderRadius: '8px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: '11px', fontWeight: 600 }}>
           {reminderNotice}
         </Box>
       )}
@@ -291,7 +291,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
         component={Paper}
         elevation={0}
         sx={{
-          borderRadius: 'var(--mac-radius-lg)',
+          borderRadius: '14px',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-card)',
           overflow: 'hidden',
@@ -300,24 +300,24 @@ export const TodaAnnouncementsPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Announcement Title</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Category</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Target Recipients</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Created By & Date</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Status</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '12px', color: 'var(--mac-text-muted)', py: 2, px: 3, width: 140 }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Announcement Title</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Category</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Target Recipients</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Created By & Date</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>Status</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px', width: 112 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredAnnouncements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 7 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-                    <InboxIcon sx={{ fontSize: 48, color: 'var(--mac-text-tertiary)' }} />
-                    <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: '45px' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                    <InboxIcon sx={{ fontSize: 38, color: 'var(--mac-text-tertiary)' }} />
+                    <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                       No Announcements Found
                     </Typography>
-                    <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                       There are currently no announcements matching the "{statusFilter !== 'All' ? statusFilter : 'selected'}" filter criteria.
                     </Typography>
                   </Box>
@@ -326,15 +326,15 @@ export const TodaAnnouncementsPage: React.FC = () => {
             ) : (
               filteredAnnouncements.map((ann) => (
                 <TableRow key={ann.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ py: 2, px: 3 }}>
-                    <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '13px', px: '19px' }}>
+                    <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                       {ann.title}
                     </Typography>
                     <Typography
                       sx={{
-                        fontSize: '12.5px',
+                        fontSize: '11px',
                         color: 'var(--mac-text-muted)',
-                        mt: '2px',
+                        mt: '1.5px',
                         display: '-webkit-box',
                         WebkitLineClamp: 1,
                         WebkitBoxOrient: 'vertical',
@@ -345,12 +345,12 @@ export const TodaAnnouncementsPage: React.FC = () => {
                     </Typography>
                   </TableCell>
 
-                  <TableCell sx={{ py: 2, px: 3 }}>
+                  <TableCell sx={{ py: '13px', px: '19px' }}>
                     <Chip
                       label={ann.category}
                       size="small"
                       sx={{
-                        fontSize: '12.5px',
+                        fontSize: '11px',
                         fontWeight: 600,
                         backgroundColor: ann.urgency === 'High Priority' ? '#FEF2F2' : '#F1F3F4',
                         color: ann.urgency === 'High Priority' ? '#DC2626' : 'var(--mac-text-secondary)',
@@ -358,37 +358,37 @@ export const TodaAnnouncementsPage: React.FC = () => {
                     />
                   </TableCell>
 
-                  <TableCell sx={{ py: 2, px: 3 }}>
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '13px', px: '19px' }}>
+                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                       TODA Driver App Members
                     </Typography>
                   </TableCell>
 
-                  <TableCell sx={{ py: 2, px: 3 }}>
-                    <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-primary)', fontWeight: 500 }}>
+                  <TableCell sx={{ py: '13px', px: '19px' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-primary)', fontWeight: 500 }}>
                       {ann.createdBy}
                     </Typography>
-                    <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                       {ann.createdAt}
                     </Typography>
                   </TableCell>
 
-                  <TableCell sx={{ py: 2, px: 3 }}>
+                  <TableCell sx={{ py: '13px', px: '19px' }}>
                     <StatusBadge status={ann.isPublished ? 'Published' : 'Draft'} />
                   </TableCell>
 
-                  <TableCell align="right" sx={{ py: 2, px: 3 }}>
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                  <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
+                    <Box sx={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                       <Button
                         size="small"
                         variant="outlined"
-                        startIcon={<VisibilityIcon sx={{ fontSize: 15 }} />}
+                        startIcon={<VisibilityIcon sx={{ fontSize: 12 }} />}
                         onClick={() => setSelectedAnn(ann)}
                         sx={{
-                          height: 34,
-                          px: 1.75,
-                          borderRadius: '8px',
-                          fontSize: '13px',
+                          height: 27,
+                          px: '11px',
+                          borderRadius: '6.5px',
+                          fontSize: '11px',
                           fontWeight: 600,
                           textTransform: 'none',
                           whiteSpace: 'nowrap',
@@ -408,17 +408,17 @@ export const TodaAnnouncementsPage: React.FC = () => {
                           setDeleteDialogOpen(true);
                         }}
                         sx={{
-                          height: 34,
-                          width: 34,
-                          minWidth: 34,
+                          height: 27,
+                          width: 27,
+                          minWidth: 27,
                           padding: 0,
-                          borderRadius: '8px',
+                          borderRadius: '6.5px',
                           color: '#DC2626',
                           borderColor: '#FECACA',
                           '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#DC2626' },
                         }}
                       >
-                        <DeleteIcon sx={{ fontSize: 16 }} />
+                        <DeleteIcon sx={{ fontSize: 13 }} />
                       </Button>
                     </Box>
                   </TableCell>
@@ -435,7 +435,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
         onClose={() => setCreateModalOpen(false)}
         title={editingAnn ? "Edit TODA Announcement" : "Create New TODA Announcement"}
         subtitle="Broadcast notice to TODA drivers via their Driver App"
-        maxWidth={700}
+        maxWidth={560}
         primaryActionLabel={isFormValid ? (editingAnn ? "Save Announcement" : "Publish Announcement") : undefined}
         onPrimaryAction={isFormValid ? () => handleSaveAnnouncement(true) : undefined}
         secondaryActionLabel={isFormValid && !editingAnn ? "Save as Draft" : "Cancel"}
@@ -447,7 +447,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
           }
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Title Field */}
           <TextField
             fullWidth
@@ -458,7 +458,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
             slotProps={{
               input: {
                 sx: {
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   '& fieldset': { borderColor: '#E5E5EA' },
                   '&:hover fieldset': { borderColor: '#C7C7CC' },
                   '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -468,7 +468,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
           />
 
           {/* Category & Urgency Selectors */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '13px' }}>
             <TextField
               select
               fullWidth
@@ -478,7 +478,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
               slotProps={{
                 input: {
                   sx: {
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     '& fieldset': { borderColor: '#E5E5EA' },
                     '&:hover fieldset': { borderColor: '#C7C7CC' },
                     '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -500,7 +500,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
               slotProps={{
                 input: {
                   sx: {
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     '& fieldset': { borderColor: '#E5E5EA' },
                     '&:hover fieldset': { borderColor: '#C7C7CC' },
                     '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -525,7 +525,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
             slotProps={{
               input: {
                 sx: {
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   '& fieldset': { borderColor: '#E5E5EA' },
                   '&:hover fieldset': { borderColor: '#C7C7CC' },
                   '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -538,15 +538,15 @@ export const TodaAnnouncementsPage: React.FC = () => {
             sx={{
               backgroundColor: '#ECFDF5',
               border: '1px solid #A7F3D0',
-              borderRadius: '10px',
-              padding: '14px 18px',
+              borderRadius: '8px',
+              padding: '11px 14px',
               display: 'flex',
               alignItems: 'center',
-              gap: 1.5,
+              gap: '10px',
             }}
           >
-            <NotificationsActiveIcon sx={{ color: '#059669', fontSize: 24 }} />
-            <Typography sx={{ fontSize: '13px', color: '#065F46', lineHeight: 1.4 }}>
+            <NotificationsActiveIcon sx={{ color: '#059669', fontSize: 19 }} />
+            <Typography sx={{ fontSize: '11px', color: '#065F46', lineHeight: 1.4 }}>
               <strong>Notice:</strong> All member drivers will automatically be notified in their Driver App when an announcement is published or updated.
             </Typography>
           </Box>
@@ -561,7 +561,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
           title={selectedAnn.title}
           subtitle={`Created: ${selectedAnn.createdAt} • ${selectedAnn.createdBy}`}
           badge={<StatusBadge status={selectedAnn.isPublished ? 'Published' : 'Draft'} />}
-          maxWidth={660}
+          maxWidth={528}
           primaryActionLabel={selectedAnn.isPublished ? "Edit Announcement" : "Publish Announcement"}
           onPrimaryAction={() => {
             if (selectedAnn.isPublished) {
@@ -579,16 +579,16 @@ export const TodaAnnouncementsPage: React.FC = () => {
             }
           }}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ backgroundColor: '#F5F5F7', padding: '18px 20px', borderRadius: '12px' }}>
-              <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mb: 1 }}>Category & Priority</Typography>
-              <Chip label={selectedAnn.category} size="small" sx={{ mr: 1, fontWeight: 600, fontSize: '12.5px' }} />
-              <Chip label={selectedAnn.urgency} size="small" color={selectedAnn.urgency === 'High Priority' ? 'error' : 'default'} sx={{ fontWeight: 600, fontSize: '12.5px' }} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
+            <Box sx={{ backgroundColor: '#F5F5F7', padding: '14px 16px', borderRadius: '10px' }}>
+              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mb: '6px' }}>Category & Priority</Typography>
+              <Chip label={selectedAnn.category} size="small" sx={{ mr: '6px', fontWeight: 600, fontSize: '11px' }} />
+              <Chip label={selectedAnn.urgency} size="small" color={selectedAnn.urgency === 'High Priority' ? 'error' : 'default'} sx={{ fontWeight: 600, fontSize: '11px' }} />
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mb: 1 }}>Full Announcement Message</Typography>
-              <Typography sx={{ fontSize: '14.5px', color: 'var(--mac-text-primary)', lineHeight: 1.6, backgroundColor: '#FFFFFF', border: '1px solid var(--mac-border-color)', padding: '16px 20px', borderRadius: '10px' }}>
+              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mb: '6px' }}>Full Announcement Message</Typography>
+              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', lineHeight: 1.6, backgroundColor: '#FFFFFF', border: '1px solid var(--mac-border-color)', padding: '13px 16px', borderRadius: '8px' }}>
                 {selectedAnn.message}
               </Typography>
             </Box>

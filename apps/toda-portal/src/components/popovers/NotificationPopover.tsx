@@ -78,6 +78,8 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                 }}
               >
                 <ListItemText
+                  // the texts hold block elements, so they are not paragraphs or spans
+                  slotProps={{ primary: { component: 'div' }, secondary: { component: 'div' } }}
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '3px' }}>
                       <Typography sx={{ fontSize: FONT.body, fontWeight: n.unread ? 700 : 500, color: 'var(--mac-text-primary)' }}>

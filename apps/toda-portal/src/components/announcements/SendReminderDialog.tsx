@@ -68,13 +68,13 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
       onClose={close}
       title="Send Reminder to Drivers"
       subtitle="Delivered to each driver's notifications in the Driver App"
-      maxWidth={640}
+      maxWidth={512}
       primaryActionLabel={valid && !result ? (sending ? 'Sending...' : 'Send Reminder') : undefined}
       onPrimaryAction={valid && !result ? send : undefined}
       secondaryActionLabel={result ? 'Close' : 'Cancel'}
       onSecondaryAction={close}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <TextField
           select
           fullWidth
@@ -84,7 +84,7 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           slotProps={{
             input: {
               sx: {
-                borderRadius: '12px',
+                borderRadius: '10px',
                 '& fieldset': { borderColor: '#E5E5EA' },
                 '&:hover fieldset': { borderColor: '#C7C7CC' },
                 '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -107,7 +107,7 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           slotProps={{
             input: {
               sx: {
-                borderRadius: '12px',
+                borderRadius: '10px',
                 '& fieldset': { borderColor: '#E5E5EA' },
                 '&:hover fieldset': { borderColor: '#C7C7CC' },
                 '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -128,7 +128,7 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           slotProps={{
             input: {
               sx: {
-                borderRadius: '12px',
+                borderRadius: '10px',
                 '& fieldset': { borderColor: '#E5E5EA' },
                 '&:hover fieldset': { borderColor: '#C7C7CC' },
                 '&.Mui-focused fieldset': { borderColor: '#FF6600' },
@@ -137,8 +137,8 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
           }}
         />
 
-        {error && <Alert severity="error" sx={{ borderRadius: '10px' }}>{error}</Alert>}
-        {result && <Alert severity={result.startsWith('No driver') ? 'info' : 'success'} sx={{ borderRadius: '10px' }}>{result}</Alert>}
+        {error && <Alert severity="error" sx={{ borderRadius: '8px' }}>{error}</Alert>}
+        {result && <Alert severity={result.startsWith('No driver') ? 'info' : 'success'} sx={{ borderRadius: '8px' }}>{result}</Alert>}
       </Box>
     </MacCenterModal>
   );

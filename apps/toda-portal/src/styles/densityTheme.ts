@@ -1,21 +1,22 @@
 import { createTheme } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
 
-import { CONTROL, FONT } from '../../styles/density';
+import { CONTROL, FONT } from './density';
 
-// The portal's theme (main.tsx) sizes form fields for a roomier layout: 14px text in a 52px field. The Operations Monitoring tab uses the compact scale
-// (styles/density.ts), so everything MUI draws under this tab (the two modals, their dropdowns and menus, alerts, buttons in the panels) is brought to the
-// same scale. It is a nested theme: it only reaches what the Operations page renders (popups and dialogs it opens included) and leaves the other tabs alone.
+// The portal's theme (main.tsx) sizes form fields for a roomier layout: 14px text in a 52px field. The signed-in part of the portal (every tab, with its modals,
+// dropdowns, menus and alerts) uses the compact scale of styles/density.ts, so everything MUI draws there is brought to that scale. It is a nested theme applied by
+// TodaLayout: it reaches what the layout renders (popups and dialogs opened from it included) and leaves the sign-in and registration pages as they were.
 
 const FIELD_TOP_PADDING = '15px';
 const FIELD_BOTTOM_PADDING = '3px';
 const FIELD_SIDE_PADDING = '12px';
 
-// the label sits centred in the empty field and floats to the top edge, small, once the field has a value or focus
+// the label sits centred in the empty field and floats to the top edge, small, once the field has a value or focus.
+// It shrinks to 0.875 (a 12px label becomes 10.5px) so a floated label stays readable; MUI's own 0.75 would make it 9px.
 const labelPosition = {
   fontSize: FONT.body,
   transform: `translate(${FIELD_SIDE_PADDING}, 11px) scale(1)`,
-  '&.MuiInputLabel-shrink': { transform: `translate(${FIELD_SIDE_PADDING}, 5px) scale(0.75)` },
+  '&.MuiInputLabel-shrink': { transform: `translate(${FIELD_SIDE_PADDING}, 4px) scale(0.875)`, maxWidth: 'calc(114% - 24px)' },
 } as const;
 
 const fieldInput = {
@@ -25,7 +26,7 @@ const fieldInput = {
   fontSize: FONT.body,
 } as const;
 
-export const createOperationsTheme = (outerTheme: Theme): Theme =>
+export const createDensityTheme = (outerTheme: Theme): Theme =>
   createTheme(outerTheme, {
     components: {
       MuiInputLabel: { styleOverrides: { root: labelPosition } },
@@ -59,5 +60,7 @@ export const createOperationsTheme = (outerTheme: Theme): Theme =>
       MuiAlert: { styleOverrides: { root: { fontSize: FONT.body, paddingTop: 2, paddingBottom: 2 } } },
       MuiTableCell: { styleOverrides: { root: { fontSize: FONT.body }, head: { fontSize: FONT.small } } },
       MuiChip: { styleOverrides: { root: { fontSize: FONT.small } } },
+      // icons that use MUI's own size names: small matches the sidebar icons
+      MuiSvgIcon: { styleOverrides: { fontSizeSmall: { fontSize: 16 }, fontSizeMedium: { fontSize: 19 }, fontSizeLarge: { fontSize: 24 } } },
     },
   });

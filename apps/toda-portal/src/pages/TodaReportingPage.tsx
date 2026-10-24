@@ -260,21 +260,21 @@ export const TodaReportingPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
       {/* 1. Page Header & Refresh Control */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '22px', flexWrap: 'wrap', gap: '13px' }}>
         <Box>
-          <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
             TODA Operations Reports & Incident Grievances
           </Typography>
-          <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '2.5px' }}>
             Official operational trip audits and passenger complaints for {todaName}
           </Typography>
-          <Box sx={{ mt: 0.75, maxWidth: 900 }}>
+          <Box sx={{ mt: '5px', maxWidth: 720 }}>
             <PilotCoverageNote />
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: '10px' }}>
           {(activeTab === 0 || activeTab === 3) && (
             <ReportExportButtons table={activeTab === 0 ? ledgerTable : incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
           )}
@@ -291,27 +291,27 @@ export const TodaReportingPage: React.FC = () => {
       </Box>
 
       {/* 2. Top Navigation Tabs */}
-      <Box sx={{ borderBottom: '1px solid var(--mac-border-color)', mb: 3.5 }}>
+      <Box sx={{ borderBottom: '1px solid var(--mac-border-color)', mb: '22px' }}>
         <Tabs
           value={activeTab}
           onChange={(_, val) => setActiveTab(val)}
           sx={{
-            minHeight: 46,
+            minHeight: 37,
             '& .MuiTab-root': {
               textTransform: 'none',
-              fontSize: '15.5px',
+              fontSize: '12px',
               fontWeight: 600,
-              minHeight: 46,
+              minHeight: 37,
               color: 'var(--mac-text-muted)',
               '&.Mui-selected': { color: 'var(--sakay-orange)' },
             },
-            '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 3 },
+            '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 2.5 },
           }}
         >
-          <Tab icon={<AssessmentIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`Operations Trip Ledger (${bookings.length})`} />
-          <Tab icon={<EventNoteIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Booking Volume & Fares" />
-          <Tab icon={<PeopleIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Driver Activity" />
-          <Tab icon={<ReportProblemIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`Incident Reports & Complaints (${incidents.length})`} />
+          <Tab icon={<AssessmentIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Operations Trip Ledger (${bookings.length})`} />
+          <Tab icon={<EventNoteIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Booking Volume & Fares" />
+          <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Driver Activity" />
+          <Tab icon={<ReportProblemIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Incident Reports & Complaints (${incidents.length})`} />
         </Tabs>
       </Box>
 
@@ -323,39 +323,39 @@ export const TodaReportingPage: React.FC = () => {
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-              gap: 2.5,
-              mb: 3.5,
+              gap: '16px',
+              mb: '22px',
             }}
           >
-            <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '20px 24px' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>Total Dispatched Trips</Typography>
-                <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{bookings.length}</Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Recorded bookings</Typography>
+            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+              <Box sx={{ p: '16px 19px' }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Total Dispatched Trips</Typography>
+                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{bookings.length}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Recorded bookings</Typography>
               </Box>
             </Card>
 
-            <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '20px 24px' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>Completed Trips</Typography>
-                <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#059669' }}>{bookings.filter((b) => b.status === 'Completed').length}</Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Successful arrivals</Typography>
+            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+              <Box sx={{ p: '16px 19px' }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Completed Trips</Typography>
+                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#059669' }}>{bookings.filter((b) => b.status === 'Completed').length}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Successful arrivals</Typography>
               </Box>
             </Card>
 
-            <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '20px 24px' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>Shared Rides</Typography>
-                <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{bookings.filter((b) => b.tripMode === 'Shared Ride').length}</Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Multi-passenger carpools</Typography>
+            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+              <Box sx={{ p: '16px 19px' }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Shared Rides</Typography>
+                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{bookings.filter((b) => b.tripMode === 'Shared Ride').length}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Multi-passenger carpools</Typography>
               </Box>
             </Card>
 
-            <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ p: '20px 24px' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>Cancelled Rides</Typography>
-                <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#DC2626' }}>{bookings.filter((b) => b.status === 'Cancelled').length}</Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Cancelled trips</Typography>
+            <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+              <Box sx={{ p: '16px 19px' }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>Cancelled Rides</Typography>
+                <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#DC2626' }}>{bookings.filter((b) => b.status === 'Cancelled').length}</Typography>
+                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>Cancelled trips</Typography>
               </Box>
             </Card>
           </Box>
@@ -385,7 +385,7 @@ export const TodaReportingPage: React.FC = () => {
             component={Paper}
             elevation={0}
             sx={{
-              borderRadius: 'var(--mac-radius-lg)',
+              borderRadius: '14px',
               border: '1px solid var(--mac-border-color)',
               boxShadow: 'var(--mac-shadow-card)',
               overflow: 'hidden',
@@ -394,27 +394,27 @@ export const TodaReportingPage: React.FC = () => {
             <Table>
               <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>BOOKING CODE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>PASSENGER</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>ASSIGNED DRIVER</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>ROUTE DISTANCE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>TRIP MODE & FARE</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>STATUS</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>BOOKING CODE</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>PASSENGER</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>ASSIGNED DRIVER</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>ROUTE DISTANCE</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>TRIP MODE & FARE</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>STATUS</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                      <CircularProgress size={28} sx={{ color: 'var(--sakay-orange)', mb: 1 }} />
-                      <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>Loading trip records...</Typography>
+                    <TableCell colSpan={6} align="center" sx={{ py: '38px' }}>
+                      <CircularProgress size={22} sx={{ color: 'var(--sakay-orange)', mb: '6px' }} />
+                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Loading trip records...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : filteredBookings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                      <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Trip Records Found</Typography>
-                      <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: '38px' }}>
+                      <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Trip Records Found</Typography>
+                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
                         There are currently no trip records matching your selected filter.
                       </Typography>
                     </TableCell>
@@ -422,47 +422,47 @@ export const TodaReportingPage: React.FC = () => {
                 ) : (
                   filteredBookings.map((bkg) => (
                     <TableRow key={bkg.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: 2, px: 3, fontWeight: 600, fontSize: '14.5px', color: 'var(--sakay-orange)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px', fontWeight: 600, fontSize: '12px', color: 'var(--sakay-orange)' }}>
                         {bkg.bookingCode}
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           {bkg.passengerName}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           {bkg.passengerPhone}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           {bkg.driverName}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           {bkg.vehiclePlate}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '14.5px', color: 'var(--mac-text-primary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)' }}>
                           {bkg.pickupLocation} → {bkg.dropoffLocation}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           {bkg.distanceKm} km
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           ₱{bkg.fareAmount}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           {bkg.tripMode} (Cash)
                         </Typography>
                       </TableCell>
 
-                      <TableCell align="right" sx={{ py: 2, px: 3 }}>
+                      <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
                         <StatusBadge status={bkg.status} />
                       </TableCell>
                     </TableRow>
@@ -510,7 +510,7 @@ export const TodaReportingPage: React.FC = () => {
             component={Paper}
             elevation={0}
             sx={{
-              borderRadius: 'var(--mac-radius-lg)',
+              borderRadius: '14px',
               border: '1px solid var(--mac-border-color)',
               boxShadow: 'var(--mac-shadow-card)',
               overflow: 'hidden',
@@ -519,28 +519,28 @@ export const TodaReportingPage: React.FC = () => {
             <Table>
               <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>INCIDENT ID</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>INVOLVED DRIVER</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>COMPLAINT CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>PRIORITY</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>DATE SUBMITTED</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>STATUS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '14px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>ACTIONS</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>INCIDENT ID</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>INVOLVED DRIVER</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>COMPLAINT CATEGORY</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>PRIORITY</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>DATE SUBMITTED</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>STATUS</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>ACTIONS</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                      <CircularProgress size={28} sx={{ color: 'var(--sakay-orange)', mb: 1 }} />
-                      <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
+                    <TableCell colSpan={7} align="center" sx={{ py: '38px' }}>
+                      <CircularProgress size={22} sx={{ color: 'var(--sakay-orange)', mb: '6px' }} />
+                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : filteredIncidents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                      <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Incident Reports Found</Typography>
-                      <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: '38px' }}>
+                      <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>No Incident Reports Found</Typography>
+                      <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
                         There are currently no passenger complaints recorded.
                       </Typography>
                     </TableCell>
@@ -548,53 +548,53 @@ export const TodaReportingPage: React.FC = () => {
                 ) : (
                   filteredIncidents.map((inc) => (
                     <TableRow key={inc.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: 2, px: 3, fontWeight: 600, fontSize: '14.5px', color: 'var(--sakay-orange)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px', fontWeight: 600, fontSize: '12px', color: 'var(--sakay-orange)' }}>
                         #{inc.incidentCode || inc.id.slice(0, 8).toUpperCase()}
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           {inc.driverName}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           Plate: {inc.vehiclePlate}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           {inc.category}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+                        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                           Reporter: {inc.reporterName} ({inc.reporterRole})
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
-                        <Typography sx={{ fontSize: '13px', fontWeight: 700, color: inc.priority === 'Serious' ? '#991B1B' : inc.priority === 'Emergency' ? '#9A3412' : 'var(--mac-text-muted)' }}>{inc.priority ?? 'Standard'}</Typography>
-                        {inc.overdue && <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B91C1C' }}>Overdue</Typography>}
-                        {inc.routing === 'LGU' && <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>With the LGU</Typography>}
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
+                        <Typography sx={{ fontSize: '11px', fontWeight: 700, color: inc.priority === 'Serious' ? '#991B1B' : inc.priority === 'Emergency' ? '#9A3412' : 'var(--mac-text-muted)' }}>{inc.priority ?? 'Standard'}</Typography>
+                        {inc.overdue && <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#B91C1C' }}>Overdue</Typography>}
+                        {inc.routing === 'LGU' && <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>With the LGU</Typography>}
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3, fontSize: '14px', color: 'var(--mac-text-secondary)' }}>
+                      <TableCell sx={{ py: '13px', px: '19px', fontSize: '11.5px', color: 'var(--mac-text-secondary)' }}>
                         {inc.submittedAt}
                       </TableCell>
 
-                      <TableCell sx={{ py: 2, px: 3 }}>
+                      <TableCell sx={{ py: '13px', px: '19px' }}>
                         <StatusBadge status={inc.status} />
                       </TableCell>
 
-                      <TableCell align="right" sx={{ py: 2, px: 3 }}>
+                      <TableCell align="right" sx={{ py: '13px', px: '19px' }}>
                         <Button
                           variant="outlined"
                           size="small"
                           startIcon={<VisibilityIcon fontSize="small" />}
                           onClick={() => setSelectedIncidentId(inc.id)}
                           sx={{
-                            height: 36,
-                            px: 2,
-                            borderRadius: '8px',
-                            fontSize: '13.5px',
+                            height: 29,
+                            px: '13px',
+                            borderRadius: '6.5px',
+                            fontSize: '11px',
                             fontWeight: 600,
                             textTransform: 'none',
                             color: 'var(--sakay-orange)',
@@ -626,41 +626,41 @@ export const TodaReportingPage: React.FC = () => {
           onClose={() => setSelectedIncidentId(null)}
           title={`Incident Report #${selectedIncident.incidentCode || selectedIncident.id.slice(0, 8).toUpperCase()}`}
           subtitle={`Category: ${selectedIncident.category} • Submitted by ${selectedIncident.reporterName}`}
-          maxWidth={680}
+          maxWidth={544}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
+            <Box sx={{ backgroundColor: '#F8FAFC', p: '16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
                 Complaint Description
               </Typography>
-              <Typography sx={{ fontSize: '14.5px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
                 {selectedIncident.description || 'No detailed description provided.'}
               </Typography>
             </Box>
 
-            <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
+            <Box sx={{ backgroundColor: '#F8FAFC', p: '16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
                 The trip
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-primary)', lineHeight: 1.6 }}>
                 Trip {selectedIncident.tripId.slice(0, 8).toUpperCase()} · {selectedIncident.route}
               </Typography>
-              <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap', mt: 1.5 }}>
+              <Box sx={{ display: 'flex', gap: '26px', flexWrap: 'wrap', mt: '10px' }}>
                 {[
                   { label: 'Passenger', name: selectedIncident.passengerName, phone: selectedIncident.passengerPhone },
                   { label: `Driver (${selectedIncident.vehiclePlate})`, name: selectedIncident.driverName, phone: selectedIncident.driverPhone },
                 ].map((p) => (
-                  <Box key={p.label} sx={{ minWidth: 180 }}>
+                  <Box key={p.label} sx={{ minWidth: 144 }}>
                     <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>{p.label}</Typography>
-                    <Typography sx={{ fontSize: '14px', fontWeight: 600 }}>{p.name || '-'}</Typography>
+                    <Typography sx={{ fontSize: '11.5px', fontWeight: 600 }}>{p.name || '-'}</Typography>
                     {p.phone ? (
-                      <Typography sx={{ fontSize: '13px' }}>
+                      <Typography sx={{ fontSize: '11px' }}>
                         <a href={`tel:${p.phone}`} style={{ color: '#2563EB', fontWeight: 600 }}>{p.phone}</a>
                         {' · '}
                         <a href={`sms:${p.phone}`} style={{ color: '#2563EB' }}>SMS</a>
                       </Typography>
                     ) : (
-                      <Typography sx={{ fontSize: '13px', color: '#94A3B8' }}>no number on record</Typography>
+                      <Typography sx={{ fontSize: '11px', color: '#94A3B8' }}>no number on record</Typography>
                     )}
                   </Box>
                 ))}
@@ -668,14 +668,14 @@ export const TodaReportingPage: React.FC = () => {
             </Box>
 
             {(selectedIncident.evidenceFiles?.length ?? 0) > 0 && (
-              <Box sx={{ backgroundColor: '#F8FAFC', p: 2.5, borderRadius: '12px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>
+              <Box sx={{ backgroundColor: '#F8FAFC', p: '16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '6px' }}>
                   Attached Photo Evidence ({selectedIncident.evidenceFiles?.length})
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {selectedIncident.evidenceFiles?.map((file) => (
                     <Box key={file.url} component="a" href={file.url} target="_blank" rel="noreferrer" sx={{ display: 'block', lineHeight: 0 }}>
-                      <Box component="img" src={file.url} alt={file.name} sx={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }} />
+                      <Box component="img" src={file.url} alt={file.name} sx={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--mac-border-color)' }} />
                     </Box>
                   ))}
                 </Box>
@@ -683,15 +683,15 @@ export const TodaReportingPage: React.FC = () => {
             )}
 
             {selectedIncident.findings && (
-              <Box sx={{ backgroundColor: '#EFF6FF', p: 2.5, borderRadius: '12px', border: '1px solid #BFDBFE' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1D4ED8', textTransform: 'uppercase', mb: 1 }}>
+              <Box sx={{ backgroundColor: '#EFF6FF', p: '16px', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#1D4ED8', textTransform: 'uppercase', mb: '6px' }}>
                   Review Notes
                 </Typography>
-                <Typography sx={{ fontSize: '14px', color: '#1E3A8A', lineHeight: 1.6 }}>{selectedIncident.findings}</Typography>
+                <Typography sx={{ fontSize: '11.5px', color: '#1E3A8A', lineHeight: 1.6 }}>{selectedIncident.findings}</Typography>
               </Box>
             )}
 
-            <Box sx={{ pt: 2, borderTop: '1px solid var(--mac-border-color)' }}>
+            <Box sx={{ pt: '13px', borderTop: '1px solid var(--mac-border-color)' }}>
               <IncidentReviewPanel
                 role="toda_admin"
                 incident={selectedIncident.record}

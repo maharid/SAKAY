@@ -147,18 +147,18 @@ export const TodaFleetPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1280, margin: '0 auto', pb: '38px' }}>
       {/* 1. Summary Cards & Add Button */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '22px', flexWrap: 'wrap', gap: '13px' }}>
         <Box>
-          <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
             TODA Tricycle Fleet Roster
           </Typography>
-          <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+          <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '2.5px' }}>
             Manage authorized motorized tricycle units, franchise permits, and roadworthiness records
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Button
             onClick={loadFleet}
             startIcon={<RefreshIcon />}
@@ -185,56 +185,56 @@ export const TodaFleetPage: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-          gap: 2.5,
-          mb: 4,
+          gap: '16px',
+          mb: '26px',
         }}
       >
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+        <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '6px' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Total Fleet Size
               </Typography>
-              <DirectionsCarIcon sx={{ color: 'var(--sakay-orange)', fontSize: 22 }} />
+              <DirectionsCarIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
             </Box>
-            <Typography sx={{ fontSize: '28px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
               {totalUnits} Units
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
               Accredited TODA tricycle inventory
             </Typography>
           </CardContent>
         </Card>
 
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+        <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '6px' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Active & Operational
               </Typography>
-              <CheckCircleIcon sx={{ color: '#2E7D32', fontSize: 22 }} />
+              <CheckCircleIcon sx={{ color: '#2E7D32', fontSize: 18 }} />
             </Box>
-            <Typography sx={{ fontSize: '28px', fontWeight: 700, color: '#2E7D32', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#2E7D32', mb: '3px' }}>
               {activeUnits} Units
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
               Ready for dispatch operations
             </Typography>
           </CardContent>
         </Card>
 
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+        <Card sx={{ borderRadius: '14px', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '6px' }}>
+              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Under Maintenance / Inactive
               </Typography>
-              <BuildIcon sx={{ color: '#FF6600', fontSize: 22 }} />
+              <BuildIcon sx={{ color: '#FF6600', fontSize: 18 }} />
             </Box>
-            <Typography sx={{ fontSize: '28px', fontWeight: 700, color: '#FF6600', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#FF6600', mb: '3px' }}>
               {maintenanceUnits} Units
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
               Temporary mechanical repairs
             </Typography>
           </CardContent>
@@ -266,7 +266,7 @@ export const TodaFleetPage: React.FC = () => {
         component={Paper}
         elevation={0}
         sx={{
-          borderRadius: 'var(--mac-radius-lg)',
+          borderRadius: '14px',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-card)',
           overflow: 'hidden',
@@ -276,22 +276,22 @@ export const TodaFleetPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>
                 UNIT ID & PLATE NO.
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>
                 MTOP FRANCHISE
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>
                 ASSIGNED MEMBER DRIVER
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>
                 INSPECTION & OR/CR
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>
                 FLEET STATUS
               </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: '13px', px: '19px' }}>
                 ACTIONS
               </TableCell>
             </TableRow>
@@ -299,9 +299,9 @@ export const TodaFleetPage: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-                  <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: '51px' }}>
+                  <CircularProgress size={26} sx={{ color: 'var(--sakay-orange)', mb: '10px' }} />
+                  <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>
                     Loading vehicle fleet...
                   </Typography>
                 </TableCell>
@@ -315,52 +315,52 @@ export const TodaFleetPage: React.FC = () => {
                     '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                   }}
                 >
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: '14.5px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '12px', color: 'var(--mac-text-primary)' }}>
                       {unit.plateNumber}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '1.5px' }}>
                       Unit Ref: {unit.id}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                       {unit.mtopNumber}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                       Calapan City Franchise
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                       {unit.driverName}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
                       ID: {unit.driverId}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#2E7D32' }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
+                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#2E7D32' }}>
                       ✓ {unit.inspectionStatus}
                     </Typography>
                     <Typography
                       onClick={() => setPreviewDoc({ name: `OR/CR Document (${unit.plateNumber})`, type: 'Official LTO Registration' })}
-                      sx={{ fontSize: '12px', color: 'var(--sakay-orange)', cursor: 'pointer', mt: '2px', textDecoration: 'underline' }}
+                      sx={{ fontSize: '11px', color: 'var(--sakay-orange)', cursor: 'pointer', mt: '1.5px', textDecoration: 'underline' }}
                     >
                       {unit.orCrNumber} (View Doc)
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
+                  <TableCell sx={{ py: '14px', px: '19px' }}>
                     <StatusBadge status={unit.status === 'Active' ? 'Active' : 'Inactive'} />
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                  <TableCell align="right" sx={{ py: '14px', px: '19px' }}>
                     <Button
                       size="small"
                       variant="outlined"
                       onClick={() => handleToggleUnitStatus(unit.id)}
                       sx={{
                         textTransform: 'none',
-                        fontSize: '12.5px',
+                        fontSize: '11px',
                         borderColor: 'var(--mac-border-color)',
                         color: unit.status === 'Active' ? '#FF6600' : '#2E7D32',
                       }}
@@ -372,11 +372,11 @@ export const TodaFleetPage: React.FC = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                  <Typography sx={{ fontSize: '15px', color: 'var(--mac-text-primary)', fontWeight: 600 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: '51px' }}>
+                  <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', fontWeight: 600 }}>
                     No tricycle units found
                   </Typography>
-                  <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '3px' }}>
                     {searchQuery || statusFilter !== 'All'
                       ? 'No vehicle units match your search filters.'
                       : 'There are currently no registered tricycle units in this TODA fleet.'}
@@ -390,11 +390,11 @@ export const TodaFleetPage: React.FC = () => {
 
       {/* Add Tricycle Unit Dialog */}
       <Dialog open={addUnitDialogOpen} onClose={() => setAddUnitDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '18px' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '14px' }}>
           Register New Tricycle Unit
         </DialogTitle>
         <form onSubmit={handleAddUnitSubmit}>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <TextField
               label="Vehicle Plate Number *"
               value={newPlate}
@@ -431,7 +431,7 @@ export const TodaFleetPage: React.FC = () => {
               size="small"
             />
           </DialogContent>
-          <DialogActions sx={{ p: 2.5 }}>
+          <DialogActions sx={{ p: '16px' }}>
             <Button onClick={() => setAddUnitDialogOpen(false)} sx={{ textTransform: 'none' }}>
               Cancel
             </Button>
