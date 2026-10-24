@@ -102,8 +102,9 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
     <Box
       component="aside"
       sx={{
-        width: collapsed ? 74 : 275,
-        height: '100vh',
+        width: collapsed ? 60 : 220,
+        // fills the row it sits in (100vh is taller than the visible screen on a phone with a moving address bar)
+        height: '100%',
         background: 'rgba(255, 255, 255, 0.88)',
         backdropFilter: 'blur(18px)',
         WebkitBackdropFilter: 'blur(18px)',
@@ -116,6 +117,8 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
         zIndex: 90,
         userSelect: 'none',
         boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.6)',
+        // menu icons at the compact size
+        '& .MuiSvgIcon-fontSizeSmall': { fontSize: 16 },
       }}
     >
       {/* Sidebar Collapse Toggle Button */}
@@ -126,9 +129,9 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           position: 'absolute',
           top: 'calc(var(--mac-header-height) / 2)',
           transform: 'translateY(-50%)',
-          right: -13,
-          width: 28,
-          height: 28,
+          right: -11,
+          width: 24,
+          height: 24,
           backgroundColor: '#FFFFFF',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-subtle)',
@@ -143,7 +146,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           },
         }}
       >
-        {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+        {collapsed ? <ChevronRightIcon sx={{ fontSize: 16 }} /> : <ChevronLeftIcon sx={{ fontSize: 16 }} />}
       </IconButton>
 
       {/* Header Logo Lockup with Explicit TODA ADMIN Pill */}
@@ -154,7 +157,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          padding: collapsed ? 0 : '0 18px 0 20px',
+          padding: collapsed ? 0 : '0 14px 0 16px',
           borderBottom: '1px solid var(--mac-border-color)',
           overflow: 'hidden',
           transition: 'padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -175,10 +178,10 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
             src={appIcon}
             alt="SAKAY App Icon"
             sx={{
-              width: 28,
-              height: 28,
-              minWidth: 28,
-              minHeight: 28,
+              width: 22,
+              height: 22,
+              minWidth: 22,
+              minHeight: 22,
               objectFit: 'contain',
               flexShrink: 0,
             }}
@@ -189,8 +192,8 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
               display: 'flex',
               flexDirection: 'column',
               opacity: collapsed ? 0 : 1,
-              maxWidth: collapsed ? 0 : 190,
-              marginLeft: collapsed ? 0 : '10px',
+              maxWidth: collapsed ? 0 : 152,
+              marginLeft: collapsed ? 0 : '8px',
               overflow: 'hidden',
               transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
             }}
@@ -200,7 +203,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
               src={logoTextOrange}
               alt="SAKAY Logo"
               sx={{
-                height: 22,
+                height: 18,
                 width: 'auto',
                 objectFit: 'contain',
                 alignSelf: 'flex-start',
@@ -208,9 +211,9 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
             />
             <Typography
               sx={{
-                fontSize: '11px',
+                fontSize: '9.5px',
                 fontWeight: 700,
-                color: 'var(--sakay-orange)',
+                color: '#B34700',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 mt: '2px',
@@ -232,7 +235,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           display: 'flex',
           flexDirection: 'column',
           alignItems: collapsed ? 'center' : 'stretch',
-          padding: collapsed ? '14px 0' : '16px 14px',
+          padding: collapsed ? '11px 0' : '13px 11px',
           transition: 'padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
@@ -240,7 +243,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           <Box
             key={group.groupTitle}
             sx={{
-              mb: 2.5,
+              mb: '16px',
               display: 'flex',
               flexDirection: 'column',
               width: '100%',
@@ -250,14 +253,14 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
             {/* Section Header Title */}
             <Typography
               sx={{
-                fontSize: '12.5px',
+                fontSize: '10.5px',
                 fontWeight: 700,
-                color: 'var(--mac-text-muted)',
-                letterSpacing: '0.12em',
-                padding: collapsed ? '0' : '6px 10px 8px',
+                color: '#65656a',
+                letterSpacing: '0.1em',
+                padding: collapsed ? '0' : '5px 8px 6px',
                 textTransform: 'uppercase',
                 opacity: collapsed ? 0 : 1,
-                maxHeight: collapsed ? 0 : 30,
+                maxHeight: collapsed ? 0 : 24,
                 overflow: 'hidden',
                 whiteSpace: 'nowrap',
                 transition: 'opacity 0.18s ease, max-height 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -269,10 +272,10 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
             {collapsed && groupIdx > 0 && (
               <Box
                 sx={{
-                  width: '28px',
+                  width: '22px',
                   height: '1px',
                   backgroundColor: 'var(--mac-divider)',
-                  margin: '6px auto',
+                  margin: '5px auto',
                   transition: 'opacity 0.2s ease',
                 }}
               />
@@ -284,7 +287,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                 flexDirection: 'column',
                 width: '100%',
                 alignItems: collapsed ? 'center' : 'stretch',
-                gap: '5px',
+                gap: '4px',
               }}
             >
               {group.items.map((item) => {
@@ -299,10 +302,10 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: collapsed ? 'center' : 'space-between',
-                      width: collapsed ? 44 : '100%',
-                      height: collapsed ? 44 : 46,
-                      borderRadius: '12px',
-                      padding: collapsed ? 0 : '0 12px 0 12px',
+                      width: collapsed ? 36 : '100%',
+                      height: collapsed ? 36 : 37,
+                      borderRadius: '10px',
+                      padding: collapsed ? 0 : '0 10px 0 10px',
                       cursor: item.disabled ? 'not-allowed' : 'pointer',
                       flexShrink: 0,
                       margin: collapsed ? '0 auto' : 0,
@@ -347,13 +350,13 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                       {/* Nav Label Text — AMple Width so active text NEVER truncates */}
                       <Typography
                         sx={{
-                          fontSize: '15px',
+                          fontSize: '12px',
                           fontWeight: isActive ? 700 : 500,
                           letterSpacing: '-0.01em',
                           whiteSpace: 'nowrap',
                           opacity: collapsed ? 0 : 1,
-                          maxWidth: collapsed ? 0 : 190,
-                          marginLeft: collapsed ? 0 : '10px',
+                          maxWidth: collapsed ? 0 : 152,
+                          marginLeft: collapsed ? 0 : '8px',
                           overflow: 'hidden',
                           transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
                         }}
@@ -378,15 +381,15 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
                               : isActive
                               ? '#FFFFFF'
                               : 'var(--sakay-orange)',
-                          fontSize: item.badgeType === 'green' ? '14px' : '12px',
+                          fontSize: item.badgeType === 'green' ? '11.5px' : '10.5px',
                           fontWeight: 700,
-                          padding: item.badgeType === 'green' ? '0' : '3px 8px',
+                          padding: item.badgeType === 'green' ? '0' : '2px 6px',
                           borderRadius: '999px',
-                          minWidth: item.badgeType === 'green' ? 'auto' : '26px',
+                          minWidth: item.badgeType === 'green' ? 'auto' : '21px',
                           textAlign: 'center',
                           opacity: 1,
-                          maxWidth: 40,
-                          marginLeft: '6px',
+                          maxWidth: 32,
+                          marginLeft: '5px',
                           overflow: 'hidden',
                           flexShrink: 0,
                           transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -415,10 +418,10 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
       <Box
         onClick={() => setProfileModalOpen(true)}
         sx={{
-          height: 68,
+          height: 54,
           flexShrink: 0,
           borderTop: '1px solid var(--mac-border-color)',
-          padding: collapsed ? 0 : '0 14px 0 12px',
+          padding: collapsed ? 0 : '0 11px 0 10px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
@@ -446,10 +449,10 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
         >
           <Avatar
             sx={{
-              width: 36,
-              height: 36,
+              width: 29,
+              height: 29,
               background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
-              fontSize: '14px',
+              fontSize: '11.5px',
               fontWeight: 700,
               boxShadow: '0 10px 18px rgba(255, 102, 0, 0.18)',
               flexShrink: 0,
@@ -460,18 +463,18 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           </Avatar>
           <Box
             sx={{
-              maxWidth: collapsed ? 0 : 180,
+              maxWidth: collapsed ? 0 : 144,
               opacity: collapsed ? 0 : 1,
-              marginLeft: collapsed ? 0 : '10px',
+              marginLeft: collapsed ? 0 : '8px',
               overflow: 'hidden',
               whiteSpace: 'nowrap',
               transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
             }}
           >
-            <Typography sx={{ fontWeight: 700, fontSize: '14px', color: 'var(--mac-text-primary)', lineHeight: 1.2, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: '11.5px', color: 'var(--mac-text-primary)', lineHeight: 1.2, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
               {profile?.officers.president || 'TODA Officer'}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--sakay-orange)', fontWeight: 600, lineHeight: 1.2, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <Typography sx={{ fontSize: '10.5px', color: '#B34700', fontWeight: 600, lineHeight: 1.2, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
               {profile?.acronym || 'TODA'} • President
             </Typography>
           </Box>

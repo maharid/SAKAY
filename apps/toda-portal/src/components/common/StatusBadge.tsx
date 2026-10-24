@@ -5,10 +5,12 @@ import { StatusType } from '../../types/toda';
 interface StatusBadgeProps extends Omit<ChipProps, 'color'> {
   status: StatusType | string;
   label?: string;
+  /** Darker text on the tinted fill, for small type that must reach 4.5:1 contrast. Off by default so the other pages look as before. */
+  highContrast?: boolean;
 }
 
 // status badge colors for driver, application, and announcement states
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...props }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, highContrast = false, sx, ...props }) => {
   const getStatusStyles = (statusStr: string) => {
     switch (statusStr) {
       case 'Approved':
@@ -109,6 +111,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, sx, ...
         borderRadius: '6px',
         borderWidth: '1px',
         ...styles,
+        ...(highContrast && { color: `color-mix(in srgb, ${styles.color} 70%, #000)` }),
         ...sx,
       }}
       {...props}

@@ -64,6 +64,9 @@ const theme = createTheme({
           fontSize: '14px',
         },
         notchedOutline: {
+          // MUI lifts the outline by 5px (top: -5) to make room for the label gap (the legend). This theme hides the legend, so without this the
+          // border and the focus ring sit 5px above the field they belong to.
+          top: 0,
           '& legend': {
             display: 'none',
           },

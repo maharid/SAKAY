@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import type { TodaProfile } from '../../types/toda';
 import { RENEWAL_WINDOW_DAYS, daysUntil } from '../../utils/accreditation';
+import { FONT } from '../../styles/density';
 
 interface AccreditationStatusBannerProps {
   profile: TodaProfile | null;
@@ -26,9 +27,9 @@ export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps>
       {label}
     </Button>
   );
-  const alertSx = { borderRadius: 'var(--mac-radius-lg)', boxShadow: 'var(--mac-shadow-card)', '& .MuiAlert-message': { width: '100%' } };
-  const title = (text: string, color: string) => <Typography sx={{ fontWeight: 600, color, mb: 0.5 }}>{text}</Typography>;
-  const body = (text: React.ReactNode, color: string) => <Typography sx={{ fontSize: '14px', color }}>{text}</Typography>;
+  const alertSx = { borderRadius: 'var(--mac-radius-lg)', boxShadow: 'var(--mac-shadow-card)', fontSize: FONT.body, '& .MuiAlert-message': { width: '100%' } };
+  const title = (text: string, color: string) => <Typography sx={{ fontWeight: 600, fontSize: FONT.heading, color, mb: 0.5 }}>{text}</Typography>;
+  const body = (text: React.ReactNode, color: string) => <Typography sx={{ fontSize: FONT.body, color }}>{text}</Typography>;
 
   switch (profile.accreditationStatus) {
     case 'Pending Verification':

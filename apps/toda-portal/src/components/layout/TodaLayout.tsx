@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, useMediaQuery } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import { TodaHeader } from './TodaHeader';
 import { TodaSidebar } from './TodaSidebar';
 import { fetchTodaProfile, onTodaProfileChanged } from '../../services/todaApiService';
 import { AccreditationStatusBanner } from '../common/AccreditationStatusBanner';
 import { TodaProfile } from '../../types/toda';
+import { SHELL } from '../../styles/density';
 
 interface TodaLayoutProps {
   children?: React.ReactNode;
@@ -13,12 +14,17 @@ interface TodaLayoutProps {
   pageSubtitle?: string;
 }
 
+// Below this width the sidebar would take most of the screen, so it starts as the narrow icon strip and opens ON TOP of the page instead of pushing it.
+const COMPACT_SHELL_QUERY = '(max-width: 899.95px)';
+const SIDEBAR_RAIL_WIDTH = SHELL.sidebarRailWidth;
+
 export const TodaLayout: React.FC<TodaLayoutProps> = ({
   children,
   pageTitle,
   pageSubtitle,
 }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isCompactShell = useMediaQuery(COMPACT_SHELL_QUERY, { noSsr: true });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(isCompactShell);
   const [profile, setProfile] = useState<TodaProfile | null>(null);
 
   useEffect(() => {
@@ -32,27 +38,73 @@ export const TodaLayout: React.FC<TodaLayoutProps> = ({
     return onTodaProfileChanged(load);
   }, []);
 
+  // moving to a narrow window (or a phone turning sideways) folds the sidebar away; a wide window leaves the choice as it was
+  useEffect(() => {
+    if (isCompactShell) setSidebarCollapsed(true);
+  }, [isCompactShell]);
+
+  const sidebarOverlayOpen = isCompactShell && !sidebarCollapsed;
+
+  // Escape closes the sidebar while it covers the page
+  useEffect(() => {
+    if (!sidebarOverlayOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarCollapsed(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [sidebarOverlayOpen]);
+
+  const sidebar = (
+    <TodaSidebar
+      collapsed={sidebarCollapsed}
+      onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+    />
+  );
+
   return (
     <Box
       sx={{
         display: 'flex',
-        width: '100vw',
+        width: '100%',
         height: '100vh',
+        '@supports (height: 100dvh)': { height: '100dvh' },
         overflow: 'hidden',
         backgroundColor: '#FFF8F2',
       }}
     >
-      <TodaSidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
+      {isCompactShell ? (
+        <>
+          {/* the icon strip keeps its place in the row; an open sidebar floats above everything except dialogs and popups */}
+          <Box sx={{ width: SIDEBAR_RAIL_WIDTH, flexShrink: 0, position: 'relative', zIndex: 90 }}>
+            <Box
+              sx={
+                sidebarOverlayOpen
+                  ? { position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 1200, boxShadow: '0 0 48px rgba(15, 23, 42, 0.25)' }
+                  : { height: '100%' }
+              }
+            >
+              {sidebar}
+            </Box>
+          </Box>
+          {sidebarOverlayOpen && (
+            <Box
+              aria-hidden
+              onClick={() => setSidebarCollapsed(true)}
+              sx={{ position: 'fixed', inset: 0, zIndex: 1190, backgroundColor: 'rgba(15, 23, 42, 0.35)' }}
+            />
+          )}
+        </>
+      ) : (
+        sidebar
+      )}
 
       <Box
         sx={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          height: '100vh',
+          height: '100%',
           minWidth: 0,
           overflow: 'hidden',
           backgroundColor: '#FFF8F2',
@@ -64,9 +116,10 @@ export const TodaLayout: React.FC<TodaLayoutProps> = ({
           component="main"
           sx={{
             flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
             overflowX: 'hidden',
-            padding: { xs: '20px', md: '28px', lg: '32px' },
+            padding: SHELL.pagePadding,
             backgroundColor: '#FFF8F2',
           }}
         >
@@ -77,4 +130,3 @@ export const TodaLayout: React.FC<TodaLayoutProps> = ({
     </Box>
   );
 };
-

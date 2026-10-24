@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -12,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import { useInFlight } from '../hooks/useInFlight';
 import { AVAILABILITY_KINDS, reportProblem } from '../utils/availabilityReports';
 import type { AvailabilityKind } from '../utils/availabilityReports';
+import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX, EMPTY_OPTION_SX, WRAPPING_SELECT_SLOTS } from './dialogStyles';
 
 export interface ReportDriverAvailabilityDialogProps {
   open: boolean;
@@ -30,6 +32,7 @@ export interface ReportDriverAvailabilityDialogProps {
  */
 export const ReportDriverAvailabilityDialog: React.FC<ReportDriverAvailabilityDialogProps> = ({ open, onClose, drivers, onSubmit, onFiled }) => {
   const flight = useInFlight();
+  const titleId = useId();
   const [driverId, setDriverId] = useState('');
   const [kind, setKind] = useState<AvailabilityKind>('QUEUE_CONFLICT');
   const [description, setDescription] = useState('');
@@ -59,23 +62,32 @@ export const ReportDriverAvailabilityDialog: React.FC<ReportDriverAvailabilityDi
     });
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report a driver</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
-        <Typography sx={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth aria-labelledby={titleId} slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+      <DialogTitle id={titleId} sx={DIALOG_TITLE_SX}>Report a driver</DialogTitle>
+      <DialogContent sx={DIALOG_CONTENT_SX}>
+        <Typography sx={DIALOG_INTRO_SX}>
           This files a report only. A strike is issued only when an administrator confirms it, after checking the terminal queue, the dispatch log or the passenger's account.
         </Typography>
         <TextField select size="small" label="Driver" value={driverId} onChange={(e) => setDriverId(e.target.value)} fullWidth>
-          {drivers.map((d) => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
+          {drivers.length === 0 ? (
+            // not a driver: it cannot be chosen, it only says why the list is empty
+            <MenuItem disabled sx={EMPTY_OPTION_SX}>
+              <Box component="span" sx={{ display: 'block', fontWeight: 600 }}>There are currently no drivers available.</Box>
+            </MenuItem>
+          ) : (
+            drivers.map((d) => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)
+          )}
         </TextField>
-        <TextField select size="small" label="What was seen" value={kind} onChange={(e) => setKind(e.target.value as AvailabilityKind)} fullWidth>
+        {/* the chosen option is a full sentence: let it wrap inside the field on a narrow screen instead of being cut with "..." */}
+        <TextField select size="small" label="What was seen" value={kind} onChange={(e) => setKind(e.target.value as AvailabilityKind)} fullWidth slotProps={WRAPPING_SELECT_SLOTS}>
           {AVAILABILITY_KINDS.map((k) => <MenuItem key={k.kind} value={k.kind}>{k.en}</MenuItem>)}
         </TextField>
-        <TextField multiline minRows={3} size="small" label="What you observed (where, when, what the driver did)" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth />
+        {/* a short label always fits the field; the hint that used to follow it in brackets is the helper line under the box */}
+        <TextField multiline minRows={3} size="small" label="What you observed" helperText="Where, when, and what the driver did." value={description} onChange={(e) => setDescription(e.target.value)} fullWidth />
         {error && <Alert severity="error" sx={{ borderRadius: '10px' }}>{error}</Alert>}
       </DialogContent>
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} sx={{ textTransform: 'none', color: '#64748B' }}>Cancel</Button>
+      <DialogActions sx={DIALOG_ACTIONS_SX}>
+        <Button onClick={onClose} sx={{ textTransform: 'none', color: '#475569' }}>Cancel</Button>
         <Button variant="contained" disabled={Boolean(problem) || flight.busy} onClick={send} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
           File the report
         </Button>

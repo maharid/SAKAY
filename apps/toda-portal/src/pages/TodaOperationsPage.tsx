@@ -1,26 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Button,
-  Chip,
-  CircularProgress,
-  Alert,
-} from '@mui/material';
-import ShieldIcon from '@mui/icons-material/Shield';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import { Box, Button } from '@mui/material';
+import { ThemeProvider } from '@mui/material/styles';
 
 import { DateCalendarPopover } from '../components/common/DateCalendarPopover';
+import { OperationsToolbar } from '../components/operations/OperationsToolbar';
+import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
+import type { OperationsStat } from '../components/operations/OperationsStatStrip';
+import { OperationsActionCard } from '../components/operations/OperationsActionCard';
+import { OperationsListCard } from '../components/operations/OperationsListCard';
+import { DriverRosterTable } from '../components/operations/DriverRosterTable';
+import { BookingsTable } from '../components/operations/BookingsTable';
+import { FarePolicyNote } from '../components/operations/FarePolicyNote';
+import { opsButtonSx, OPS_BORDER, OPS_TEXT } from '../components/operations/operationsTheme';
+import { createOperationsTheme } from '../components/operations/operationsDensityTheme';
+import { SHELL, SPACE } from '../styles/density';
 import { TodaProfile, TodaDriverMember, TodaBooking } from '../types/toda';
 import {
   fetchTodaProfile,
@@ -48,13 +41,11 @@ import { GpsAreasCard } from '../components/admin/GpsAreasCard';
 import { FareDisputesPanel, ReportDriverAvailabilityDialog, ReviewFlagsPanel, SafetyEndTripPanel, TripReconciliationPanel, VehicleSubstitutionsPanel, CoverageGapsPanel, DeclineHistoryDialog, fetchCoverageGaps, fetchDeclineHistory, asSubstitutionClient, decideVehicleSubstitution, endVehicleSubstitution, fetchVehicleSubstitutions } from '@sakay/shared';
 import type { CoverageGaps, DeclineHistory, FareDisputeRow, ReconciliationTrip, ReviewFlagRow, VehicleSubstitution } from '@sakay/shared';
 import { supabase } from '../services/supabaseClient';
-import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { driverActivity, volumeByPeriod } from '@sakay/shared';
 import type { BookingLike } from '@sakay/shared';
-import { StatusBadge } from '../components/common/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 
-export const TodaOperationsPage: React.FC = () => {
+const TodaOperationsContent: React.FC = () => {
   const { todaAdminProfile } = useAuth();
   const targetTodaId = todaAdminProfile?.toda_id;
 
@@ -189,16 +180,73 @@ export const TodaOperationsPage: React.FC = () => {
     .filter((t: any) => t.driver_id && t.booking_status && !SEARCHING.includes(t.booking_status) && t.booking_status !== 'Completed' && !String(t.booking_status).includes('Cancel'))
     .map((t: any) => ({ bookingId: t.booking_id as string, label: `${t.driver?.full_name ?? 'Driver'} (${t.driver?.plate_number ?? '-'}) · ${t.pickup_address ?? '-'} > ${t.dropoff_address ?? '-'} · ${t.booking_status}` }));
 
+  // The five key numbers: the values are the ones computed above; only the order, wording and colour are for reading at a glance.
+  // A number is coloured only when it is more than zero, so a calm day stays calm.
+  const completedToday = today?.completed ?? 0;
+  const cancelledToday = today?.cancelled ?? 0;
+  const stats: OperationsStat[] = [
+    {
+      key: 'accredited',
+      label: 'Accredited drivers',
+      value: totalDrivers,
+      note: `${onlineDrivers} online now`,
+      noteTone: onlineDrivers > 0 ? 'success' : 'neutral',
+    },
+    {
+      key: 'utilization',
+      label: 'Driver utilization',
+      value: registeredDrivers > 0 ? `${Math.round((activeDrivers30 / registeredDrivers) * 100)}%` : '-',
+      note: `${activeDrivers30} of ${registeredDrivers} drivers completed a trip in 30 days`,
+    },
+    {
+      key: 'active',
+      label: 'Active trips',
+      value: activeTrips.length,
+      note: 'Currently in transit',
+      tone: activeTrips.length > 0 ? 'brand' : 'neutral',
+    },
+    {
+      key: 'completed',
+      label: 'Completed today',
+      value: completedToday,
+      note: `${today?.total ?? 0} booking requests today`,
+      tone: completedToday > 0 ? 'success' : 'neutral',
+    },
+    {
+      key: 'cancelled',
+      label: 'Cancelled today',
+      value: cancelledToday,
+      note: `${today?.noDriverFound ?? 0} with no driver found`,
+      tone: cancelledToday > 0 ? 'danger' : 'neutral',
+    },
+  ];
+
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
-      {/* 1. Welcome Section Header */}
-      <WelcomeHeader
-        welcomeText={`Welcome back! 👋`}
-        supportingText={`Operational monitoring and fleet availability for ${profile?.name || 'TODA Association'} (${profile?.acronym || 'TODA'})`}
+    // containerType: the sections below lay themselves out by the width of this page area, so they also fit when the sidebar is open or closed
+    <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: SPACE.section, containerType: 'inline-size' }}>
+      <OperationsToolbar
+        accreditation={!profile && isLoading ? 'loading' : profile?.accreditationStatus === 'Active' ? 'active' : 'not-active'}
+        accreditationNo={profile?.accreditationNo || undefined}
+        dateLabel={selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        onOpenCalendar={setCalendarAnchorEl}
+        lastRefreshed={lastRefreshed}
+        onRefresh={loadData}
       />
 
+      <DateCalendarPopover
+        open={Boolean(calendarAnchorEl)}
+        anchorEl={calendarAnchorEl}
+        onClose={() => setCalendarAnchorEl(null)}
+        selectedDate={selectedDate}
+        onSelectDate={(date) => {
+          setSelectedDate(date);
+          loadData();
+        }}
+      />
 
+      <OperationsStatStrip stats={stats} />
 
+      {/* Things waiting for a decision. Each panel appears only when it has something to show, right under the numbers. */}
       <TripReconciliationPanel
         trips={reconTrips}
         showWhenEmpty={false}
@@ -211,34 +259,6 @@ export const TodaOperationsPage: React.FC = () => {
           return message;
         }}
         onReportDeliberateOffline={reportDeliberateOffline}
-      />
-
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-        <Button
-          variant="outlined"
-          onClick={() => setReportOpen(true)}
-          disabled={drivers.filter((d) => !String(d.id).startsWith('roster-')).length === 0}
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px' }}
-        >
-          Report a driver: queue conflict / availability
-        </Button>
-      </Box>
-      <ReportDriverAvailabilityDialog
-        open={reportOpen}
-        onClose={() => setReportOpen(false)}
-        drivers={drivers.filter((d) => !String(d.id).startsWith('roster-')).map((d) => ({ id: d.id, name: d.name }))}
-        onSubmit={reportDriverAvailability}
-        onFiled={() => void loadReviewFlags()}
-      />
-
-      <CoverageGapsPanel gaps={coverageGaps} loading={coverageLoading} audience="toda_admin" />
-      <DeclineHistoryDialog
-        open={declineView !== null}
-        onClose={() => setDeclineView(null)}
-        driverName={declineView?.name ?? ''}
-        history={declineView?.history ?? null}
-        loading={declineView?.loading ?? false}
-        failed={declineView !== null && !declineView.loading && declineView.history === null}
       />
 
       <VehicleSubstitutionsPanel
@@ -285,15 +305,6 @@ export const TodaOperationsPage: React.FC = () => {
         }}
       />
 
-      <SafetyEndTripPanel
-        trips={safetyTrips}
-        onEnd={async (end) => {
-          const message = await endTripSafely(end);
-          if (!message) loadData();
-          return message;
-        }}
-      />
-
       <FareDisputesPanel
         role="toda_admin"
         disputes={fareDisputes}
@@ -325,351 +336,103 @@ export const TodaOperationsPage: React.FC = () => {
         }}
       />
 
-      {/* 3. Supervisory Standing Banner & Compliance Indicators */}
-      <Box sx={{ mb: 3.5 }}>
-        <Box
-          sx={{
-            p: '16px 22px',
-            borderRadius: 'var(--mac-radius-lg)',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--mac-border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--mac-shadow-card)',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <ShieldIcon sx={{ color: '#059669', fontSize: 24 }} />
-            <Box>
-              <Typography sx={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                Accreditation Status — {profile?.name || 'TODA Association'}
-              </Typography>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                {profile?.accreditationNo ? `Accreditation certificate #${profile.accreditationNo}` : 'The accreditation certificate'} is {profile?.accreditationStatus === 'Active' ? 'active' : 'not active yet'}.
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Button
-              size="small"
-              onClick={(e) => setCalendarAnchorEl(e.currentTarget)}
-              startIcon={<CalendarTodayIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />}
-              sx={{
-                height: 36,
-                px: 2,
-                borderRadius: '8px',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                textTransform: 'none',
-                color: 'var(--mac-text-primary)',
-                border: '1px solid var(--mac-border-color)',
-                backgroundColor: '#FFFFFF',
-                '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' },
-              }}
-            >
-              {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </Button>
-            <Button
-              size="small"
-              onClick={loadData}
-              startIcon={<RefreshIcon fontSize="small" />}
-              sx={{
-                height: 36,
-                px: 2,
-                borderRadius: '8px',
-                fontSize: '12.5px',
-                textTransform: 'none',
-                color: 'var(--mac-text-secondary)',
-                border: '1px solid var(--mac-border-color)',
-                backgroundColor: '#FFFFFF',
-                '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)' },
-              }}
-            >
-              Refreshed {lastRefreshed}
-            </Button>
-          </Box>
-        </Box>
+      {/* A single status line while all is well; it opens up as a warning when a zone was logged. */}
+      <CoverageGapsPanel compact gaps={coverageGaps} loading={coverageLoading} audience="toda_admin" />
+      <DeclineHistoryDialog
+        open={declineView !== null}
+        onClose={() => setDeclineView(null)}
+        driverName={declineView?.name ?? ''}
+        history={declineView?.history ?? null}
+        loading={declineView?.loading ?? false}
+        failed={declineView !== null && !declineView.loading && declineView.history === null}
+      />
 
-        <DateCalendarPopover
-          open={Boolean(calendarAnchorEl)}
-          anchorEl={calendarAnchorEl}
-          onClose={() => setCalendarAnchorEl(null)}
-          selectedDate={selectedDate}
-          onSelectDate={(date) => {
-            setSelectedDate(date);
-            loadData();
+      {/* The two things a president does: report a driver, or (in an emergency) end a trip. The safety one is red and asks twice.
+          One grid holds both cards, so they share a top edge and a height. The safety form opens as its own full-width row under the pair. */}
+      <Box
+        component="section"
+        aria-label="Actions"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          gap: SPACE.gap,
+          alignItems: 'stretch',
+          mb: SPACE.section,
+          '@container (min-width: 608px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
+        }}
+      >
+        <OperationsActionCard title="Report a driver" description="A driver seen in the terminal queue, or carrying other passengers, while shown Available in the app.">
+          <Button
+            variant="outlined"
+            onClick={() => setReportOpen(true)}
+            disabled={drivers.filter((d) => !String(d.id).startsWith('roster-')).length === 0}
+            sx={{ ...opsButtonSx, minWidth: 167, flexShrink: 0, color: OPS_TEXT.primary, borderColor: OPS_BORDER, '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' } }}
+          >
+            Report a driver
+          </Button>
+        </OperationsActionCard>
+
+        <SafetyEndTripPanel
+          compact
+          trips={safetyTrips}
+          loading={isLoading}
+          onEnd={async (end) => {
+            const message = await endTripSafely(end);
+            if (!message) loadData();
+            return message;
           }}
         />
       </Box>
+      <ReportDriverAvailabilityDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        drivers={drivers.filter((d) => !String(d.id).startsWith('roster-')).map((d) => ({ id: d.id, name: d.name }))}
+        onSubmit={reportDriverAvailability}
+        onFiled={() => void loadReviewFlags()}
+      />
 
-      {/* 3. Surface-Level Operations KPIs */}
+      {/* The two lists, side by side on a wide screen and one under the other on a narrow one */}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' },
-          gap: 2.5,
-          mb: 3.5,
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          gap: SPACE.gapLarge,
+          alignItems: 'stretch',
+          mb: SPACE.sectionLarge,
+          '@container (min-width: 944px)': { gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)' },
         }}
       >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Accredited Drivers</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalDrivers}</Typography>
-          <Typography sx={{ fontSize: '12px', color: '#059669', mt: 0.5, fontWeight: 500 }}>{onlineDrivers} Online now</Typography>
-        </Box>
-
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Driver Utilization</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#1565C0' }}>{registeredDrivers > 0 ? `${Math.round((activeDrivers30 / registeredDrivers) * 100)}%` : '-'}</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>{activeDrivers30} of {registeredDrivers} completed a trip in 30 days</Typography>
-        </Box>
-
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Active Trips</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{activeTrips.length}</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Currently in Transit</Typography>
-        </Box>
-
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Completed Today</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#059669' }}>{today?.completed ?? 0}</Typography>
-          <Typography sx={{ fontSize: '12px', color: '#059669', mt: 0.5, fontWeight: 500 }}>{today?.total ?? 0} booking requests today</Typography>
-        </Box>
-
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Cancelled Today</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#DC2626' }}>{today?.cancelled ?? 0}</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>{today?.noDriverFound ?? 0} with no driver found</Typography>
-        </Box>
-      </Box>
-
-      {/* 4. Standard Fare Policy Reminder Card */}
-      <Box
-        sx={{
-          mb: 3.5,
-          backgroundColor: '#FFFFFF',
-          border: '1px solid var(--mac-border-color)',
-          borderRadius: 'var(--mac-radius-lg)',
-          padding: '20px 24px',
-          boxShadow: 'var(--mac-shadow-card)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 2,
-        }}
-      >
-        <InfoOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24, mt: '2px', flexShrink: 0 }} />
-        <Box>
-          <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: '4px' }}>
-            Standard Fare Policy Reminder
-          </Typography>
-          <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
-            SAKAY fares strictly follow the approved city fare matrix (City Ordinance No. 110, Series of 2022: ₱15 minimum base fare for first 2.0 km). Charging or applying a fare that does not comply with the approved fare policy is subject to administrative review and applicable sanctions.
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* 5. Driver Roster & Active Trips Tables */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, mb: 3.5, alignItems: 'stretch' }}>
-        {/* Affiliated Drivers Card */}
-        <Box
-          sx={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-          }}
+        <OperationsListCard
+          title="Driver roster"
+          subtitle={`Drivers registered with ${profile?.name || 'this TODA'}`}
+          count={`${drivers.length} ${drivers.length === 1 ? 'driver' : 'drivers'}`}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: '17px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                Affiliated Driver Roster
-              </Typography>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                Drivers registered with {profile?.name || 'this TODA'}
-              </Typography>
-            </Box>
-            <Chip
-              label={`${drivers.length} Drivers`}
-              size="small"
-              sx={{ backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)', fontWeight: 600, fontSize: '12px' }}
-            />
-          </Box>
+          <DriverRosterTable
+            drivers={drivers}
+            isLoading={isLoading}
+            isOnlineNow={isOnlineNow}
+            isPausedNow={isPausedNow}
+            completedTrips={(d) => activityById.get(d.id)?.completed ?? 0}
+          />
+        </OperationsListCard>
 
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              border: '1px solid var(--mac-border-color)',
-              borderRadius: '10px',
-              maxHeight: '300px',
-              overflowY: 'auto',
-              '&::-webkit-scrollbar': { width: '6px' },
-              '&::-webkit-scrollbar-thumb': { backgroundColor: '#CBD5E1', borderRadius: '3px' },
-            }}
-          >
-            <Table size="small" stickyHeader>
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Driver Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Franchise Number</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Online</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Trips</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <CircularProgress size={24} sx={{ color: 'var(--sakay-orange)', mb: 1 }} />
-                      <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>Loading drivers...</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : drivers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>
-                        No registered drivers currently affiliated with this TODA.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  drivers.map((d) => (
-                    <TableRow key={d.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: 1.5, px: 2, fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-primary)' }}>
-                        {d.name}
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5, px: 2, fontSize: '13px' }}>
-                        <Chip
-                          label={d.franchiseNo || 'N/A'}
-                          size="small"
-                          sx={{
-                            backgroundColor: 'var(--sakay-orange-soft)',
-                            color: 'var(--sakay-orange)',
-                            fontWeight: 600,
-                            fontSize: '12px',
-                            height: '24px',
-                            borderRadius: '6px',
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5, px: 2 }}>
-                        <StatusBadge status={d.accountStatus} />
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5, px: 2 }}>
-                        <Chip
-                          label={!isOnlineNow(d) ? 'Offline' : isPausedNow(d) ? 'Paused' : d.availabilityStatus === 'Busy' ? 'On a trip' : 'Online'}
-                          size="small"
-                          sx={{
-                            height: '22px',
-                            fontSize: '11.5px',
-                            fontWeight: 600,
-                            backgroundColor: !isOnlineNow(d) ? '#F1F3F4' : isPausedNow(d) ? '#FFF7ED' : '#E6F4EA',
-                            color: !isOnlineNow(d) ? '#5F6368' : isPausedNow(d) ? '#C2410C' : '#1E8E3E',
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="right" sx={{ py: 1.5, px: 2, fontSize: '13px', fontWeight: 600 }}>
-                        {activityById.get(d.id)?.completed ?? 0}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-
-        {/* Active SAKAY Trips Card */}
-        <Box
-          sx={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-          }}
+        <OperationsListCard
+          title="SAKAY bookings"
+          subtitle={`Ongoing and recent rides of ${profile?.acronym || 'TODA'} drivers`}
+          count={`${bookings.length} ${bookings.length === 1 ? 'booking' : 'bookings'}`}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: '17px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                Active SAKAY Bookings
-              </Typography>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: '2px' }}>
-                Ongoing and recent rides involving {profile?.acronym || 'TODA'} drivers
-              </Typography>
-            </Box>
-            <Chip
-              label={`${bookings.length} Bookings`}
-              size="small"
-              sx={{ backgroundColor: '#E8F0FE', color: '#1A73E8', fontWeight: 600, fontSize: '12px' }}
-            />
-          </Box>
-
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              border: '1px solid var(--mac-border-color)',
-              borderRadius: '10px',
-              maxHeight: '300px',
-              overflowY: 'auto',
-              '&::-webkit-scrollbar': { width: '6px' },
-              '&::-webkit-scrollbar-thumb': { backgroundColor: '#CBD5E1', borderRadius: '3px' },
-            }}
-          >
-            <Table size="small" stickyHeader>
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Trip Code</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Driver & Plate</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Mode</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '12px', py: 1.5, px: 2 }}>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                      <CircularProgress size={24} sx={{ color: 'var(--sakay-orange)', mb: 1 }} />
-                      <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>Loading trips...</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : bookings.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                      <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>
-                        No active bookings recorded at this time.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  bookings.map((bkg) => (
-                    <TableRow key={bkg.id} sx={{ '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                      <TableCell sx={{ py: 1.5, px: 2, fontWeight: 600, fontSize: '13px', color: 'var(--sakay-orange)' }}>{bkg.bookingCode}</TableCell>
-                      <TableCell sx={{ py: 1.5, px: 2, fontSize: '13px' }}>
-                        <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{bkg.driverName}</Typography>
-                        <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>{bkg.vehiclePlate}</Typography>
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5, px: 2, fontSize: '12.5px' }}>{bkg.tripMode}</TableCell>
-                      <TableCell sx={{ py: 1.5, px: 2 }}>
-                        <StatusBadge status={bkg.status} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
+          <BookingsTable bookings={bookings} isLoading={isLoading} />
+        </OperationsListCard>
       </Box>
+
+      <FarePolicyNote />
     </Box>
   );
 };
+
+// The tab is drawn at the compact density: its MUI parts (modals, menus, fields) get the matching sizes from a theme that only applies under this page.
+export const TodaOperationsPage: React.FC = () => (
+  <ThemeProvider theme={createOperationsTheme}>
+    <TodaOperationsContent />
+  </ThemeProvider>
+);

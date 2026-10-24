@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Popover, Button, List, ListItem, ListItemText, Divider } from '@mui/material';
 import { NotificationItem } from '../../types/toda';
+import { FONT } from '../../styles/density';
 
 interface NotificationPopoverProps {
   open: boolean;
@@ -28,9 +29,13 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         paper: {
           className: 'mac-glass-popover',
           sx: {
-            mt: 1.5,
-            width: 380,
-            maxHeight: 460,
+            mt: '8px',
+            // never wider or taller than the screen: 320 x 368 on a desktop, shrinking on a phone or a short window
+            width: 320,
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: 'min(368px, calc(100dvh - 80px))',
+            display: 'flex',
+            flexDirection: 'column',
             borderRadius: 'var(--mac-radius-lg)',
             boxShadow: 'var(--mac-shadow-popover)',
             overflow: 'hidden',
@@ -38,55 +43,57 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         },
       }}
     >
-      <Box sx={{ p: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--mac-border-color)' }}>
-        <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+      <Box sx={{ p: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexShrink: 0, borderBottom: '1px solid var(--mac-border-color)' }}>
+        <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
           TODA Notifications
         </Typography>
         <Button
           size="small"
           onClick={onMarkAllAsRead}
           sx={{
-            fontSize: '13px',
+            fontSize: FONT.small,
             textTransform: 'none',
-            color: 'var(--sakay-orange)',
+            color: '#B34700',
             fontWeight: 600,
             p: 0,
             minWidth: 0,
+            flexShrink: 0,
           }}
         >
           Mark all as read
         </Button>
       </Box>
 
-      <List sx={{ p: 0, maxHeight: 380, overflowY: 'auto' }}>
+      {/* the list scrolls inside the popup; the title row above stays in view */}
+      <List sx={{ p: 0, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
         {notifications.length > 0 ? (
           notifications.map((n, idx) => (
             <React.Fragment key={n.id}>
               <ListItem
                 sx={{
-                  px: 2.5,
-                  py: 1.8,
+                  px: '16px',
+                  py: '11px',
                   backgroundColor: n.unread ? 'rgba(255, 102, 0, 0.04)' : 'transparent',
                   '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                 }}
               >
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography sx={{ fontSize: '14.5px', fontWeight: n.unread ? 700 : 500, color: 'var(--mac-text-primary)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '3px' }}>
+                      <Typography sx={{ fontSize: FONT.body, fontWeight: n.unread ? 700 : 500, color: 'var(--mac-text-primary)' }}>
                         {n.title}
                       </Typography>
                       {n.unread && (
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--sakay-orange)' }} />
+                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--sakay-orange)', flexShrink: 0, ml: '8px' }} />
                       )}
                     </Box>
                   }
                   secondary={
                     <Box>
-                      <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', lineHeight: 1.4 }}>
+                      <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-secondary)', lineHeight: 1.4 }}>
                         {n.description}
                       </Typography>
-                      <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: '#65656a', mt: '3px' }}>
                         {n.time}
                       </Typography>
                     </Box>
@@ -97,8 +104,8 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
             </React.Fragment>
           ))
         ) : (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)' }}>
+          <Box sx={{ p: '26px', textAlign: 'center' }}>
+            <Typography sx={{ fontSize: FONT.body, color: '#65656a' }}>
               No notifications at this time.
             </Typography>
           </Box>

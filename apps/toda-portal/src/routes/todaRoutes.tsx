@@ -38,7 +38,7 @@ export const TodaRoutes: React.FC = () => {
         path="/operations"
         element={
           <ProtectedRoute>
-            <TodaLayout pageTitle="Operations Monitoring" pageSubtitle="Real-time overview of TODA terminal operations, queue rotation, and active trips">
+            <TodaLayout pageTitle="Operations Monitoring" pageSubtitle="Your drivers, your trips, and what needs your attention">
               <TodaOperationsPage />
             </TodaLayout>
           </ProtectedRoute>
