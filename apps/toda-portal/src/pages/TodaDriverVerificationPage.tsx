@@ -21,7 +21,6 @@ import {
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import { DriverApplicant } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -446,10 +445,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       ) : (
         <>
       {/* 1. The deadline rule: a calm, always-visible reminder. An application past the deadline is marked Overdue in the table and counted below. */}
-      <PageNotice
-        title="Review deadline"
-        badge={<StatusPill tone="warning" label="3 calendar days" icon={<ScheduleIcon aria-hidden sx={{ fontSize: 14 }} />} />}
-      >
+      <PageNotice title="Review deadline">
         Screen each new driver application against the TODA Master Roster, then endorse it or return it within <strong>3 calendar days</strong> of
         submission. After 3 days the application is marked Overdue.
       </PageNotice>
