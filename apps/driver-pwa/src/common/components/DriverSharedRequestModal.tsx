@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Snackbar, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 import { fetchMySharedRequest, respondSharedRequest, type SharedRequestView, TYPOGRAPHY_TOKENS, formatDistance, monotonicNow } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
 import { useLanguage } from '../../utils/LanguageContext';
+import { SakayToast } from './SakayToast';
 
 /** How often the app asks whether a shared-passenger request is waiting (the table is the database's: a driver cannot subscribe to it, so this is the poll) */
 const POLL_MS = 3000;
@@ -114,7 +115,7 @@ export const DriverSharedRequestModal: React.FC = () => {
 
   return (
     <>
-      <Snackbar open={Boolean(toast)} autoHideDuration={7000} onClose={() => setToast('')} message={toast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} />
+      <SakayToast message={toast || null} autoHideDuration={7000} onClose={() => setToast('')} />
       {request && (
         <Dialog open maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: '24px', padding: '8px', backgroundColor: '#FFFFFF', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' } } }}>
           <DialogTitle sx={{ textAlign: 'center', pb: 1, pt: 2 }}>

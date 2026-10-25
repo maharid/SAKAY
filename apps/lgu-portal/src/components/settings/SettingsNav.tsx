@@ -1,12 +1,14 @@
 import React from 'react';
 import { Tab, Tabs } from '@mui/material';
-import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
+import TuneIcon from '@mui/icons-material/Tune';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
+import GavelIcon from '@mui/icons-material/Gavel';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 import { CONTROL, FONT } from '../../styles/density';
 import { PAGE_TEXT } from '../../styles/pageTheme';
 
-export type SettingsCategoryId = 'appearance' | 'support';
+export type SettingsCategoryId = 'preferences' | 'support' | 'legal' | 'about';
 
 export interface SettingsCategory {
   id: SettingsCategoryId;
@@ -16,10 +18,13 @@ export interface SettingsCategory {
   icon: React.ReactElement;
 }
 
-// Only categories that have something real in them (the same rule as the TODA portal's Settings): the colour of the portal, and the way to the help page.
+// Only categories that have something real in them (the same rule as the TODA portal's Settings, which also has Account & Security: the LGU portal keeps the
+// password and the sign-in details under Account Management).
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
-  { id: 'appearance', label: 'Appearance', description: 'How this portal looks.', icon: <PaletteOutlinedIcon /> },
-  { id: 'support', label: 'Help & Support', description: 'User guides and support for LGU administrators.', icon: <HelpOutlinedIcon /> },
+  { id: 'preferences', label: 'Preferences', description: 'How this portal looks.', icon: <TuneIcon /> },
+  { id: 'support', label: 'Help & Support', description: 'Find help, get in touch with the SAKAY team or tell us how the portal is working.', icon: <HelpOutlinedIcon /> },
+  { id: 'legal', label: 'Legal & Privacy', description: 'The rules of using SAKAY and how it looks after personal information.', icon: <GavelIcon /> },
+  { id: 'about', label: 'About SAKAY', description: 'What SAKAY is and who built it.', icon: <InfoOutlinedIcon /> },
 ];
 
 export const settingsTabId = (id: SettingsCategoryId) => `settings-tab-${id}`;
@@ -27,6 +32,7 @@ export const settingsPanelId = (id: SettingsCategoryId) => `settings-panel-${id}
 
 // Below this screen width the categories become a row of tabs above the settings (the sidebar takes 220px of the screen when it is open)
 export const SETTINGS_WIDE_QUERY = '(min-width: 1100px)';
+export const SETTINGS_WIDE_MEDIA = `@media ${SETTINGS_WIDE_QUERY}`;
 
 interface SettingsNavProps {
   value: SettingsCategoryId;

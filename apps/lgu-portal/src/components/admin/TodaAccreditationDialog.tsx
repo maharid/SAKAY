@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Box, TextField, Typography } from '@mui/material';
 
 import { MacCenterModal } from './MacCenterModal';
+import { DateField } from '../common/DateField';
 import { FONT } from '../../styles/density';
 import { PAGE_TEXT } from '../../styles/pageTheme';
 
@@ -99,15 +100,14 @@ export const TodaAccreditationDialog: React.FC<TodaAccreditationDialogProps> = (
           disabled={!hasClearance}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
         />
-        <TextField
+        <DateField
           fullWidth
-          type="date"
           label="Barangay Clearance valid until"
           value={validUntil}
-          onChange={(e) => setValidUntil(e.target.value)}
+          onChange={setValidUntil}
+          min={tomorrow}
           disabled={!hasClearance}
           helperText={declaredValidUntil ? `The TODA states: ${declaredValidUntil}. Check it against the clearance and correct it if it differs.` : 'The TODA stated no date: read it from the clearance.'}
-          slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: tomorrow } }}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
         />
         <TextField

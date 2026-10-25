@@ -52,6 +52,7 @@ import type { OperationsStat } from '../components/operations/OperationsStatStri
 import { OPS_BORDER, OPS_TEXT } from '../components/operations/operationsTheme';
 import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX } from '@sakay/shared/components/dialogStyles';
 import { FONT, SHELL, SPACE } from '../styles/density';
+import { SakayToast } from '../components/common/SakayToast';
 
 // ---- Return for correction (Rules 3.6, 3.8): the TODA names the documents and says why. Rejecting (fraud / ineligible) is a different action.
 const RETURN_DOCUMENTS: { value: ReviewDocumentType; label: string }[] = [
@@ -1024,27 +1025,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
       )}
 
       {/* Global Success / Error Toast Notification */}
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={toastSeverity === 'error' ? 12000 : 5000}
-        onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setToastOpen(false)}
-          severity={toastSeverity}
-          variant="filled"
-          sx={{
-            width: '100%',
-            borderRadius: '10px',
-            fontWeight: 600,
-            fontSize: FONT.body,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-          }}
-        >
-          {toastMessage}
-        </Alert>
-      </Snackbar>
+      <SakayToast open={toastOpen} message={toastMessage} severity={toastSeverity} autoHideDuration={toastSeverity === 'error' ? 12000 : 5000} onClose={() => setToastOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
       </>
       )}
     </Box>

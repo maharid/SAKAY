@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, Box, Button, TableBody, TableCell, TableRow, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
 import { AuditLogRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
 import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
+import { DateField } from '../components/common/DateField';
 import { PageNotice } from '../components/common/PageNotice';
 import { StatStrip } from '../components/common/StatStrip';
 import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
@@ -164,8 +165,8 @@ export const AuditLogPage: React.FC = () => {
       {/* 2B. Date range and export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
       <Box component="section" aria-label="Dates and export" sx={{ ...pageCardSx, p: '12px 16px', mb: SPACE.gapLarge }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 12px' }}>
-          <TextField size="small" type="date" label="From (Manila)" value={fromDay} onChange={(e) => setFromDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} sx={FIELD_SX} />
-          <TextField size="small" type="date" label="To (Manila)" value={toDay} onChange={(e) => setToDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} sx={FIELD_SX} />
+          <DateField label="From (Manila)" value={fromDay} onChange={setFromDay} sx={FIELD_SX} />
+          <DateField label="To (Manila)" value={toDay} onChange={setToDay} sx={FIELD_SX} />
           <Box role="group" aria-label="Export the log" sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', ml: { sm: 'auto' } }}>
             <Button disabled={exportDisabled} onClick={() => void runExport('xlsx')} sx={secondaryButtonSx}>
               {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}

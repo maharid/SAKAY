@@ -150,6 +150,7 @@ import {
 } from '../../services/adminApiService';
 import { CONTROL, FONT } from '../../styles/density';
 import { PAGE_TEXT } from '../../styles/pageTheme';
+import { SakayToast } from '../common/SakayToast';
 
 interface DriverDetailModalProps {
   open: boolean;
@@ -2070,16 +2071,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       </Dialog>
 
       {/* Snackbar Alert */}
-      <Snackbar
-        open={Boolean(snackbarMsg)}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarMsg(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setSnackbarMsg(null)} severity="info" sx={{ width: '100%' }}>
-          {snackbarMsg}
-        </Alert>
-      </Snackbar>
+      <SakayToast message={snackbarMsg} autoHideDuration={4000} onClose={() => setSnackbarMsg(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
       <MacConfirmDialog
         open={reapplyTarget !== null}
         onClose={() => setReapplyTarget(null)}

@@ -448,11 +448,10 @@ describe('the report tables of the LGU Reports page', () => {
     driverUtilizationSummary: { verifiedDrivers: 2, activeDrivers: 1, rate: 50, windowDays: 30 },
   } as unknown as OperationalReportsData;
 
-  it('puts the filter and the pilot scope on every report', () => {
+  it('puts the filter on every report', () => {
     for (const kind of ['Bookings', 'Trend', 'Drivers', 'TODA', 'PeakHours', 'Hotspots', 'Barangay', 'Service', 'Cancellations', 'Incidents'] as const) {
       const t = reportTableFor(kind, data, 'week');
       assert.ok(t.notes.includes('Filter: All dates'), kind);
-      assert.ok(t.notes.some((n) => /one TODA in one barangay/.test(n)), kind);
       assert.ok(t.rows.every((r) => r.length === t.headers.length), `${kind}: every row has a cell for every header`);
     }
   });
@@ -487,15 +486,17 @@ describe('the report tables of the LGU Reports page', () => {
     assert.ok(!t.rows.some((r) => r[1] === 'Weekends'));
   });
 
-  it('summarises the cancellations and the incidents in sections', () => {
+  it('summarises the cancellations and the incidents (one row per item, no Section column)', () => {
     const c = reportTableFor('Cancellations', data, 'week');
-    assert.deepEqual(c.rows[1], ['Summary', 'Cancelled', 1, '25%']);
-    assert.deepEqual(c.rows[2], ['Summary', 'Cancelled before a driver accepted', 1, '100%']);
-    assert.ok(c.rows.some((r) => r[0] === 'Cancelled by' && r[1] === 'Passenger'));
-    assert.ok(c.rows.some((r) => r[0] === 'Reason' && r[1] === 'Changed my mind'));
+    assert.deepEqual(c.headers, ['Item', 'Bookings', 'Share']);
+    assert.deepEqual(c.rows[1], ['Cancelled', 1, '25%']);
+    assert.deepEqual(c.rows[2], ['Cancelled before a driver accepted', 1, '100%']);
+    assert.ok(c.rows.some((r) => r[0] === 'Passenger' && r[1] === 1 && r[2] === '100%'));
+    assert.ok(c.rows.some((r) => r[0] === 'Changed my mind' && r[1] === 1 && r[2] === '100%'));
     const i = reportTableFor('Incidents', data, 'week');
-    assert.deepEqual(i.rows[0], ['Summary', 'Reports filed', 2, '']);
-    assert.ok(i.rows.some((r) => r[0] === 'Decision' && r[1] === 'Upheld'));
+    assert.deepEqual(i.headers, ['Item', 'Reports', 'Share']);
+    assert.deepEqual(i.rows[0], ['Reports filed', 2, '']);
+    assert.ok(i.rows.some((r) => r[0] === 'Upheld'));
   });
 
   it('reports the estimated gross fare value of the completed trips', () => {

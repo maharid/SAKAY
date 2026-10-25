@@ -52,5 +52,20 @@ export const SettingRow: React.FC<SettingRowProps> = ({ title, description, cont
   </Box>
 );
 
+interface SettingFactProps {
+  label: string;
+  children: React.ReactNode;
+}
+
+// One fact of an information panel (About): a label and its value. Side by side when there is room, stacked when there is not.
+export const SettingFact: React.FC<SettingFactProps> = ({ label, children }) => (
+  <Box sx={{ containerType: 'inline-size', py: '14px' }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '2px 24px', '@container (min-width: 520px)': { gridTemplateColumns: '160px minmax(0, 1fr)' } }}>
+      <Typography component="dt" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.secondary }}>{label}</Typography>
+      <Typography component="dd" sx={{ m: 0, fontSize: FONT.body, color: PAGE_TEXT.primary, lineHeight: 1.5, overflowWrap: 'anywhere' }}>{children}</Typography>
+    </Box>
+  </Box>
+);
+
 // The rows of a panel, with a thin line between them
 export const settingsListSx = { '& > * + *': { borderTop: `1px solid ${PAGE_DIVIDER}` } } as const;

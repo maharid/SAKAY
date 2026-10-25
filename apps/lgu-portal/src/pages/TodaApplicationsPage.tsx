@@ -37,6 +37,7 @@ import {
 } from '../services/adminApiService';
 import { FONT } from '../styles/density';
 import { PAGE_BORDER, PAGE_DIVIDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
+import { SakayToast } from '../components/common/SakayToast';
 
 const formatDisplayDate = (dateStr?: string | null): string => {
   if (!dateStr) return 'N/A';
@@ -554,16 +555,7 @@ export const TodaApplicationsPage: React.FC = () => {
       )}
 
       {/* Result of the last action */}
-      <Snackbar
-        open={Boolean(snackbarMessage)}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarMessage(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setSnackbarMessage(null)} severity="info" sx={{ width: '100%' }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      <SakayToast message={snackbarMessage} autoHideDuration={4000} onClose={() => setSnackbarMessage(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
     </Box>
   );
 };

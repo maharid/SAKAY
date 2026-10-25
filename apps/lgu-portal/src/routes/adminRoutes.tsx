@@ -225,7 +225,7 @@ export const AdminRoutes: React.FC = () => {
         path="/preferences"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Settings" pageSubtitle="How the portal looks, and where to find help.">
+            <AdminLayout pageTitle="Settings" pageSubtitle="Preferences, help, legal information and about SAKAY.">
               <SettingsPage />
             </AdminLayout>
           </ProtectedRoute>

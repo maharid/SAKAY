@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Paper,
-  Chip,
-  IconButton,
-  Button,
-  Switch,
-  Snackbar,
-  Alert,
-} from '@mui/material';
+import { Box, Typography, Paper, Chip, IconButton, Button, Switch, Snackbar } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -31,6 +21,7 @@ import {
   saveResubmissionSession,
   type FaultyDocType,
 } from '../../../services/driverOnboardingCache';
+import { SakayToast } from '../../../common/components/SakayToast';
 
 const RETURN_REASON_TL: Record<ReturnReasonCode, string> = {
   blurry: 'Malabo / hindi mabasa',
@@ -1070,21 +1061,7 @@ export const DriverStatusMonitor: React.FC = () => {
       </Box>
 
       {/* Snackbar Notification Toast */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ top: "calc(var(--safe-area-top) + 16px) !important" }}
-      >
-        <Alert
-          onClose={() => setSnackbarOpen(false)}
-          severity={notifyEnabled ? 'success' : 'info'}
-          sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, fontSize: '13px', boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)" }}
-        >
-          {snackbarMsg}
-        </Alert>
-      </Snackbar>
+      <SakayToast open={snackbarOpen} message={snackbarMsg} severity={notifyEnabled ? 'success' : 'info'} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)} />
 
       {/* Pinned Single Action Button */}
       <Box

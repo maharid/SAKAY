@@ -9,13 +9,14 @@ import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Portal from '@mui/material/Portal';
-import Snackbar from '@mui/material/Snackbar';
+
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useInFlight } from '../hooks/useInFlight';
 import { SAFETY_END_REASONS, type SafetyEnd, type SafetyEndReason } from '../utils/tripSafety';
 import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX, EMPTY_OPTION_SX, WRAPPING_SELECT_SLOTS } from './dialogStyles';
+import { SakayToast } from './SakayToast';
 
 export interface SafetyEndTripOption {
   bookingId: string;
@@ -194,9 +195,7 @@ export const SafetyEndTripPanel: React.FC<SafetyEndTripPanelProps> = ({ trips, o
 
         {/* the result after the modal closed: it floats over the page, so it never moves the cards or the tables */}
         <Portal>
-          <Snackbar open={Boolean(message) && !open} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-            {message ? <Alert severity={message.severity} onClose={() => setMessage(null)} sx={{ width: '100%' }}>{message.text}</Alert> : undefined}
-          </Snackbar>
+          <SakayToast open={!open} message={message ? message.text : null} severity={message ? message.severity : 'info'} autoHideDuration={null} onClose={() => setMessage(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
         </Portal>
       </>
     );

@@ -9,9 +9,7 @@ import type { OperationalReportsData } from '../services/operationalReportsServi
 
 export type ReportKind = 'Bookings' | 'Trend' | 'Drivers' | 'TODA' | 'PeakHours' | 'Hotspots' | 'Barangay' | 'Service' | 'Cancellations' | 'Incidents';
 
-const SCOPE_NOTE = 'SAKAY bookings only. The pilot covers one TODA in one barangay, so these are not citywide transport figures. Descriptive analytics only.';
-
-const notesOf = (d: OperationalReportsData): string[] => [`Filter: ${d.filterText}`, SCOPE_NOTE];
+const notesOf = (d: OperationalReportsData): string[] => [`Filter: ${d.filterText}`];
 
 const PERIOD_TITLE: Record<VolumePeriod, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly' };
 const peso = (n: number): string => n.toFixed(2);
@@ -139,15 +137,15 @@ function cancellationsTable(d: OperationalReportsData): ReportTable {
   return {
     title: 'Cancellation Summary Report',
     notes: notesOf(d),
-    headers: ['Section', 'Item', 'Bookings', 'Share'],
+    headers: ['Item', 'Bookings', 'Share'],
     rows: [
-      ['Summary', 'Booking requests', c.requests, ''],
-      ['Summary', 'Cancelled', c.cancelled, share(c.rate)],
-      ['Summary', 'Cancelled before a driver accepted', c.beforeDriverAccepted, ofCancelled(c.beforeDriverAccepted)],
-      ['Summary', 'Cancelled after a driver accepted', c.afterDriverAccepted, ofCancelled(c.afterDriverAccepted)],
-      ['Summary', 'No driver found (not a cancellation by anyone)', c.noDriverFound, ''],
-      ...c.byActor.map((a) => ['Cancelled by', a.label, a.count, share(a.share)]),
-      ...c.byReason.map((r) => ['Reason', r.label, r.count, share(r.share)]),
+      ['Booking requests', c.requests, ''],
+      ['Cancelled', c.cancelled, share(c.rate)],
+      ['Cancelled before a driver accepted', c.beforeDriverAccepted, ofCancelled(c.beforeDriverAccepted)],
+      ['Cancelled after a driver accepted', c.afterDriverAccepted, ofCancelled(c.afterDriverAccepted)],
+      ['No driver found (not a cancellation by anyone)', c.noDriverFound, ''],
+      ...c.byActor.map((a) => [a.label, a.count, share(a.share)]),
+      ...c.byReason.map((r) => [r.label, r.count, share(r.share)]),
     ],
   };
 }
@@ -157,18 +155,18 @@ function incidentsTable(d: OperationalReportsData): ReportTable {
   return {
     title: 'Incident Summary Report',
     notes: [...notesOf(d), 'The barangay filter uses the pickup address of the trip the report is about.'],
-    headers: ['Section', 'Item', 'Reports', 'Share'],
+    headers: ['Item', 'Reports', 'Share'],
     rows: [
-      ['Summary', 'Reports filed', i.total, ''],
-      ['Summary', 'Open (no decision yet)', i.open, ''],
-      ['Summary', 'Decided', i.decided, ''],
-      ['Summary', 'Withdrawn by the reporter', i.withdrawn, ''],
-      ['Summary', 'With the LGU Administrator', i.withLgu, ''],
-      ['Summary', 'With the TODA Administrator', i.withToda, ''],
-      ['Summary', 'Serious (assault, harassment, threat, crime)', i.serious, ''],
-      ...i.byCategory.map((c) => ['Category', c.label, c.count, share(c.share)]),
-      ...i.byStatus.map((c) => ['Status', c.label, c.count, share(c.share)]),
-      ...i.byOutcome.map((c) => ['Decision', c.label, c.count, share(c.share)]),
+      ['Reports filed', i.total, ''],
+      ['Open (no decision yet)', i.open, ''],
+      ['Decided', i.decided, ''],
+      ['Withdrawn by the reporter', i.withdrawn, ''],
+      ['With the LGU Administrator', i.withLgu, ''],
+      ['With the TODA Administrator', i.withToda, ''],
+      ['Serious (assault, harassment, threat, crime)', i.serious, ''],
+      ...i.byCategory.map((c) => [c.label, c.count, share(c.share)]),
+      ...i.byStatus.map((c) => [c.label, c.count, share(c.share)]),
+      ...i.byOutcome.map((c) => [c.label, c.count, share(c.share)]),
     ],
   };
 }

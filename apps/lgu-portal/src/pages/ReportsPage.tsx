@@ -17,7 +17,6 @@ import type { VolumePeriod, XlsxLike } from '@sakay/shared';
 
 import { AnalyticsFilterBar } from '../components/admin/AnalyticsFilterBar';
 import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable';
-import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
 import { ReportTableView } from '../components/admin/ReportTableView';
 import { MeterRow } from '../components/common/MeterRow';
 import { PageNotice } from '../components/common/PageNotice';
@@ -151,9 +150,6 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. What the figures are */}
-      <PilotCoverageNote />
-
       {loadError && (
         <PageNotice
           tone="danger"
@@ -273,9 +269,9 @@ export const ReportsPage: React.FC = () => {
                       ))}
                     </Box>
                     <PanelHeading>Peak hours of each TODA</PanelHeading>
-                    <PeakHoursByGroupTable groupLabel="TODA" rows={reportsData.peakHoursByToda} />
+                    <PeakHoursByGroupTable groupLabel="TODA" rows={reportsData.peakHoursByToda} failed={Boolean(loadError)} />
                     <PanelHeading>Peak hours of each barangay (pickup)</PanelHeading>
-                    <PeakHoursByGroupTable groupLabel="Barangay (pickup)" rows={reportsData.peakHoursByBarangay} />
+                    <PeakHoursByGroupTable groupLabel="Barangay (pickup)" rows={reportsData.peakHoursByBarangay} failed={Boolean(loadError)} />
                     <PanelHeading>The exported table</PanelHeading>
                   </Box>
                 )}
@@ -300,7 +296,7 @@ export const ReportsPage: React.FC = () => {
                   </Box>
                 )}
 
-                <ReportTableView table={table} emptyText={NO_RECORDS[activeReportTab]} />
+                <ReportTableView table={table} emptyText={loadError ? 'The records could not be loaded. Use Try again at the top of the page.' : NO_RECORDS[activeReportTab]} />
               </>
             )
           )}

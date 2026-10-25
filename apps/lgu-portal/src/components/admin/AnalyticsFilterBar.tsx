@@ -3,6 +3,7 @@ import { Box, Button, MenuItem, TextField, Typography } from '@mui/material';
 import { NO_ANALYTICS_FILTER, filterProblem, isFiltered } from '@sakay/shared';
 import type { AnalyticsFilter } from '@sakay/shared';
 
+import { DateField } from '../common/DateField';
 import { FONT, SPACE } from '../../styles/density';
 import { PAGE_TEXT, pageCardSx, rowActionSx } from '../../styles/pageTheme';
 
@@ -29,8 +30,8 @@ export const AnalyticsFilterBar: React.FC<AnalyticsFilterBarProps> = ({ filter, 
   return (
     <Box component="section" aria-label="Filters" sx={{ ...pageCardSx, p: '12px 16px', mb: SPACE.gapLarge }}>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 12px' }}>
-        <TextField size="small" type="date" label="From (Manila)" value={filter.from} onChange={(e) => set({ from: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} sx={FIELD_SX} />
-        <TextField size="small" type="date" label="To (Manila)" value={filter.to} onChange={(e) => set({ to: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} sx={FIELD_SX} />
+        <DateField label="From (Manila)" value={filter.from} onChange={(from) => set({ from })} sx={FIELD_SX} />
+        <DateField label="To (Manila)" value={filter.to} onChange={(to) => set({ to })} sx={FIELD_SX} />
         <TextField select size="small" label="Participating TODA" value={filter.todaId} onChange={(e) => set({ todaId: e.target.value })} sx={FIELD_SX}>
           <MenuItem value="">All TODAs</MenuItem>
           {todaOptions.map((t) => (

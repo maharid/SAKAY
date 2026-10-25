@@ -1,24 +1,8 @@
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  CircularProgress,
-  Alert,
-  InputAdornment,
-  IconButton,
-  LinearProgress,
-  MenuItem,
-  Fade,
-  Snackbar,
-  Slide,
-  Paper,
-  Autocomplete,
-} from '@mui/material';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import { Box, Typography, TextField, Button, CircularProgress, Alert, InputAdornment, IconButton, LinearProgress, MenuItem, Fade, Snackbar, Slide, Autocomplete } from '@mui/material';
+
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -28,7 +12,9 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { ownedObjectPath } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 import { DateCalendarPopover } from '../popovers/DateCalendarPopover';
+import { DateField } from '../common/DateField';
 import SakayPhoneInput from '../common/SakayPhoneInput';
+import { SakayToast } from '../common/SakayToast';
 
 const STEPS = ['Organization', 'Location & Service', 'Membership', 'President & Account', 'Documents', 'Submit'];
 
@@ -617,13 +603,11 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
                 onRemove={() => setDocs({ ...docs, driverList: null })}
               />
             </Box>
-            <TextField
-              type="date"
+            <DateField
               label="Barangay Clearance valid until *"
               value={clearanceValidUntil}
-              onChange={(e) => setClearanceValidUntil(e.target.value)}
+              onChange={setClearanceValidUntil}
               helperText="The date printed on the clearance. The LGU Administrator checks it against the document."
-              slotProps={{ inputLabel: { shrink: true } }}
               sx={{ ...inputStyles, maxWidth: 320 }}
             />
           </Box>
@@ -694,18 +678,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
       </Box>
 
       {/* Global Snackbar for Form-Level Warnings */}
-      <Snackbar
-        open={!!errorMsg}
-        autoHideDuration={5000}
-        onClose={() => setErrorMsg(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ mt: 2 }}
-      >
-        <Paper sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid #FFE5E5', backgroundColor: '#FFF2F2' }}>
-          <ErrorOutlineIcon sx={{ color: '#D92D20', fontSize: '20px' }} />
-          <Typography sx={{ color: '#D92D20', fontSize: '14px', fontWeight: 500 }}>{errorMsg}</Typography>
-        </Paper>
-      </Snackbar>
+      <SakayToast message={errorMsg} severity="error" autoHideDuration={5000} onClose={() => setErrorMsg(null)} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} />
 
     </Box>
   );

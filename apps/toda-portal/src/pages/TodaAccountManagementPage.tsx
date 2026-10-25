@@ -44,6 +44,7 @@ import {
 import { complianceDocumentStatus, submittedDateOfStoredFile } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
 import { FONT, SHELL, SPACE } from '../styles/density';
+import { SakayToast } from '../components/common/SakayToast';
 
 // the heading of a group of fields inside a form window
 const FormSectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -926,21 +927,7 @@ export const TodaAccountManagementPage: React.FC = () => {
       />
 
       {/* What just happened */}
-      <Snackbar
-        open={uploadSnackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setUploadSnackbar((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setUploadSnackbar((prev) => ({ ...prev, open: false }))}
-          severity={uploadSnackbar.severity}
-          variant="filled"
-          sx={{ width: '100%', fontWeight: 600, fontSize: FONT.body, borderRadius: '8px' }}
-        >
-          {uploadSnackbar.message}
-        </Alert>
-      </Snackbar>
+      <SakayToast open={uploadSnackbar.open} message={uploadSnackbar.message} severity={uploadSnackbar.severity} autoHideDuration={6000} onClose={() => setUploadSnackbar((prev) => ({ ...prev, open: false }))} />
     </Box>
   );
 };

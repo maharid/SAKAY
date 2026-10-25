@@ -11,11 +11,14 @@ interface SettingsPanelProps {
   category: SettingsCategory;
   /** only the chosen category is shown; the others stay in the page (hidden), so what someone has set but not saved is not lost when they look at another category */
   active: boolean;
+  /** put a thin line between the rows (true for a list of settings, false for a document) */
+  divided?: boolean;
   children: React.ReactNode;
 }
 
-// The content area of one category: its title and short description, then its rows with a thin line between them.
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ category, active, children }) => (
+// The content area of one category: its title and short description, then its rows.
+// The panel grows to the height of the card, so a panel with a document in it (Legal & Privacy) can give the document all the room that is left.
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ category, active, divided = true, children }) => (
   <Box
     role="tabpanel"
     id={settingsPanelId(category.id)}
@@ -27,6 +30,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ category, active, 
       <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary }}>{category.label}</Typography>
       <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, mt: '2px' }}>{category.description}</Typography>
     </Box>
-    <Box sx={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', ...settingsListSx }}>{children}</Box>
+    <Box sx={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', ...(divided ? settingsListSx : {}) }}>{children}</Box>
   </Box>
 );

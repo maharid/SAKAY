@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Alert, Box, Button, CircularProgress, TableBody, TableCell, TableRow, Typography } from '@mui/material';
-import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,14 +9,15 @@ import type { CoverageGaps, Hotspot, VolumePeriod } from '@sakay/shared';
 import { AnalyticsFilterBar } from '../components/admin/AnalyticsFilterBar';
 import { MiniBarChart } from '../components/admin/MiniBarChart';
 import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable';
-import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
+import { BarChart } from '../components/common/BarChart';
+import { ChartEmpty } from '../components/common/ChartEmpty';
 import { CellStack, DataTableCard } from '../components/common/DataTable';
 import { MeterRow } from '../components/common/MeterRow';
 import { PageNotice } from '../components/common/PageNotice';
 import { SegmentedToggle } from '../components/common/SegmentedToggle';
 import type { SegmentedOption } from '../components/common/SegmentedToggle';
 import { StatStrip } from '../components/common/StatStrip';
-import { DashboardCard, DashboardEmpty } from '../components/dashboard/DashboardCard';
+import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { useOperationalReports } from '../hooks/useOperationalReports';
 import { supabase } from '../services/supabaseClient';
 import { FONT, SPACE } from '../styles/density';
@@ -36,8 +36,7 @@ import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
  *     ○ Passenger utilization, driver utilization, service utilization
  *     ○ A date range, TODA and barangay filter for all of it
  *
- * Descriptive analytics only: every figure is computed from SAKAY records (packages/shared/src/utils/transportAnalytics.ts and transportInsights.ts).
- * The pilot covers one TODA and one barangay, so these figures are not citywide transport demand.
+ * Every figure is computed from SAKAY records (packages/shared/src/utils/transportAnalytics.ts and transportInsights.ts).
  * ============================================================================
  */
 
@@ -75,27 +74,28 @@ interface OutcomeBarProps {
   total: number;
   color: string;
   detail?: string;
-  title?: string;
+  /** The lines of the tooltip under the label (default: how many of how many) */
+  tooltipLines?: string[];
   /** Width of the label column in px */
   labelWidth?: number;
 }
 
 // One bar of a share: "Completed  ▇▇▇▇  12 (34%)"
-const OutcomeBar: React.FC<OutcomeBarProps> = ({ label, count, total, color, detail, title, labelWidth }) => (
+const OutcomeBar: React.FC<OutcomeBarProps> = ({ label, count, total, color, detail, tooltipLines, labelWidth }) => (
   <MeterRow
     label={label}
     valueText={`${count} (${total > 0 ? Math.round((count / total) * 100) : 0}%)`}
     percent={total > 0 ? (count / total) * 100 : 0}
     color={color}
     detail={detail}
-    title={title}
+    tooltipLines={tooltipLines ?? [`${count} of ${total} booking requests (${total > 0 ? Math.round((count / total) * 100) : 0}%)`]}
     labelWidth={labelWidth}
   />
 );
 
-// What a card shows when the filter leaves no booking to count
-const NoBookings: React.FC = () => (
-  <DashboardEmpty icon={<InboxOutlinedIcon aria-hidden />} title="No booking requests match the filter" hint="Try a wider date range, or clear the filters." />
+// What a card shows when the filter leaves no booking to count (or when the figures could not be read: that is not the same as having none)
+const NoBookings: React.FC<{ failed: boolean }> = ({ failed }) => (
+  <ChartEmpty failed={failed} title="No booking requests match the filter" hint="Try a wider date range, or clear the filters." minHeight={180} />
 );
 
 // Two cards side by side once the row is wide enough (measured on the row itself, so it also works beside an open sidebar)
@@ -171,6 +171,7 @@ export const AnalyticsPage: React.FC = () => {
         fillOpacity: 0.25,
         radius: 200 + 500 * (spot.count / maxCount),
       })
+        .bindTooltip(`${spot.label.replace(/</g, '&lt;')}: ${spot.count} ${noun}${spot.count === 1 ? '' : 's'}`, { sticky: true, direction: 'top' })
         .bindPopup(`<b>${spot.label.replace(/</g, '&lt;')}</b><br/>${spot.count} ${noun}${spot.count === 1 ? '' : 's'} (${spot.share}% of located ${noun}s)`)
         .addTo(layer);
     });
@@ -182,7 +183,7 @@ export const AnalyticsPage: React.FC = () => {
   const drivers = data?.driverUtilizationSummary;
   const pax = data?.passengerUtilization;
   const trend = data?.volume[period] ?? [];
-  const trendMax = Math.max(1, ...trend.map((p) => p.total));
+  const failed = Boolean(loadError);
   const trendTotal = trend.reduce((sum, p) => sum + p.total, 0);
   const comparison = data?.comparison[period] ?? null;
   const busiest = (data?.peakHourDistribution ?? []).reduce<{ hour: string; count: number } | null>(
@@ -206,9 +207,6 @@ export const AnalyticsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. What the figures are */}
-      <PilotCoverageNote />
-
       {loadError && (
         <PageNotice
           tone="danger"
@@ -300,48 +298,41 @@ export const AnalyticsPage: React.FC = () => {
                   title={`Booking trend (${trend.length} ${trend.length === 1 ? PERIOD_WORD[period] : PERIOD_RANGE_TEXT[period]})`}
                   description={`${trendTotal} booking${trendTotal === 1 ? '' : 's'} in this period`}
                 >
-                  <Alert
-                    severity={comparison?.direction === 'decline' ? 'warning' : comparison?.direction === 'growth' ? 'success' : 'info'}
-                    sx={{ mb: '14px', py: '2px', borderRadius: '10px', '& .MuiAlert-message': { fontSize: FONT.body, lineHeight: 1.5 } }}
-                  >
-                    {comparisonText()}
-                    {comparison?.inProgress ? ` The current ${PERIOD_WORD[period]} (${comparison.inProgress.label}) has ${comparison.inProgress.total} so far and is not compared until it ends.` : ''}
-                  </Alert>
-                  <Box sx={{ overflowX: 'auto' }}>
-                    <Box
-                      role="img"
-                      aria-label={`Bar chart of bookings per ${PERIOD_WORD[period]}: ${trend.map((p) => `${p.label} ${p.total}`).join(', ')}`}
-                      sx={{ minWidth: trend.length * 36 }}
+                  {/* the comparison of the last two periods; not shown when the figures could not be read (it would compare two periods of nothing) */}
+                  {!failed && (
+                    <Alert
+                      severity={comparison?.direction === 'decline' ? 'warning' : comparison?.direction === 'growth' ? 'success' : 'info'}
+                      sx={{ mb: '14px', py: '2px', borderRadius: '10px', '& .MuiAlert-message': { fontSize: FONT.body, lineHeight: 1.5 } }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: 170, borderBottom: `1px solid ${PAGE_BORDER}` }}>
-                        {trend.map((p) => {
-                          const other = p.total - p.completed - p.cancelled;
-                          const scale = (n: number) => `${(n / trendMax) * 140}px`;
-                          return (
-                            <Box
-                              key={p.key}
-                              title={`${p.label}: ${p.total} booking(s), ${p.completed} completed, ${p.cancelled} cancelled`}
-                              sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}
-                            >
-                              <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: PAGE_TEXT.secondary, mb: '2px' }}>{p.total > 0 ? p.total : ''}</Typography>
-                              <Box sx={{ width: '100%', maxWidth: 34, display: 'flex', flexDirection: 'column', borderRadius: '4px 4px 0 0', overflow: 'hidden' }}>
-                                <Box sx={{ height: scale(other), backgroundColor: '#B0B7C3' }} />
-                                <Box sx={{ height: scale(p.cancelled), backgroundColor: '#DC2626' }} />
-                                <Box sx={{ height: scale(p.completed), backgroundColor: '#2E7D32' }} />
-                              </Box>
-                            </Box>
-                          );
-                        })}
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: '5px', mt: 0.75 }}>
-                        {trend.map((p) => (
-                          <Typography key={p.key} sx={{ flex: 1, minWidth: 0, textAlign: 'center', fontSize: FONT.caption, lineHeight: 1.2, color: PAGE_TEXT.secondary, wordBreak: 'break-word' }}>
-                            {p.label}
-                          </Typography>
-                        ))}
-                      </Box>
-                    </Box>
-                  </Box>
+                      {comparisonText()}
+                      {comparison?.inProgress ? ` The current ${PERIOD_WORD[period]} (${comparison.inProgress.label}) has ${comparison.inProgress.total} so far and is not compared until it ends.` : ''}
+                    </Alert>
+                  )}
+                  <BarChart
+                    ariaLabel={`Bar chart of bookings per ${PERIOD_WORD[period]}`}
+                    height={170}
+                    empty={<ChartEmpty failed={failed} title="No bookings in this period" hint="Try a wider date range, or clear the filters." minHeight={208} />}
+                    points={trend.map((p) => {
+                      const other = p.total - p.completed - p.cancelled;
+                      return {
+                        key: p.key,
+                        label: p.label,
+                        segments: [
+                          { value: p.completed, color: '#2E7D32' },
+                          { value: p.cancelled, color: '#DC2626' },
+                          { value: other, color: '#B0B7C3' },
+                        ],
+                        tooltipTitle: p.label,
+                        tooltipLines: [
+                          `${p.total} booking${p.total === 1 ? '' : 's'}`,
+                          `${p.completed} completed`,
+                          `${p.cancelled} cancelled`,
+                          `${other} other (searching, no driver, in progress)`,
+                        ],
+                      };
+                    })}
+                  />
+                  {trendTotal > 0 && (
                   <Box sx={{ display: 'flex', gap: '6px 16px', mt: '12px', flexWrap: 'wrap' }}>
                     {[
                       ['#2E7D32', 'Completed'],
@@ -354,6 +345,7 @@ export const AnalyticsPage: React.FC = () => {
                       </Box>
                     ))}
                   </Box>
+                  )}
                 </DashboardCard>
 
                 <DashboardCard title="Service utilization" description="What happened to the booking requests">
@@ -369,7 +361,7 @@ export const AnalyticsPage: React.FC = () => {
                       </Box>
                     </Box>
                   ) : (
-                    <NoBookings />
+                    <NoBookings failed={failed} />
                   )}
                 </DashboardCard>
               </Box>
@@ -387,13 +379,16 @@ export const AnalyticsPage: React.FC = () => {
                           count={d.total}
                           total={data.serviceUtilization.requests}
                           color={d.day === 'Saturday' || d.day === 'Sunday' ? '#00897B' : '#FF5500'}
-                          title={d.averagePerDay === null ? undefined : `${d.averagePerDay} booking(s) on an average ${d.day}, over ${d.occurrences} ${d.day}${d.occurrences === 1 ? '' : 's'}`}
+                          tooltipLines={[
+                            `${d.total} of ${data.serviceUtilization.requests} booking requests (${Math.round((d.total / data.serviceUtilization.requests) * 100)}%)`,
+                            ...(d.averagePerDay === null ? [] : [`${d.averagePerDay} on an average ${d.day}, over ${d.occurrences} ${d.day}${d.occurrences === 1 ? '' : 's'}`]),
+                          ]}
                           detail={d.averagePerDay === null ? undefined : `${d.averagePerDay} on an average ${d.day} (${d.occurrences} ${d.day}${d.occurrences === 1 ? '' : 's'} in the period)`}
                         />
                       ))}
                     </Box>
                   ) : (
-                    <NoBookings />
+                    <NoBookings failed={failed} />
                   )}
                 </DashboardCard>
 
@@ -406,6 +401,7 @@ export const AnalyticsPage: React.FC = () => {
                   <PeakHoursByGroupTable
                     groupLabel={peakGroup === 'toda' ? 'TODA' : 'Barangay (pickup)'}
                     rows={peakGroup === 'toda' ? data.peakHoursByToda : data.peakHoursByBarangay}
+                    failed={failed}
                   />
                 </DashboardCard>
               </Box>
@@ -422,10 +418,11 @@ export const AnalyticsPage: React.FC = () => {
                     }}
                   >
                     {[
-                      { title: 'New passenger accounts', rows: data.passengerRegistrations[period], color: '#C2410C', note: 'Accounts whose phone number was confirmed. Not split by TODA or barangay.' },
-                      { title: 'New driver accounts', rows: data.driverRegistrations[period], color: '#1565C0', note: 'Drivers who created an account (any status).' },
+                      { title: 'New passenger accounts', emptyTitle: 'No new passenger accounts in this period', rows: data.passengerRegistrations[period], color: '#C2410C', note: 'Accounts whose phone number was confirmed. Not split by TODA or barangay.' },
+                      { title: 'New driver accounts', emptyTitle: 'No new driver accounts in this period', rows: data.driverRegistrations[period], color: '#1565C0', note: 'Drivers who created an account (any status).' },
                       {
                         title: 'Drivers accredited by the LGU',
+                        emptyTitle: 'No drivers accredited in this period',
                         rows: data.driverAccreditations[period],
                         color: '#2E7D32',
                         note:
@@ -442,7 +439,8 @@ export const AnalyticsPage: React.FC = () => {
                         <MiniBarChart
                           color={c.color}
                           label={c.title}
-                          points={c.rows.map((r) => ({ key: r.key, label: r.label, value: r.count, title: `${r.label}: ${r.count} new (${r.cumulative} in total)` }))}
+                          empty={<ChartEmpty failed={failed} title={c.emptyTitle} hint="Try a wider date range, or clear the filters." minHeight={148} />}
+                          points={c.rows.map((r) => ({ key: r.key, label: r.label, value: r.count, lines: [`${r.count} new`, `${r.cumulative} in total`] }))}
                         />
                         <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '8px', lineHeight: 1.5 }}>{c.note}</Typography>
                       </Box>
@@ -468,7 +466,12 @@ export const AnalyticsPage: React.FC = () => {
                     </Box>
                   }
                 >
-                  <Box sx={{ isolation: 'isolate', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${PAGE_BORDER}` }}>
+                  <Box sx={{ position: 'relative', isolation: 'isolate', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${PAGE_BORDER}` }}>
+                    {spots.length === 0 && (
+                      <Box role={failed ? 'alert' : 'status'} sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, px: '14px', py: '7px', borderRadius: '8px', backgroundColor: '#FFFFFF', border: `1px solid ${PAGE_BORDER}`, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.12)', fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, whiteSpace: 'nowrap' }}>
+                        {failed ? 'Hotspots could not be loaded' : 'No hotspots to show'}
+                      </Box>
+                    )}
                     <div ref={mapRef} role="region" aria-label="Map of booking activity hotspots" style={{ width: '100%', height: '380px' }} />
                   </Box>
                 </DashboardCard>

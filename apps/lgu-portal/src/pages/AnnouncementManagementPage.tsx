@@ -1,19 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  Typography,
-  TableBody,
-  TableCell,
-  TableRow,
-  Button,
-  TextField,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Snackbar,
-  Alert,
-} from '@mui/material';
+import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem, Select, FormControl, InputLabel, Alert } from '@mui/material';
 import AddAlertIcon from '@mui/icons-material/AddAlert';
 import PublishIcon from '@mui/icons-material/Publish';
 import UnpublishedIcon from '@mui/icons-material/Unpublished';
@@ -41,6 +27,7 @@ import {
 import { FONT } from '../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, secondaryButtonSx, rowActionSx } from '../styles/pageTheme';
 import { shakeElement } from '../utils/shakeElement';
+import { SakayToast } from '../components/common/SakayToast';
 
 // How the form is being written to the database: a new announcement shown now, a new one kept as a draft, or changes to an existing one
 type SaveMode = 'publish' | 'draft' | 'update';
@@ -669,16 +656,7 @@ export const AnnouncementManagementPage: React.FC = () => {
         />
       )}
 
-      <Snackbar
-        open={Boolean(notice)}
-        autoHideDuration={notice?.severity === 'error' ? 8000 : 4000}
-        onClose={() => setNotice(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setNotice(null)} severity={notice?.severity ?? 'info'} sx={{ width: '100%' }}>
-          {notice?.text}
-        </Alert>
-      </Snackbar>
+      <SakayToast message={notice?.text ?? null} severity={notice?.severity ?? 'info'} autoHideDuration={notice?.severity === 'error' ? 8000 : 4000} onClose={() => setNotice(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
     </Box>
   );
 };

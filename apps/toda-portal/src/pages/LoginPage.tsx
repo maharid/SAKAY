@@ -16,11 +16,12 @@ import {
 } from '@mui/material';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+
 import appIconDriver from '@sakay/shared/assets/icons/app-icon-driver.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import splashBg from '@sakay/shared/assets/images/webp/splash-bg.webp';
 import { useAuth } from '../contexts/AuthContext';
+import { SakayToast } from '../components/common/SakayToast';
 
 const inputStyles = {
   '& .MuiOutlinedInput-root': {
@@ -398,25 +399,7 @@ export const LoginPage: React.FC = () => {
       </Box>
 
       {/* Global Snackbar for Form-Level Warnings */}
-      <Snackbar
-        open={!!displayError || !!localSuccess}
-        autoHideDuration={5000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ mt: 2 }}
-      >
-        {displayError ? (
-          <Paper sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid #FFE5E5', backgroundColor: '#FFF2F2' }}>
-            <ErrorOutlineIcon sx={{ color: '#D92D20', fontSize: '20px' }} />
-            <Typography sx={{ color: '#D92D20', fontSize: '14px', fontWeight: 500 }}>{displayError}</Typography>
-          </Paper>
-        ) : localSuccess ? (
-          <Paper sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid #D1FADF', backgroundColor: '#ECFDF3' }}>
-            <ErrorOutlineIcon sx={{ color: '#027A48', fontSize: '20px' }} />
-            <Typography sx={{ color: '#027A48', fontSize: '14px', fontWeight: 500 }}>{localSuccess}</Typography>
-          </Paper>
-        ) : undefined}
-      </Snackbar>
+      <SakayToast message={displayError || localSuccess || null} severity={displayError ? 'error' : 'success'} autoHideDuration={5000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} />
     </Box>
   );
 };
