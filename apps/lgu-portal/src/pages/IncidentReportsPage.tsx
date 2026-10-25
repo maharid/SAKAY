@@ -158,6 +158,7 @@ export const IncidentReportsPage: React.FC = () => {
 
       {/* 2. Search and filters */}
       <FilterToolbar
+        stacked
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search incident, driver, complainant"

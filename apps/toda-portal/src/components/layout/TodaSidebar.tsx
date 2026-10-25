@@ -14,7 +14,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import CloseIcon from '@mui/icons-material/Close';
 
-import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
+import appIconToto from '@sakay/shared/assets/icons/app-icon-toto.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
 import { ToneStatusPill } from '../common/DataTable';
@@ -262,7 +262,7 @@ export const TodaSidebar: React.FC<TodaSidebarProps> = ({ collapsed, onToggleCol
           width: '100%',
         }}
       >
-        <Box component="img" src={appIcon} alt="SAKAY" sx={{ width: 22, height: 22, minWidth: 22, objectFit: 'contain', flexShrink: 0 }} />
+        <Box component="img" src={appIconToto} alt="SAKAY" sx={{ width: 28, height: 23, minWidth: 28, objectFit: 'contain', flexShrink: 0 }} />
         {!collapsed && (
           <Box sx={{ display: 'flex', flexDirection: 'column', ml: '8px', minWidth: 0 }}>
             <Box component="img" src={logoTextOrange} alt="" sx={{ height: 18, width: 'auto', objectFit: 'contain', alignSelf: 'flex-start' }} />

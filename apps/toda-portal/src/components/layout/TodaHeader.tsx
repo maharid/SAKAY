@@ -6,6 +6,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { ProfileAvatar } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/toda';
@@ -256,23 +257,7 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
               },
             }}
           >
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                borderRadius: '50%',
-                backgroundColor: 'var(--sakay-orange-soft)',
-                color: 'var(--sakay-orange)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '10.5px',
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {adminName.charAt(0).toUpperCase()}
-            </Box>
+            <ProfileAvatar name={adminName} size={24} />
             <Typography
               sx={{
                 fontSize: FONT.caption,
@@ -313,24 +298,7 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
           >
             {/* Identity: the initial, the name, the role and the e-mail the account was signed in with */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', p: '12px 14px' }}>
-              <Box
-                aria-hidden
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: FONT.heading,
-                  fontWeight: 700,
-                  color: '#FFFFFF',
-                  background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
-                }}
-              >
-                {adminName.charAt(0).toUpperCase()}
-              </Box>
+              <ProfileAvatar name={adminName} size={36} />
               <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.25 }}>
                   {adminName}

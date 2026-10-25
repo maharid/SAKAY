@@ -247,9 +247,9 @@ export const AdminRoutes: React.FC = () => {
         path="/tulong"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Tulong / Help" pageSubtitle="LGU Admin user guides and support documentation">
+            <AdminLayout pageTitle="Help & Support" pageSubtitle="LGU Admin user guides and support documentation">
               <PlaceholderPage
-                title="Tulong & Admin Support Center"
+                title="Help & Support Center"
                 subtitle="Access official documentation, municipal operational guidelines, and administrator support contacts."
               />
             </AdminLayout>

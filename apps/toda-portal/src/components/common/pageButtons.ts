@@ -39,6 +39,14 @@ export const secondaryButtonSx = {
   '&:hover': { backgroundColor: 'var(--sakay-orange-soft)', borderColor: 'var(--sakay-orange-border)' },
 } as const;
 
+/** An outlined red button for an action that removes something but can still be cancelled (Discard Changes). */
+export const dangerOutlineButtonSx = {
+  ...secondaryButtonSx,
+  color: OPS_TEXT.danger,
+  borderColor: 'rgba(185, 28, 28, 0.35)',
+  '&:hover': { backgroundColor: '#FEF2F2', borderColor: OPS_TEXT.danger },
+} as const;
+
 type RowActionTone = 'neutral' | 'brand' | 'danger';
 
 const ROW_ACTION_COLORS: Record<RowActionTone, { color: string; border: string; hoverBackground: string }> = {

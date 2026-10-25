@@ -1362,7 +1362,9 @@ export async function postTodaAnnouncement(
   title: string,
   message: string,
   urgency: 'Standard' | 'High Priority' = 'Standard',
-  todaId?: string
+  todaId?: string,
+  /** false saves a draft that no driver sees until it is published */
+  publish = true
 ) {
   const effectiveTodaId = await getEffectiveTodaId(todaId);
 
@@ -1372,7 +1374,7 @@ export async function postTodaAnnouncement(
       title,
       message,
       urgency: urgency === 'High Priority' ? 'Urgent' : 'Normal',
-      is_published: true,
+      is_published: publish,
       toda_id: effectiveTodaId,
     },
   ]).select().single();
@@ -1380,14 +1382,55 @@ export async function postTodaAnnouncement(
   if (error) throw error;
 
   await recordTodaAuditAction({
-    actionType: 'TODA_ANNOUNCEMENT_POSTED',
+    actionType: publish ? 'TODA_ANNOUNCEMENT_POSTED' : 'TODA_ANNOUNCEMENT_DRAFTED',
     targetId: data?.announcement_id,
     targetName: title,
-    details: `Posted new TODA announcement: "${title}"`,
+    details: publish ? `Posted new TODA announcement: "${title}"` : `Saved a TODA announcement as a draft: "${title}"`,
     category: 'Announcement',
   });
 
   return data;
+}
+
+/** Row security answers "no permission" with zero rows, not an error: a change that touched nothing is reported as a failure (the same as the LGU portal). */
+function announcementChanged(result: { data: unknown[] | null; error: { message: string } | null }): void {
+  if (result.error) throw new Error(result.error.message);
+  if (!result.data || result.data.length === 0) {
+    throw new Error('The announcement was not changed. It may have been deleted, or this account may not be allowed to change it.');
+  }
+}
+
+/** Changes the text or the priority of an existing announcement (the same row; the publish state is untouched). */
+export async function updateTodaAnnouncement(
+  announcementId: string,
+  input: { title: string; message: string; urgency: 'Standard' | 'High Priority' }
+): Promise<void> {
+  announcementChanged(
+    await supabase
+      .from('announcement')
+      .update({ title: input.title, message: input.message, urgency: input.urgency === 'High Priority' ? 'Urgent' : 'Normal' })
+      .eq('announcement_id', announcementId)
+      .select('announcement_id')
+  );
+  await recordTodaAuditAction({
+    actionType: 'TODA_ANNOUNCEMENT_EDITED',
+    targetId: announcementId,
+    targetName: input.title,
+    details: `Edited the TODA announcement: "${input.title}"`,
+    category: 'Announcement',
+  });
+}
+
+/** Publishes (or hides again) an existing announcement; the database stamps the publication time. */
+export async function setTodaAnnouncementPublished(announcementId: string, published: boolean, title = ''): Promise<void> {
+  announcementChanged(await supabase.from('announcement').update({ is_published: published }).eq('announcement_id', announcementId).select('announcement_id'));
+  await recordTodaAuditAction({
+    actionType: published ? 'TODA_ANNOUNCEMENT_PUBLISHED' : 'TODA_ANNOUNCEMENT_UNPUBLISHED',
+    targetId: announcementId,
+    targetName: title || undefined,
+    details: `${published ? 'Published' : 'Unpublished'} the TODA announcement${title ? `: "${title}"` : ''}`,
+    category: 'Announcement',
+  });
 }
 
 export async function deleteTodaAnnouncement(id: string) {

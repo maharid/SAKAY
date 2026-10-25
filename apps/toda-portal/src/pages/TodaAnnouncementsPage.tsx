@@ -1,28 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem } from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
+import { shakeElement } from '@sakay/shared';
 
 import { TodaAnnouncement } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { UnsavedChangesDialog } from '../components/admin/UnsavedChangesDialog';
+import { SakayToast } from '../components/common/SakayToast';
 import { SendReminderDialog } from '../components/announcements/SendReminderDialog';
 import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
 import type { OperationsStat } from '../components/operations/OperationsStatStrip';
 import { DataTableCard, DataTableMessageRow, StatusPill } from '../components/common/DataTable';
 import { PageNotice } from '../components/common/PageNotice';
 import { primaryButtonSx, rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
-import { OPS_TEXT } from '../components/operations/operationsTheme';
+import { OPS_BORDER, OPS_TEXT } from '../components/operations/operationsTheme';
 import { FONT, SHELL, SPACE } from '../styles/density';
 import {
   fetchTodaAnnouncements,
   postTodaAnnouncement,
+  updateTodaAnnouncement,
+  setTodaAnnouncementPublished,
   deleteTodaAnnouncement,
-  recordTodaAuditAction,
 } from '../services/todaApiService';
+
+// How the form is being written to the database: a new announcement shown now, a new one kept as a draft, or changes to an existing one
+type SaveMode = 'publish' | 'draft' | 'update';
+
+// A short message under each field that is missing
+interface FormErrors {
+  title?: string;
+  message?: string;
+}
+
+// The text fields of the form (the same as the LGU portal's). A field that needs attention keeps a red outline and label even while it has the focus (the portal's
+// focus colour is orange).
+const TEXT_FIELD_SX = {
+  '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+  '&& .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: OPS_TEXT.danger },
+  '&& .MuiInputLabel-root.Mui-error': { color: OPS_TEXT.danger },
+} as const;
 
 // toda announcements broadcast management and driver mobile PWA push notifications
 export const TodaAnnouncementsPage: React.FC = () => {
@@ -49,7 +70,6 @@ export const TodaAnnouncementsPage: React.FC = () => {
 
   // Selected announcement for detail/edit modal
   const [selectedAnn, setSelectedAnn] = useState<TodaAnnouncement | null>(null);
-  const [editingAnn, setEditingAnn] = useState<TodaAnnouncement | null>(null);
 
   // Modals & Dialogs
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -60,6 +80,25 @@ export const TodaAnnouncementsPage: React.FC = () => {
   const [formMessage, setFormMessage] = useState('');
   const [formCategory, setFormCategory] = useState<TodaAnnouncement['category']>('Terminal Rules');
   const [formUrgency, setFormUrgency] = useState<'Standard' | 'High Priority'>('Standard');
+  // the announcement being edited (null = composing a new one) and whether it is published (an edit never changes that)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingPublished, setEditingPublished] = useState(false);
+  // what is being written to the database right now (null = nothing)
+  const [savingMode, setSavingMode] = useState<SaveMode | null>(null);
+  const saving = savingMode !== null;
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  // "keep what you typed?" window, shown when the form is closed with content that has not been saved
+  const [dismissOpen, setDismissOpen] = useState(false);
+  const [dismissError, setDismissError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
+
+  // What the form held when it was opened: closing it is only a question when it now holds something different
+  const formBaseline = useRef({ title: '', message: '', category: 'Terminal Rules' as TodaAnnouncement['category'], urgency: 'Standard' as TodaAnnouncement['urgency'] });
+  // The fields, so the first missing one can be focused and every missing one can shake
+  const titleFieldRef = useRef<HTMLDivElement>(null);
+  const messageFieldRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Filter Logic
   const filteredAnnouncements = announcements.filter((ann) => {
@@ -94,49 +133,148 @@ export const TodaAnnouncementsPage: React.FC = () => {
     { label: 'Draft', value: 'Draft' },
   ];
 
-  // Open Create Modal
-  const handleOpenCreate = () => {
-    setEditingAnn(null);
-    setFormTitle('');
-    setFormMessage('');
-    setFormCategory('Terminal Rules');
-    setFormUrgency('Standard');
+  /** Reads the list again from the database (what the Driver App and the audit log will see) and keeps the open details window in step. */
+  const reload = async () => {
+    const fresh = (await fetchTodaAnnouncements()) || [];
+    setAnnouncements(fresh);
+    setSelectedAnn((prev) => (prev ? fresh.find((a) => a.id === prev.id) ?? null : null));
+  };
+
+  const failure = (err: unknown) => setNotice({ severity: 'error', text: err instanceof Error ? err.message : 'The change could not be saved.' });
+
+  // Opens the form with these values, and remembers them as the starting point
+  const openForm = (values: { id: string | null; published: boolean; title: string; message: string; category: TodaAnnouncement['category']; urgency: TodaAnnouncement['urgency'] }) => {
+    setEditingId(values.id);
+    setEditingPublished(values.published);
+    setFormTitle(values.title);
+    setFormMessage(values.message);
+    setFormCategory(values.category);
+    setFormUrgency(values.urgency);
+    setFormErrors({});
+    setDismissOpen(false);
+    setDismissError(null);
+    formBaseline.current = { title: values.title.trim(), message: values.message.trim(), category: values.category, urgency: values.urgency };
     setCreateModalOpen(true);
   };
+
+  // Open Create Modal
+  const handleOpenCreate = () => openForm({ id: null, published: false, title: '', message: '', category: 'Terminal Rules', urgency: 'Standard' });
 
   // Open Edit Modal
   const handleOpenEdit = (ann: TodaAnnouncement) => {
     setSelectedAnn(null);
-    setEditingAnn(ann);
-    setFormTitle(ann.title);
-    setFormMessage(ann.message);
-    setFormCategory(ann.category);
-    setFormUrgency(ann.urgency);
-    setCreateModalOpen(true);
+    openForm({ id: ann.id, published: ann.isPublished, title: ann.title, message: ann.message, category: ann.category, urgency: ann.urgency });
   };
 
-  // Action: Create or Edit Announcement
-  const handleSaveAnnouncement = async (isPublishingImmediately: boolean) => {
-    if (!formTitle.trim() || !formMessage.trim()) return;
+  /** True when the form holds something that would be lost by closing it: any text in a new announcement, or any change to an existing one. */
+  const hasUnsavedChanges = (): boolean => {
+    const base = formBaseline.current;
+    if (!editingId) return Boolean(formTitle.trim() || formMessage.trim());
+    return formTitle.trim() !== base.title || formMessage.trim() !== base.message || formCategory !== base.category || formUrgency !== base.urgency;
+  };
 
-    try {
-      await postTodaAnnouncement(formTitle.trim(), formMessage.trim(), formUrgency);
-      loadAnnouncements();
-    } catch (err) {
-      console.error('[TodaAnnouncements] Save error:', err);
+  /** Cancel, the X, Escape or a click outside: closes at once when there is nothing to lose, otherwise asks first. The form is never cleared here. */
+  const requestClose = () => {
+    if (saving) return;
+    if (hasUnsavedChanges()) {
+      setDismissError(null);
+      setDismissOpen(true);
+    } else {
+      setCreateModalOpen(false);
     }
-
-    setFormTitle('');
-    setFormMessage('');
-    setCreateModalOpen(false);
-    setEditingAnn(null);
   };
 
-  // Action: Publish Existing Draft from Detail Modal
-  const handlePublishDraft = (ann: TodaAnnouncement) => {
-    setAnnouncements((prev) =>
-      prev.map((a) => (a.id === ann.id ? { ...a, isPublished: true } : a))
-    );
+  /**
+   * Checks that the title and the message are filled in. A missing one gets a short message under it, the first is focused, and each shakes once.
+   * Nothing is saved and nothing the person typed is touched. Returns true when both are there.
+   */
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+    if (!formTitle.trim()) errors.title = 'Enter a title.';
+    if (!formMessage.trim()) errors.message = 'Enter the message.';
+    setFormErrors(errors);
+    if (!errors.title && !errors.message) return true;
+    // after this click has settled (a window that asked may still be closing and handing the focus back)
+    window.setTimeout(() => {
+      (errors.title ? titleInputRef : messageInputRef).current?.focus();
+      if (errors.title) shakeElement(titleFieldRef.current);
+      if (errors.message) shakeElement(messageFieldRef.current);
+    }, 0);
+    return false;
+  };
+
+  /**
+   * Writes the form to the database as a published announcement, a draft, or changes to the one being edited, then closes it and reads the list again, so what is
+   * shown is what was saved. Returns null when it was saved, or the reason it was not (the form then stays open with everything in it).
+   */
+  const persist = async (mode: SaveMode): Promise<string | null> => {
+    setSavingMode(mode);
+    const title = formTitle.trim();
+    const message = formMessage.trim();
+    try {
+      if (mode === 'update' && editingId) {
+        await updateTodaAnnouncement(editingId, { title, message, urgency: formUrgency });
+      } else {
+        await postTodaAnnouncement(title, message, formUrgency, undefined, mode === 'publish');
+      }
+    } catch (err) {
+      return err instanceof Error ? err.message : 'The change could not be saved.';
+    } finally {
+      setSavingMode(null);
+    }
+    setNotice({
+      severity: 'success',
+      text:
+        mode === 'update'
+          ? 'The announcement was updated.'
+          : mode === 'publish'
+          ? 'The announcement was published.'
+          : 'Saved as a draft. Open it and choose Publish when it is ready.',
+    });
+    setCreateModalOpen(false);
+    try {
+      await reload();
+    } catch (err) {
+      failure(err);
+    }
+    return null;
+  };
+
+  /** The form's main button: Publish for a new announcement, Save changes for an existing one. Both need a title and a message. */
+  const handleSaveSubmit = async () => {
+    if (saving || !validateForm()) return;
+    const error = await persist(editingId ? 'update' : 'publish');
+    if (error) setNotice({ severity: 'error', text: error });
+  };
+
+  /** "Save as Draft" (or "Save Changes") in the window that asks about unsaved content: the form closes only if the save worked. */
+  const handleDismissSave = async () => {
+    if (saving) return;
+    if (!validateForm()) {
+      // a draft needs a title and a message too: back to the form, which now points at what is missing
+      setDismissOpen(false);
+      return;
+    }
+    setDismissError(null);
+    const error = await persist(editingId ? 'update' : 'draft');
+    if (error) setDismissError(error);
+    else setDismissOpen(false);
+  };
+
+  const handleDiscard = () => {
+    setDismissOpen(false);
+    setCreateModalOpen(false);
+  };
+
+  // Action: Publish Existing Draft from Detail Modal (saved to the database; the database stamps the time)
+  const handlePublishDraft = async (ann: TodaAnnouncement) => {
+    try {
+      await setTodaAnnouncementPublished(ann.id, true, ann.title);
+      await reload();
+      setNotice({ severity: 'success', text: 'The announcement is published.' });
+    } catch (err) {
+      failure(err);
+    }
     setSelectedAnn(null);
   };
 
@@ -155,8 +293,6 @@ export const TodaAnnouncementsPage: React.FC = () => {
     setDeleteDialogOpen(false);
     setSelectedAnn(null);
   };
-
-  const isFormValid = formTitle.trim() && formMessage.trim();
 
   // Send a reminder to the TODA's drivers
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -309,73 +445,112 @@ export const TodaAnnouncementsPage: React.FC = () => {
       {/* 5. Write or edit an announcement */}
       <MacCenterModal
         open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        title={editingAnn ? "Edit TODA Announcement" : "Create New TODA Announcement"}
-        subtitle="Your drivers read it in their Driver App"
-        maxWidth={560}
-        primaryActionLabel={isFormValid ? (editingAnn ? "Save Announcement" : "Publish Announcement") : undefined}
-        onPrimaryAction={isFormValid ? () => handleSaveAnnouncement(true) : undefined}
-        secondaryActionLabel={isFormValid && !editingAnn ? "Save as Draft" : "Cancel"}
-        onSecondaryAction={() => {
-          if (isFormValid && !editingAnn) {
-            handleSaveAnnouncement(false);
-          } else {
-            setCreateModalOpen(false);
-          }
-        }}
+        onClose={requestClose}
+        title={editingId ? 'Edit announcement' : 'New announcement'}
+        subtitle={editingId ? 'Changes are saved to the same announcement.' : 'Your drivers read it in their Driver App.'}
+        maxWidth={544}
+        primaryActionLabel={savingMode === 'publish' ? 'Publishing...' : saving ? 'Saving...' : editingId ? 'Save changes' : 'Publish'}
+        primaryActionDisabled={saving}
+        onPrimaryAction={handleSaveSubmit}
+        secondaryActionLabel="Cancel"
+        onSecondaryAction={requestClose}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             fullWidth
-            label="Announcement Title"
-            placeholder="e.g. Mandatory General Assembly Meeting on May 20..."
+            required
+            label="Title"
+            placeholder="e.g. Mandatory General Assembly Meeting on May 20"
             value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
+            onChange={(e) => {
+              setFormTitle(e.target.value);
+              if (formErrors.title && e.target.value.trim()) setFormErrors((prev) => ({ ...prev, title: undefined }));
+            }}
+            ref={titleFieldRef}
+            inputRef={titleInputRef}
+            error={Boolean(formErrors.title)}
+            helperText={formErrors.title}
+            slotProps={{ formHelperText: { role: 'alert' } }}
+            sx={TEXT_FIELD_SX}
           />
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: '13px' }}>
-            <TextField
-              select
-              fullWidth
-              label="Category"
-              value={formCategory}
-              onChange={(e) => setFormCategory(e.target.value as any)}
-            >
-              {categoryOptions.filter((c) => c.value !== 'All').map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              fullWidth
-              label="Urgency Priority"
-              value={formUrgency}
-              onChange={(e) => setFormUrgency(e.target.value as any)}
-            >
-              <MenuItem value="Standard">Standard Priority</MenuItem>
-              <MenuItem value="High Priority">High Priority (Urgent Advisory)</MenuItem>
-            </TextField>
-          </Box>
-
           <TextField
             fullWidth
+            required
             multiline
             rows={4}
-            label="Announcement Content / Message"
-            placeholder="Provide clear details and instructions for TODA member drivers..."
+            label="Message"
+            placeholder="Write the advisory, instructions, or details for your member drivers."
             value={formMessage}
-            onChange={(e) => setFormMessage(e.target.value)}
+            onChange={(e) => {
+              setFormMessage(e.target.value);
+              if (formErrors.message && e.target.value.trim()) setFormErrors((prev) => ({ ...prev, message: undefined }));
+            }}
+            ref={messageFieldRef}
+            inputRef={messageInputRef}
+            error={Boolean(formErrors.message)}
+            helperText={formErrors.message}
+            slotProps={{ formHelperText: { role: 'alert' } }}
+            sx={TEXT_FIELD_SX}
           />
 
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-            <NotificationsActiveIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 17, mt: '1px', flexShrink: 0 }} />
-            <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, lineHeight: 1.5 }}>
-              All member drivers are notified in their Driver App when an announcement is published or updated.
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.6 }}>
+            <FormControl fullWidth>
+              <InputLabel id="announcement-category-label">Category</InputLabel>
+              <Select
+                labelId="announcement-category-label"
+                value={formCategory}
+                label="Category"
+                onChange={(e) => setFormCategory(e.target.value as TodaAnnouncement['category'])}
+                sx={{ borderRadius: '10px' }}
+              >
+                {categoryOptions.filter((c) => c.value !== 'All').map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel id="announcement-urgency-label">Urgency Priority</InputLabel>
+              <Select
+                labelId="announcement-urgency-label"
+                value={formUrgency}
+                label="Urgency Priority"
+                onChange={(e) => setFormUrgency(e.target.value as TodaAnnouncement['urgency'])}
+                sx={{ borderRadius: '10px' }}
+              >
+                <MenuItem value="Standard">Standard Priority</MenuItem>
+                <MenuItem value="High Priority">High Priority (Urgent Advisory)</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          <Box sx={{ backgroundColor: '#FAFAF8', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${OPS_BORDER}` }}>
+            <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary }}>
+              {editingId
+                ? `This announcement stays ${editingPublished ? 'published' : 'unpublished'}. ${editingPublished ? 'Your member drivers see the changes in their Driver App.' : 'Use Publish in its details window to change that.'}`
+                : 'Publish shows it to your member drivers now. To keep it for later, close this window and choose Save as Draft.'}
             </Typography>
           </Box>
         </Box>
       </MacCenterModal>
+
+      {/* 5b. Closing the form with content that is not saved yet */}
+      <UnsavedChangesDialog
+        open={createModalOpen && dismissOpen}
+        title={editingId ? 'Save your changes?' : 'Save this as a draft?'}
+        message={
+          editingId
+            ? 'You changed this announcement but have not saved the changes.'
+            : 'This announcement has not been published. Save it as a draft to finish it later, or discard what you wrote.'
+        }
+        saveLabel={editingId ? 'Save Changes' : 'Save as Draft'}
+        busy={saving}
+        error={dismissError}
+        onSave={handleDismissSave}
+        onDiscard={handleDiscard}
+        onKeepEditing={() => setDismissOpen(false)}
+      />
 
       {/* 6. Read an announcement (publish or edit from here) */}
       {selectedAnn && !deleteDialogOpen && (
@@ -434,6 +609,8 @@ export const TodaAnnouncementsPage: React.FC = () => {
         confirmVariant="danger"
         onConfirm={handleDeleteConfirm}
       />
+
+      <SakayToast message={notice?.text ?? null} severity={notice?.severity ?? 'info'} autoHideDuration={notice?.severity === 'error' ? 8000 : 4000} onClose={() => setNotice(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
     </Box>
   );
 };

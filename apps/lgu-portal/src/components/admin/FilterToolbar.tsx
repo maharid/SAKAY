@@ -35,6 +35,8 @@ export interface FilterToolbarProps {
   onResetFilters?: () => void;
   actionButton?: React.ReactNode;
   disableMarginBottom?: boolean;
+  /** For a toolbar with many filters (more than will sit beside the search box): the search box on its own row, and the filters under it in one even row (Reset and the action on the right) */
+  stacked?: boolean;
 }
 
 export const FilterToolbar: React.FC<FilterToolbarProps> = ({
@@ -45,6 +47,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   onResetFilters,
   actionButton,
   disableMarginBottom = false,
+  stacked = false,
 }) => {
   return (
     <Card
@@ -61,14 +64,14 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
       <Box
         sx={{
           display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'stretch', md: 'center' },
+          flexDirection: stacked ? 'column' : { xs: 'column', md: 'row' },
+          alignItems: stacked ? 'stretch' : { xs: 'stretch', md: 'center' },
           justifyContent: 'space-between',
           gap: 1.6,
         }}
       >
         {/* Left side: Search Field */}
-        <Box sx={{ flex: { xs: '1 1 100%', md: '0 1 360px' } }}>
+        <Box sx={stacked ? { width: '100%', maxWidth: 440 } : { flex: { xs: '1 1 100%', md: '0 1 360px' } }}>
           {onSearchChange && (
             <TextField
               size="small"
@@ -117,9 +120,10 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            justifyContent: { xs: 'flex-start', md: 'flex-end' },
+            justifyContent: stacked ? 'flex-start' : { xs: 'flex-start', md: 'flex-end' },
             gap: 1.2,
-            ml: { md: 'auto' },
+            ml: stacked ? 0 : { md: 'auto' },
+            width: stacked ? '100%' : undefined,
           }}
         >
           {/* Dynamic Select Filters */}
@@ -127,10 +131,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             <FormControl
               key={filter.id}
               size="small"
-              sx={{
-                minWidth: filter.width || 160,
-                flexShrink: 0,
-              }}
+              sx={stacked ? { flex: '1 1 150px', minWidth: 140, maxWidth: 240 } : { minWidth: filter.width || 160, flexShrink: 0 }}
             >
               <Select
                 value={filter.value}
@@ -185,6 +186,8 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 fontWeight: 500,
                 textTransform: 'none',
                 flexShrink: 0,
+                // stacked: Reset and the action button sit together at the right end of the row
+                ml: stacked ? 'auto' : undefined,
                 '&:hover': {
                   backgroundColor: 'var(--sakay-orange-soft)',
                   color: 'var(--sakay-orange)',
@@ -198,7 +201,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
 
           {/* Optional Action Button */}
           {actionButton && (
-            <Box sx={{ flexShrink: 0, ml: 0.4 }}>
+            <Box sx={{ flexShrink: 0, ml: stacked && !onResetFilters ? 'auto' : 0.4 }}>
               {actionButton}
             </Box>
           )}

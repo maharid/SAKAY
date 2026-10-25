@@ -31,6 +31,7 @@ export * from './utils/strikeAppeals';
 export * from './utils/exemptionReview';
 export * from './utils/tripCorrections';
 export * from './utils/availabilityReports';
+export { shakeElement } from './utils/shakeElement';
 export * from './utils/vehicleSubstitution';
 export * from './utils/dispatchInsights';
 export * from './utils/driverApplications';
@@ -50,6 +51,8 @@ export { UrgentSafetyReportDialog } from './components/UrgentSafetyReportDialog'
 export type { UrgentSafetyReportDialogProps } from './components/UrgentSafetyReportDialog';
 export { SakayToast } from './components/SakayToast';
 export type { SakayToastProps, SakayToastSeverity } from './components/SakayToast';
+export { FeedbackCard } from './components/FeedbackCard';
+export { ProfileAvatar } from './components/ProfileAvatar';
 export { CalamityBanner } from './components/CalamityBanner';
 export type { CalamityBannerProps } from './components/CalamityBanner';
 export type { FareDisputesPanelProps } from './components/FareDisputesPanel';

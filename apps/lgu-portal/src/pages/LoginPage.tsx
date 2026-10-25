@@ -17,7 +17,7 @@ import {
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 
-import appIconDriver from '@sakay/shared/assets/icons/app-icon-driver.webp';
+import appIconToto from '@sakay/shared/assets/icons/app-icon-toto.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import splashBg from '@sakay/shared/assets/images/webp/splash-bg.webp';
 import { useAuth } from '../contexts/AuthContext';
@@ -269,7 +269,7 @@ export const LoginPage: React.FC = () => {
                         order: mode === 'signin' ? 1 : 2,
                       }}
                     >
-                      <Box component="img" src={appIconDriver} alt="App Icon" sx={{ height: 32, objectFit: 'contain' }} />
+                      <Box component="img" src={appIconToto} alt="SAKAY" sx={{ height: 32, objectFit: 'contain' }} />
                       <Box component="img" src={logoTextOrange} alt="SAKAY" sx={{ height: 22, objectFit: 'contain' }} />
                     </Box>
 

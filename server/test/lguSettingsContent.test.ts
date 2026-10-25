@@ -1,4 +1,4 @@
-// LGU Settings: the texts of Legal & Privacy and About SAKAY.
+// LGU Settings: the texts of Legal & Privacy and About SAKAY, and the Tagalog texts of the language preference.
 //
 // The LGU portal has no text of its own for administrators, so its Privacy Policy and Terms of Service are put together from what the project already says (the Driver
 // App's texts, the shared privacy notice and its retention figures) and from what the portal does. This test keeps them honest:
@@ -15,6 +15,8 @@ import path from 'node:path';
 import { buildPrivacyPolicy, TERMS_OF_SERVICE, LGU_PRIVACY_CONTACT } from '../../apps/lgu-portal/src/utils/legalContent';
 import type { LegalDocument } from '../../apps/lgu-portal/src/utils/legalContent';
 import { ABOUT_SAKAY, SUPPORT_EMAIL } from '../../apps/lgu-portal/src/utils/appInfo';
+import { LANGUAGE_OPTIONS } from '../../apps/lgu-portal/src/utils/language';
+import { TAGALOG_TEXTS } from '../../apps/lgu-portal/src/utils/translations';
 import { ABOUT_SAKAY as TODA_ABOUT, SUPPORT_EMAIL as TODA_EMAIL } from '../../apps/toda-portal/src/utils/appInfo';
 import {
   PRIVACY_NOTICE_VERSION,
@@ -136,5 +138,30 @@ describe('LGU About SAKAY', () => {
   it('names the LGU portal and has no version number or date', () => {
     assert.equal(ABOUT_SAKAY.portal, 'LGU Administrator Portal');
     assert.ok(!/\bv?\d+\.\d+\.\d+\b/.test(ABOUT_SAKAY.description));
+  });
+});
+
+describe('LGU languages', () => {
+  it('offer exactly English and Tagalog, English first (the same two as the TODA portal)', () => {
+    assert.deepEqual(LANGUAGE_OPTIONS.map((option) => option.code), ['en', 'tl']);
+    assert.deepEqual(LANGUAGE_OPTIONS.map((option) => option.name), ['English', 'Tagalog']);
+  });
+
+  it('use only Tagalog lines that the Driver App already has, word for word', () => {
+    const parts: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(entry.name)) parts.push(normalise(fs.readFileSync(full, 'utf8')));
+      }
+    };
+    walk(path.join(APPS, 'driver-pwa', 'src'));
+    const driverApp = parts.join('\n');
+    const lines = Object.entries(TAGALOG_TEXTS);
+    assert.ok(lines.length > 0);
+    for (const [key, line] of lines) {
+      assert.ok(line && driverApp.includes(line), `${key}: not found in the Driver App: ${JSON.stringify(line)}`);
+    }
   });
 });

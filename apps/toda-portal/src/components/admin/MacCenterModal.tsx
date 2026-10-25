@@ -22,6 +22,8 @@ interface MacCenterModalProps {
   badge?: React.ReactNode;
   children: React.ReactNode;
   primaryActionLabel?: string;
+  /** the main action cannot be pressed (for example while it is being saved) */
+  primaryActionDisabled?: boolean;
   onPrimaryAction?: () => void;
   primaryActionColor?: 'primary' | 'error' | 'success' | 'warning';
   secondaryActionLabel?: string;
@@ -57,6 +59,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
   badge,
   children,
   primaryActionLabel,
+  primaryActionDisabled = false,
   onPrimaryAction,
   primaryActionColor = 'primary',
   secondaryActionLabel = 'Close',
@@ -219,6 +222,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
                 variant="contained"
                 onClick={onPrimaryAction}
                 color={primaryActionColor}
+                disabled={primaryActionDisabled}
                 sx={{
                   ...footerButton,
                   padding: '0 18px',
@@ -229,6 +233,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
                     boxShadow: 'none',
                     backgroundColor: primaryActionColor === 'primary' ? '#A84300' : undefined,
                   },
+                  '&.Mui-disabled': primaryActionColor === 'primary' ? { color: '#FFFFFF', backgroundColor: '#E5C0A8' } : undefined,
                 }}
               >
                 {primaryActionLabel}
