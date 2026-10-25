@@ -21,7 +21,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverTrips } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { activateWithKeyboard } from '@sakay/shared';
+import { activateWithKeyboard, RouteTimeline } from '@sakay/shared';
 
 interface TripItem {
   id: string;
@@ -261,67 +261,78 @@ export const DriverEarnings: React.FC = () => {
               </Typography>
             </Paper>
           ) : (
-            completedList.slice(0, 10).map((trip, idx) => (
-              <Paper
-                key={trip.id || idx}
-                elevation={0}
-                role="button"
-                tabIndex={0}
-                onKeyDown={activateWithKeyboard}
-                onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
-                sx={{
-                  p: '14px 16px',
-                  borderRadius: '16px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease',
-                  '&:hover': {
-                    transform: 'scale(1.01)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                  },
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Avatar sx={{ width: 40, height: 40, backgroundColor: trip.tripMode === 'Shared Ride' ? '#ECFDF5' : '#FFF7ED', color: trip.tripMode === 'Shared Ride' ? '#10B981' : '#FF6600' }}>
-                    {trip.tripMode === 'Shared Ride' ? <GroupsIcon fontSize="small" /> : <TwoWheelerIcon fontSize="small" />}
-                  </Avatar>
-                  <Box>
-                    <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+            completedList.slice(0, 10).map((trip, idx) => {
+              const shared = trip.tripMode === 'Shared Ride';
+              return (
+                <Paper
+                  key={trip.id || idx}
+                  elevation={0}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
+                  onClick={() => navigate(`/driver/trip-detail/${trip.id}`, { state: { trip } })}
+                  sx={{
+                    p: '14px 16px',
+                    borderRadius: '16px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                    cursor: 'pointer',
+                    transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+                    '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderColor: '#CBD5E1' },
+                    '&:focus-visible': { outline: '2px solid #FF6600', outlineOffset: 2 },
+                  }}
+                >
+                  {/* Who and how much */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Avatar sx={{ width: 40, height: 40, flexShrink: 0, backgroundColor: shared ? '#ECFDF5' : '#FFF7ED', color: shared ? '#047857' : '#FF6600' }}>
+                      {shared ? <GroupsIcon fontSize="small" /> : <TwoWheelerIcon fontSize="small" />}
+                    </Avatar>
+                    <Typography noWrap title={trip.passengerName} sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
                       {trip.passengerName}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: '#64748B', lineHeight: 1.35, wordBreak: 'break-word' }}>
-                      {trip.pickupLocation} → {trip.dropoffLocation}
+                    <Typography sx={{ flexShrink: 0, fontSize: '17px', fontWeight: 700, color: '#047857', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      +₱{trip.fareAmount.toFixed(2)}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
-                      <AccessTimeIcon sx={{ fontSize: 11, color: '#64748B' }} />
-                      <Typography sx={{ fontSize: '12px', color: '#64748B' }}>{trip.date} • {trip.time}</Typography>
-                    </Box>
                   </Box>
-                </Box>
 
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>
-                    +₱{trip.fareAmount.toFixed(2)}
-                  </Typography>
-                  <Chip
-                    label={trip.tripMode === 'Shared Ride' ? 'Shared' : 'Solo'}
-                    size="small"
-                    sx={{
-                      height: '18px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      backgroundColor: trip.tripMode === 'Shared Ride' ? '#D1FAE5' : '#FEF3C7',
-                      color: trip.tripMode === 'Shared Ride' ? '#047857' : '#B45309',
-                      mt: '2px',
-                    }}
-                  />
-                </Box>
-              </Paper>
-            ))
+                  {/* The route */}
+                  <Box sx={{ pt: 1.5, borderTop: '1px solid #F1F5F9' }}>
+                    <RouteTimeline
+                      compact
+                      pickup={trip.pickupLocation}
+                      destination={trip.dropoffLocation}
+                      pickupLabel={language === 'tl' ? 'Pickup' : 'Pickup'}
+                      destinationLabel={language === 'tl' ? 'Destinasyon' : 'Drop-off'}
+                    />
+                  </Box>
+
+                  {/* When, and the kind of ride */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 1.25, borderTop: '1px solid #F1F5F9' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                      <AccessTimeIcon aria-hidden sx={{ fontSize: 15, color: '#64748B', flexShrink: 0 }} />
+                      <Typography noWrap sx={{ fontSize: '12.5px', color: '#475569', fontWeight: 500 }}>
+                        {trip.date} • {trip.time}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={shared ? 'Shared' : 'Solo'}
+                      size="small"
+                      sx={{
+                        flexShrink: 0,
+                        height: 24,
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        backgroundColor: shared ? '#D1FAE5' : '#FEF3C7',
+                        color: shared ? '#047857' : '#92400E',
+                      }}
+                    />
+                  </Box>
+                </Paper>
+              );
+            })
           )}
         </Box>
       </Box>

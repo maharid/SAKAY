@@ -41,7 +41,7 @@ const EnRouteNotices: React.FC<EnRouteNoticesProps> = ({ bookingId, language, st
       variant="outlined"
       disabled={sending !== null}
       onClick={() => report(reason)}
-      sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, borderColor: '#CBD5E1', color: '#475569', flex: 1 }}
+      sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, borderColor: '#CBD5E1', color: '#475569', flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap' }}
     >
       {label}
     </Button>
@@ -60,7 +60,8 @@ const EnRouteNotices: React.FC<EnRouteNoticesProps> = ({ bookingId, language, st
         <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#64748B', mb: 0.5 }}>
           {language === 'tl' ? 'Huminto sa daan? Ipaalam kung bakit:' : 'Stopped on the way? Tell us why:'}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        {/* a label stays on ONE line: when the three do not fit side by side, the last one moves to the next row as a whole button */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {delayButton('traffic', language === 'tl' ? 'Trapiko' : 'Heavy traffic')}
           {delayButton('road_closure', language === 'tl' ? 'Sarado ang daan' : 'Road closed')}
           {delayButton('police_checkpoint', language === 'tl' ? 'Checkpoint' : 'Police checkpoint')}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '@mui/material';
+import { Button, IconButton } from '@mui/material';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 
 import { UrgentSafetyReportDialog, fileUrgentSafetyReport, useInFlight, type UrgentReportCategory } from '@sakay/shared';
@@ -8,6 +8,8 @@ import { supabase } from '../../../services/supabaseClient';
 interface DriverEmergencyReportProps {
   bookingId: string;
   language: string;
+  /** 'icon': a small red icon button (for a row that is short on room); the label stays as its accessible name. Default: the text button. */
+  variant?: 'text' | 'icon';
 }
 
 /**
@@ -15,13 +17,15 @@ interface DriverEmergencyReportProps {
  * the database files it as an emergency incident (or straight to the LGU Administrator for a threat or an assault, Rule 19.8) with the vehicle's last known position. It does not end the trip:
  * once it is safe the driver stops the trip with "I cannot continue the trip" and the reason (an accident, an emergency, a safety concern ...), which is never struck (decision PI-11B).
  */
-const DriverEmergencyReport: React.FC<DriverEmergencyReportProps> = ({ bookingId, language }) => {
+const DriverEmergencyReport: React.FC<DriverEmergencyReportProps> = ({ bookingId, language, variant = 'text' }) => {
   const tl = language === 'tl';
   const flight = useInFlight();
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [routing, setRouting] = useState<'TODA' | 'LGU' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const label = tl ? 'Emergency / Agarang Ulat' : 'Emergency / Urgent Report';
 
   const submit = (category: UrgentReportCategory, description: string) =>
     flight.run(async () => {
@@ -43,15 +47,26 @@ const DriverEmergencyReport: React.FC<DriverEmergencyReportProps> = ({ bookingId
 
   return (
     <>
-      <Button
-        variant="text"
-        fullWidth
-        startIcon={<ReportProblemIcon />}
-        onClick={() => setOpen(true)}
-        sx={{ minHeight: 44, textTransform: 'none', fontWeight: 600, fontSize: '13px', color: '#B91C1C', fontFamily: 'Poppins, sans-serif' }}
-      >
-        {tl ? 'Emergency / Agarang Ulat' : 'Emergency / Urgent Report'}
-      </Button>
+      {variant === 'icon' ? (
+        <IconButton
+          aria-label={label}
+          title={label}
+          onClick={() => setOpen(true)}
+          sx={{ width: 44, height: 44, flexShrink: 0, backgroundColor: '#FEE2E2', color: '#B91C1C', '&:hover': { backgroundColor: '#FECACA' } }}
+        >
+          <ReportProblemIcon fontSize="small" />
+        </IconButton>
+      ) : (
+        <Button
+          variant="text"
+          fullWidth
+          startIcon={<ReportProblemIcon />}
+          onClick={() => setOpen(true)}
+          sx={{ minHeight: 44, textTransform: 'none', fontWeight: 600, fontSize: '13px', color: '#B91C1C', fontFamily: 'Poppins, sans-serif' }}
+        >
+          {label}
+        </Button>
+      )}
       <UrgentSafetyReportDialog
         open={open}
         language={tl ? 'tl' : 'en'}

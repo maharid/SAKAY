@@ -46,6 +46,8 @@ function App() {
       <LanguageProvider>
         <BrowserRouter>
           <Routes>
+            {/* Rule 26.1: the page of a Share Live Trip link - no sign-in, and outside the phone frame so that it can use a whole desktop window too */}
+            <Route path="/share/:token" element={<SharedTripView />} />
             <Route element={<MobileAppShell />}>
               <Route path="/" element={<Splash />} />
               <Route path="/splash" element={<Splash />} />
@@ -84,8 +86,6 @@ function App() {
               <Route path="/trip-monitoring" element={<TripMonitoring />} />
               <Route path="/feedback" element={<PassengerFeedback />} />
               <Route path="/incident-report" element={<IncidentReporting />} />
-              {/* Rule 26.1: the page of a Share Live Trip link - no sign-in (it is not one of the guarded paths of MobileAppShell) */}
-              <Route path="/share/:token" element={<SharedTripView />} />
               <Route path="/history" element={<PassengerHistory />} />
               <Route path="/trip-details/:id" element={<TripDetailPage />} />
               <Route path="/report-driver" element={<ReportDriverPage />} />

@@ -60,7 +60,7 @@ const FareDiscrepancyDialog: React.FC<FareDiscrepancyDialogProps> = ({ open, lan
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             slotProps={{ htmlInput: { min: 0, step: 1, inputMode: 'decimal' } }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+           
           />
         )}
         <TextField
@@ -72,7 +72,7 @@ const FareDiscrepancyDialog: React.FC<FareDiscrepancyDialogProps> = ({ open, lan
           placeholder={tl ? 'Pakilarawan ang nangyari (hindi bababa sa 10 titik)...' : 'Please describe what happened (at least 10 characters)...'}
           value={reason}
           onChange={(e) => setReason(e.target.value.slice(0, 1000))}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+         
         />
         <Typography sx={{ fontSize: '12px', color: '#64748B', lineHeight: 1.45 }}>
           {tl

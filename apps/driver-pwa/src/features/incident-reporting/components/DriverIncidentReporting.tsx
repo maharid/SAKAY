@@ -26,7 +26,7 @@ import {
 const CATEGORIES = incidentCategoriesFor('Driver');
 
 const FONT = 'Poppins, sans-serif';
-const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '14px', backgroundColor: '#FFFFFF', fontFamily: FONT, fontSize: '14px' } };
+const fieldSx = { '& .MuiOutlinedInput-root': { fontFamily: FONT } };
 
 /**
  * The driver's incident report: pick the completed trip, say what happened, optionally add a photo. It is filed through the same table the

@@ -8,6 +8,7 @@ import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Avatar from "@mui/material/Avatar";
 import HeadsetMicOutlinedIcon from "@mui/icons-material/HeadsetMicOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PlaceIcon from "@mui/icons-material/Place";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 
@@ -20,11 +21,25 @@ import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { supabase } from "../../../services/supabaseClient";
 
+const ReceiptLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>{children}</Typography>
+);
+
+/** One step of the receipt: done (a check), what it was, and when (the time never wraps, the label may) */
+const ReceiptStep: React.FC<{ label: string; time: string }> = ({ label, time }) => (
+  <Box component="li" sx={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto", columnGap: 1.25, alignItems: "baseline" }}>
+    <CheckCircleIcon aria-hidden sx={{ fontSize: 17, color: "#16A34A", alignSelf: "center" }} />
+    <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.35 }}>{label}</Typography>
+    <Typography sx={{ fontSize: "12.5px", color: "#475569", fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{time}</Typography>
+  </Box>
+);
+
 export const TripDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ id: string }>();
   const { language } = useLanguage();
+  const tl = language === "tl";
 
   const stateTrip = (location.state as { trip?: any })?.trip;
 
@@ -39,6 +54,9 @@ export const TripDetailPage: React.FC = () => {
   const price = stateTrip?.price || "₱110.00";
   const manilaTime = (iso: string) => new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
   const status = stateTrip?.status || "Completed";
+  const paymentText = stateTrip?.paymentStatus
+    ? describePayment({ paymentStatus: stateTrip.paymentStatus, fareUnconfirmed: Boolean(stateTrip.fareUnconfirmed) }, tl ? "tl" : "en")
+    : "";
 
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [passengerRatingGiven, setPassengerRatingGiven] = React.useState<any>(null);
@@ -381,34 +399,66 @@ export const TripDetailPage: React.FC = () => {
             />
           </Box>
 
-          {/* The receipt (Rules 16.2 / 18.3): the payment as the database recorded it, the moments, and how the trip ended. Nothing here is typed on a phone. */}
+          {/* The receipt (Rules 16.2 / 18.3): the payment as the database recorded it, the moments, and how the trip ended. Nothing here is typed on a phone.
+              Three groups: who and how it was paid, what happened and when, and (only when it applies) how the trip ended early. */}
           {status === "Completed" && stateTrip?.paymentStatus && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, pt: 1.25, borderTop: "1px dashed #E2E8F0" }}>
-              <FareLine label={language === "tl" ? "Resibo bilang" : "Receipt no."} amount={formatShortBookingId(tripId)} />
-              <FareLine
-                label={language === "tl" ? "Bayad" : "Payment"}
-                amount={describePayment({ paymentStatus: stateTrip.paymentStatus, fareUnconfirmed: Boolean(stateTrip.fareUnconfirmed) }, language === "tl" ? "tl" : "en")}
-              />
-              {stateTrip.confirmFareAt && <FareLine label={language === "tl" ? "Kinumpirma ang pamasahe" : "Fare confirmed"} amount={manilaTime(stateTrip.confirmFareAt)} />}
-              {stateTrip.paymentReceivedAt && <FareLine label={language === "tl" ? "Natanggap ang bayad" : "Payment received"} amount={manilaTime(stateTrip.paymentReceivedAt)} />}
-              {stateTrip.tripCompletedAt && <FareLine label={language === "tl" ? "Natapos ang biyahe" : "Trip completed"} amount={manilaTime(stateTrip.tripCompletedAt)} />}
-              {stateTrip.earlyEndKind && (
-                <FareLine
-                  label={language === "tl" ? "Tinapos nang maaga" : "Ended early"}
-                  detail={
-                    stateTrip.earlyEndKind === "SAFETY"
-                      ? language === "tl" ? "Pansamantalang pamasahe habang hinihintay ang pagsusuri" : "Provisional fare until it is reviewed"
-                      : stateTrip.earlyEndKind === "DRIVER"
-                      ? language === "tl" ? "Layong nalakbay lamang ang sinisingil" : "Only the distance travelled is charged"
-                      : language === "tl" ? "Ang mas mataas sa pamasahe noong nag-book at sa layong nalakbay" : "The greater of the booked fare and the distance travelled"
-                  }
-                  amount={earlyEndReasonLabel(stateTrip.earlyEndReason, language === "tl" ? "tl" : "en")}
+            <Box component="section" aria-label={tl ? "Resibo" : "Receipt"} sx={{ display: "flex", flexDirection: "column", gap: 1.25, pt: 1.5, borderTop: "1px dashed #E2E8F0" }}>
+              <Typography component="h3" sx={{ fontSize: "12px", fontWeight: 700, color: "#475569", letterSpacing: "0.04em", textTransform: "uppercase", fontFamily: "Poppins, sans-serif" }}>
+                {tl ? "Resibo" : "Receipt"}
+              </Typography>
+
+              {/* 1. The receipt number and the payment: the two facts people look for first */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", columnGap: 2, rowGap: 1, alignItems: "center", p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                <ReceiptLabel>{tl ? "Resibo bilang" : "Receipt no."}</ReceiptLabel>
+                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", letterSpacing: "0.02em", textAlign: "right", whiteSpace: "nowrap" }}>
+                  {formatShortBookingId(tripId)}
+                </Typography>
+                <ReceiptLabel>{tl ? "Bayad" : "Payment"}</ReceiptLabel>
+                <Chip
+                  size="small"
+                  label={paymentText}
+                  sx={{
+                    justifySelf: "end",
+                    maxWidth: "100%",
+                    height: 26,
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    backgroundColor: stateTrip.paymentStatus === "Paid" ? "#DCFCE7" : stateTrip.paymentStatus === "Waived" ? "#E0F2FE" : "#FEF3C7",
+                    color: stateTrip.paymentStatus === "Paid" ? "#166534" : stateTrip.paymentStatus === "Waived" ? "#075985" : "#92400E",
+                  }}
                 />
+              </Box>
+
+              {/* 2. What happened and when, as a short list of completed steps */}
+              {(stateTrip.confirmFareAt || stateTrip.paymentReceivedAt || stateTrip.tripCompletedAt) && (
+                <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}>
+                  {stateTrip.confirmFareAt && <ReceiptStep label={tl ? "Kinumpirma ang pamasahe" : "Fare confirmed"} time={manilaTime(stateTrip.confirmFareAt)} />}
+                  {stateTrip.paymentReceivedAt && <ReceiptStep label={tl ? "Natanggap ang bayad" : "Payment received"} time={manilaTime(stateTrip.paymentReceivedAt)} />}
+                  {stateTrip.tripCompletedAt && <ReceiptStep label={tl ? "Natapos ang biyahe" : "Trip completed"} time={manilaTime(stateTrip.tripCompletedAt)} />}
+                </Box>
               )}
+
+              {/* 3. How it ended, only when it ended early: the reason in full and what it means for the fare, in its own quiet note */}
+              {stateTrip.earlyEndKind && (
+                <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#FFFBEB", border: "1px solid #FDE68A", display: "flex", flexDirection: "column", gap: 0.25 }}>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#92400E", fontFamily: "Poppins, sans-serif" }}>{tl ? "Tinapos nang maaga" : "Ended early"}</Typography>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+                    {earlyEndReasonLabel(stateTrip.earlyEndReason, tl ? "tl" : "en")}
+                  </Typography>
+                  <Typography sx={{ fontSize: "12.5px", color: "#475569", fontFamily: "Poppins, sans-serif", lineHeight: 1.45 }}>
+                    {stateTrip.earlyEndKind === "SAFETY"
+                      ? tl ? "Pansamantalang pamasahe habang hinihintay ang pagsusuri" : "Provisional fare until it is reviewed"
+                      : stateTrip.earlyEndKind === "DRIVER"
+                      ? tl ? "Layong nalakbay lamang ang sinisingil" : "Only the distance travelled is charged"
+                      : tl ? "Ang mas mataas sa pamasahe noong nag-book at sa layong nalakbay" : "The greater of the booked fare and the distance travelled"}
+                  </Typography>
+                </Box>
+              )}
+
               {(stateTrip.fareBreakdown as FareBreakdown | null | undefined)?.resolution && (
                 <FareLine
-                  label={language === "tl" ? "Pamasahe pagkatapos ng pagsusuri" : "Fare after review"}
-                  detail={language === "tl" ? `Dati: ${formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.previous_fare)}` : `Before: ${formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.previous_fare)}`}
+                  label={tl ? "Pamasahe pagkatapos ng pagsusuri" : "Fare after review"}
+                  detail={tl ? `Dati: ${formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.previous_fare)}` : `Before: ${formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.previous_fare)}`}
                   amount={formatPeso((stateTrip.fareBreakdown as FareBreakdown).resolution!.final_fare)}
                 />
               )}

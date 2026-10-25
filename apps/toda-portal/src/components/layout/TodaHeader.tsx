@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, IconButton, Badge, Button, Popover, MenuList, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
@@ -6,13 +6,14 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { ProfileAvatar } from '@sakay/shared';
+import { ProfileAvatar, formatNotificationTime, localizeSystemNotification, selectImportantNotifications } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/toda';
 import { fetchTodaProfile } from '../../services/todaApiService';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../hooks/useLanguage';
 import { LogoutConfirmModal } from '../admin/LogoutConfirmModal';
 import { FONT } from '../../styles/density';
 
@@ -39,9 +40,29 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const { todaAdminProfile, user, signOut } = useAuth();
+  const { language } = useLanguage();
   const [todaName, setTodaName] = useState<string>('Calapan Central TODA');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
+
+  // Which notices were read is kept on this device, so a notice read once stays read when the list is read again (every 30 seconds)
+  const READ_KEY = 'sakay_toda_read_notifs';
+  const readIds = (): Set<string> => {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem(READ_KEY) || '[]'));
+    } catch {
+      return new Set<string>();
+    }
+  };
+  const rememberRead = (ids: string[]) => {
+    try {
+      const all = readIds();
+      ids.forEach((id) => all.add(id));
+      localStorage.setItem(READ_KEY, JSON.stringify(Array.from(all)));
+    } catch {
+      /* the read state is just not remembered */
+    }
+  };
 
   // Account Popover & Logout State
   const [accountAnchorEl, setAccountAnchorEl] = useState<null | HTMLElement>(null);
@@ -64,16 +85,26 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
               .order('sent_at', { ascending: false })
               .limit(10);
 
-            if (isMounted && notifs && notifs.length > 0) {
-              setNotifications(notifs.map((n: any) => ({
-                id: n.notification_id || n.id,
-                title: n.title,
-                description: n.message,
-                time: n.sent_at ? new Date(n.sent_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Recent',
-                read: false,
-                unread: true,
-                type: n.notification_type?.toLowerCase().includes('expiry') ? 'alert' : 'info',
-              })));
+            if (isMounted && notifs) {
+              const read = readIds();
+              // only what is worth the administrator's attention (a repeated write is listed once)
+              setNotifications(
+                selectImportantNotifications(notifs as any[], (n) => ({ type: n.notification_type, title: n.title, message: n.message, sentAt: n.sent_at })).map((n: any) => {
+                  const id = String(n.notification_id || n.id);
+                  return {
+                    id,
+                    rawTitle: n.title,
+                    rawMessage: n.message,
+                    sentAt: n.sent_at,
+                    title: n.title,
+                    description: n.message,
+                    read: read.has(id),
+                    unread: !read.has(id),
+                    type: n.notification_type?.toLowerCase().includes('expiry') ? 'alert' : 'info',
+                    kind: n.notification_type,
+                  };
+                })
+              );
             }
           }
         }
@@ -107,8 +138,19 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, unread: false })));
+    rememberRead(notifications.map((n) => n.id));
+    setNotifications(notifications.map((n) => ({ ...n, read: true, unread: false })));
   };
+
+  // What is shown is written from the notice's own text in the selected language, so a change of language changes the open panel too
+  const shownNotifications = useMemo<NotificationItem[]>(
+    () =>
+      notifications.map((n) => {
+        const text = localizeSystemNotification(n.rawTitle || n.title, n.rawMessage || n.description || '', language, n.kind);
+        return { ...n, title: text.title, description: text.message, time: formatNotificationTime(n.sentAt, language) };
+      }),
+    [notifications, language]
+  );
 
   return (
     <Box
@@ -190,7 +232,7 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
             open={Boolean(notifAnchor)}
             anchorEl={notifAnchor}
             onClose={() => setNotifAnchor(null)}
-            notifications={notifications}
+            notifications={shownNotifications}
             onMarkAllAsRead={handleMarkAllAsRead}
           />
         </Box>

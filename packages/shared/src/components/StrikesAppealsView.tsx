@@ -21,6 +21,7 @@ import { EvidencePicker } from './EvidencePicker';
 import { canAppealStrike, newestAppealByStrike } from '../utils/strikeAppeals';
 import type { AppealResult, AppealRow, StrikeHistory, StrikeRow } from '../utils/strikeAppeals';
 import { messageForLanguage } from '../utils/notificationLocalization';
+import { DRIVER_CANCEL_LABELS } from '../utils/cancellationReasons';
 
 export interface StrikesAppealsViewProps {
   language: 'tl' | 'en';
@@ -81,6 +82,11 @@ const manila = (iso: string, withTime = true): string =>
  */
 export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language, audience, history, appeals, loading, failed, onAppeal, onAppealSent }) => {
   const tl = language === 'tl';
+  // A text of the strike as the person should read it: one language, no rule or item numbers, and a reason code spelled out ("vehicle_breakdown" is "Vehicle breakdown")
+  const readable = (text: string | null | undefined): string =>
+    messageForLanguage(text, language).replace(/[a-z]+(?:_[a-z]+)+/g, (code) =>
+      code in DRIVER_CANCEL_LABELS ? DRIVER_CANCEL_LABELS[code as keyof typeof DRIVER_CANCEL_LABELS][language] : code.replace(/_/g, ' ')
+    );
   const flight = useInFlight();
 
   const [target, setTarget] = useState<StrikeRow | null>(null);
@@ -164,13 +170,13 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
               return (
                 <Paper key={s.strikeId} elevation={0} sx={{ p: 2, borderRadius: '16px', border: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                    <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>{s.description}</Typography>
+                    <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>{readable(s.description)}</Typography>
                     <Chip size="small" color={label.color} label={tl ? label.tl : label.en} sx={{ fontWeight: 700, flexShrink: 0 }} />
                   </Box>
                   <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
-                    {manila(s.issuedAt)} · {s.sourceRule} · {s.pointsActive}/{s.pointsIssued} {tl ? 'puntos' : 'point(s)'}
+                    {manila(s.issuedAt)} · {s.pointsActive}/{s.pointsIssued} {tl ? 'puntos' : 'point(s)'}
                   </Typography>
-                  {s.reason && <Typography sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.4 }}>{s.reason}</Typography>}
+                  {s.reason && <Typography sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.4 }}>{readable(s.reason)}</Typography>}
                   {s.status === 'PROVISIONAL' && s.provisionalUntil && (
                     <Typography sx={{ fontSize: '12px', color: '#B45309', fontWeight: 600 }}>
                       {tl ? `Maaaring alisin kung hihilingin bago ${manila(s.provisionalUntil)}.` : `May be waived if you ask before ${manila(s.provisionalUntil)}.`}
@@ -181,7 +187,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
                       {tl ? 'Apela: ' : 'Appeal: '}
                       {tl ? appealLabel.tl : appealLabel.en}
                       {pending && appeal.decisionDueAt ? (tl ? ` · inaasahan ang desisyon bago ${manila(appeal.decisionDueAt, false)}` : ` · decision due by ${manila(appeal.decisionDueAt, false)}`) : ''}
-                      {appeal.decisionReason ? ` — ${appeal.decisionReason}` : ''}
+                      {appeal.decisionReason ? ` — ${readable(appeal.decisionReason)}` : ''}
                     </Alert>
                   )}
                   {canAppealStrike(s, appeal) && (
@@ -203,7 +209,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
       <Dialog open={target !== null} onClose={() => setTarget(null)} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '16px', color: '#0F172A' }}>{tl ? 'Mag-apela ng strike' : 'Appeal a strike'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: '8px !important' }}>
-          <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>{target?.description}</Typography>
+          <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>{readable(target?.description)}</Typography>
           <TextField select size="small" label={tl ? 'Dahilan' : 'Cause'} value={cause} onChange={(e) => setCause(e.target.value as ExemptionCauseCode)} fullWidth>
             {EXEMPTION_CAUSE_CODES.map((c) => (
               <MenuItem key={c} value={c}>

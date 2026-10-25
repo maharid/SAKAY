@@ -238,14 +238,14 @@ describe('Share Live Trip (Rule 26.1, F11.3)', () => {
     assert.equal(shareUrl('https://sakay.example', token), `https://sakay.example/share/${token}`);
     assert.ok(SHARE_TOKEN_PATTERN.test(token) && !SHARE_TOKEN_PATTERN.test('A'.repeat(32)) && !SHARE_TOKEN_PATTERN.test('a'.repeat(31)) && !SHARE_TOKEN_PATTERN.test('a'.repeat(33)));
   });
-  it('the message carries the addresses and the link and nothing about the person or the fare, in both languages', () => {
+  it('the message is one short line with the link (no addresses, nothing about the person or the fare), in both languages', () => {
+    assert.equal(shareMessage('en', { url: 'https://x/share/t' }), 'View my SAKAY Trip! You can follow my trip here: https://x/share/t');
+    assert.equal(shareMessage('tl', { url: 'https://x/share/t' }), 'Tingnan ang aking SAKAY Trip! Masusubaybayan mo ang biyahe ko dito: https://x/share/t');
     for (const lang of ['en', 'tl'] as const) {
       const m = shareMessage(lang, { pickup: 'Market', dropoff: 'Terminal', url: 'https://x/share/t' });
-      assert.ok(m.includes('Market') && m.includes('Terminal') && m.includes('https://x/share/t'));
+      assert.ok(m.includes('https://x/share/t') && !m.includes('Market') && !m.includes('Terminal'));
       assert.ok(!/fare|pamasahe|PHP|\+63/i.test(m));
     }
-    assert.match(shareMessage('en', { pickup: null, dropoff: null, url: 'u' }), /my pickup.*my destination/);
-    assert.match(shareMessage('tl', { pickup: null, dropoff: null, url: 'u' }), /aking lokasyon.*aking destinasyon/);
   });
   it('the line under the share button states the 15-minute buffer and the 4-hour cap from the central configuration', () => {
     assert.equal(SHARE_LINK_BUFFER_MINUTES, 15);

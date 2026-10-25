@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Typography, Popover, Button, List, ListItem, ListItemText, Divider } from '@mui/material';
+import { notificationPanelText } from '@sakay/shared';
 import { NotificationItem } from '../../types/toda';
+import { useLanguage } from '../../hooks/useLanguage';
 import { FONT } from '../../styles/density';
 
 interface NotificationPopoverProps {
@@ -18,6 +20,8 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   notifications,
   onMarkAllAsRead,
 }) => {
+  const { language } = useLanguage();
+  const text = notificationPanelText(language);
   return (
     <Popover
       open={open}
@@ -45,7 +49,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
     >
       <Box sx={{ p: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexShrink: 0, borderBottom: '1px solid var(--mac-border-color)' }}>
         <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-          TODA Notifications
+          {text.todaTitle}
         </Typography>
         <Button
           size="small"
@@ -63,7 +67,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
             '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '1px' },
           }}
         >
-          Mark all as read
+          {text.markAll}
         </Button>
       </Box>
 
@@ -111,7 +115,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         ) : (
           <Box sx={{ p: '26px', textAlign: 'center' }}>
             <Typography sx={{ fontSize: FONT.body, color: '#65656a' }}>
-              No notifications at this time.
+              {text.empty}
             </Typography>
           </Box>
         )}

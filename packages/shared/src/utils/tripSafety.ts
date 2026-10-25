@@ -99,13 +99,14 @@ export const SHARE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
 /** The address the link opens: a page of the Passenger app that needs no sign-in */
 export const shareUrl = (origin: string, token: string): string => `${origin.replace(/\/+$/, '')}/share/${token}`;
 
-/** The message the phone's own sharing sends (SMS, Messenger, ...). Only what the person needs to follow the trip: the addresses, and the link. */
-export function shareMessage(language: SafetyLanguage, trip: { pickup: string | null; dropoff: string | null; url: string }): string {
-  const from = trip.pickup || (language === 'tl' ? 'aking lokasyon' : 'my pickup');
-  const to = trip.dropoff || (language === 'tl' ? 'aking destinasyon' : 'my destination');
+/**
+ * The message the phone's own sharing sends (SMS, Messenger, ...): one short line and the link. The addresses are not in it: the page the link opens shows them.
+ * (`pickup` and `dropoff` are still accepted so that older callers compile; they are not used.)
+ */
+export function shareMessage(language: SafetyLanguage, trip: { url: string; pickup?: string | null; dropoff?: string | null }): string {
   return language === 'tl'
-    ? `Sumasakay ako ng tricycle sa SAKAY mula ${from} papuntang ${to}. Masusubaybayan mo ang biyahe ko dito: ${trip.url}`
-    : `I am riding a tricycle with SAKAY from ${from} to ${to}. You can follow my trip here: ${trip.url}`;
+    ? `Tingnan ang aking SAKAY Trip! Masusubaybayan mo ang biyahe ko dito: ${trip.url}`
+    : `View my SAKAY Trip! You can follow my trip here: ${trip.url}`;
 }
 /** The line under the share button: how long the link lasts (F11.3) */
 export const shareLifetimeText = (language: SafetyLanguage): string =>

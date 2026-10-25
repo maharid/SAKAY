@@ -15,9 +15,14 @@ const RULE_NUMBERS = String.raw`\d+(?:\.\d+)*(?:\s*(?:\/|,|&|and|at|-)\s*(?:(?:R
 const RULE_IN_PARENTHESES = new RegExp(String.raw`\s*[(\[]\s*(?:Rules?|Patakaran)\s+${RULE_NUMBERS}\s*[)\]]`, 'gi');
 const RULE_AT_START = new RegExp(String.raw`^\s*(?:Rules?|Patakaran)\s+${RULE_NUMBERS}\s*[:\-\u2013]\s*`, 'i');
 
-/** The text without its references to numbered rules ("(Rule 8.3)"); the sentence is left as it was otherwise. */
+// "(PI-05)" and ", PI-05" inside a longer parenthesis are the policy's internal item numbers: not for the person reading
+const PI_NUMBER = String.raw`PI-[A-Z]?\d+[A-Za-z]?`;
+const PI_IN_PARENTHESES = new RegExp(String.raw`\s*[(\[]\s*${PI_NUMBER}(?:\s*[,/&]\s*${PI_NUMBER})*\s*[)\]]`, 'g');
+const PI_AFTER_COMMA = new RegExp(String.raw`\s*,\s*${PI_NUMBER}(?=\s*[)\]])`, 'g');
+
+/** The text without its references to numbered rules ("(Rule 8.3)") and policy items ("(PI-05)"); the sentence is left as it was otherwise. */
 export function stripRuleReferences(text: string): string {
-  return (text ?? '').replace(RULE_IN_PARENTHESES, '').replace(RULE_AT_START, '');
+  return (text ?? '').replace(RULE_IN_PARENTHESES, '').replace(RULE_AT_START, '').replace(PI_AFTER_COMMA, '').replace(PI_IN_PARENTHESES, '');
 }
 
 /**
@@ -110,7 +115,7 @@ function localizeSystemNotificationBase(
       };
     } else {
       return {
-        title: titleTrimmed,
+        title: `Babala sa Pagpaso ng Lisensya ng Drayber: ${titleTrimmed.replace(/^[^:]+:\s*/, '')}`,
         message: rawMessage,
         isSystemGenerated: true,
       };
@@ -131,7 +136,7 @@ function localizeSystemNotificationBase(
       };
     } else {
       return {
-        title: titleTrimmed,
+        title: `Babala sa Pagpaso ng MTOP ng Drayber: ${titleTrimmed.replace(/^[^:]+:\s*/, '')}`,
         message: rawMessage,
         isSystemGenerated: true,
       };
@@ -169,7 +174,7 @@ function localizeSystemNotificationBase(
       };
     } else {
       return {
-        title: 'SLA Reminder: Driver Application Pending Review',
+        title: 'Paalala sa SLA: Naghihintay ng Pagsusuri ang Aplikasyon ng Drayber',
         message: rawMessage,
         isSystemGenerated: true,
       };
@@ -190,7 +195,7 @@ function localizeSystemNotificationBase(
       };
     } else {
       return {
-        title: 'SLA Reminder: Driver Verification Pending LGU Final Review',
+        title: 'Paalala sa SLA: Naghihintay ng Huling Pagsusuri ng LGU ang Beripikasyon ng Drayber',
         message: rawMessage,
         isSystemGenerated: true,
       };
@@ -334,6 +339,24 @@ function localizeSystemNotificationBase(
     }
   }
 
+  // 13. Notices the database writes in English only, with data in them (the title is "Tagalog (English)", the text has no translation): one template each
+  const templated = localizeTemplatedMessage(type, msgTrimmed, language);
+  if (templated !== null) {
+    return { title: cleanBilingualText(rawTitle, language), message: templated, isSystemGenerated: true };
+  }
+
+  // 14. A driver resubmitted documents (written for the TODA or the LGU in English only: "Resubmitted: Name" / "Name resubmitted documents for TODA review. ...")
+  if (type === 'DRIVER_RESUBMITTED' && language === 'tl') {
+    const m = msgTrimmed.match(/^(.+?) resubmitted (.+) for (TODA|LGU) review\. The 5-day review period has restarted\.$/);
+    if (m) {
+      return {
+        title: `Nagsumite Muli: ${m[1]}`,
+        message: `Nagsumite muli si ${m[1]} ng ${m[2]} para sa pagsusuri ng ${m[3]}. Nagsimulang muli ang 5-araw na panahon ng pagsusuri.`,
+        isSystemGenerated: true,
+      };
+    }
+  }
+
   // Default: Check if title or message is bilingual (contains Tagalog and English)
   const cleanedTitle = cleanBilingualText(rawTitle, language);
   const cleanedMessage = cleanBilingualText(rawMessage, language);
@@ -358,12 +381,12 @@ export function cleanBilingualText(raw: string, language: 'tl' | 'en'): string {
   if (!raw) return '';
   const trimmed = raw.trim();
 
-  // Pattern: "TextA (TextB)"
-  const match = trimmed.match(/^(.*?)\s*\(([^()]+)\)\s*$/s);
-  if (!match) return trimmed;
+  // Pattern: "TextA (TextB)" (a full stop after the parenthesis and a parenthesis inside TextB are allowed)
+  const split = splitTrailingGroup(trimmed);
+  if (!split) return trimmed;
 
-  const part1 = match[1].trim();
-  const part2 = match[2].trim();
+  const part1 = split.head;
+  const part2 = split.group;
 
   const part1Tl = countMatches(part1, TAGALOG_REGEX);
   const part1En = countMatches(part1, ENGLISH_REGEX);
@@ -380,19 +403,99 @@ export function cleanBilingualText(raw: string, language: 'tl' | 'en'): string {
   const isPart1Tagalog = part1Tl > part1En;
   const isPart2Tagalog = part2Tl > part2En;
 
+  let chosen: string;
   if (isPart1Tagalog && !isPart2Tagalog) {
-    return language === 'tl' ? part1 : part2;
+    chosen = language === 'tl' ? part1 : part2;
+  } else if (!isPart1Tagalog && isPart2Tagalog) {
+    chosen = language === 'tl' ? part2 : part1;
+  } else if (part2Tl > 0 && part1En > 0) {
+    chosen = language === 'tl' ? part2 : part1;
+  } else if (part1Tl > 0 && part2En > 0) {
+    chosen = language === 'tl' ? part1 : part2;
+  } else {
+    chosen = language === 'tl' ? part1 : part2;
   }
-  if (!isPart1Tagalog && isPart2Tagalog) {
-    return language === 'tl' ? part2 : part1;
+  // the sentence keeps the full stop that followed the parenthesis
+  return split.closing && !/[.!?]$/.test(chosen) ? chosen + split.closing : chosen;
+}
+
+/** "TextA (TextB)." as its parts: TextB is the LAST balanced parenthesis of the text, and what follows it may only be a full stop, "!" or "?". */
+function splitTrailingGroup(text: string): { head: string; group: string; closing: string } | null {
+  const tail = text.match(/\)\s*([.!?]?)\s*$/);
+  if (!tail || tail.index === undefined) return null;
+  const close = tail.index;
+  let depth = 0;
+  for (let i = close; i >= 0; i--) {
+    if (text[i] === ')') depth++;
+    else if (text[i] === '(') {
+      depth--;
+      if (depth === 0) return { head: text.slice(0, i).trim(), group: text.slice(i + 1, close).trim(), closing: tail[1] };
+    }
+  }
+  return null;
+}
+
+// What the database writes for a trip, a fare review or a substitute vehicle: English text with data in it. The data (a plate, a peso amount, a date) is kept;
+// the reason an administrator typed is theirs and is never translated.
+const DECISION_WORDS: Record<string, { en: string; tl: string }> = {
+  'FARE CONFIRMED': { en: 'Fare confirmed', tl: 'Kinumpirma ang pamasahe' },
+  'FARE REDUCED': { en: 'Fare reduced', tl: 'Binawasan ang pamasahe' },
+  'FARE WAIVED': { en: 'Fare waived', tl: 'Pinawalang-bayad ang pamasahe' },
+  'FARE ADJUSTED': { en: 'Fare adjusted', tl: 'Inayos ang pamasahe' },
+  'NON PAYMENT UPHELD': { en: 'Non-payment report upheld', tl: 'Pinaboran ang ulat ng hindi pagbabayad' },
+  'NON PAYMENT REJECTED': { en: 'Non-payment report not upheld', tl: 'Hindi pinaboran ang ulat ng hindi pagbabayad' },
+};
+
+const PAYMENT_WORDS: Record<string, string> = { PAID: 'Bayad na', WAIVED: 'Pinawalang-bayad', UNPAID: 'Hindi bayad' };
+
+function localizeTemplatedMessage(type: string, message: string, language: 'tl' | 'en'): string | null {
+  const tl = language === 'tl';
+  const join = (head: string, reason: string) => (reason ? `${head} ${reason}` : head);
+
+  if (type === 'FARE_DISPUTE_RESOLVED') {
+    const m = message.match(/^Decision:\s*([A-Z ]+?)(?:\.\s*The fare is now PHP\s*([\d.,]+))?\.\s*([\s\S]*)$/);
+    const words = m ? DECISION_WORDS[m[1].trim()] : undefined;
+    if (!m || !words) return null;
+    const fare = m[2];
+    if (tl) return join(`Desisyon: ${words.tl}.${fare ? ` Ang pamasahe ay PHP ${fare} na ngayon.` : ''}`, m[3].trim());
+    return join(`Decision: ${words.en}.${fare ? ` The fare is now PHP ${fare}.` : ''}`, m[3].trim());
   }
 
-  if (part2Tl > 0 && part1En > 0) {
-    return language === 'tl' ? part2 : part1;
-  }
-  if (part1Tl > 0 && part2En > 0) {
-    return language === 'tl' ? part1 : part2;
+  if (type === 'TRIP_CLOSED_BY_ADMIN') {
+    const m = message.match(/^The trip was closed as (\S+) after the parties were contacted\.\s*([\s\S]*)$/);
+    if (!m) return null;
+    return tl ? join(`Isinara ang biyahe bilang ${PAYMENT_WORDS[m[1].toUpperCase()] ?? m[1]} matapos makontak ang mga kasangkot.`, m[2].trim()) : message;
   }
 
-  return language === 'tl' ? part1 : part2;
+  if (type === 'TRIP_CORRECTED') {
+    const m = message.match(/^An administrator corrected the fare or payment of a completed trip\.\s*([\s\S]*)$/);
+    if (!m) return null;
+    return tl ? join('Itinama ng administrator ang pamasahe o bayad ng natapos na biyahe.', m[1].trim()) : message;
+  }
+
+  if (type === 'VEHICLE_SUBSTITUTION_ACTIVE') {
+    const m = message.match(/^You may use (.+?) until (.+?)\. Your registered vehicle comes back on its own after that\.$/);
+    if (!m) return null;
+    return tl ? `Maaari mong gamitin ang ${m[1]} hanggang ${m[2]}. Kusang babalik ang rehistrado mong sasakyan pagkatapos nito.` : message;
+  }
+
+  if (type === 'VEHICLE_SUBSTITUTION_DENIED') {
+    const m = message.match(/^(Your TODA|The LGU) Administrator did not approve the substitute vehicle (.+?): ([\s\S]*)$/);
+    if (!m) return null;
+    return tl ? `Hindi inaprubahan ng ${m[1] === 'Your TODA' ? 'iyong TODA' : 'LGU'} Administrator ang kapalit na sasakyan na ${m[2]}: ${m[3]}` : message;
+  }
+
+  if (type === 'VEHICLE_SUBSTITUTION_ENDED') {
+    const m = message.match(/^The substitute vehicle (.+?) is no longer approved\. Your registered vehicle (.+?) is your vehicle again\.$/);
+    if (!m) return null;
+    return tl ? `Hindi na aprubado ang kapalit na sasakyan na ${m[1]}. Ang rehistrado mong sasakyan na ${m[2]} ay iyo na muli.` : message;
+  }
+
+  if (type === 'VEHICLE_SUBSTITUTION_FORWARDED') {
+    const m = message.match(/^Your TODA Administrator approved the substitute vehicle (.+?)\. It now needs the LGU Administrator\. Do not use it before it is approved\.$/);
+    if (!m) return null;
+    return tl ? `Inaprubahan ng iyong TODA Administrator ang kapalit na sasakyan na ${m[1]}. Kailangan na ito ngayon ng LGU Administrator. Huwag itong gamitin hangga't hindi pa aprubado.` : message;
+  }
+
+  return null;
 }

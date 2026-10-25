@@ -3,6 +3,7 @@ import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/ma
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import appIconToto from '@sakay/shared/assets/icons/app-icon-toto.webp';
 
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -185,9 +186,10 @@ export const LiveTripsPage: React.FC = () => {
 
       const customIcon = L.divIcon({
         className: 'custom-live-trip-marker',
+        // The SAKAY tricycle (app-icon-toto) on a white disc, so the artwork reads clearly; the ring around the disc carries the status colour
         html: `
-          <div style="width: 36px; height: 36px; border-radius: 50%; background: ${markerBg}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2.5px solid #FFFFFF; box-shadow: 0 3px 8px rgba(0,0,0,0.3); cursor: pointer;">
-            🛺
+          <div style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; border: 3px solid ${markerBg}; box-shadow: 0 3px 8px rgba(0,0,0,0.3); cursor: pointer;">
+            <img src="${appIconToto}" alt="" draggable="false" style="width: 24px; height: 24px; object-fit: contain; display: block;" />
           </div>
         `,
         iconSize: [36, 36],

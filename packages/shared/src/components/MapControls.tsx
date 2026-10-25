@@ -11,42 +11,43 @@ export interface MapControlButtonProps {
   label: string;
   icon: MapControlIcon;
   onClick: () => void;
-  /** The camera is currently doing this (following me / showing the route): drawn as "on" and announced as pressed */
-  pressed?: boolean;
   /** Set when this cannot work right now ("Your location is not available"). The button stays focusable and pressable so the screen can explain. */
   unavailableReason?: string;
 }
 
 const ICONS: Record<MapControlIcon, React.ElementType> = { 'my-location': MyLocationIcon, route: RouteIcon };
 
+const WHITE = '#FFFFFF';
+const BLACK = '#0F172A';
+
 /**
- * One round control on the map. Never a bare icon: it always has an accessible name, it says whether it is "on" (aria-pressed), and when
- * it cannot work it says why instead of silently doing nothing.
+ * One round control on the map: an ACTION, never a switch. It is white with a black icon and stays so when hovered, pressed, focused or "used": nothing about it
+ * says "on" (the camera it moves is shown by the map itself). It always has an accessible name, and when it cannot work it says why instead of silently doing
+ * nothing (the icon is then dimmed, still black). The keyboard focus ring is a dark outline around the white circle.
  */
-export const MapControlButton: React.FC<MapControlButtonProps> = ({ label, icon, onClick, pressed = false, unavailableReason }) => {
+export const MapControlButton: React.FC<MapControlButtonProps> = ({ label, icon, onClick, unavailableReason }) => {
   const Icon = ICONS[icon];
   const unavailable = Boolean(unavailableReason);
   return (
     <IconButton
       onClick={onClick}
+      disableRipple
       aria-label={unavailable ? `${label}. ${unavailableReason}` : label}
-      aria-pressed={unavailable ? undefined : pressed}
       aria-disabled={unavailable || undefined}
       title={unavailable ? unavailableReason : label}
       sx={{
         width: 44,
         height: 44,
-        backgroundColor: pressed ? '#FFF7ED' : '#FFFFFF',
-        color: unavailable ? '#94A3B8' : pressed ? '#FF6600' : '#0F172A',
-        border: pressed ? '2px solid #FB923C' : '2px solid transparent',
+        backgroundColor: WHITE,
+        color: BLACK,
+        border: '2px solid transparent',
         boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)',
-        transition: 'background-color 0.15s ease, border-color 0.15s ease',
-        // hover only where a pointer really hovers: after a tap on a phone the button must not stay looking selected
-        '@media (hover: hover)': { '&:hover': { backgroundColor: pressed ? '#FFEDD5' : '#F8FAFC' } },
+        '&:hover, &:focus, &:active, &.Mui-focusVisible': { backgroundColor: WHITE, color: BLACK },
+        '&.Mui-focusVisible': { outline: `3px solid ${BLACK}`, outlineOffset: 2 },
         '&:active': { transform: 'scale(0.96)' },
       }}
     >
-      <Icon aria-hidden sx={{ fontSize: 22 }} />
+      <Icon aria-hidden sx={{ fontSize: 22, color: BLACK, opacity: unavailable ? 0.45 : 1 }} />
     </IconButton>
   );
 };

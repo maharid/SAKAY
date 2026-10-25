@@ -6,7 +6,6 @@ import {
   Paper,
   Button,
   IconButton,
-  LinearProgress,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -19,9 +18,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
-import PersonIcon from '@mui/icons-material/Person';
-import PlaceIcon from '@mui/icons-material/Place';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
 import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
@@ -38,6 +34,7 @@ import {
   useTripEndState,
   type DriverEarlyStopReason,
   TripDetailsPanel,
+  CollapsibleSheet,
   buildTripDetails,
   calculateDistanceKm,
   calculateTripProgressPercent,
@@ -68,7 +65,7 @@ import ArrivalWaitPanel from './ArrivalWaitPanel';
 import DriverEarlyStopDialog from './DriverEarlyStopDialog';
 import DriverEmergencyReport from './DriverEmergencyReport';
 import PaymentReceivedPanel from './PaymentReceivedPanel';
-import PassengerCheckCard from './PassengerCheckCard';
+import PassengerCheckCard, { PassengerCheckGuidance } from './PassengerCheckCard';
 import { arrivalZoneHint } from '../../../utils/arrivalHint';
 
 export const DriverActiveTrip: React.FC = () => {
@@ -131,16 +128,18 @@ export const DriverActiveTrip: React.FC = () => {
   const mapRef = useRef<MapViewHandle>(null);
   const driverFixStale = useStaleSignal(liveFix, 30_000);
   const safeArea = useSafeAreaInsets();
-  const [topPanelRef, topPanel] = useMeasuredSize<HTMLDivElement>();
+  const [bannerRef, banner] = useMeasuredSize<HTMLDivElement>();
+  // The bottom card is open only when the driver opens it; nothing about the trip opens or closes it (a trip update leaves it as it is)
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const [bottomPanelRef, bottomPanel] = useMeasuredSize<HTMLDivElement>();
   const mapInsets = useMemo(
     () => ({
-      top: safeArea.top + 72 + topPanel.height + 12,
+      top: safeArea.top + 12 + banner.height + 12,
       right: 64,
       bottom: bottomPanel.height + 12,
       left: 16,
     }),
-    [safeArea.top, topPanel.height, bottomPanel.height]
+    [safeArea.top, banner.height, bottomPanel.height]
   );
 
   // Fetch live booking & passenger details
@@ -503,8 +502,6 @@ export const DriverActiveTrip: React.FC = () => {
     booking?.booking_status === 'Arrived at Pickup';
   // The driver is AT the pickup (waiting for the passenger to board): nothing left to travel to it, so no distance or progress bar
   const atPickup = booking?.booking_status === 'Driver Arrived' || booking?.booking_status === 'Arrived at Pickup';
-  // Where the driver is going right now: the pickup until the passenger boards, the destination after
-  const targetAddress = isPreTrip ? booking?.pickup_address : booking?.dropoff_address;
 
   const getStageTitle = () => {
     const status = booking?.booking_status;
@@ -524,6 +521,13 @@ export const DriverActiveTrip: React.FC = () => {
   };
 
   const tl = language === 'tl';
+  const bannerFact = atPickup
+    ? null
+    : isPreTrip
+    ? formatDistance(pickupDistKm)
+    : isArrived || isCompleted
+    ? '100%'
+    : `${computedProgress}% · ${formatDistance(dropoffDistKm)} ${tl ? 'pa' : 'left'}`;
   const primaryButtonSx = {
     minHeight: 52,
     borderRadius: '16px',
@@ -531,6 +535,7 @@ export const DriverActiveTrip: React.FC = () => {
     color: '#FFFFFF',
     fontWeight: 700,
     fontSize: '16px',
+    whiteSpace: 'nowrap',
     textTransform: 'none',
     boxShadow: 'none',
     '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
@@ -585,294 +590,239 @@ export const DriverActiveTrip: React.FC = () => {
         />
       </MapControlStack>
 
-      {/* 2. Where the trip is: one line */}
+      {/* 2. Where the trip is: one compact banner, with the distance (or the progress) beside the stage. Everything else is in the bottom card. */}
       <Paper
+        ref={bannerRef}
         elevation={6}
         sx={{
           position: 'absolute',
           top: 'calc(var(--safe-area-top) + 12px)',
-          left: 16,
-          right: 16,
+          left: 12,
+          right: 12,
           backgroundColor: 'rgba(255, 255, 255, 0.96)',
           backdropFilter: 'blur(8px)',
-          borderRadius: '20px',
-          padding: '12px 16px',
+          borderRadius: '16px',
+          px: 1.75,
+          py: 1.1,
           zIndex: 30,
           border: '1px solid #E2E8F0',
           boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
         }}
       >
-        <Typography component="h1" sx={{ fontSize: '16px', color: '#0F172A', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>
+        <Typography component="h1" noWrap sx={{ fontSize: '15px', color: '#0F172A', fontWeight: 700, fontFamily: 'Poppins, sans-serif', minWidth: 0 }}>
           {getStageTitle()}
         </Typography>
+        {bannerFact && (
+          <Typography sx={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', backgroundColor: '#F1F5F9', borderRadius: '999px', px: 1.25, py: 0.4 }}>
+            {bannerFact}
+          </Typography>
+        )}
       </Paper>
 
-      {/* 3. The passenger, the progress, and the trip details (collapsed until asked for) */}
-      <Paper
-        ref={topPanelRef}
-        elevation={6}
-        sx={{
-          position: 'absolute',
-          top: 'calc(var(--safe-area-top) + 72px)',
-          left: 16,
-          right: 16,
-          // never reaches down into the action panel or the map controls above it
-          maxHeight: `calc(100% - var(--safe-area-top) - 72px - ${Math.max(210, bottomPanel.height + 120)}px)`,
-          overflowY: 'auto',
-          p: 2,
-          backgroundColor: 'rgba(255, 255, 255, 0.97)',
-          backdropFilter: 'blur(8px)',
-          borderRadius: '18px',
-          border: '1px solid #E2E8F0',
-          boxShadow: '0 8px 20px rgba(15, 23, 42, 0.08)',
-          zIndex: 25,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <Avatar sx={{ width: 40, height: 40, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
-              {passengerName.charAt(0)}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
-                {passengerName}
-              </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#475569', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <PersonIcon aria-hidden sx={{ fontSize: 14, color: '#64748B' }} />
-                {booking?.passenger_count || 1} {tl ? 'pasahero' : (booking?.passenger_count || 1) === 1 ? 'passenger' : 'passengers'}
-              </Typography>
-              {/* Rules 14.7 / 29.17: a different number of passengers than the booking declared is reported BEFORE the trip is finished */}
-              {booking && ['Accepted', 'Assigned', 'Driver Assigned', 'Driver En Route', 'Heading to Passenger', 'In Transit', 'Driver Arrived', 'Arrived at Pickup', 'Trip Ongoing', 'Ongoing'].includes(booking.booking_status) && (
-                <Button size="small" onClick={() => setCountReportOpen(true)} sx={{ p: 0, minHeight: 0, minWidth: 0, textTransform: 'none', fontSize: '11px', fontWeight: 700, color: '#B45309', justifyContent: 'flex-start' }}>
-                  {tl ? 'Iba ang bilang? Iulat' : 'Different number? Report it'}
-                </Button>
-              )}
-            </Box>
-          </Box>
+      {/* 3. The bottom card: who, what cannot wait, the action for this stage; the trip details open on demand (handle: tap, drag or arrow keys) */}
+      <CollapsibleSheet
+        sheetRef={bottomPanelRef}
+        expanded={sheetExpanded}
+        onExpandedChange={setSheetExpanded}
+        expandLabel={tl ? 'Ipakita ang detalye ng biyahe' : 'Show trip details'}
+        collapseLabel={tl ? 'Itago ang detalye ng biyahe' : 'Hide trip details'}
+        summary={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* On a Shared Trip the driver carries two bookings, one per passenger: this bar goes from one leg to the other (it shows nothing on an ordinary trip) */}
+            <SharedLegSwitcher bookingId={bookingId} />
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-            <IconButton
-              aria-label={tl ? 'Tawagan ang pasahero' : 'Call passenger'}
-              disabled={!passengerPhone}
-              onClick={() => {
-                if (passengerPhone) window.location.href = `tel:${passengerPhone}`;
-              }}
-              sx={{ backgroundColor: '#E6F4EA', color: '#166534', width: 44, height: 44, borderRadius: '12px', '&:hover': { backgroundColor: '#D1EBD7' } }}
-            >
-              <PhoneIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              aria-label={tl ? 'Magpadala ng mensahe sa pasahero' : 'Message passenger'}
-              onClick={() => setCommModalOpen(true)}
-              sx={{ backgroundColor: '#FFF1E6', color: '#FF6600', width: 44, height: 44, borderRadius: '12px', '&:hover': { backgroundColor: '#FFE6D2' } }}
-            >
-              <MessageIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
+            {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough): dispatch and the passenger's map cannot see it */}
+            <DriverLocationNotice issue={locationIssue} />
 
-        {/* Where to: the pickup until the passenger boards, the destination after (the address is always in view, at every stage) */}
-        {targetAddress && (
-          <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            {isPreTrip ? (
-              <RadioButtonUncheckedIcon aria-hidden sx={{ fontSize: 18, mt: '3px', mx: '1px', color: '#FF6600', flexShrink: 0 }} />
-            ) : (
-              <PlaceIcon aria-hidden sx={{ fontSize: 20, mt: '2px', color: '#FF6600', flexShrink: 0 }} />
+            {onTheWay && (
+              <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
             )}
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
-                {isPreTrip ? 'Pickup' : tl ? 'Destinasyon' : 'Destination'}
-              </Typography>
-              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>
-                {targetAddress}
-              </Typography>
-            </Box>
-          </Box>
-        )}
 
-        {/* How far: the distance to the pickup on the way there, the share of the trip once the passenger is aboard (nothing at the pickup itself) */}
-        {!atPickup && (
-          <Box sx={{ mt: 1.25 }}>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1.5, mb: 0.5 }}>
-              <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif', minWidth: 0 }}>
-                {isPreTrip ? (tl ? 'Layo' : 'Distance') : tl ? 'Progreso' : 'Progress'}
-              </Typography>
-              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', whiteSpace: 'nowrap', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-                {isPreTrip
-                  ? formatDistance(pickupDistKm)
-                  : isArrived || isCompleted
-                  ? '100%'
-                  : `${computedProgress}% · ${formatDistance(dropoffDistKm)} ${tl ? 'pa' : 'left'}`}
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              aria-label={isPreTrip ? (tl ? 'Layo sa pickup' : 'Distance to pickup') : tl ? 'Progreso ng biyahe' : 'Trip progress'}
-              value={isPreTrip ? Math.min(100, Math.max(10, 100 - pickupDistKm * 20)) : computedProgress}
-              sx={{
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: '#E2E8F0',
-                '& .MuiLinearProgress-bar': { backgroundColor: '#FF6600', borderRadius: 3 },
-              }}
-            />
-          </Box>
-        )}
-
-        <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px solid #F1F5F9' }}>
-          {/* On a Shared Trip the driver carries two bookings, one per passenger: this bar goes from one leg to the other (it shows nothing on an ordinary trip) */}
-          <SharedLegSwitcher bookingId={bookingId} />
-          <TripDetailsPanel view={tripDetails} language={language} variant="plain" />
-        </Box>
-      </Paper>
-
-      {/* 4. The action for this stage, and the way out */}
-      <Paper
-        ref={bottomPanelRef}
-        elevation={8}
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: '#FFFFFF',
-          borderTopLeftRadius: '24px',
-          borderTopRightRadius: '24px',
-          padding: '16px 20px calc(var(--safe-area-bottom) + 20px) 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.25,
-          zIndex: 30,
-          borderTop: '1px solid #E2E8F0',
-          boxShadow: '0 -8px 30px rgba(0, 0, 0, 0.08)',
-        }}
-      >
-        {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough): dispatch and the passenger's map cannot see it */}
-        <DriverLocationNotice issue={locationIssue} />
-
-        {onTheWay && (
-          <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
-        )}
-
-        {!booking ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25, minHeight: 52 }} role="status">
-            <CircularProgress size={20} sx={{ color: '#FF6600' }} />
-            <Typography sx={{ fontSize: '14px', color: '#475569', fontFamily: 'Poppins, sans-serif' }}>{tl ? 'Kinukuha ang biyahe...' : 'Loading the trip...'}</Typography>
-          </Box>
-        ) : booking.booking_status === 'Accepted' || booking.booking_status === 'Driver Assigned' ? (
-          <Button variant="contained" fullWidth disabled={moving} onClick={handleEnRoute} sx={primaryButtonSx}>
-            {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Papunta Na Ako' : "I'm On My Way"}
-          </Button>
-        ) : booking.booking_status === 'In Transit' ? (
-          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            <Button variant="contained" fullWidth disabled={moving} onClick={handleArrived} sx={primaryButtonSx}>
-              {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
-            </Button>
-            {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
-            <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
-              {arrivalZoneHint(tl)}
-            </Typography>
-          </Box>
-        ) : booking.booking_status === 'Arrived at Pickup' || booking.booking_status === 'Driver Arrived' ? (
-          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            <ArrivalWaitPanel
-              bookingId={bookingId}
-              language={language}
-              onMessage={setToastMessage}
-              onNoShowReported={() => {
-                refreshPresence();
-                navigate('/driver/home', { replace: true });
-              }}
-            />
-            {/* Rule 11.1: the first name is checked before boarding; the database does not let the trip start until the driver has said so */}
-            <PassengerCheckCard
-              bookingId={bookingId}
-              firstName={passengerName}
-              verified={Boolean(booking.boarding_verified_at)}
-              language={language}
-              onConfirmed={() => setBooking((prev: any) => (prev ? { ...prev, boarding_verified_at: new Date().toISOString() } : prev))}
-              onMessage={setToastMessage}
-            />
-            <Button
-              variant="contained"
-              fullWidth
-              disabled={moving || !booking.boarding_verified_at}
-              onClick={handleStartTrip}
-              startIcon={moving ? undefined : <LocalTaxiIcon />}
-              sx={primaryButtonSx}
-            >
-              {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Simulan ang Biyahe' : 'Start Trip'}
-            </Button>
-          </Box>
-        ) : isArrived ? (
-          /* Rules 16.6 / 18.1 - 18.6: the fare is shown to both; the driver waits for the passenger's Confirm Fare (or the end of the one timer), collects the cash and taps Payment Received */
-          <PaymentReceivedPanel
-            language={language}
-            state={tripEnd.state}
-            fallbackFare={lockedFare ?? currentFare}
-            secondsLeft={tripEnd.secondsLeft}
-            expired={tripEnd.expired}
-            busy={paymentFlight.busy}
-            onPaymentReceived={handlePaymentReceived}
-            onReportNonPayment={handleReportNonPayment}
-            onAddDisputeNote={handleDisputeNote}
-          />
-        ) : booking.booking_status === 'Trip Ongoing' ? (
-          /* The trip is on: End Trip is there from the start and opens at the destination gate (90 %, the database checks the same figure) or when the passenger asks to end the trip early */
-          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            {earlyRequested && (
-              <Box role="status" sx={{ p: '10px 12px', borderRadius: '14px', backgroundColor: tripEnd.state?.earlyEnd?.kind === 'SAFETY' ? '#FEF2F2' : '#FFFBEB', border: `1.5px solid ${tripEnd.state?.earlyEnd?.kind === 'SAFETY' ? '#FCA5A5' : '#FCD34D'}` }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-                  {tl ? 'Humiling ang pasahero na tapusin nang maaga ang biyahe' : 'The passenger asked to end the trip early'}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <Avatar sx={{ width: 40, height: 40, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
+                {passengerName.charAt(0)}
+              </Avatar>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography noWrap title={passengerName} sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
+                  {passengerName}
                 </Typography>
-                <Typography sx={{ fontSize: '12px', color: '#475569', fontFamily: 'Poppins, sans-serif', lineHeight: 1.4 }}>
-                  {earlyEndReasonLabel(tripEnd.state?.earlyEnd?.reason, tl ? 'tl' : 'en')}
-                  {' - '}
-                  {tl ? 'Huminto sa ligtas na lugar, saka pindutin ang End Trip.' : 'Stop in a safe place, then tap End Trip.'}
+                <Typography noWrap sx={{ fontSize: '12px', color: '#475569', fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
+                  {booking?.is_shared_trip ? 'Shared' : 'Solo'} · {booking?.passenger_count || 1} {tl ? 'pasahero' : (booking?.passenger_count || 1) === 1 ? 'passenger' : 'passengers'}
                 </Typography>
               </Box>
-            )}
-            <Button
-              variant="contained"
-              fullWidth
-              disabled={!canEndTrip || moving}
-              onClick={handleDriverSlideComplete}
-              startIcon={moving ? undefined : <CheckCircleIcon />}
-              aria-describedby={canEndTrip ? undefined : 'finish-trip-help'}
-              sx={primaryButtonSx}
-            >
-              {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Tapusin ang Biyahe' : 'End Trip'}
-            </Button>
-            {!canEndTrip && (
-              <Typography id="finish-trip-help" sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500, fontFamily: 'Poppins, sans-serif' }}>
-                {tl
-                  ? `Mabubuksan ang Tapusin ang Biyahe sa ${TRIP_FINISH_MIN_PROGRESS_PERCENT}% ng ruta. Nasa ${computedProgress}% ka na.`
-                  : `End Trip opens at ${TRIP_FINISH_MIN_PROGRESS_PERCENT}% of the route, or when the passenger asks to end the trip early. You are at ${computedProgress}%.`}
-              </Typography>
-            )}
-            {/* Rules 13.7 / 29.3: the driver cannot continue (vehicle trouble, a safety concern, an emergency, a dispute with the passenger) */}
-            <Button variant="text" fullWidth disabled={moving || earlyFlight.busy} onClick={() => setEarlyStopOpen(true)} sx={{ minHeight: 44, textTransform: 'none', fontWeight: 600, fontSize: '13px', color: '#B91C1C', fontFamily: 'Poppins, sans-serif' }}>
-              {tl ? 'Hindi ko na maituloy ang biyahe' : 'I cannot continue the trip'}
-            </Button>
+              <IconButton
+                aria-label={tl ? 'Tawagan ang pasahero' : 'Call passenger'}
+                disabled={!passengerPhone}
+                onClick={() => {
+                  if (passengerPhone) window.location.href = `tel:${passengerPhone}`;
+                }}
+                sx={{ backgroundColor: '#E6F4EA', color: '#166534', width: 44, height: 44, flexShrink: 0, '&:hover': { backgroundColor: '#D1EBD7' } }}
+              >
+                <PhoneIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                aria-label={tl ? 'Magpadala ng mensahe sa pasahero' : 'Message passenger'}
+                onClick={() => setCommModalOpen(true)}
+                sx={{ backgroundColor: '#FFF1E6', color: '#FF6600', width: 44, height: 44, flexShrink: 0, '&:hover': { backgroundColor: '#FFE6D2' } }}
+              >
+                <MessageIcon fontSize="small" />
+              </IconButton>
+              {/* Rules 16.5, 26.2, 26.3: an emergency during the trip (an accident, a passenger who needs a doctor, a threat): one tap, filed as an emergency incident */}
+              {booking && !isArrived && <DriverEmergencyReport bookingId={bookingId} language={language} variant="icon" />}
+            </Box>
           </Box>
-        ) : null}
+        }
+        details={
+          <>
+            {/* pickup, destination, ride type, status and fare (the same panel the passenger has), open */}
+            <TripDetailsPanel view={tripDetails} language={language} variant="plain" defaultExpanded />
 
-        {/* The way out, before the passenger is on board: a plain button that opens the same confirmation (reason and confirm) */}
-        {booking && isPreTrip && (
-          <Button
-            variant="text"
-            fullWidth
-            disabled={cancelling}
-            onClick={() => setCancelModalOpen(true)}
-            sx={{ minHeight: 48, borderRadius: '14px', textTransform: 'none', fontWeight: 600, fontSize: '14px', color: '#B91C1C', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#FEF2F2' } }}
-          >
-            {tl ? 'Ikansel ang booking' : 'Cancel booking'}
-          </Button>
-        )}
+            {/* Rules 14.7 / 29.17: a different number of passengers than the booking declared is reported BEFORE the trip is finished */}
+            {booking && ['Accepted', 'Assigned', 'Driver Assigned', 'Driver En Route', 'Heading to Passenger', 'In Transit', 'Driver Arrived', 'Arrived at Pickup', 'Trip Ongoing', 'Ongoing'].includes(booking.booking_status) && (
+              <Button
+                variant="outlined"
+                onClick={() => setCountReportOpen(true)}
+                sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap', color: '#92400E', borderColor: '#FCD34D', backgroundColor: '#FFFBEB', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' } }}
+              >
+                {tl ? 'Iba ang bilang ng pasahero? Iulat' : 'Different number of passengers? Report it'}
+              </Button>
+            )}
 
-        {/* Rules 16.5, 26.2, 26.3: an emergency during the trip (an accident, a passenger who needs a doctor, a threat): one tap, filed as an emergency incident */}
-        {booking && !isArrived && <DriverEmergencyReport bookingId={bookingId} language={language} />}
-      </Paper>
+            {/* the full instruction of the first-name check (the card in the pinned part keeps it short) */}
+            {booking && atPickup && !booking.boarding_verified_at && <PassengerCheckGuidance language={language} />}
+
+            {/* The way out, before the passenger is on board: a button that opens the same confirmation (reason and confirm) */}
+            {booking && isPreTrip && (
+              <Button
+                variant="outlined"
+                color="error"
+                disabled={cancelling}
+                onClick={() => setCancelModalOpen(true)}
+                sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', fontFamily: 'Poppins, sans-serif' }}
+              >
+                {tl ? 'Ikansel ang booking' : 'Cancel booking'}
+              </Button>
+            )}
+          </>
+        }
+        actions={
+          !booking ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25, minHeight: 52 }} role="status">
+              <CircularProgress size={20} sx={{ color: '#FF6600' }} />
+              <Typography sx={{ fontSize: '14px', color: '#475569', fontFamily: 'Poppins, sans-serif' }}>{tl ? 'Kinukuha ang biyahe...' : 'Loading the trip...'}</Typography>
+            </Box>
+          ) : booking.booking_status === 'Accepted' || booking.booking_status === 'Driver Assigned' ? (
+            <Button variant="contained" fullWidth disabled={moving} onClick={handleEnRoute} sx={primaryButtonSx}>
+              {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Papunta Na Ako' : "I'm On My Way"}
+            </Button>
+          ) : booking.booking_status === 'In Transit' ? (
+            <>
+              <Button variant="contained" fullWidth disabled={moving} onClick={handleArrived} sx={primaryButtonSx}>
+                {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup'}
+              </Button>
+              {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
+              <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500, fontFamily: 'Poppins, sans-serif', lineHeight: 1.35 }}>
+                {arrivalZoneHint(tl)}
+              </Typography>
+            </>
+          ) : booking.booking_status === 'Arrived at Pickup' || booking.booking_status === 'Driver Arrived' ? (
+            <>
+              <ArrivalWaitPanel
+                compact
+                bookingId={bookingId}
+                language={language}
+                onMessage={setToastMessage}
+                onNoShowReported={() => {
+                  refreshPresence();
+                  navigate('/driver/home', { replace: true });
+                }}
+              />
+              {/* Rule 11.1: the first name is checked before boarding; the database does not let the trip start until the driver has said so */}
+              <PassengerCheckCard
+                compact
+                bookingId={bookingId}
+                firstName={passengerName}
+                verified={Boolean(booking.boarding_verified_at)}
+                language={language}
+                onConfirmed={() => setBooking((prev: any) => (prev ? { ...prev, boarding_verified_at: new Date().toISOString() } : prev))}
+                onMessage={setToastMessage}
+              />
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={moving || !booking.boarding_verified_at}
+                onClick={handleStartTrip}
+                startIcon={moving ? undefined : <LocalTaxiIcon />}
+                sx={primaryButtonSx}
+              >
+                {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Simulan ang Biyahe' : 'Start Trip'}
+              </Button>
+            </>
+          ) : isArrived ? (
+            /* Rules 16.6 / 18.1 - 18.6: the fare is shown to both; the driver waits for the passenger's Confirm Fare (or the end of the one timer), collects the cash and taps Payment Received */
+            <PaymentReceivedPanel
+              language={language}
+              state={tripEnd.state}
+              fallbackFare={lockedFare ?? currentFare}
+              secondsLeft={tripEnd.secondsLeft}
+              expired={tripEnd.expired}
+              busy={paymentFlight.busy}
+              onPaymentReceived={handlePaymentReceived}
+              onReportNonPayment={handleReportNonPayment}
+              onAddDisputeNote={handleDisputeNote}
+            />
+          ) : booking.booking_status === 'Trip Ongoing' ? (
+            /* The trip is on: End Trip is there from the start and opens at the destination gate (90 %, the database checks the same figure) or when the passenger asks to end the trip early */
+            <>
+              {earlyRequested && (
+                <Box role="status" sx={{ p: '10px 12px', borderRadius: '14px', backgroundColor: tripEnd.state?.earlyEnd?.kind === 'SAFETY' ? '#FEF2F2' : '#FFFBEB', border: `1.5px solid ${tripEnd.state?.earlyEnd?.kind === 'SAFETY' ? '#FCA5A5' : '#FCD34D'}` }}>
+                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+                    {tl ? 'Humiling ang pasahero na tapusin nang maaga ang biyahe' : 'The passenger asked to end the trip early'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '12px', color: '#475569', fontFamily: 'Poppins, sans-serif', lineHeight: 1.4 }}>
+                    {earlyEndReasonLabel(tripEnd.state?.earlyEnd?.reason, tl ? 'tl' : 'en')}
+                    {' - '}
+                    {tl ? 'Huminto sa ligtas na lugar, saka pindutin ang End Trip.' : 'Stop in a safe place, then tap End Trip.'}
+                  </Typography>
+                </Box>
+              )}
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={!canEndTrip || moving}
+                onClick={handleDriverSlideComplete}
+                startIcon={moving ? undefined : <CheckCircleIcon />}
+                aria-describedby={canEndTrip ? undefined : 'finish-trip-help'}
+                sx={primaryButtonSx}
+              >
+                {moving ? <CircularProgress size={24} color="inherit" aria-label={tl ? 'Isinusulat' : 'Saving'} /> : tl ? 'Tapusin ang Biyahe' : 'End Trip'}
+              </Button>
+              {!canEndTrip && (
+                <Typography id="finish-trip-help" sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500, fontFamily: 'Poppins, sans-serif', lineHeight: 1.35 }}>
+                  {tl
+                    ? `Mabubuksan ang Tapusin ang Biyahe sa ${TRIP_FINISH_MIN_PROGRESS_PERCENT}% ng ruta. Nasa ${computedProgress}% ka na.`
+                    : `End Trip opens at ${TRIP_FINISH_MIN_PROGRESS_PERCENT}% of the route, or when the passenger asks to end the trip early. You are at ${computedProgress}%.`}
+                </Typography>
+              )}
+              {/* Rules 13.7 / 29.3: the driver cannot continue (vehicle trouble, a safety concern, an emergency, a dispute with the passenger) */}
+              <Button
+                variant="outlined"
+                color="error"
+                fullWidth
+                disabled={moving || earlyFlight.busy}
+                onClick={() => setEarlyStopOpen(true)}
+                sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap', fontFamily: 'Poppins, sans-serif' }}
+              >
+                {tl ? 'Hindi ko na maituloy ang biyahe' : 'I cannot continue the trip'}
+              </Button>
+            </>
+          ) : null
+        }
+      />
 
       {/* Driver ↔ Passenger Communication Modal */}
       <DriverCommunicationModal

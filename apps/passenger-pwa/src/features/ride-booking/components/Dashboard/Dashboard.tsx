@@ -11,7 +11,7 @@ import Alert from "@mui/material/Alert";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import { supabase } from "../../../../services/supabaseClient";
-import { CalamityBanner, SIGNED_URL_TTL, signedStorageUrl, useActiveCalamity, useSafeAreaInsets, localizeSystemNotification } from "@sakay/shared";
+import { CalamityBanner, SIGNED_URL_TTL, signedStorageUrl, useActiveCalamity, useSafeAreaInsets, localizeSystemNotification, notificationCategory, selectImportantNotifications } from "@sakay/shared";
 import MapView from "../../../../common/components/MapView";
 import HomeHeader from "./HomeHeader";
 import HomeBottomSheet from "./HomeBottomSheet";
@@ -281,29 +281,11 @@ const Dashboard: React.FC = () => {
   };
 
   // Notifications State & Handlers with localStorage persistence
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const rawRead = localStorage.getItem("sakay_read_notifications");
-    let readIds: string[] = [];
-    try {
-      if (rawRead) readIds = JSON.parse(rawRead);
-    } catch {}
+  // Only what the database holds for this passenger (the announcements and the notices written for them): there is no made-up welcome notice
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-    const items: NotificationItem[] = [
-      {
-        id: "n1",
-        titleTl: "Maligayang Pagdating sa SAKAY!",
-        titleEn: "Welcome to SAKAY!",
-        bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City. Mag-book ng iyong unang biyahe ngayon!",
-        bodyEn: "Fast and fair tricycle fares anywhere in Calapan City. Start booking your ride today!",
-        timeTl: "Ngayon",
-        timeEn: "Just now",
-        isRead: readIds.includes("n1"),
-        category: "promos",
-      },
-    ];
-
-    return items;
-  });
+  // the two sources arrive separately and are listed together, newest first
+  const byNewest = (a: NotificationItem, b: NotificationItem) => (Date.parse(b.createdAt || "") || 0) - (Date.parse(a.createdAt || "") || 0);
 
   useEffect(() => {
     // an announcement is for everybody or for passengers (not the ones meant for drivers or TODA administrators), only a published one, and only a city-wide one:
@@ -317,28 +299,28 @@ const Dashboard: React.FC = () => {
       .order("created_at", { ascending: false })
       .limit(20)
       .then(({ data }) => {
-        if (!data || data.length === 0) return;
+        if (!data) return;
         const rawRead = localStorage.getItem("sakay_read_notifications");
         let readIds: string[] = [];
         try {
           if (rawRead) readIds = JSON.parse(rawRead);
         } catch {}
-        const fetched: NotificationItem[] = data.map((a: any) => ({
+        // an announcement is written by an administrator: it is shown as written (one list, repeats of the same text listed once)
+        const fetched: NotificationItem[] = selectImportantNotifications(
+          data as any[],
+          (a) => ({ title: a.title, message: a.message || a.content || "", sentAt: a.created_at })
+        ).map((a: any) => ({
           id: a.announcement_id || a.id,
           titleTl: a.title,
           titleEn: a.title,
           bodyTl: a.message || a.content || "",
           bodyEn: a.message || a.content || "",
           createdAt: a.created_at,
-          timeTl: a.created_at ? undefined : "Kamakailan",
-          timeEn: a.created_at ? undefined : "Recent",
           isRead: readIds.includes(a.announcement_id || a.id),
           category: "advisories",
         }));
-        setNotifications((prev) => {
-          const defaultItems = prev.filter((p) => p.id === "n1");
-          return [...defaultItems, ...fetched];
-        });
+        // the notices of the other source stay; only the announcements are replaced
+        setNotifications((prev) => [...prev.filter((p) => p.id.startsWith("db:")), ...fetched].sort(byNewest));
       });
   }, []);
 
@@ -358,7 +340,12 @@ const Dashboard: React.FC = () => {
       } catch {}
       // The database writes some notices with both languages in one text ("Tagalog (English)"): each language gets its own text, so the passenger
       // reads the selected one only (the same helper the Driver app uses).
-      const items: NotificationItem[] = data.map((n: { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }) => {
+      // Only what is worth the passenger's attention (a live-trip prompt that has passed, a thank-you note and a repeated write are left out; nothing is deleted)
+      const important = selectImportantNotifications(
+        data as { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }[],
+        (n) => ({ type: n.notification_type, title: n.title, message: n.message, sentAt: n.sent_at })
+      );
+      const items: NotificationItem[] = important.map((n: { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }) => {
         const tl = localizeSystemNotification(n.title, n.message, "tl", n.notification_type);
         const en = localizeSystemNotification(n.title, n.message, "en", n.notification_type);
         return {
@@ -369,10 +356,11 @@ const Dashboard: React.FC = () => {
           bodyEn: en.message,
           createdAt: n.sent_at,
           isRead: readIds.includes("db:" + n.notification_id),
-          category: /TRIP|DRIVER|EARLY|FARE|PAYMENT|ARRIV|WAIT/.test(n.notification_type || "") ? "trips" : "advisories",
+          category: notificationCategory(n.notification_type),
         };
       });
-      setNotifications((prev) => [...prev.filter((p) => !p.id.startsWith("db:")), ...items]);
+      // the announcements stay; only the notices of this source are replaced
+      setNotifications((prev) => [...prev.filter((p) => !p.id.startsWith("db:")), ...items].sort(byNewest));
     };
     void load();
     const timer = setInterval(() => void load(), 60000);

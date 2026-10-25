@@ -26,22 +26,6 @@ import { useLanguage } from '../../../utils/LanguageContext';
 const manila = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
 
-// The days menu is a MUI select; it takes the look of the app's RegisterInput fields (grey box, white and orange while open) so the form reads as one.
-const DAYS_SELECT_SX = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '16px',
-    backgroundColor: '#F1F3F5',
-    minHeight: 62,
-    transition: 'background-color 0.2s, box-shadow 0.2s',
-    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#E2E8F0', borderWidth: '1.5px' },
-    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#CBD5E1' },
-    '&.Mui-focused': { backgroundColor: '#FFFFFF', boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)' },
-    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#FF6600', borderWidth: '1.5px' },
-    '& .MuiSelect-select': { fontSize: '16px', fontWeight: 600, color: '#0F172A' },
-  },
-  '& .MuiInputLabel-root': { color: '#64748B', '&.Mui-focused': { color: '#FF6600' } },
-} as const;
-
 const STATUS: Record<string, { en: string; tl: string; color: 'warning' | 'success' | 'default' | 'error' }> = {
   'Pending TODA Approval': { en: 'Waiting for your TODA Administrator', tl: 'Naghihintay sa TODA Administrator mo', color: 'warning' },
   'Pending LGU Approval': { en: 'Waiting for the LGU Administrator', tl: 'Naghihintay sa LGU Administrator', color: 'warning' },
@@ -194,7 +178,7 @@ const DriverVehicleSubstitutionPage: React.FC = () => {
               helperText={touched.franchise ? franchiseProblem : ''}
               autoComplete="off"
             />
-            <TextField select size="small" label={tl ? 'Ilang araw' : 'Number of days'} value={days} onChange={(e) => setDays(Number(e.target.value))} fullWidth sx={DAYS_SELECT_SX}>
+            <TextField select size="small" label={tl ? 'Ilang araw' : 'Number of days'} value={days} onChange={(e) => setDays(Number(e.target.value))} fullWidth>
               {Array.from({ length: SUBSTITUTION_MAX_DAYS }, (_, i) => i + 1).map((n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
             </TextField>
             <RegisterInput

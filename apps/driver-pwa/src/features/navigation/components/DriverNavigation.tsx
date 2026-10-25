@@ -27,6 +27,7 @@ import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
 import { DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
 import { arrivalZoneHint } from '../../../utils/arrivalHint';
 import {
+  CollapsibleSheet,
   TripDetailsPanel,
   buildTripDetails,
   calculateDistanceKm,
@@ -78,6 +79,8 @@ export const DriverNavigation: React.FC = () => {
     [safeArea.top, banner.height, bottomCard.height]
   );
   const [commModalOpen, setCommModalOpen] = useState(false);
+  // open only when the driver opens it: nothing about the trip opens or closes the card
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Rules 8 / 9: the system's warning to a driver who has not started, and the notice that it gave the booking to another driver
   const clocks = useAssignedBookingClocks(bookingId, true);
@@ -288,91 +291,82 @@ export const DriverNavigation: React.FC = () => {
         </Box>
       </Paper>
 
-      {/* 3. Bottom card: the passenger, the trip details (collapsed until asked for, so the map keeps its room), and the one action for this stage */}
-      <Paper
-        ref={bottomCardRef}
-        elevation={8}
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: '#FFFFFF',
-          borderTopLeftRadius: '24px',
-          borderTopRightRadius: '24px',
-          padding: '16px 20px calc(var(--safe-area-bottom) + 16px) 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.25,
-          zIndex: 20,
-          borderTop: '1px solid #E2E8F0',
-          boxShadow: '0 -8px 30px rgba(0, 0, 0, 0.08)',
-          // a tall notice never pushes the card over the banner: the card scrolls instead
-          maxHeight: 'calc(100% - var(--safe-area-top) - 120px)',
-          overflowY: 'auto',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-            <Avatar sx={{ width: 44, height: 44, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
-              {passengerName.charAt(0)}
-            </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>
-                {passengerName}
-              </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#475569', lineHeight: 1.3 }}>
-                {booking?.is_shared_trip ? 'Shared' : 'Solo'} · {passengerCount} {tl ? 'pasahero' : passengerCount === 1 ? 'passenger' : 'passengers'}
-              </Typography>
+      {/* 3. Bottom card: the passenger, anything that cannot wait, and the one action for this stage. The trip details open on demand (handle: tap, drag or
+          arrow keys), so the map keeps its room. */}
+      <CollapsibleSheet
+        sheetRef={bottomCardRef}
+        expanded={sheetExpanded}
+        onExpandedChange={setSheetExpanded}
+        expandLabel={tl ? 'Ipakita ang detalye ng biyahe' : 'Show trip details'}
+        collapseLabel={tl ? 'Itago ang detalye ng biyahe' : 'Hide trip details'}
+        zIndex={20}
+        summary={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough) */}
+            <DriverLocationNotice issue={locationIssue} />
+
+            <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                <Avatar sx={{ width: 40, height: 40, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
+                  {passengerName.charAt(0)}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography noWrap title={passengerName} sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
+                    {passengerName}
+                  </Typography>
+                  <Typography noWrap sx={{ fontSize: '12px', color: '#475569', lineHeight: 1.3 }}>
+                    {booking?.is_shared_trip ? 'Shared' : 'Solo'} · {passengerCount} {tl ? 'pasahero' : passengerCount === 1 ? 'passenger' : 'passengers'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                <IconButton aria-label={tl ? 'Tawagan ang pasahero' : 'Call passenger'} onClick={() => setCommModalOpen(true)} sx={{ width: 44, height: 44, backgroundColor: '#E6F4EA', color: '#166534', '&:hover': { backgroundColor: '#D1EBD7' } }}>
+                  <PhoneIcon fontSize="small" />
+                </IconButton>
+                <IconButton aria-label={tl ? 'Magpadala ng mensahe sa pasahero' : 'Message passenger'} onClick={() => setCommModalOpen(true)} sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#FF6600', '&:hover': { backgroundColor: '#FFE6D2' } }}>
+                  <MessageIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
           </Box>
-
-          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-            <IconButton aria-label={tl ? 'Tawagan ang pasahero' : 'Call passenger'} onClick={() => setCommModalOpen(true)} sx={{ width: 44, height: 44, backgroundColor: '#E6F4EA', color: '#166534', '&:hover': { backgroundColor: '#D1EBD7' } }}>
-              <PhoneIcon fontSize="small" />
-            </IconButton>
-            <IconButton aria-label={tl ? 'Magpadala ng mensahe sa pasahero' : 'Message passenger'} onClick={() => setCommModalOpen(true)} sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#FF6600', '&:hover': { backgroundColor: '#FFE6D2' } }}>
-              <MessageIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-
-        {/* Pickup, destination, ride type and the estimated fare: the same panel the active-trip screen has */}
-        <TripDetailsPanel view={tripDetails} language={language} />
-
-        {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough) */}
-        <DriverLocationNotice issue={locationIssue} />
-
-        <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
-
-        {/* Arrival Confirmation Action Button */}
-        <Button
-          variant="contained"
-          fullWidth
-          onClick={handleArrivedAtPickup}
-          disabled={arriveFlight.busy}
-          startIcon={<CheckCircleIcon />}
-          sx={{
-            minHeight: 52,
-            borderRadius: '14px',
-            '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 },
-            backgroundColor: '#FF6600',
-            color: '#FFFFFF',
-            fontWeight: 700,
-            fontSize: '15px',
-            textTransform: 'none',
-            '&:hover': { backgroundColor: '#E65C00' },
-          }}
-        >
-          {arriveFlight.busy
-            ? (tl ? 'Itinatala...' : 'Recording...')
-            : (tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup')}
-        </Button>
-        {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
-        <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500 }}>
-          {arrivalZoneHint(tl)}
-        </Typography>
-      </Paper>
+        }
+        details={<TripDetailsPanel view={tripDetails} language={language} variant="plain" defaultExpanded />}
+        actions={
+          <>
+            {/* Arrival Confirmation Action Button */}
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleArrivedAtPickup}
+              disabled={arriveFlight.busy}
+              startIcon={<CheckCircleIcon />}
+              sx={{
+                minHeight: 52,
+                borderRadius: '14px',
+                '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 },
+                backgroundColor: '#FF6600',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '15px',
+                whiteSpace: 'nowrap',
+                textTransform: 'none',
+                '&:hover': { backgroundColor: '#E65C00' },
+              }}
+            >
+              {arriveFlight.busy
+                ? (tl ? 'Itinatala...' : 'Recording...')
+                : (tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup')}
+            </Button>
+            {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
+            <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500, lineHeight: 1.35 }}>
+              {arrivalZoneHint(tl)}
+            </Typography>
+          </>
+        }
+      />
 
       {/* Communication Dialog */}
       <DriverCommunicationModal

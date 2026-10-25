@@ -153,7 +153,7 @@ export const QuickMessageDialog: React.FC<QuickMessageDialogProps> = ({
             placeholder={tl ? 'I-type ang mensahe' : 'Type your message'}
             helperText={`${custom.length}/${MAX_QUICK_MESSAGE_LENGTH}`}
             slotProps={{ htmlInput: { 'aria-label': tl ? 'Iyong mensahe' : 'Your message', maxLength: MAX_QUICK_MESSAGE_LENGTH } }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+           
           />
         )}
       </Box>

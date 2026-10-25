@@ -175,6 +175,13 @@ export interface NotificationItem {
   link?: string;
   rawTimestamp?: string;
   category?: 'resubmission' | 'endorsement' | 'toda' | 'incident' | 'system' | 'general' | string;
+  /** Where the notice comes from, so that it can be written in the selected language when it is shown: a notice of the database, or one of the portal's own */
+  kind?: 'db' | 'resubmitted' | 'endorsed' | 'todaPending';
+  /** a notice of the database: its text as the database wrote it */
+  rawTitle?: string;
+  rawMessage?: string;
+  /** a notice of the portal's own: who it is about (the driver or the TODA) */
+  subject?: string;
 }
 
 export interface ActiveTripMarker {

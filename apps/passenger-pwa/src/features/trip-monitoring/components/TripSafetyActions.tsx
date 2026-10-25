@@ -22,8 +22,6 @@ interface TripSafetyActionsProps {
   language: 'tl' | 'en';
   /** a driver is on the booking and the trip is not over: only then are the two buttons offered (Rule 26.1: during an active trip) */
   active: boolean;
-  pickup: string | null;
-  dropoff: string | null;
   /** The passenger's next step after the Urgent Safety Report (Rule 26.2): opens End Trip (Early); undefined when the trip is not in progress */
   onEndTripEarly?: () => void;
   onMessage: (text: string) => void;
@@ -51,7 +49,7 @@ const saveToken = (bookingId: string, token: string | null) => {
  * Rules 26.1 and 26.2 during an active trip: Share Live Trip (the phone's own sharing - SMS, Messenger or any app - of a link that follows the trip; SAKAY has no in-app emergency
  * calling or messaging) and the Urgent Safety Report (one tap; then End Trip (Early) once the vehicle has safely stopped). The database makes the link and the report; this is the screen.
  */
-const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, language, active, pickup, dropoff, onEndTripEarly, onMessage }) => {
+const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, language, active, onEndTripEarly, onMessage }) => {
   const tl = language === 'tl';
   const shareFlight = useInFlight();
   const urgentFlight = useInFlight();
@@ -84,7 +82,7 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
       }
       saveToken(bookingId, token);
       setSharing(true);
-      const text = shareMessage(language, { pickup, dropoff, url: shareUrl(window.location.origin, token) });
+      const text = shareMessage(language, { url: shareUrl(window.location.origin, token) });
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
         try {
           await navigator.share({ title: 'SAKAY', text });
@@ -133,23 +131,22 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 1.25 }}>
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      {/* each label stays on ONE line: the buttons share the row by the size of their words, and when they do not fit side by side the second one takes the next row whole */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
         <Button
           variant="outlined"
-          fullWidth
           disabled={shareFlight.busy}
           onClick={handleShare}
           startIcon={<IosShareIcon />}
-          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, color: '#0F172A', borderColor: '#CBD5E1', '&:hover': { backgroundColor: '#F8FAFC', borderColor: '#94A3B8' } }}
+          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap', color: '#0F172A', borderColor: '#CBD5E1', '&:hover': { backgroundColor: '#F8FAFC', borderColor: '#94A3B8' } }}
         >
           {tl ? 'Ibahagi ang Biyahe' : 'Share Live Trip'}
         </Button>
         <Button
           variant="outlined"
-          fullWidth
           onClick={() => setUrgentOpen(true)}
           startIcon={<ReportProblemIcon />}
-          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
+          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap', color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
         >
           {tl ? 'Agarang Ulat sa Kaligtasan' : 'Urgent Safety Report'}
         </Button>

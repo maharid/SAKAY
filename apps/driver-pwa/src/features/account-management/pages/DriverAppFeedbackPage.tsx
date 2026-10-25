@@ -3,10 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  Paper,
   Button,
-  TextField,
-  Rating,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -16,6 +13,7 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 
 import PageHeader from '../../../common/components/PageHeader';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { RateAppForm } from '@sakay/shared';
 
 export const DriverAppFeedbackPage: React.FC = () => {
   const { language } = useLanguage();
@@ -26,10 +24,6 @@ export const DriverAppFeedbackPage: React.FC = () => {
   const [feedbackText, setFeedbackText] = useState('');
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSuccessDialogOpen(true);
-  };
 
   return (
     <Box
@@ -46,119 +40,18 @@ export const DriverAppFeedbackPage: React.FC = () => {
         onBack={() => navigate(-1)}
       />
 
-      <Box
-        component="form"
-        onSubmit={handleSubmit}
-        className="hide-scrollbar"
-        sx={{
-          flexGrow: 1,
-          overflowY: 'auto',
-          '& > *': { flexShrink: 0 },
-          p: 2.5,
-          pb: 'calc(var(--safe-area-bottom) + 24px)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            borderRadius: '20px',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #F1F5F9',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            gap: 1.5,
-          }}
-        >
-          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-            {isTagalog
-              ? 'Kamusta ang iyong karanasan sa SAKAY Driver?'
-              : 'How was your experience using SAKAY Driver?'}
-          </Typography>
-          <Typography sx={{ fontSize: '13px', color: '#64748B' }}>
-            {isTagalog
-              ? 'Tulungan kaming mapabuti ang serbisyo para sa mga drayber sa Calapan City.'
-              : 'Help us improve our service for all drivers in Calapan City.'}
-          </Typography>
-
-          <Rating
-            value={rating}
-            onChange={(_, newValue) => setRating(newValue)}
-            sx={{
-              my: 1.5,
-              color: '#FF6600',
-              '& .MuiRating-icon': {
-                fontSize: '44px',
-                mx: 0.5,
-              },
-            }}
-          />
-        </Paper>
-
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            borderRadius: '20px',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #F1F5F9',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1.5,
-          }}
-        >
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label={isTagalog ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
-            placeholder={
-              isTagalog
-                ? 'Isulat dito ang iyong komento o suhestiyon...'
-                : 'Type your comment or suggestion here...'
-            }
-            value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
-            slotProps={{
-              input: {
-                sx: {
-                  borderRadius: '14px',
-                  backgroundColor: '#F8FAFC',
-                  '& fieldset': { borderColor: '#E2E8F0' },
-                  '&:hover fieldset': { borderColor: '#CBD5E1' },
-                  '&.Mui-focused fieldset': { borderColor: '#FF6600' },
-                },
-              },
-            }}
-          />
-        </Paper>
-
-        {/* Submit Button at Bottom */}
-        <Box sx={{ mt: 'auto', pt: 1 }}>
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{
-              backgroundColor: '#FF6600',
-              color: '#FFFFFF',
-              borderRadius: '14px',
-              height: '52px',
-              fontSize: '15px',
-              fontWeight: 700,
-              textTransform: 'none',
-              boxShadow: 'none',
-              '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
-            }}
-          >
-            {isTagalog ? 'Isumite ang Rating' : 'Submit Rating'}
-          </Button>
-        </Box>
+      <Box className="hide-scrollbar" sx={{ flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', p: 2.5, pb: 'calc(var(--safe-area-bottom) + 24px)' }}>
+        <RateAppForm
+          language={language === 'tl' ? 'tl' : 'en'}
+          audience="driver"
+          rating={rating}
+          onRatingChange={setRating}
+          comment={feedbackText}
+          onCommentChange={setFeedbackText}
+          commentLabel={isTagalog ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
+          commentPlaceholder={isTagalog ? 'Isulat dito ang iyong komento o suhestiyon...' : 'Type your comment or suggestion here...'}
+          onSubmit={() => setSuccessDialogOpen(true)}
+        />
       </Box>
 
       {/* Success Dialog */}

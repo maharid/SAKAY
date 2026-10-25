@@ -8,7 +8,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
-import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -16,7 +15,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverNotifications } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { activateWithKeyboard, localizeSystemNotification } from '@sakay/shared';
+import { activateWithKeyboard, formatNotificationTime, localizeSystemNotification, notificationCategory } from '@sakay/shared';
 
 export interface NotificationItem {
   id: string;
@@ -24,46 +23,24 @@ export interface NotificationItem {
   titleEn: string;
   bodyTl: string;
   bodyEn: string;
-  timeTl?: string;
-  timeEn?: string;
   createdAt?: string;
   isRead?: boolean;
-  category?: 'trips' | 'promos' | 'advisories' | 'all';
+  category?: 'trips' | 'advisories' | 'all';
   /** The kind of system notice (the strike notices take the driver to his strikes and the way to appeal them) */
   notificationType?: string;
 }
 
-export function getRelativeTime(
-  createdAt?: string,
-  fallbackTimeTl?: string,
-  fallbackTimeEn?: string,
-  language: 'tl' | 'en' = 'tl'
-): string {
-  if (!createdAt) {
-    return language === 'tl' ? (fallbackTimeTl || 'Ngayon') : (fallbackTimeEn || 'Just now');
-  }
-  const date = new Date(createdAt);
-  if (isNaN(date.getTime())) {
-    return language === 'tl' ? (fallbackTimeTl || 'Ngayon') : (fallbackTimeEn || 'Just now');
-  }
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+/** Who a notice is from: the TODA or LGU administrator for an announcement or a reminder they sent, SAKAY for everything the system wrote */
+function senderOf(item: NotificationItem): string {
+  if (!item.notificationType) return 'TODA Administrator';
+  if (item.notificationType === 'TODA_REMINDER') return 'TODA Administrator';
+  if (item.notificationType === 'LGU_RENEWAL_REMINDER') return 'LGU Administrator';
+  return 'SAKAY';
+}
 
-  if (diffMins < 1) {
-    return language === 'tl' ? 'Ngayon' : 'Just now';
-  } else if (diffMins < 60) {
-    return language === 'tl' ? `${diffMins}m ang nakalipas` : `${diffMins}m ago`;
-  } else if (diffHours < 24) {
-    return language === 'tl' ? `${diffHours}h ang nakalipas` : `${diffHours}h ago`;
-  } else if (diffDays === 1) {
-    return language === 'tl' ? 'Kahapon' : 'Yesterday';
-  } else {
-    return language === 'tl' ? `${diffDays}d ang nakalipas` : `${diffDays}d ago`;
-  }
+/** How long ago the notice was sent, in the selected language (the same words as before, now shared with the other apps) */
+export function getRelativeTime(createdAt: string | undefined, language: 'tl' | 'en' = 'tl'): string {
+  return formatNotificationTime(createdAt, language);
 }
 
 export const DriverNotifications: React.FC = () => {
@@ -73,7 +50,7 @@ export const DriverNotifications: React.FC = () => {
 
   const [fetchedNotifs, setFetchedNotifs] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'promos' | 'advisories'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'advisories'>('all');
 
   const [localReadIds, setLocalReadIds] = useState<string[]>(() => {
     try {
@@ -105,12 +82,10 @@ export const DriverNotifications: React.FC = () => {
               titleEn: en.title,
               bodyTl: tl.message,
               bodyEn: en.message,
-              createdAt: d.time ? undefined : new Date().toISOString(),
-              timeTl: d.time,
-              timeEn: d.time,
+              createdAt: d.sentAt || undefined,
               isRead: d.read === true,
               notificationType: d.notificationType,
-              category: d.category === 'TODA Announcement' || d.category === 'TODA Reminder' ? 'advisories' : 'promos',
+              category: notificationCategory(d.notificationType),
             };
           });
           setFetchedNotifs(mapped);
@@ -151,7 +126,6 @@ export const DriverNotifications: React.FC = () => {
   const filters = [
     { key: 'all', labelTl: 'Lahat', labelEn: 'All' },
     { key: 'trips', labelTl: 'Mga Biyahe', labelEn: 'Trips' },
-    { key: 'promos', labelTl: 'Mga Promosyon', labelEn: 'Promotions' },
     { key: 'advisories', labelTl: 'Mga Paalala', labelEn: 'Advisories' },
   ];
 
@@ -164,8 +138,6 @@ export const DriverNotifications: React.FC = () => {
     switch (category) {
       case 'trips':
         return <LocalTaxiIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
-      case 'promos':
-        return <LocalOfferOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       case 'advisories':
         return <CampaignOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       default:
@@ -174,19 +146,11 @@ export const DriverNotifications: React.FC = () => {
   };
 
   if (selectedNotif) {
-    const time = getRelativeTime(selectedNotif.createdAt, selectedNotif.timeTl, selectedNotif.timeEn, language);
-
-    const detailedBodyTl = selectedNotif.id === 'dn2'
-      ? `Manatiling maingat sa pagmamaneho at siguraduhing updated ang inyong lisensya at MTOP permit.\n\nMula sa TODA Administration:\n1. Laging magsuot ng tamang kasuotan at helmet o pananggalang kung kinakailangan.\n2. Siguraduhing malinis at ligtas ang sasakyan para sa mga pasahero.\n3. Sumunod sa mga alituntunin sa trapiko ng Calapan City at igalang ang tamang pamasahe.`
-      : selectedNotif.bodyTl;
-
-    const detailedBodyEn = selectedNotif.id === 'dn2'
-      ? `Drive safely and keep your driver license and MTOP permit updated.\n\nFrom TODA Administration:\n1. Always wear proper attire and safety equipment.\n2. Ensure your tricycle is clean, safe, and comfortable for passengers.\n3. Follow Calapan City traffic regulations and adhere strictly to authorized fare matrix.`
-      : selectedNotif.bodyEn;
+    const time = getRelativeTime(selectedNotif.createdAt, language);
 
     // The notice always shows in the language that is selected; there is no separate translate step.
     const displayTitle = isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn;
-    const displayBody = isTagalog ? detailedBodyTl : detailedBodyEn;
+    const displayBody = isTagalog ? selectedNotif.bodyTl : selectedNotif.bodyEn;
 
     return (
       <Box
@@ -223,7 +187,7 @@ export const DriverNotifications: React.FC = () => {
               </Box>
               <Box>
                 <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#FF6600' }}>
-                  TODA Administrator
+                  {senderOf(selectedNotif)}
                 </Typography>
                 <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
                   {time}
@@ -399,7 +363,7 @@ export const DriverNotifications: React.FC = () => {
             {filteredNotifications.map((item, index) => {
               const title = isTagalog ? item.titleTl : item.titleEn;
               const body = isTagalog ? item.bodyTl : item.bodyEn;
-              const time = getRelativeTime(item.createdAt, item.timeTl, item.timeEn, language);
+              const time = getRelativeTime(item.createdAt, language);
 
               return (
                 <React.Fragment key={item.id}>

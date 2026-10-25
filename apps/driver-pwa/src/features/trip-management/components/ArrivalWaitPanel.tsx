@@ -19,6 +19,8 @@ interface ArrivalWaitPanelProps {
   /** The no-show was recorded: the booking is over (the screen leaves the trip) */
   onNoShowReported: () => void;
   onMessage: (message: string) => void;
+  /** One short row (the timer and the button side by side) for a card that must leave the map visible */
+  compact?: boolean;
 }
 
 const POLL_MS = 3000;
@@ -31,7 +33,7 @@ const POLL_MS = 3000;
  * The countdown has ONE end time per deadline (ServerDeadlineClock in @sakay/shared), the same as on the passenger's screen: a late or overlapping
  * answer cannot restart it, it never shows a negative value, and once ended it stays ended until the database names a later deadline.
  */
-const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language, onNoShowReported, onMessage }) => {
+const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language, onNoShowReported, onMessage, compact = false }) => {
   const [wait, setWait] = useState<ArrivalWait | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -87,25 +89,39 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
   return (
     <Box
       sx={{
-        p: '12px 14px',
+        p: compact ? '8px 12px' : '12px 14px',
         borderRadius: '14px',
         backgroundColor: over ? '#FEF2F2' : '#FFFBEB',
         border: `1.5px solid ${over ? '#FCA5A5' : '#FCD34D'}`,
         display: 'flex',
         flexDirection: 'column',
-        gap: 1,
+        gap: compact ? 0.5 : 1,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <TimerIcon sx={{ color: over ? '#DC2626' : '#D97706', fontSize: 22 }} />
-        <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-            {language === 'tl' ? 'Oras ng paghihintay sa pasahero' : "Passenger's waiting time"}
+        <TimerIcon sx={{ color: over ? '#DC2626' : '#D97706', fontSize: compact ? 20 : 22 }} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: compact ? '11.5px' : '12px', fontWeight: 600, color: '#475569', lineHeight: 1.3 }}>
+            {compact
+              ? language === 'tl' ? 'Oras ng paghihintay' : 'Waiting time'
+              : language === 'tl' ? 'Oras ng paghihintay sa pasahero' : "Passenger's waiting time"}
           </Typography>
-          <Typography role="timer" aria-live="off" sx={{ fontSize: '24px', fontWeight: 700, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15 }}>
+          <Typography role="timer" aria-live="off" sx={{ fontSize: compact ? '20px' : '24px', fontWeight: 700, color: over ? '#B91C1C' : '#92400E', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
             {over ? (language === 'tl' ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
           </Typography>
         </Box>
+        {compact && (
+          <Button
+            variant="outlined"
+            color="error"
+            disabled={!wait.canReportNoShow || reporting}
+            onClick={() => setConfirmOpen(true)}
+            aria-label={language === 'tl' ? 'Hindi sumakay ang pasahero' : 'Passenger did not board'}
+            sx={{ flexShrink: 0, minHeight: 40, px: 1.5, borderRadius: '12px', borderWidth: 1.5, textTransform: 'none', fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap', backgroundColor: '#FFFFFF' }}
+          >
+            {language === 'tl' ? 'Hindi sumakay' : 'Did not board'}
+          </Button>
+        )}
       </Box>
       {wait.extended && !over && (
         <Typography sx={{ fontSize: '12px', color: '#78350F', fontWeight: 600 }}>
@@ -126,16 +142,18 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
             : `To report it, be within ${PICKUP_ZONE_RADIUS_METERS} m of the pickup point with a clear GPS signal.`}
         </Typography>
       )}
-      <Button
-        variant="outlined"
-        color="error"
-        fullWidth
-        disabled={!wait.canReportNoShow || reporting}
-        onClick={() => setConfirmOpen(true)}
-        sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '14px', lineHeight: 1.25 }}
-      >
-        {language === 'tl' ? 'Hindi sumakay ang pasahero' : 'Passenger did not board'}
-      </Button>
+      {!compact && (
+        <Button
+          variant="outlined"
+          color="error"
+          fullWidth
+          disabled={!wait.canReportNoShow || reporting}
+          onClick={() => setConfirmOpen(true)}
+          sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '14px', lineHeight: 1.25 }}
+        >
+          {language === 'tl' ? 'Hindi sumakay ang pasahero' : 'Passenger did not board'}
+        </Button>
+      )}
 
       <Dialog open={confirmOpen} onClose={() => !reporting && setConfirmOpen(false)} slotProps={{ paper: { sx: { borderRadius: '20px', p: 1 } } }}>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', textAlign: 'center' }}>

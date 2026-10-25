@@ -1,7 +1,10 @@
 import React from 'react';
 import { Box, Button, Divider, List, ListItem, ListItemButton, Popover, Typography } from '@mui/material';
 
+import { notificationPanelText } from '@sakay/shared';
+
 import { NotificationItem } from '../../types/admin';
+import { useLanguage } from '../../hooks/useLanguage';
 import { FONT } from '../../styles/density';
 
 interface NotificationPopoverProps {
@@ -41,7 +44,10 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   onNotificationClick,
   loading = false,
   failed = false,
-}) => (
+}) => {
+  const { language } = useLanguage();
+  const text = notificationPanelText(language);
+  return (
   <Popover
     open={open}
     anchorEl={anchorEl}
@@ -68,7 +74,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   >
     <Box sx={{ p: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexShrink: 0, borderBottom: '1px solid var(--mac-border-color)' }}>
       <Typography component="h2" sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-        LGU Notifications
+        {text.lguTitle}
       </Typography>
       <Button
         size="small"
@@ -86,18 +92,18 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
           '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '1px' },
         }}
       >
-        Mark all as read
+        {text.markAll}
       </Button>
     </Box>
 
     {/* the list scrolls inside the panel; the title row above stays in view */}
     <List sx={{ p: 0, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
       {loading && notifications.length === 0 ? (
-        <ListMessage role="status" title="Loading notifications..." />
+        <ListMessage role="status" title={text.loading} />
       ) : failed && notifications.length === 0 ? (
-        <ListMessage role="alert" title="Notifications could not be loaded." hint="They will be tried again in a moment." />
+        <ListMessage role="alert" title={text.failed} hint={text.failedHint} />
       ) : notifications.length === 0 ? (
-        <ListMessage title="No notifications at this time." />
+        <ListMessage title={text.empty} />
       ) : (
         notifications.map((item, idx) => (
           <React.Fragment key={item.id}>
@@ -122,7 +128,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                     {readable(item.title)}
                   </Typography>
                   {item.unread && (
-                    <Box component="span" role="img" aria-label="Unread" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--sakay-orange)', flexShrink: 0, ml: '8px' }} />
+                    <Box component="span" role="img" aria-label={text.unread} sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--sakay-orange)', flexShrink: 0, ml: '8px' }} />
                   )}
                 </Box>
                 {item.description && (
@@ -139,4 +145,5 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       )}
     </List>
   </Popover>
-);
+  );
+};

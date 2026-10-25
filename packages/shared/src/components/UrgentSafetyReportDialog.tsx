@@ -88,7 +88,7 @@ export const UrgentSafetyReportDialog: React.FC<UrgentSafetyReportDialogProps> =
               value={text}
               onChange={(e) => setText(e.target.value.slice(0, 500))}
               label={tl ? 'Dagdag na detalye (opsyonal)' : 'More detail (optional)'}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+             
             />
             <Box sx={{ p: '10px 12px', borderRadius: '12px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5' }}>
               <Typography sx={{ fontSize: '12px', lineHeight: 1.45, color: '#991B1B' }}>

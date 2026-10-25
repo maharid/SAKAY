@@ -281,6 +281,12 @@ export interface NotificationItem {
   unread?: boolean;
   type?: string;
   description?: string;
+  /** the notice as the database wrote it and when it was sent, so that it can be written in the selected language when it is shown */
+  rawTitle?: string;
+  rawMessage?: string;
+  sentAt?: string | null;
+  /** the database's kind of notice (notification_type) */
+  kind?: string;
 }
 
 export interface TodaAdminProfile {

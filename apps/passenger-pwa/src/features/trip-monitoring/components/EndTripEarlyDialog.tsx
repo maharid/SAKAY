@@ -54,7 +54,7 @@ const EndTripEarlyDialog: React.FC<EndTripEarlyDialogProps> = ({ open, language,
           value={note}
           onChange={(e) => setNote(e.target.value.slice(0, 300))}
           label={tl ? 'Dagdag na detalye (opsyonal)' : 'More detail (optional)'}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+         
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>

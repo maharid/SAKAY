@@ -1168,15 +1168,17 @@ const NewTrip: React.FC = () => {
             variant="contained"
             onClick={handleSaveNotes}
             sx={{
-              backgroundColor: "#FF6600",
-              color: "#1A1A1A",
+              // white text on this orange keeps 4.5:1 (on the brand #FF6600 it would be 3:1)
+              backgroundColor: "#C75000",
+              color: "#FFFFFF",
               borderRadius: "12px",
               fontWeight: 700,
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
               textTransform: "none",
               boxShadow: "none",
               fontFamily: "Poppins, sans-serif",
-              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
+              whiteSpace: "nowrap",
+              "&:hover": { backgroundColor: "#B04600", boxShadow: "none" },
             }}
           >
             {language === "tl" ? "I-save ang Tala" : "Save Note"}

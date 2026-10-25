@@ -2,10 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Rating from "@mui/material/Rating";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -14,6 +11,7 @@ import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
+import { RateAppForm } from '@sakay/shared';
 
 const AppFeedbackPage: React.FC = () => {
   const { language } = useLanguage();
@@ -23,10 +21,6 @@ const AppFeedbackPage: React.FC = () => {
   const [feedbackText, setFeedbackText] = useState("");
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSuccessDialogOpen(true);
-  };
 
   return (
     <Box
@@ -43,120 +37,18 @@ const AppFeedbackPage: React.FC = () => {
         onBack={() => navigate(-1)}
       />
 
-      <Box
-        component="form"
-        onSubmit={handleSubmit}
-        className="hide-scrollbar"
-        sx={{
-          flexGrow: 1,
-          overflowY: "auto",
-          "& > *": { flexShrink: 0 },
-          p: 2.5,
-          pb: "calc(var(--safe-area-bottom) + 24px)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            borderRadius: "20px",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #F1F5F9",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            textAlign: "center",
-            gap: 1.5,
-          }}
-        >
-          <Typography sx={{ fontSize: "16px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl"
-              ? "Kamusta ang iyong karanasan sa SAKAY?"
-              : "How was your experience using SAKAY?"}
-          </Typography>
-          <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl"
-              ? "Tulungan kaming mapabuti ang serbisyo para sa buong Calapan City."
-              : "Help us improve our service for all of Calapan City."}
-          </Typography>
-
-          <Rating
-            value={rating}
-            onChange={(_, newValue) => setRating(newValue)}
-            sx={{
-              my: 1.5,
-              color: "#FF6600",
-              "& .MuiRating-icon": {
-                fontSize: "44px",
-                mx: 0.5,
-              },
-            }}
-          />
-        </Paper>
-
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            borderRadius: "20px",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #F1F5F9",
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-          }}
-        >
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label={language === "tl" ? "Karagdagang Komento (Opsyonal)" : "Additional Comments (Optional)"}
-            placeholder={
-              language === "tl"
-                ? "Isulat dito ang iyong komento o suhestiyon..."
-                : "Type your comment or suggestion here..."
-            }
-            value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
-            slotProps={{
-              input: {
-                sx: {
-                  borderRadius: "14px",
-                  backgroundColor: "#F8FAFC",
-                  "& fieldset": { borderColor: "#E2E8F0" },
-                  "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#FF6600" },
-                },
-              },
-            }}
-          />
-        </Paper>
-
-        {/* Submit Button at Bottom */}
-        <Box sx={{ mt: "auto", pt: 1 }}>
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{
-              backgroundColor: "#FF6600",
-              color: "#FFFFFF",
-              borderRadius: "14px",
-              height: "52px",
-              fontSize: "15px",
-              fontWeight: 700,
-              textTransform: "none",
-              fontFamily: "Poppins, sans-serif",
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "#E65C00", boxShadow: "none" },
-            }}
-          >
-            {language === "tl" ? "Isumite ang Rating" : "Submit Rating"}
-          </Button>
-        </Box>
+      <Box className="hide-scrollbar" sx={{ flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', p: 2.5, pb: 'calc(var(--safe-area-bottom) + 24px)' }}>
+        <RateAppForm
+          language={language === 'tl' ? 'tl' : 'en'}
+          audience="passenger"
+          rating={rating}
+          onRatingChange={setRating}
+          comment={feedbackText}
+          onCommentChange={setFeedbackText}
+          commentLabel={language === 'tl' ? 'Karagdagang Komento (Opsyonal)' : 'Additional Comments (Optional)'}
+          commentPlaceholder={language === 'tl' ? 'Isulat dito ang iyong komento o suhestiyon...' : 'Type your comment or suggestion here...'}
+          onSubmit={() => setSuccessDialogOpen(true)}
+        />
       </Box>
 
       {/* Success Dialog */}

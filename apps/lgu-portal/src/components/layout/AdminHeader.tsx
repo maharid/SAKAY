@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, IconButton, Badge, Popover, MenuList, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { ProfileAvatar } from '@sakay/shared';
+import { ProfileAvatar, formatNotificationTime, localizeSystemNotification, portalNotice, selectImportantNotifications } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/admin';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../hooks/useLanguage';
 import { LogoutConfirmModal } from '../admin/LogoutConfirmModal';
 import { supabase } from '../../services/supabaseClient';
 import { FONT } from '../../styles/density';
@@ -38,28 +39,12 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const { adminProfile, user, signOut } = useAuth();
+  const { language } = useLanguage();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
   // the first reading of the notices, and whether the last one failed (shown in the panel, so an empty list is not mistaken for "nothing new")
   const [notifLoading, setNotifLoading] = useState(true);
   const [notifFailed, setNotifFailed] = useState(false);
-
-  // Helper: Format relative timestamp
-  const formatRelativeTime = (dateStr?: string | null): string => {
-    if (!dateStr) return 'Recent';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diffSec < 60) return 'Just now';
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHour = Math.floor(diffMin / 60);
-    if (diffHour < 24) return `${diffHour}h ago`;
-    const diffDays = Math.floor(diffHour / 24);
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
 
   // Helper: Read IDs cache from localStorage
   const getReadNotifIds = (): Set<string> => {
@@ -88,7 +73,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         // The applications waiting for the LGU (TODA endorsed, LGU not decided), from the applications themselves. Whether one of them came back
         // from an LGU correction is read from the documents it returned (below), never from a remark on the shared verification record: a remark
         // outlives the correction it described and then mislabels later applications.
-        const [awaitingLgu, pendingTodas, notifsRes, logsRes] = await Promise.all([
+        const [awaitingLgu, pendingTodas, notifsRes] = await Promise.all([
           supabase
             .from('driver_toda_affiliation')
             .select('affiliation_id, driver_id, resubmitted_at, toda_endorsed_at, submitted_at, updated_at, driver:driver_id(full_name)')
@@ -107,15 +92,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             .select('*')
             .order('sent_at', { ascending: false })
             .limit(10),
-          supabase
-            .from('audit_log')
-            .select('*')
-            .order('performed_at', { ascending: false })
-            .limit(5),
         ]);
 
         // a failed read comes back as an error value, not as an exception, and would look like an empty list: when every read failed, say so instead of "nothing new"
-        if ([awaitingLgu, pendingTodas, notifsRes, logsRes].every((res) => res.error)) throw new Error(notifsRes.error?.message || 'The notices could not be read.');
+        if ([awaitingLgu, pendingTodas, notifsRes].every((res) => res.error)) throw new Error(notifsRes.error?.message || 'The notices could not be read.');
 
         const awaitingRows = (awaitingLgu.data || []) as any[];
         const resubmittedToLgu = new Set<string>();
@@ -131,7 +111,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             // without the document reviews every row is simply an endorsement, never a guessed resubmission
           }
         }
-        const nameOf = (a: any): string => (Array.isArray(a.driver) ? a.driver[0] : a.driver)?.full_name || 'Driver applicant';
+        const nameOf = (a: any): string => (Array.isArray(a.driver) ? a.driver[0] : a.driver)?.full_name || '';
         const resubVerifs = {
           data: awaitingRows.filter((a) => resubmittedToLgu.has(a.affiliation_id)).slice(0, 10).map((a) => ({
             id: a.affiliation_id, name: nameOf(a), ts: a.resubmitted_at || a.updated_at,
@@ -146,17 +126,22 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         const items: NotificationItem[] = [];
         const seenIds = new Set<string>();
 
-        // 1. Direct database notifications
-        (notifsRes.data || []).forEach((n: any) => {
+        // 1. Direct database notifications: only the ones worth the administrator's attention (a repeated write is listed once). The text is written in the selected
+        // language when it is shown.
+        selectImportantNotifications((notifsRes.data || []) as any[], (n) => ({ type: n.notification_type, title: n.title, message: n.message, sentAt: n.sent_at })).forEach((n: any) => {
+          // an application that is waiting for the LGU is listed once, from the application itself (section 2): this event notice about it would repeat it
+          if (n.notification_type === 'DRIVER_RESUBMITTED' && n.subject_id && resubVerifs.data.some((v) => v.id === n.subject_id)) return;
           const id = `db-${n.notification_id || n.id}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
             const isRead = n.is_read || readSet.has(id);
             items.push({
               id,
+              kind: 'db',
+              rawTitle: n.title,
+              rawMessage: n.message,
               title: n.title,
               description: n.message,
-              time: formatRelativeTime(n.sent_at),
               rawTimestamp: n.sent_at,
               category: n.notification_type?.toLowerCase().includes('resubmission') ? 'resubmission' : 'general',
               link: '/drivers',
@@ -172,14 +157,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           const id = `resub-${v.id}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
-            const ts = v.ts;
             const isRead = readSet.has(id);
             items.push({
               id,
-              title: 'Driver Resubmitted Documents',
-              description: `${v.name} resubmitted updated documents for Stage 2 review.`,
-              time: formatRelativeTime(ts),
-              rawTimestamp: ts,
+              kind: 'resubmitted',
+              subject: v.name,
+              ...portalNotice('resubmitted', v.name, 'en'),
+              rawTimestamp: v.ts,
               category: 'resubmission',
               link: '/drivers',
               read: isRead,
@@ -194,14 +178,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           const id = `endorse-${v.id}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
-            const ts = v.ts;
             const isRead = readSet.has(id);
             items.push({
               id,
-              title: 'Driver Application Endorsed',
-              description: `${v.name} endorsed by TODA for Stage 2 LGU inspection.`,
-              time: formatRelativeTime(ts),
-              rawTimestamp: ts,
+              kind: 'endorsed',
+              subject: v.name,
+              ...portalNotice('endorsed', v.name, 'en'),
+              rawTimestamp: v.ts,
               category: 'endorsement',
               link: '/drivers',
               read: isRead,
@@ -219,9 +202,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             const isRead = readSet.has(id);
             items.push({
               id,
-              title: 'TODA Accreditation Pending',
-              description: `${t.toda_name || t.toda_acronym} submitted an application for LGU accreditation.`,
-              time: formatRelativeTime(t.created_at),
+              kind: 'todaPending',
+              subject: t.toda_name || t.toda_acronym || '',
+              ...portalNotice('todaPending', t.toda_name || t.toda_acronym, 'en'),
               rawTimestamp: t.created_at,
               category: 'toda',
               link: '/toda',
@@ -232,27 +215,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           }
         });
 
-        // 5. Recent audit activity
-        (logsRes.data || []).forEach((log: any) => {
-          const id = `log-${log.log_id}`;
-          if (!seenIds.has(id)) {
-            seenIds.add(id);
-            const timeVal = log.performed_at || log.created_at;
-            const isRead = readSet.has(id);
-            items.push({
-              id,
-              title: log.action_type ? log.action_type.replace(/_/g, ' ') : 'Administrative Activity',
-              description: log.details || '',
-              time: formatRelativeTime(timeVal),
-              rawTimestamp: timeVal,
-              category: 'system',
-              link: '/audit-logs',
-              read: isRead,
-              unread: !isRead,
-              type: (log.category || 'System').toLowerCase(),
-            });
-          }
-        });
+        // The audit trail (who did what) is not a notification: it has its own page, Audit Logs.
 
         items.sort((a, b) => new Date(b.rawTimestamp || 0).getTime() - new Date(a.rawTimestamp || 0).getTime());
 
@@ -295,6 +258,23 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   };
 
   const unreadCount = notifications.filter((n) => n.unread).length;
+
+  // What is shown is written from the notice's own data in the selected language, so a change of language changes the open panel too
+  const shownNotifications = useMemo<NotificationItem[]>(
+    () =>
+      notifications.map((n) => {
+        const time = formatNotificationTime(n.rawTimestamp, language);
+        if (n.kind === 'db') {
+          const text = localizeSystemNotification(n.rawTitle || '', n.rawMessage || '', language, n.type);
+          return { ...n, title: text.title, description: text.message, time };
+        }
+        if (n.kind === 'resubmitted' || n.kind === 'endorsed' || n.kind === 'todaPending') {
+          return { ...n, ...portalNotice(n.kind, n.subject, language), time };
+        }
+        return { ...n, time };
+      }),
+    [notifications, language]
+  );
 
   const handleMarkAllAsRead = () => {
     const allIds = notifications.map((n) => n.id);
@@ -400,7 +380,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             onClose={() => setNotifAnchor(null)}
             loading={notifLoading}
             failed={notifFailed}
-            notifications={notifications}
+            notifications={shownNotifications}
             onMarkAllAsRead={handleMarkAllAsRead}
             onNotificationClick={handleNotificationClick}
           />

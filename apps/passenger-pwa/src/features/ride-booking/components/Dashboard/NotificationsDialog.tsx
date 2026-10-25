@@ -9,13 +9,12 @@ import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
-import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
-import { TYPOGRAPHY_TOKENS, activateWithKeyboard } from "@sakay/shared";
+import { TYPOGRAPHY_TOKENS, activateWithKeyboard, formatNotificationTime } from "@sakay/shared";
 
 export interface NotificationItem {
   id: string;
@@ -23,58 +22,15 @@ export interface NotificationItem {
   titleEn: string;
   bodyTl: string;
   bodyEn: string;
-  timeTl?: string;
-  timeEn?: string;
   createdAt?: string;
   isRead?: boolean;
-  category?: 'trips' | 'promos' | 'advisories' | 'all';
+  category?: 'trips' | 'advisories' | 'all';
 }
 
-export function getRelativeTime(
-  createdAt?: string,
-  fallbackTimeTl?: string,
-  fallbackTimeEn?: string,
-  language: 'tl' | 'en' = 'tl'
-): string {
-  if (!createdAt) {
-    return language === 'tl' ? (fallbackTimeTl || 'Ngayon') : (fallbackTimeEn || 'Just now');
-  }
-  const date = new Date(createdAt);
-  if (isNaN(date.getTime())) {
-    return language === 'tl' ? (fallbackTimeTl || 'Ngayon') : (fallbackTimeEn || 'Just now');
-  }
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) {
-    return language === 'tl' ? 'Ngayon' : 'Just now';
-  } else if (diffMins < 60) {
-    return language === 'tl' ? `${diffMins}m ang nakalipas` : `${diffMins}m ago`;
-  } else if (diffHours < 24) {
-    return language === 'tl' ? `${diffHours}h ang nakalipas` : `${diffHours}h ago`;
-  } else if (diffDays === 1) {
-    return language === 'tl' ? 'Kahapon' : 'Yesterday';
-  } else {
-    return language === 'tl' ? `${diffDays}d ang nakalipas` : `${diffDays}d ago`;
-  }
+/** How long ago the notice was sent, in the selected language (shared with the other apps) */
+export function getRelativeTime(createdAt: string | undefined, language: 'tl' | 'en' = 'tl'): string {
+  return formatNotificationTime(createdAt, language);
 }
-
-const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n1",
-    titleTl: "Maligayang Pagdating sa SAKAY!",
-    titleEn: "Welcome to SAKAY!",
-    bodyTl: "Mabilis at tapat na pamasahe sa tricycle saan man sa Calapan City. Mag-book ng iyong unang biyahe ngayon!",
-    bodyEn: "Fast and fair tricycle fares anywhere in Calapan City. Start booking your ride today!",
-    createdAt: new Date().toISOString(),
-    isRead: false,
-    category: "promos",
-  },
-];
 
 interface NotificationsDialogProps {
   open: boolean;
@@ -87,13 +43,13 @@ interface NotificationsDialogProps {
 const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   open,
   onClose,
-  notifications = DEFAULT_NOTIFICATIONS,
+  notifications = [],
   onMarkAsRead = () => {},
   onMarkAllAsRead = () => {},
 }) => {
   const { language } = useLanguage();
   const isTagalog = language === "tl";
-  const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'promos' | 'advisories'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'advisories'>('all');
   const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
   const [localReadIds, setLocalReadIds] = useState<string[]>(() => {
     try {
@@ -145,7 +101,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   const filters = [
     { key: 'all', labelTl: 'Lahat', labelEn: 'All' },
     { key: 'trips', labelTl: 'Mga Biyahe', labelEn: 'Trips' },
-    { key: 'promos', labelTl: 'Mga Promosyon', labelEn: 'Promotions' },
     { key: 'advisories', labelTl: 'Mga Paalala', labelEn: 'Advisories' },
   ];
 
@@ -158,8 +113,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     switch (category) {
       case 'trips':
         return <LocalTaxiIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
-      case 'promos':
-        return <LocalOfferOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       case 'advisories':
         return <CampaignOutlinedIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
       default:
@@ -256,12 +209,13 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                 </Box>
                 <Box>
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
-                    {selectedNotif.category === "advisories"
-                      ? (isTagalog ? "TODA / LGU Tagapamahala" : "TODA / LGU Administration")
-                      : "SAKAY"}
+                    {/* what the database wrote for this passenger comes from SAKAY; an announcement is written by the TODA / LGU administration */}
+                    {selectedNotif.id.startsWith("db:")
+                      ? "SAKAY"
+                      : (isTagalog ? "TODA / LGU Tagapamahala" : "TODA / LGU Administration")}
                   </Typography>
                   <Typography sx={{ fontSize: "12px", color: "#64748B" }}>
-                    {getRelativeTime(selectedNotif.createdAt, selectedNotif.timeTl, selectedNotif.timeEn, language)}
+                    {getRelativeTime(selectedNotif.createdAt, language)}
                   </Typography>
                 </Box>
               </Box>
@@ -414,7 +368,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             {filteredNotifications.map((item, index) => {
               const title = language === "tl" ? item.titleTl : item.titleEn;
               const body = language === "tl" ? item.bodyTl : item.bodyEn;
-              const time = getRelativeTime(item.createdAt, item.timeTl, item.timeEn, language);
+              const time = getRelativeTime(item.createdAt, language);
 
               return (
                 <React.Fragment key={item.id}>

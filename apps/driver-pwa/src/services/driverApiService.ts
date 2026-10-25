@@ -13,7 +13,7 @@ import type { ApplyDriverTodaAffiliationsResponse, DriverTodaApplicationInput } 
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
 import type { FaultyDocType, LicenseExtractedData, MtopExtractedData } from './driverOnboardingCache';
-import { classifyApplication } from '@sakay/shared';
+import { classifyApplication, selectImportantNotifications } from '@sakay/shared';
 import type { ApplicationReviewAffiliation } from '@sakay/shared';
 
 
@@ -443,6 +443,7 @@ export async function fetchDriverNotifications(): Promise<any[]> {
       notificationType: n.notification_type,
       category: n.notification_type === 'TODA_REMINDER' ? 'TODA Reminder' : 'TODA Announcement',
       type: 'alert',
+      sentAt: (n.sent_at as string | null) || null,
       time: n.sent_at ? new Date(n.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent',
       timestamp: n.sent_at ? new Date(n.sent_at).toLocaleDateString('en-US') : 'Recent',
       read: false,
@@ -459,12 +460,16 @@ export async function fetchDriverNotifications(): Promise<any[]> {
       message: a.message || a.content || '',
       category: a.category || (a.urgency === 'Urgent' ? 'Dispatch Alert' : 'TODA Announcement'),
       type: a.urgency === 'Urgent' ? 'alert' : 'announcement',
+      sentAt: (a.created_at as string | null) || null,
       time: a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent',
       timestamp: a.created_at ? new Date(a.created_at).toLocaleDateString('en-US') : 'Recent',
       read: false,
     }));
 
-    return [...notifs, ...announcements];
+    // Only what is worth the driver's attention: the live-trip prompts that have passed, the thank-you notes and repeated writes are left out (nothing is deleted)
+    // and newest first across both sources
+    return selectImportantNotifications([...notifs, ...announcements], (item: any) => ({ type: item.notificationType, title: item.title, message: item.message, sentAt: item.sentAt }))
+      .sort((a: any, b: any) => (Date.parse(b.sentAt || '') || 0) - (Date.parse(a.sentAt || '') || 0));
   } catch {
     return [];
   }

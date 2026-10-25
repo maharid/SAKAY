@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  Paper,
   Button,
   IconButton,
   Avatar,
@@ -22,7 +21,7 @@ import StarIcon from '@mui/icons-material/Star';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CancelIcon from '@mui/icons-material/Cancel';
 import LinearProgress from '@mui/material/LinearProgress';
-import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
+import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
 import { getBooking, cancelBooking, updateBookingState } from '../../../services/bookingService';
@@ -33,6 +32,7 @@ import {
   formatDistance,
   signedStorageUrl,
   SIGNED_URL_TTL,
+  CollapsibleSheet,
   TripDetailsPanel,
   buildTripDetails,
   calculateTripProgressPercent,
@@ -160,6 +160,8 @@ export const TripMonitoring: React.FC = () => {
   const [leaveConfirmModalOpen, setLeaveConfirmModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // The trip card is open at first and changes only when the passenger uses its handle: a trip update never opens or closes it
+  const [sheetExpanded, setSheetExpanded] = useState(true);
 
   // Bidirectional Driver Cancelled Alert State
   const [driverCancelledAlertOpen, setDriverCancelledAlertOpen] = useState(false);
@@ -607,7 +609,6 @@ export const TripMonitoring: React.FC = () => {
 
   // The map: the passenger's own position (only on this phone), the search area while a driver is being looked for, and the two camera controls
   const mapRef = useRef<MapViewHandle>(null);
-  const [cameraMode, setCameraMode] = useState<CameraMode>('auto');
   const passengerLocation = usePassengerLocation(isTripActive);
   const isSearching = status === 'Searching Driver';
   const { status: searchStatus } = useDispatchStatus(isSearching && UUID_PATTERN.test(activeBookingId) ? activeBookingId : null);
@@ -888,7 +889,6 @@ export const TripMonitoring: React.FC = () => {
           insets={TRIP_MAP_INSETS}
           stageKey={status}
           searchRadiusMeters={searchRadiusMeters}
-          onCameraModeChange={setCameraMode}
         />
 
         {/* Status Pill Badge */}
@@ -938,12 +938,20 @@ export const TripMonitoring: React.FC = () => {
 
         {/* The search area itself is drawn on the map (MapView), at the radius the database reports: nothing is drawn here */}
 
-        {/* Map controls: where I am, and the whole trip. Each really moves the camera; dragging the map lets go of either. */}
+        {/* Map controls: the whole trip (top) and where I am (bottom). Each is an action that moves the camera once; dragging the map lets go of either. */}
         <MapControlStack bottom={16} label={language === 'tl' ? 'Mga kontrol ng mapa' : 'Map controls'}>
+          <MapControlButton
+            icon="route"
+            label={
+              showsSearchArea
+                ? (language === 'tl' ? 'Ipakita ang buong lugar ng paghahanap' : 'Show the whole search area')
+                : (language === 'tl' ? 'Ipakita ang buong ruta' : 'Show the whole route')
+            }
+            onClick={handleFitRoute}
+          />
           <MapControlButton
             icon="my-location"
             label={language === 'tl' ? 'I-center sa aking lokasyon' : 'Center on my location'}
-            pressed={cameraMode === 'user'}
             unavailableReason={
               passengerLocation.status === 'denied'
                 ? language === 'tl' ? 'Naka-block ang lokasyon sa browser' : 'Location is blocked in your browser'
@@ -953,289 +961,272 @@ export const TripMonitoring: React.FC = () => {
             }
             onClick={handleCenterOnMe}
           />
-          <MapControlButton
-            icon="route"
-            label={
-              showsSearchArea
-                ? (language === 'tl' ? 'Ipakita ang buong lugar ng paghahanap' : 'Show the whole search area')
-                : (language === 'tl' ? 'Ipakita ang buong ruta' : 'Show the whole route')
-            }
-            pressed={cameraMode === (showsSearchArea ? 'search' : 'route')}
-            onClick={handleFitRoute}
-          />
         </MapControlStack>
 
       </Box>
 
-      {/* 3. Driver & Trip Details (bottom card): ordinary scrollable card, no drag handle or collapsibility */}
-      <Paper
-        elevation={8}
-        sx={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '24px 24px 0 0',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 20,
-          width: '100%',
-          // the sheet's body scrolls and its action stays pinned, so the map keeps at least a third of the screen even when the sheet is full
-          maxHeight: 'min(calc(100% - 176px), 66%)',
-          '@media (max-height: 640px)': { maxHeight: 'min(calc(100% - 140px), 70%)' },
-          boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.08)',
-          overflow: 'hidden',
-          pt: 2.5,
-        }}
-      >
-        <Box className="hide-scrollbar" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: '20px', pb: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {/* 3. Driver & trip (bottom card): who and anything that cannot wait stay in view; the trip details, progress and tricycle open and close with the handle
+          (tap, drag or arrow keys). The card sits below the map and takes its share of the height, so closing it gives the map the room. */}
+      <CollapsibleSheet
+        inFlow
+        expanded={sheetExpanded}
+        onExpandedChange={setSheetExpanded}
+        expandLabel={language === 'tl' ? 'Ipakita ang detalye ng biyahe' : 'Show trip details'}
+        collapseLabel={language === 'tl' ? 'Itago ang detalye ng biyahe' : 'Hide trip details'}
+        summary={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {driverLive.unreachable && (
-            <Alert severity="warning" sx={{ borderRadius: '14px', fontSize: '13px', fontWeight: 600 }}>
-              {/* Rules 9.2 / 17.4 / 17.9: the title is the notice of Rule 17.4, the body the exact message of Rule 9.2 */}
-              <AlertTitle sx={{ fontSize: '13px', fontWeight: 700 }}>
-                {language === 'tl' ? 'Nawalan ng koneksyon — nire-reconnect...' : 'Connection lost — reconnecting...'}
-              </AlertTitle>
-              {language === 'tl'
-                ? 'Mukhang may problema sa koneksyon ang iyong drayber. Patuloy kaming susubok na makontak siya.'
-                : "Your driver appears to be experiencing a connectivity issue. We'll keep trying to reach them."}
-            </Alert>
-          )}
-
-          {status === 'Driver Arrived' && arrivalWait && (
-            <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} />
-          )}
-
-          {status === 'Arrived at Destination' && (
-            <FareConfirmationCard
-              language={language}
-              state={endState}
-              fallbackFare={passengerPayableFare}
-              secondsLeft={tripEnd.secondsLeft}
-              expired={tripEnd.expired}
-              ordinance={fareOrdinance}
-            />
-          )}
-
-          {status === 'No Driver Found' ? (
-            <Box role="alert" sx={{ p: 2, backgroundColor: '#FEF2F2', borderRadius: '16px', border: '1.5px solid #FCA5A5', textAlign: 'center' }}>
-              <Typography sx={{ fontWeight: 700, fontSize: '16px', color: '#991B1B' }}>
-                {language === 'tl' ? 'Walang available na drayber sa ngayon' : 'No driver available right now'}
-              </Typography>
-              <Typography sx={{ fontSize: '13px', color: '#7F1D1D', mt: 0.5, lineHeight: 1.5 }}>
+              <Alert severity="warning" sx={{ borderRadius: '14px', fontSize: '13px', fontWeight: 600 }}>
+                {/* Rules 9.2 / 17.4 / 17.9: the title is the notice of Rule 17.4, the body the exact message of Rule 9.2 */}
+                <AlertTitle sx={{ fontSize: '13px', fontWeight: 700 }}>
+                  {language === 'tl' ? 'Nawalan ng koneksyon — nire-reconnect...' : 'Connection lost — reconnecting...'}
+                </AlertTitle>
                 {language === 'tl'
-                  ? 'Maaaring offline o may biyahe ang mga drayber sa iyong lugar. Subukang mag-search muli.'
-                  : 'Nearby drivers may be offline or on trips. You can retry searching.'}
-              </Typography>
-            </Box>
-          ) : (
-            /* Driver identity */
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-                <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '20px' }}>
-                  {driverName.charAt(0)}
-                </Avatar>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
-                    {status === 'Searching Driver' ? (language === 'tl' ? 'Naghahanap ng Drayber...' : 'Looking for Driver...') : driverName}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                    {driverRating !== null && (
-                      <>
-                        <StarIcon aria-hidden sx={{ fontSize: 14, color: '#F59E0B' }} />
-                        <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>{driverRating.toFixed(1)}</Typography>
-                      </>
-                    )}
-                    {todaName !== '-' && (
-                      <Typography noWrap sx={{ fontSize: '12px', color: '#475569' }}>
-                        {driverRating !== null ? '• ' : ''}{todaName}
-                      </Typography>
-                    )}
+                  ? 'Mukhang may problema sa koneksyon ang iyong drayber. Patuloy kaming susubok na makontak siya.'
+                  : "Your driver appears to be experiencing a connectivity issue. We'll keep trying to reach them."}
+              </Alert>
+            )}
+
+            {status === 'Driver Arrived' && arrivalWait && (
+              <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} />
+            )}
+
+            {status === 'Arrived at Destination' && (
+              <FareConfirmationCard
+                language={language}
+                state={endState}
+                fallbackFare={passengerPayableFare}
+                secondsLeft={tripEnd.secondsLeft}
+                expired={tripEnd.expired}
+                ordinance={fareOrdinance}
+              />
+            )}
+
+            {status === 'No Driver Found' ? (
+              <Box role="alert" sx={{ p: 2, backgroundColor: '#FEF2F2', borderRadius: '16px', border: '1.5px solid #FCA5A5', textAlign: 'center' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: '16px', color: '#991B1B' }}>
+                  {language === 'tl' ? 'Walang available na drayber sa ngayon' : 'No driver available right now'}
+                </Typography>
+                <Typography sx={{ fontSize: '13px', color: '#7F1D1D', mt: 0.5, lineHeight: 1.5 }}>
+                  {language === 'tl'
+                    ? 'Maaaring offline o may biyahe ang mga drayber sa iyong lugar. Subukang mag-search muli.'
+                    : 'Nearby drivers may be offline or on trips. You can retry searching.'}
+                </Typography>
+              </Box>
+            ) : (
+              /* Driver identity */
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                  <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '20px' }}>
+                    {driverName.charAt(0)}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
+                      {status === 'Searching Driver' ? (language === 'tl' ? 'Naghahanap ng Drayber...' : 'Looking for Driver...') : driverName}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                      {driverRating !== null && (
+                        <>
+                          <StarIcon aria-hidden sx={{ fontSize: 14, color: '#F59E0B' }} />
+                          <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>{driverRating.toFixed(1)}</Typography>
+                        </>
+                      )}
+                      {todaName !== '-' && (
+                        <Typography noWrap sx={{ fontSize: '12px', color: '#475569' }}>
+                          {driverRating !== null ? '• ' : ''}{todaName}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
                 </Box>
+
+                {/* Call and message (once a driver is assigned) */}
+                {status !== 'Searching Driver' && (
+                  <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                    <IconButton
+                      aria-label={language === 'tl' ? 'Tawagan ang drayber' : 'Call driver'}
+                      disabled={!driverPhone}
+                      onClick={() => (window.location.href = `tel:${driverPhone}`)}
+                      sx={{ width: 44, height: 44, backgroundColor: '#E6F4EA', color: '#166534', '&:hover': { backgroundColor: '#D1EBD7' } }}
+                    >
+                      <PhoneIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      aria-label={language === 'tl' ? 'Magpadala ng mensahe sa drayber' : 'Message driver'}
+                      onClick={handleOpenCommModal}
+                      sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#FF6600', '&:hover': { backgroundColor: '#FFE6D2' } }}
+                    >
+                      <MessageIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
               </Box>
+            )}
 
-              {/* Call and message (once a driver is assigned) */}
-              {status !== 'Searching Driver' && (
-                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-                  <IconButton
-                    aria-label={language === 'tl' ? 'Tawagan ang drayber' : 'Call driver'}
-                    disabled={!driverPhone}
-                    onClick={() => (window.location.href = `tel:${driverPhone}`)}
-                    sx={{ width: 44, height: 44, backgroundColor: '#E6F4EA', color: '#166534', '&:hover': { backgroundColor: '#D1EBD7' } }}
-                  >
-                    <PhoneIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    aria-label={language === 'tl' ? 'Magpadala ng mensahe sa drayber' : 'Message driver'}
-                    onClick={handleOpenCommModal}
-                    sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#FF6600', '&:hover': { backgroundColor: '#FFE6D2' } }}
-                  >
-                    <MessageIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              )}
-            </Box>
-          )}
-
-          {/* Ride-sharing (Rules 14.2.1, 14.5): the Accept / Decline Shared Match question, and the limited facts about the passenger who shares */}
-          <SharedMatchPanel view={sharedMatch.view} language={language} secondsLeft={sharedMatch.secondsLeft} busy={sharedMatch.busy} errorMessage={sharedMatch.error} onRespond={(accept) => void sharedMatch.respond(accept)} />
-
+            {/* Ride-sharing (Rules 14.2.1, 14.5): the Accept / Decline Shared Match question, and the limited facts about the passenger who shares */}
+            <SharedMatchPanel view={sharedMatch.view} language={language} secondsLeft={sharedMatch.secondsLeft} busy={sharedMatch.busy} errorMessage={sharedMatch.error} onRespond={(accept) => void sharedMatch.respond(accept)} />
+          </Box>
+        }
+        details={
+          <>
           {/* Trip details: collapsed by default, one tap away at every stage */}
-          <TripDetailsPanel view={tripDetails} language={language} />
+            <TripDetailsPanel view={tripDetails} language={language} />
 
-          {/* Live trip progress (the passenger is on board) */}
-          {status === 'Trip Ongoing' && (
-            <Box sx={{ p: '12px 16px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                  {language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
-                </Typography>
-                <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{tripProgress}%</Typography>
+            {/* Live trip progress (the passenger is on board) */}
+            {status === 'Trip Ongoing' && (
+              <Box sx={{ p: '12px 16px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                    {language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{tripProgress}%</Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={tripProgress}
+                  aria-label={language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
+                  sx={{ height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', '& .MuiLinearProgress-bar': { backgroundColor: '#FF6600', borderRadius: 4 } }}
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.75 }}>
+                  <Typography sx={{ fontSize: '12px', color: '#475569' }}>
+                    {language === 'tl' ? 'Natitira:' : 'Remaining:'} <strong>{formatDistance(driverToDropoffKm)}</strong>
+                  </Typography>
+                  <Typography sx={{ fontSize: '12px', color: '#475569' }}>
+                    ETA: <strong>~{Math.max(1, Math.round(driverToDropoffKm * 3))} min</strong>
+                  </Typography>
+                </Box>
               </Box>
-              <LinearProgress
-                variant="determinate"
-                value={tripProgress}
-                aria-label={language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
-                sx={{ height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', '& .MuiLinearProgress-bar': { backgroundColor: '#FF6600', borderRadius: 4 } }}
-              />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.75 }}>
-                <Typography sx={{ fontSize: '12px', color: '#475569' }}>
-                  {language === 'tl' ? 'Natitira:' : 'Remaining:'} <strong>{formatDistance(driverToDropoffKm)}</strong>
-                </Typography>
-                <Typography sx={{ fontSize: '12px', color: '#475569' }}>
-                  ETA: <strong>~{Math.max(1, Math.round(driverToDropoffKm * 3))} min</strong>
-                </Typography>
-              </Box>
-            </Box>
-          )}
+            )}
 
-          {/* Tricycle: the franchise body number and plate, to recognise it at the pickup */}
-          {status !== 'Searching Driver' && status !== 'No Driver Found' && (franchiseNo !== '-' || plateNo !== '-') && (
-            <Box sx={{ p: '12px 16px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
-                  {language === 'tl' ? 'Franchise body no.' : 'Franchise body no.'}
-                </Typography>
-                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{franchiseNo}</Typography>
+            {/* Tricycle: the franchise body number and plate, to recognise it at the pickup */}
+            {status !== 'Searching Driver' && status !== 'No Driver Found' && (franchiseNo !== '-' || plateNo !== '-') && (
+              <Box sx={{ p: '12px 16px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
+                    {language === 'tl' ? 'Franchise body no.' : 'Franchise body no.'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{franchiseNo}</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'right', minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>{language === 'tl' ? 'Plaka' : 'Plate number'}</Typography>
+                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{plateNo}</Typography>
+                </Box>
               </Box>
-              <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>{language === 'tl' ? 'Plaka' : 'Plate number'}</Typography>
-                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{plateNo}</Typography>
-              </Box>
-            </Box>
-          )}
-        </Box>
-
-        {/* The action for this stage, always in reach */}
-        {status !== 'Completed' && status !== 'Cancelled' && (
-          <Box sx={{ flexShrink: 0, px: '20px', pt: 1.25, pb: 'calc(var(--safe-area-bottom) + 16px)', borderTop: '1px solid #F1F5F9', backgroundColor: '#FFFFFF' }}>
+            )}
+          </>
+        }
+        actions={
+          status !== 'Completed' && status !== 'Cancelled' ? (
+            <>
             <TripSafetyActions
-              bookingId={activeBookingId}
-              language={language === 'tl' ? 'tl' : 'en'}
-              active={safetyActive && UUID_PATTERN.test(activeBookingId)}
-              pickup={booking?.pickup_address || null}
-              dropoff={booking?.dropoff_address || null}
-              onEndTripEarly={status === 'Trip Ongoing' && !earlyRequested ? () => setEndEarlyOpen(true) : undefined}
-              onMessage={setToastMessage}
-            />
-            {status === 'No Driver Found' ? (
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  onClick={() => {
-                    // Rule 7.4, cancel without penalty: close the booking in the database too (it never strikes or flags the passenger), only while
-                    // it is STILL No Driver Found (this screen may be out of date), and leave at once; if the close cannot be saved the booking
-                    // simply stays No Driver Found, which is not open either.
-                    if (activeBookingId) void cancelBooking(activeBookingId, 'No driver found', 'No Driver Found');
-                    sessionStorage.removeItem('current_active_booking_id');
-                    navigate('/dashboard');
-                  }}
-                  sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 600, fontSize: '15px', color: '#334155', borderColor: '#CBD5E1' }}
-                >
-                  {language === 'tl' ? 'Bumalik sa Home' : 'Back to Home'}
-                </Button>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={handleRetrySearch}
-                  disabled={retryFlight.busy}
-                  sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 }, backgroundColor: '#FF6600', color: '#FFFFFF', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' } }}
-                >
-                  {language === 'tl' ? 'Subukan Muli' : 'Retry Search'}
-                </Button>
-              </Box>
-            ) : status === 'Arrived at Destination' ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={handleConfirmFare}
-                  disabled={confirmFlight.busy || Boolean(endState?.confirmFareAt) || Boolean(endState?.fareDiscrepancyAt) || (endState !== null && !endState.canConfirmFare)}
-                  sx={{
-                    minHeight: 52,
-                    borderRadius: '16px',
-                    '&.Mui-disabled': { backgroundColor: '#15803D', color: '#FFFFFF', opacity: 0.6 },
-                    backgroundColor: '#15803D',
-                    fontWeight: 700,
-                    fontSize: '16px',
-                    textTransform: 'none',
-                    boxShadow: 'none',
-                    '&:hover': { backgroundColor: '#166534', boxShadow: 'none' },
-                  }}
-                >
-                  {confirmFlight.busy
-                    ? say('Kinukumpirma...', 'Confirming...')
-                    : endState?.confirmFareAt
-                    ? say('Nakumpirma na ang pamasahe', 'Fare confirmed')
-                    : say('Kumpirmahin ang Pamasahe', 'Confirm Fare')}
-                </Button>
-                {!endState?.confirmFareAt && !endState?.fareDiscrepancyAt && (
+                bookingId={activeBookingId}
+                language={language === 'tl' ? 'tl' : 'en'}
+                active={safetyActive && UUID_PATTERN.test(activeBookingId)}
+                onEndTripEarly={status === 'Trip Ongoing' && !earlyRequested ? () => setEndEarlyOpen(true) : undefined}
+                onMessage={setToastMessage}
+              />
+              {status === 'No Driver Found' ? (
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
                   <Button
                     variant="outlined"
                     fullWidth
-                    color="error"
-                    onClick={() => setDiscrepancyMode('discrepancy')}
-                    startIcon={<ReportProblemIcon />}
-                    sx={{ minHeight: 44, borderRadius: '14px', fontWeight: 600, fontSize: '13px', textTransform: 'none', borderColor: '#CBD5E1', color: '#B91C1C', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' } }}
+                    onClick={() => {
+                      // Rule 7.4, cancel without penalty: close the booking in the database too (it never strikes or flags the passenger), only while
+                      // it is STILL No Driver Found (this screen may be out of date), and leave at once; if the close cannot be saved the booking
+                      // simply stays No Driver Found, which is not open either.
+                      if (activeBookingId) void cancelBooking(activeBookingId, 'No driver found', 'No Driver Found');
+                      sessionStorage.removeItem('current_active_booking_id');
+                      navigate('/dashboard');
+                    }}
+                    sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 600, fontSize: '15px', color: '#334155', borderColor: '#CBD5E1' }}
                   >
-                    {say('I-report ang Pamasahe', 'Report Fare Discrepancy')}
+                    {language === 'tl' ? 'Bumalik sa Home' : 'Back to Home'}
                   </Button>
-                )}
-              </Box>
-            ) : status === 'Trip Ongoing' ? (
-              /* Rule 13.2: a trip in progress is not cancelled; the passenger asks to END it early (a request the driver acts on) */
-              earlyRequested ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center' }}>
-                  <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>
-                    {say('Naipadala sa drayber ang hiling: hinihintay na tapusin niya ang biyahe.', 'Request sent: waiting for the driver to end the trip.')}
-                  </Typography>
-                  <Button variant="text" disabled={earlyFlight.busy} onClick={handleWithdrawEarlyEnd} sx={{ textTransform: 'none', fontWeight: 600, color: '#64748B' }}>
-                    {say('Bawiin ang hiling', 'Withdraw the request')}
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleRetrySearch}
+                    disabled={retryFlight.busy}
+                    sx={{ minHeight: 52, borderRadius: '16px', '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 }, backgroundColor: '#FF6600', color: '#FFFFFF', textTransform: 'none', fontWeight: 700, fontSize: '15px', boxShadow: 'none', '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' } }}
+                  >
+                    {language === 'tl' ? 'Subukan Muli' : 'Retry Search'}
                   </Button>
                 </Box>
+              ) : status === 'Arrived at Destination' ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleConfirmFare}
+                    disabled={confirmFlight.busy || Boolean(endState?.confirmFareAt) || Boolean(endState?.fareDiscrepancyAt) || (endState !== null && !endState.canConfirmFare)}
+                    sx={{
+                      minHeight: 52,
+                      borderRadius: '16px',
+                      '&.Mui-disabled': { backgroundColor: '#15803D', color: '#FFFFFF', opacity: 0.6 },
+                      backgroundColor: '#15803D',
+                      fontWeight: 700,
+                      fontSize: '16px',
+                      textTransform: 'none',
+                      boxShadow: 'none',
+                      '&:hover': { backgroundColor: '#166534', boxShadow: 'none' },
+                    }}
+                  >
+                    {confirmFlight.busy
+                      ? say('Kinukumpirma...', 'Confirming...')
+                      : endState?.confirmFareAt
+                      ? say('Nakumpirma na ang pamasahe', 'Fare confirmed')
+                      : say('Kumpirmahin ang Pamasahe', 'Confirm Fare')}
+                  </Button>
+                  {!endState?.confirmFareAt && !endState?.fareDiscrepancyAt && (
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      color="error"
+                      onClick={() => setDiscrepancyMode('discrepancy')}
+                      startIcon={<ReportProblemIcon />}
+                      sx={{ minHeight: 44, borderRadius: '14px', fontWeight: 600, fontSize: '13px', textTransform: 'none', borderColor: '#CBD5E1', color: '#B91C1C', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' } }}
+                    >
+                      {say('I-report ang Pamasahe', 'Report Fare Discrepancy')}
+                    </Button>
+                  )}
+                </Box>
+              ) : status === 'Trip Ongoing' ? (
+                /* Rule 13.2: a trip in progress is not cancelled; the passenger asks to END it early (a request the driver acts on) */
+                earlyRequested ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center' }}>
+                    <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>
+                      {say('Naipadala sa drayber ang hiling: hinihintay na tapusin niya ang biyahe.', 'Request sent: waiting for the driver to end the trip.')}
+                    </Typography>
+                    <Button variant="text" disabled={earlyFlight.busy} onClick={handleWithdrawEarlyEnd} sx={{ textTransform: 'none', fontWeight: 600, color: '#64748B' }}>
+                      {say('Bawiin ang hiling', 'Withdraw the request')}
+                    </Button>
+                  </Box>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    disabled={earlyFlight.busy}
+                    onClick={() => setEndEarlyOpen(true)}
+                    sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 700, fontSize: '15px', color: '#B45309', borderColor: '#FDBA74', '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#FB923C' } }}
+                  >
+                    {say('Tapusin nang Maaga ang Biyahe', 'End Trip (Early)')}
+                  </Button>
+                )
               ) : (
+                /* Before the trip starts the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
                 <Button
                   variant="outlined"
                   fullWidth
-                  disabled={earlyFlight.busy}
-                  onClick={() => setEndEarlyOpen(true)}
-                  sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 700, fontSize: '15px', color: '#B45309', borderColor: '#FDBA74', '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#FB923C' } }}
+                  onClick={() => setCancelModalOpen(true)}
+                  sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 700, fontSize: '15px', color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
                 >
-                  {say('Tapusin nang Maaga ang Biyahe', 'End Trip (Early)')}
+                  {language === 'tl' ? 'Ikansel ang Booking' : 'Cancel Booking'}
                 </Button>
-              )
-            ) : (
-              /* Before the trip starts the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => setCancelModalOpen(true)}
-                sx={{ minHeight: 52, borderRadius: '16px', textTransform: 'none', fontWeight: 700, fontSize: '15px', color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
-              >
-                {language === 'tl' ? 'Ikansel ang Booking' : 'Cancel Booking'}
-              </Button>
-            )}
-          </Box>
-        )}
-      </Paper>
+              )}
+            </>
+          ) : null
+        }
+      />
 
       {/* 4. Cancellation Confirmation Modal */}
       <PassengerCancelModal

@@ -51,7 +51,7 @@ const DriverEarlyStopDialog: React.FC<DriverEarlyStopDialogProps> = ({ open, lan
           value={note}
           onChange={(e) => setNote(e.target.value.slice(0, 300))}
           label={tl ? 'Ano ang nangyari? (opsyonal)' : 'What happened? (optional)'}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+         
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>

@@ -164,7 +164,7 @@ const PaymentReceivedPanel: React.FC<PaymentReceivedPanelProps> = ({
             value={text}
             onChange={(e) => setText(e.target.value.slice(0, 1000))}
             label={tl ? 'Ano ang nangyari? (hindi bababa sa 10 titik)' : 'What happened? (at least 10 characters)'}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+           
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
