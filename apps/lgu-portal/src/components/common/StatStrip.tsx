@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
 import { FONT, SPACE } from '../../styles/density';
@@ -18,6 +18,9 @@ export interface StatItem {
   tone?: StatTone;
   /** Makes the whole cell a link to the screen that lists these records */
   to?: string;
+  /** Makes the whole cell a button that picks this group of records in the list below (the cell the list shows is marked with `selected`) */
+  onSelect?: () => void;
+  selected?: boolean;
 }
 
 interface StatStripProps {
@@ -26,8 +29,6 @@ interface StatStripProps {
   label?: string;
   /** The narrowest a cell may get before the strip wraps into rows (default 150px) */
   minCellWidth?: number;
-  /** A quiet line under the numbers, inside the same card (what the numbers cover) */
-  footnote?: React.ReactNode;
 }
 
 const VALUE_COLOR: Record<StatTone, string> = {
@@ -37,10 +38,12 @@ const VALUE_COLOR: Record<StatTone, string> = {
   danger: PAGE_TEXT.danger,
 };
 
+const FOCUS_INSIDE = { '&:focus-visible': { outline: `2px solid ${PAGE_TEXT.brand}`, outlineOffset: '-2px' } } as const;
+
 // The numbers are one group (the same as the TODA portal's Operations strip): a single card split by thin lines, not a row of separate boxes.
 // The layout follows the width of the card itself (not the screen), so it also works when the sidebar is open or closed:
 // 1 column when very narrow, 2 on a phone, 3 on a tablet when the count divides by 3, one row on a wide screen.
-export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key numbers', minCellWidth = 150, footnote }) => {
+export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key numbers', minCellWidth = 150 }) => {
   const count = stats.length;
   const tiers: Array<{ min: number; cols: number }> = [{ min: 340, cols: 2 }];
   if (count > 3 && count % 3 === 0) tiers.push({ min: 480, cols: 3 });
@@ -52,7 +55,7 @@ export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key number
   const gridQueries = Object.fromEntries(tiers.map((t) => [`@container (min-width: ${t.min}px)`, { gridTemplateColumns: `repeat(${t.cols}, minmax(0, 1fr))` }]));
   const lastQueries = Object.fromEntries(tiers.map((t) => [`@container (min-width: ${t.min}px)`, { gridColumn: lastSpan(t.cols) }]));
 
-  const cellSx = { display: 'block', p: '16px 18px', color: 'inherit', textDecoration: 'none', height: '100%' } as const;
+  const cellSx = { display: 'block', p: '16px 18px', color: 'inherit', textDecoration: 'none', height: '100%', width: '100%', textAlign: 'left', font: 'inherit' } as const;
 
   return (
     <Box component="section" aria-label={label} sx={{ ...pageCardSx, overflow: 'hidden', containerType: 'inline-size', mb: SPACE.section }}>
@@ -77,15 +80,20 @@ export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key number
             </>
           );
           return (
-            <Box key={stat.key} component="li" sx={{ backgroundColor: '#FFFFFF', minWidth: 0, ...(index === count - 1 ? lastQueries : {}) }}>
+            <Box key={stat.key} component="li" sx={{ backgroundColor: stat.selected ? '#FFF6EE' : '#FFFFFF', minWidth: 0, boxShadow: stat.selected ? `inset 0 -3px 0 #C75000` : 'none', ...(index === count - 1 ? lastQueries : {}) }}>
               {stat.to ? (
-                <Box
-                  component={RouterLink}
-                  to={stat.to}
-                  sx={{ ...cellSx, cursor: 'pointer', '&:hover': { backgroundColor: '#FAFAF8' }, '&:focus-visible': { outline: `2px solid ${PAGE_TEXT.brand}`, outlineOffset: '-2px' } }}
-                >
+                <Box component={RouterLink} to={stat.to} sx={{ ...cellSx, cursor: 'pointer', '&:hover': { backgroundColor: '#FAFAF8' }, ...FOCUS_INSIDE }}>
                   {body}
                 </Box>
+              ) : stat.onSelect ? (
+                <ButtonBase
+                  onClick={stat.onSelect}
+                  aria-pressed={Boolean(stat.selected)}
+                  disableRipple
+                  sx={{ ...cellSx, cursor: 'pointer', alignItems: 'flex-start', '&:hover': { backgroundColor: stat.selected ? '#FFF1E4' : '#FAFAF8' }, ...FOCUS_INSIDE }}
+                >
+                  {body}
+                </ButtonBase>
               ) : (
                 <Box sx={cellSx}>{body}</Box>
               )}
@@ -93,7 +101,6 @@ export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key number
           );
         })}
       </Box>
-      {footnote && <Box sx={{ px: '18px', py: '10px', borderTop: `1px solid ${PAGE_DIVIDER}`, backgroundColor: '#FAFAF8' }}>{footnote}</Box>}
     </Box>
   );
 };

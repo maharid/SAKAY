@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Alert, Box, Button, MenuItem, TextField, Typography } from '@mui/material';
-import GavelIcon from '@mui/icons-material/Gavel';
 import { CLOSE_PAYMENT_STATUSES, CORRECTION_PAYMENT_STATUSES, closeProblem, correctionProblem } from '@sakay/shared';
 
 import { closeUnfinishedTrip, correctCompletedTrip } from '../../services/adminApiService';
 import { FONT } from '../../styles/density';
+import { PAGE_TEXT, primaryButtonSx } from '../../styles/pageTheme';
 
 interface TripCorrectionSectionProps {
   bookingId: string;
@@ -18,10 +18,7 @@ interface TripCorrectionSectionProps {
 }
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-    <GavelIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-    <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{children}</Typography>
-  </Box>
+  <Typography component="h3" sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary, mb: 1 }}>{children}</Typography>
 );
 
 /**
@@ -63,7 +60,7 @@ export const TripCorrectionSection: React.FC<TripCorrectionSectionProps> = ({ bo
   return (
     <Box sx={{ mt: 2.4, pt: 2.4, borderTop: '1px solid var(--mac-border-color)' }}>
       <SectionTitle>{closing ? 'Close this trip (Payment Received was never tapped)' : 'Administrative correction'}</SectionTitle>
-      <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 1.6 }}>
+      <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5, mb: 1.6 }}>
         {closing
           ? 'Contact the driver and the passenger first, then close the trip as Paid (the cash was received) or Waived (no fare). The reason says who was reached and what they said. Both are told.'
           : 'A completed trip is read-only. This is the one audited way to fix its fare (never above the system\'s fare) or its payment status. The route, the times and the people never change. Both the passenger and the driver are told.'}
@@ -96,13 +93,13 @@ export const TripCorrectionSection: React.FC<TripCorrectionSectionProps> = ({ bo
         onChange={(e) => setReason(e.target.value)}
         sx={{ mb: 1.2 }}
       />
-      {problem && reason.length > 0 && <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 0.8 }}>{problem}</Typography>}
+      {problem && reason.length > 0 && <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mb: 0.8 }}>{problem}</Typography>}
       {error && <Alert severity="error" sx={{ borderRadius: '10px', mb: 1.2 }}>{error}</Alert>}
       <Button
         variant="contained"
         disabled={Boolean(problem) || busy}
         onClick={submit}
-        sx={{ textTransform: 'none', fontWeight: 600, boxShadow: 'none', backgroundColor: 'var(--sakay-orange)', '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' } }}
+        sx={primaryButtonSx}
       >
         {closing ? 'Close the trip' : 'Record the correction'}
       </Button>

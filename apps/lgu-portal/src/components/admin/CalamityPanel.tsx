@@ -6,7 +6,8 @@ import { CALAMITY_KINDS, CALAMITY_SCOPES, useInFlight, type ActiveCalamity, type
 import { MacCenterModal } from './MacCenterModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { declareCalamity, endCalamity, fetchCalamity } from '../../services/adminApiService';
-import { FONT } from '../../styles/density';
+import { FONT, SPACE } from '../../styles/density';
+import { PAGE_BORDER, PAGE_TEXT, pageCardSx, primaryButtonSx, secondaryButtonSx } from '../../styles/pageTheme';
 
 interface CalamityPanelProps {
   /** called after a declaration or its end, so the page lists the new announcement */
@@ -70,43 +71,42 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
   return (
     <Box
       sx={{
-        mb: 3.2,
-        p: 2,
-        borderRadius: 'var(--mac-radius-lg)',
-        border: `1px solid ${calamity.active ? '#FDBA74' : 'var(--mac-border-color)'}`,
-        backgroundColor: calamity.active ? '#FFF7ED' : '#FFFFFF',
-        boxShadow: 'var(--mac-shadow-card)',
+        ...pageCardSx,
+        mb: SPACE.gapLarge,
+        p: SPACE.card,
+        border: `1px solid ${calamity.active ? '#FCD34D' : PAGE_BORDER}`,
+        backgroundColor: calamity.active ? '#FFFBEB' : '#FFFFFF',
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 1.6,
+        gap: '12px 16px',
         flexWrap: 'wrap',
       }}
     >
-      <ThunderstormIcon sx={{ color: calamity.active ? '#EA580C' : 'var(--mac-text-muted)', mt: '2px' }} />
+      <ThunderstormIcon aria-hidden sx={{ color: calamity.active ? PAGE_TEXT.warning : PAGE_TEXT.secondary, fontSize: 20, mt: '1px' }} />
       <Box sx={{ flex: 1, minWidth: 260 }}>
-        <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+        <Typography component="h2" sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
           {calamity.active ? `Calamity in effect: ${calamity.title}` : 'Calamity and emergency declaration'}
         </Typography>
         {calamity.active ? (
-          <Typography sx={{ fontSize: FONT.caption, color: '#9A3412', lineHeight: 1.5, mt: 0.4 }}>
+          <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5, mt: '2px' }}>
             {calamity.kind} · declared {manila(calamity.declaredAt)} · strikes paused for{' '}
             {calamity.scope === 'ALL' ? 'every violation that can be paused' : 'cancellations, stalls and no-shows'} (serious and safety violations are never paused).
           </Typography>
         ) : (
-          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', lineHeight: 1.5, mt: 0.4 }}>
+          <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5, mt: '2px' }}>
             When a typhoon, a flood, an earthquake, a road closure or an officially declared emergency disrupts trips, publish a platform-wide announcement and suspend strikes for
             cancellations, stalls and no-shows in ONE recorded action, instead of waiving them case by case.
           </Typography>
         )}
-        {done && <Alert severity="success" sx={{ mt: 1.2 }} onClose={() => setDone(null)}>{done}</Alert>}
-        {problem && !formOpen && <Alert severity="error" sx={{ mt: 1.2 }} onClose={() => setProblem(null)}>{problem}</Alert>}
+        {done && <Alert severity="success" sx={{ mt: 1.2, borderRadius: '10px' }} onClose={() => setDone(null)}>{done}</Alert>}
+        {problem && !formOpen && <Alert severity="error" sx={{ mt: 1.2, borderRadius: '10px' }} onClose={() => setProblem(null)}>{problem}</Alert>}
       </Box>
       {calamity.active ? (
-        <Button onClick={() => setEndOpen(true)} disabled={flight.busy} variant="outlined" sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', borderColor: '#EA580C', color: '#9A3412' }}>
+        <Button onClick={() => setEndOpen(true)} disabled={flight.busy} sx={secondaryButtonSx}>
           End the calamity
         </Button>
       ) : (
-        <Button onClick={() => { setProblem(null); setDone(null); setFormOpen(true); }} variant="contained" sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', backgroundColor: 'var(--sakay-orange)', boxShadow: 'none', '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' } }}>
+        <Button onClick={() => { setProblem(null); setDone(null); setFormOpen(true); }} variant="contained" sx={primaryButtonSx}>
           Declare a calamity
         </Button>
       )}
@@ -137,7 +137,7 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
               <MenuItem key={s.code} value={s.code}>{s.en}</MenuItem>
             ))}
           </TextField>
-          {problem && <Alert severity="error">{problem}</Alert>}
+          {problem && <Alert severity="error" sx={{ borderRadius: '10px' }}>{problem}</Alert>}
         </Box>
       </MacCenterModal>
 

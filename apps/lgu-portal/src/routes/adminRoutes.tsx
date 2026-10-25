@@ -111,7 +111,7 @@ export const AdminRoutes: React.FC = () => {
         path="/live-trips"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Transportation Operations Monitoring" pageSubtitle="Monitor active trips, completed rides, cancelled bookings, and live vehicle locations.">
+            <AdminLayout pageTitle="Live Trips" pageSubtitle="Watch active trips and drivers on the map, and review past bookings.">
               <LiveTripsPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -122,7 +122,7 @@ export const AdminRoutes: React.FC = () => {
         path="/incident-reports"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Incident Reports" pageSubtitle="Review and manage passenger and driver incident reports.">
+            <AdminLayout pageTitle="Incident Reports" pageSubtitle="Review incident reports from passengers and drivers.">
               <IncidentReportsPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -155,7 +155,7 @@ export const AdminRoutes: React.FC = () => {
         path="/appeals"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Strike Appeals" pageSubtitle="Decide the appeals of passengers and the driver appeals the TODAs escalate.">
+            <AdminLayout pageTitle="Strike Appeals" pageSubtitle="Decide strike appeals from passengers and escalated driver appeals.">
               <AppealsPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -166,7 +166,7 @@ export const AdminRoutes: React.FC = () => {
         path="/announcements"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Announcement Management" pageSubtitle="Broadcast official municipal notices, route advisories, and policy reminders.">
+            <AdminLayout pageTitle="Announcements" pageSubtitle="Send official notices, route advisories and reminders.">
               <AnnouncementManagementPage />
             </AdminLayout>
           </ProtectedRoute>

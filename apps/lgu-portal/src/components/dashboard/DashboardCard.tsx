@@ -18,6 +18,8 @@ interface DashboardCardProps {
   /** One quiet line under the title, only when the title alone is not enough */
   description?: string;
   action?: DashboardCardAction;
+  /** Any other control that belongs in the corner of the card (a Refresh button); used when the card's one button does not just open a screen */
+  actions?: React.ReactNode;
   /** A little extra next to the title (a count, a pill) */
   titleAdornment?: React.ReactNode;
   children: React.ReactNode;
@@ -25,7 +27,7 @@ interface DashboardCardProps {
 
 // The frame every Dashboard card shares: a white card with the title on the left and the one button that opens the full screen on the right.
 // The content fills the rest of the card, so cards in the same row end at the same line.
-export const DashboardCard: React.FC<DashboardCardProps> = ({ title, description, action, titleAdornment, children }) => (
+export const DashboardCard: React.FC<DashboardCardProps> = ({ title, description, action, actions, titleAdornment, children }) => (
   <Box component="section" aria-label={title} sx={{ ...pageCardSx, p: SPACE.cardLarge, display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, overflow: 'hidden' }}>
     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', mb: '14px' }}>
       <Box sx={{ minWidth: 0 }}>
@@ -40,6 +42,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({ title, description
           {action.label}
         </Button>
       )}
+      {actions}
     </Box>
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
   </Box>

@@ -1,34 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Card,
-  CardContent,
-  CircularProgress,
-  Button,
-} from '@mui/material';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
 import { INCIDENT_CATEGORIES, downloadCsv, reportFileName } from '@sakay/shared';
 import { IncidentReportRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { IncidentDetailModal } from '../components/admin/IncidentDetailModal';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
+import { StatStrip } from '../components/common/StatStrip';
 import { fetchIncidents, recordAdminAuditAction } from '../services/adminApiService';
-import { CONTROL, FONT } from '../styles/density';
+import { FONT } from '../styles/density';
+import { PAGE_TEXT, rowActionSx, secondaryButtonSx } from '../styles/pageTheme';
 
 const PRIORITY_RANK: Record<string, number> = { Serious: 0, Emergency: 1, Standard: 2 };
 
@@ -114,7 +97,7 @@ export const IncidentReportsPage: React.FC = () => {
   const overdueCount = incidents.filter((i) => i.overdue).length;
 
   const statusOptions: FilterOption[] = [
-    { label: 'All Incident Statuses', value: 'All' },
+    { label: 'All Statuses', value: 'All' },
     { label: 'Pending Review', value: 'Pending Review' },
     { label: 'Under Investigation', value: 'Under Investigation' },
     { label: 'Resolved', value: 'Resolved' },
@@ -123,7 +106,7 @@ export const IncidentReportsPage: React.FC = () => {
 
   // Rule 19.1 and the ones of Batches 9 and 11: the one shared list (the database stores exactly these)
   const categoryOptions: FilterOption[] = [
-    { label: 'All Incident Categories', value: 'All' },
+    { label: 'All Categories', value: 'All' },
     ...INCIDENT_CATEGORIES.map((c) => ({ label: c.value, value: c.value })),
   ];
   const priorityOptions: FilterOption[] = [
@@ -133,7 +116,7 @@ export const IncidentReportsPage: React.FC = () => {
     { label: 'Standard', value: 'Standard' },
   ];
   const routingOptions: FilterOption[] = [
-    { label: 'Everything', value: 'All' },
+    { label: 'With anyone', value: 'All' },
     { label: 'With the LGU Administrator', value: 'LGU' },
     { label: 'With a TODA Administrator', value: 'TODA' },
     { label: 'Overdue (a clock ran out)', value: 'Overdue' },
@@ -156,53 +139,28 @@ export const IncidentReportsPage: React.FC = () => {
     void recordAdminAuditAction({ actionType: 'REPORT_EXPORTED', targetId: 'REPORT', targetName: name, details: `Exported ${name} (CSV): ${filteredIncidents.length} report(s).`, category: 'Operations' });
   };
 
-  const cards = [
-    { key: 'Pending Review', label: 'Pending Review', count: pendingCount, note: `Not reviewed yet${overdueCount ? ` · ${overdueCount} overdue` : ''}`, color: 'var(--sakay-orange)', Icon: ReportProblemIcon },
-    { key: 'Under Investigation', label: 'Under Investigation', count: investigationCount, note: 'Being reviewed by a TODA or by the LGU', color: '#1565C0', Icon: HourglassEmptyIcon },
-    { key: 'Resolved', label: 'Resolved Reports', count: resolvedCount, note: 'Outcome recorded, sanctions finalized', color: '#2E7D32', Icon: CheckCircleIcon },
-    { key: 'Dismissed', label: 'Dismissed', count: dismissedCount, note: 'Not upheld, or withdrawn by the reporter', color: '#757575', Icon: CancelIcon },
-  ];
+  // each number is also a button: it shows those reports in the list below (pressing it again shows all)
+  const pick = (key: string) => () => setStatusFilter(statusFilter === key ? 'All' : key);
+  const filtering = Boolean(searchQuery) || statusFilter !== 'All' || priorityFilter !== 'All' || routingFilter !== 'All' || todaFilter !== 'All' || categoryFilter !== 'All';
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Summary Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2,
-          mb: 3.2,
-        }}
-      >
-        {cards.map(({ key, label, count, note, color, Icon }) => (
-          <Card
-            key={key}
-            onClick={() => setStatusFilter(statusFilter === key ? 'All' : key)}
-            sx={{
-              cursor: 'pointer',
-              borderRadius: 'var(--mac-radius-lg)',
-              border: statusFilter === key ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <CardContent sx={{ p: '16px 18px !important' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
-                <Icon sx={{ color, fontSize: '16px' }} />
-              </Box>
-              <Typography sx={{ fontSize: '22px', fontWeight: 700, color: key === 'Pending Review' ? 'var(--mac-text-primary)' : color, mb: 0.4 }}>{count}</Typography>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{note}</Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
+      {/* 1. How many reports are in each state (press one to show them) */}
+      <StatStrip
+        label="Report totals (press one to show those reports)"
+        stats={[
+          { key: 'Pending Review', label: 'Pending review', value: pendingCount, tone: pendingCount > 0 ? 'brand' : 'neutral', note: `Not reviewed yet${overdueCount ? ` · ${overdueCount} overdue` : ''}`, onSelect: pick('Pending Review'), selected: statusFilter === 'Pending Review' },
+          { key: 'Under Investigation', label: 'Under investigation', value: investigationCount, note: 'Being reviewed by a TODA or by the LGU', onSelect: pick('Under Investigation'), selected: statusFilter === 'Under Investigation' },
+          { key: 'Resolved', label: 'Resolved', value: resolvedCount, tone: 'success', note: 'Outcome recorded, sanctions finalized', onSelect: pick('Resolved'), selected: statusFilter === 'Resolved' },
+          { key: 'Dismissed', label: 'Dismissed', value: dismissedCount, note: 'Not upheld, or withdrawn by the reporter', onSelect: pick('Dismissed'), selected: statusFilter === 'Dismissed' },
+        ]}
+      />
 
-      {/* 2. Filter Toolbar */}
+      {/* 2. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search incident ID, driver name, complainant, or category..."
+        searchPlaceholder="Search incident, driver, complainant"
         selectFilters={[
           { id: 'status', label: 'Incident Status', value: statusFilter, options: statusOptions, onChange: setStatusFilter },
           { id: 'category', label: 'Category', value: categoryFilter, options: categoryOptions, onChange: setCategoryFilter },
@@ -219,112 +177,71 @@ export const IncidentReportsPage: React.FC = () => {
           setTodaFilter('All');
         }}
         actionButton={
-          <Button
-            onClick={exportCsv}
-            disabled={filteredIncidents.length === 0}
-            startIcon={<FileDownloadIcon />}
-            sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.body, height: CONTROL.height, '@media (pointer: coarse)': { height: CONTROL.touchHeight }, borderRadius: '10px', border: '1px solid var(--mac-border-color)', color: 'var(--mac-text-secondary)', px: 1.6 }}
-          >
-            Export (CSV)
+          <Button onClick={exportCsv} disabled={filteredIncidents.length === 0} startIcon={<FileDownloadIcon sx={{ fontSize: 16 }} />} sx={secondaryButtonSx}>
+            Export CSV
           </Button>
         }
       />
 
-      {/* 3. Incidents Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-        }}
+      {/* 3. The incident reports */}
+      <DataTableCard
+        label="Incident reports"
+        minWidth={900}
+        columns={[{ label: 'Incident' }, { label: 'Driver' }, { label: 'Complainant' }, { label: 'Submitted' }, { label: 'Status' }, { label: 'Action', align: 'right' }]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              {['Incident ID & Category', 'Reported Entity / Driver', 'Complainant', 'Submitted Date', 'Status'].map((h) => (
-                <TableCell key={h} sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>{h}</TableCell>
-              ))}
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading incident reports..." />
+          ) : filteredIncidents.length > 0 ? (
+            filteredIncidents.map((inc) => (
+              <TableRow key={inc.id}>
+                <TableCell>
+                  <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{inc.id}</Typography>
+                  <Typography component="div" sx={{ fontSize: FONT.small, color: PAGE_TEXT.brand, fontWeight: 600, mt: '1px' }}>{inc.category}</Typography>
+                  {((inc.priority && inc.priority !== 'Standard') || inc.overdue) && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px', mt: '4px' }}>
+                      {inc.priority && inc.priority !== 'Standard' && <FlagTag label={inc.priority} tone={inc.priority === 'Serious' ? 'danger' : 'warning'} />}
+                      {inc.overdue && <FlagTag label="Overdue" tone="danger" />}
+                    </Box>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={inc.driverName} secondary={inc.todaName} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={inc.reporterName} secondary={inc.reportedBy} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={inc.submittedDate} secondary={inc.submittedTime} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={inc.status as any} />
+                  <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '3px' }}>{inc.routing === 'LGU' ? 'With the LGU' : 'With the TODA'}</Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`Review incident ${inc.id}`} onClick={() => setSelectedId(inc.id)} sx={rowActionSx('neutral')}>
+                    Review
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : filteredIncidents.length > 0 ? (
-              filteredIncidents.map((inc) => (
-                <TableRow
-                  key={inc.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>{inc.id}</Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--sakay-orange)', fontWeight: 600, mt: '2px' }}>{inc.category}</Typography>
-                    {inc.priority && inc.priority !== 'Standard' && (
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, mt: '2px', color: inc.priority === 'Serious' ? '#991B1B' : '#9A3412' }}>
-                        {inc.priority === 'Serious' ? 'SERIOUS' : 'EMERGENCY'}
-                      </Typography>
-                    )}
-                    {inc.overdue && <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, mt: '2px', color: '#B91C1C' }}>OVERDUE</Typography>}
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{inc.driverName}</Typography>
-                    <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)' }}>{inc.todaName}</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>
-                      {inc.reporterName} ({inc.reportedBy})
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>{inc.submittedDate}</Typography>
-                    <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)' }}>{inc.submittedTime}</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={inc.status as any} />
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>{inc.routing === 'LGU' ? 'With the LGU' : 'With the TODA'}</Typography>
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton
-                      label="Investigate"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedId(inc.id);
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={6}
-                icon={<ReportProblemIcon />}
-                title="No incident reports found"
-                description={
-                  searchQuery || statusFilter !== 'All' || priorityFilter !== 'All' || routingFilter !== 'All' || todaFilter !== 'All' || categoryFilter !== 'All'
-                    ? 'No reports match your active search or filter criteria.'
-                    : 'Incident reports submitted by passengers or drivers (or recorded by the system for a safety stop) will appear here for review.'
-                }
-                onRefresh={loadIncidents}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={6}
+              kind={filtering ? 'noResults' : 'empty'}
+              title={filtering ? 'No reports match' : 'No incident reports yet'}
+              hint={
+                filtering
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'Reports from passengers and drivers (and the ones the system records for a safety stop) appear here for review.'
+              }
+              onRefresh={loadIncidents}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 4. Centered Widescreen Incident Detail & Review Modal */}
+      {/* 4. Incident details and review window */}
       {selectedIncident && (
         <IncidentDetailModal
           open={Boolean(selectedIncident)}

@@ -3,7 +3,6 @@ import { Box, Typography, Button, CircularProgress, Dialog, DialogTitle, DialogC
 import { Link as RouterLink } from 'react-router-dom';
 
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
-import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
 import { FlagTag } from '../components/common/DataTable';
 import { PageNotice } from '../components/common/PageNotice';
 import { StatStrip } from '../components/common/StatStrip';
@@ -392,7 +391,7 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* The key numbers: each one opens the screen that lists those records */}
-      <StatStrip stats={statItems} footnote={<PilotCoverageNote compact />} />
+      <StatStrip stats={statItems} />
 
       {/* Administrative review flags (Rules 2.4, 2.5, 3.7) */}
       {openFlags.length > 0 && (

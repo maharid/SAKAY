@@ -1,50 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Card,
-  CardContent,
-  Chip,
-  Button,
-  Tabs,
-  Tab,
-  CircularProgress,
-} from '@mui/material';
-import NavigationIcon from '@mui/icons-material/Navigation';
-import PersonIcon from '@mui/icons-material/Person';
-import RouteIcon from '@mui/icons-material/Route';
+import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
 import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow } from '../components/common/DataTable';
+import { StatStrip } from '../components/common/StatStrip';
+import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, reconcileTrip, fetchFareDisputes, resolveFareDispute, endTripSafely, signLguCaseEvidence } from '../services/adminApiService';
 import { FareDisputesPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
 import type { FareDisputeRow } from '@sakay/shared';
 import type { ReconciliationTrip } from '@sakay/shared';
 import { FONT } from '../styles/density';
+import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /** A position older than this is drawn grey: the phone is not reporting any more (the policy treats 3 minutes of silence as Driver Unreachable) */
 const LIVE_FIX_STALE_SECONDS = 90;
 
 const escapeHtml = (v: string): string =>
   v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+/** The name of each list the numbers above the table pick, as a heading and as "no ... recorded" */
+const LIST_NAMES = {
+  Active: { heading: 'Active trips', none: 'active trips' },
+  Completed: { heading: 'Completed trips', none: 'completed trips' },
+  Cancelled: { heading: 'Cancelled bookings', none: 'cancelled bookings' },
+  All: { heading: 'All bookings', none: 'bookings' },
+} as const;
 
 /**
  * ============================================================================
@@ -238,8 +224,13 @@ export const LiveTripsPage: React.FC = () => {
     .filter((b) => b.driverId && !['Pending', 'Searching Driver', 'No Driver Found', 'Completed'].includes(b.status) && !b.status.includes('Cancel'))
     .map((b) => ({ bookingId: b.bookingId, label: `${b.driverName} (${b.vehiclePlate}) · ${b.pickupArea} > ${b.destinationArea} · ${b.status}` }));
 
+  const showCount = (n: number) => (isLoading ? '…' : n);
+  const filtering = Boolean(searchQuery) || todaFilter !== 'All';
+  const listName = LIST_NAMES[activeTab];
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
+      {/* What needs an administrator now (each shows only when there is something to decide) */}
       <TripReconciliationPanel
         trips={reconTrips}
         showWhenEmpty={false}
@@ -249,15 +240,6 @@ export const LiveTripsPage: React.FC = () => {
             await loadReconciliation();
             loadTrips();
           }
-          return message;
-        }}
-      />
-
-      <SafetyEndTripPanel
-        trips={safetyTrips}
-        onEnd={async (end) => {
-          const message = await endTripSafely(end);
-          if (!message) loadTrips();
           return message;
         }}
       />
@@ -278,178 +260,43 @@ export const LiveTripsPage: React.FC = () => {
         }}
       />
 
-      <DispatchSettingsCard />
+      {/* The numbers: each one is also a button that shows that group of trips in the list below */}
+      <StatStrip
+        label="Trip totals (press one to show those trips)"
+        stats={[
+          { key: 'Active', label: 'Active trips', value: showCount(activeTrips.length), note: 'On the way or looking for a driver', onSelect: () => setActiveTab('Active'), selected: activeTab === 'Active' },
+          { key: 'Completed', label: 'Completed trips', value: showCount(completedTrips.length), tone: 'success', note: 'Rides that finished', onSelect: () => setActiveTab('Completed'), selected: activeTab === 'Completed' },
+          { key: 'Cancelled', label: 'Cancelled bookings', value: showCount(cancelledTrips.length), note: 'Cancelled by a passenger or a driver', onSelect: () => setActiveTab('Cancelled'), selected: activeTab === 'Cancelled' },
+          { key: 'All', label: 'All bookings', value: showCount(bookings.length), note: 'Every booking so far', onSelect: () => setActiveTab('All'), selected: activeTab === 'All' },
+        ]}
+      />
 
-      {/* 1. Operational KPI Metric Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2,
-          mb: 2.8,
-        }}
-      >
-        <Card
-          onClick={() => setActiveTab('Active')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: activeTab === 'Active' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            transition: 'all 0.2s ease',
-          }}
+      {/* Live map of Calapan City */}
+      <Box sx={{ mb: '19px' }}>
+        <DashboardCard
+          title="Live map"
+          description={`${activeTrips.length} active ${activeTrips.length === 1 ? 'trip' : 'trips'}, ${activeTrips.filter((t) => t.driverLat !== null).length} with a driver GPS position.`}
+          actions={
+            <Button onClick={loadTrips} startIcon={<RefreshIcon sx={{ fontSize: 16 }} />} sx={rowActionSx('neutral')}>
+              Refresh
+            </Button>
+          }
         >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Active & Ongoing Trips
-              </Typography>
-              <NavigationIcon sx={{ color: 'var(--sakay-orange)', fontSize: '13px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
-              {activeTrips.length}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              Currently in transit in Calapan
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card
-          onClick={() => setActiveTab('Completed')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: activeTab === 'Completed' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Completed Trips
-              </Typography>
-              <CheckCircleIcon sx={{ color: '#2E7D32', fontSize: '13px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#2E7D32', mb: 0.4 }}>
-              {completedTrips.length}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              Safely fulfilled ride bookings
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card
-          onClick={() => setActiveTab('Cancelled')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: activeTab === 'Cancelled' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Cancelled Bookings
-              </Typography>
-              <CancelIcon sx={{ color: '#DC2626', fontSize: '13px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#DC2626', mb: 0.4 }}>
-              {cancelledTrips.length}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              Cancelled by passenger/driver
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card
-          onClick={() => setActiveTab('All')}
-          sx={{
-            cursor: 'pointer',
-            borderRadius: 'var(--mac-radius-lg)',
-            border: activeTab === 'All' ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Total Bookings
-              </Typography>
-              <RouteIcon sx={{ color: '#1565C0', fontSize: '13px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#1565C0', mb: 0.4 }}>
-              {bookings.length}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              All lifetime system bookings
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* 2. Interactive Map of Calapan City Transit Operations */}
-      <Box
-        sx={{
-          mb: 3.2,
-          borderRadius: 'var(--mac-radius-lg)',
-          overflow: 'hidden',
-          border: '1px solid var(--mac-border-color)',
-          backgroundColor: '#FFFFFF',
-          boxShadow: 'var(--mac-shadow-card)',
-        }}
-      >
-        <Box sx={{ p: '11px 16px', borderBottom: '1px solid var(--mac-border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-            <NavigationIcon sx={{ color: 'var(--sakay-orange)', fontSize: '13px' }} />
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-              Live Calapan City Transportation Transit Map ({activeTrips.length} active, {activeTrips.filter((t) => t.driverLat !== null).length} with a driver GPS position)
-            </Typography>
+          <Box sx={{ width: '100%', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${PAGE_BORDER}` }}>
+            <div ref={mapContainerRef} style={{ width: '100%', height: '340px' }} />
           </Box>
-          <Button
-            onClick={loadTrips}
-            startIcon={<RefreshIcon />}
-            size="small"
-            sx={{ textTransform: 'none', fontSize: FONT.small, color: 'var(--sakay-orange)', fontWeight: 600 }}
-          >
-            Live Refresh
-          </Button>
-        </Box>
-        <div ref={mapContainerRef} style={{ width: '100%', height: '340px' }} />
+        </DashboardCard>
       </Box>
 
-      {/* 3. Filter Toolbar & Operation Tabs */}
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.6 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(_, val) => setActiveTab(val)}
-          sx={{
-            '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 3 },
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: FONT.caption },
-            '& .Mui-selected': { color: 'var(--sakay-orange) !important' },
-          }}
-        >
-          <Tab label={`Active Trips (${activeTrips.length})`} value="Active" />
-          <Tab label={`Completed Trips (${completedTrips.length})`} value="Completed" />
-          <Tab label={`Cancelled Bookings (${cancelledTrips.length})`} value="Cancelled" />
-          <Tab label={`All Bookings (${bookings.length})`} value="All" />
-        </Tabs>
-      </Box>
+      {/* The trips: search, filter, list */}
+      <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary, mb: '10px' }}>
+        {listName.heading} {isLoading ? '' : `(${filteredTrips.length})`}
+      </Typography>
 
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search by trip ID, driver, passenger, plate, or corridor..."
+        searchPlaceholder="Search trip, driver, passenger, plate"
         selectFilters={[
           {
             id: 'toda',
@@ -465,132 +312,77 @@ export const LiveTripsPage: React.FC = () => {
         }}
       />
 
-      {/* 4. Trips Data Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-        }}
+      <DataTableCard
+        label={listName.heading}
+        minWidth={900}
+        columns={[{ label: 'Trip' }, { label: 'Driver and unit' }, { label: 'Passenger' }, { label: 'Fare' }, { label: 'Status' }, { label: 'Action', align: 'right' }]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                TRIP ID & CORRIDOR
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                DRIVER & UNIT
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                PASSENGER
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                TYPE & FARE
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                STATUS
-              </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                ACTIONS
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
-                    Loading trip records...
-                  </Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading trips..." />
+          ) : filteredTrips.length > 0 ? (
+            filteredTrips.map((trip) => (
+              <TableRow key={trip.id}>
+                <TableCell>
+                  <CellStack primary={trip.id} secondary={`${trip.pickupArea} → ${trip.destinationArea}`} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={trip.driverName} secondary={`${trip.todaName} · ${trip.vehiclePlate}`} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={trip.passengerName} secondary={trip.passengerPhone} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={`₱${trip.estimatedFare}.00`} secondary={`${trip.tripType} · ${trip.distanceKm} km`} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={trip.status as any} />
+                  {(trip.cancelledBy || trip.cancellationReason) && (
+                    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '3px', maxWidth: 240, overflowWrap: 'anywhere' }}>
+                      {trip.cancelledBy ? `By ${trip.cancelledBy}` : ''}
+                      {trip.cancelledBy && trip.cancellationReason ? ': ' : ''}
+                      {trip.cancellationReason ?? ''}
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`View details of trip ${trip.id}`} onClick={() => setSelectedTrip(trip)} sx={rowActionSx('neutral')}>
+                    View details
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : filteredTrips.length > 0 ? (
-              filteredTrips.map((trip) => (
-                <TableRow
-                  key={trip.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
-                      {trip.id}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      {trip.pickupArea} → {trip.destinationArea}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      {trip.driverName}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                      {trip.todaName} • {trip.vehiclePlate}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
-                      {trip.passengerName}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                      {trip.passengerPhone}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--sakay-orange)' }}>
-                      ₱{trip.estimatedFare}.00
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                      {trip.tripType} • {trip.distanceKm} km
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={trip.status as any} />
-                    {(trip.cancelledBy || trip.cancellationReason) && (
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px', maxWidth: 220 }}>
-                        {trip.cancelledBy ? `By ${trip.cancelledBy}` : ''}
-                        {trip.cancelledBy && trip.cancellationReason ? ': ' : ''}
-                        {trip.cancellationReason ?? ''}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton
-                      label="View Details"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTrip(trip);
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={6}
-                icon={<NavigationIcon />}
-                title={`No ${activeTab.toLowerCase()} trips recorded.`}
-                description={
-                  searchQuery || todaFilter !== 'All'
-                    ? 'No trips match your active search or filter.'
-                    : 'Active transportation trips will appear here when passengers and drivers begin using SAKAY.'
-                }
-                onRefresh={loadTrips}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={6}
+              kind={filtering ? 'noResults' : 'empty'}
+              title={filtering ? 'No trips match' : `No ${listName.none} recorded`}
+              hint={
+                filtering
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'Trips appear here when passengers and drivers start using SAKAY.'
+              }
+              onRefresh={loadTrips}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 5. Trip Telemetry Inspection Modal */}
+      {/* Tools that are used less often: ending a trip for safety, and how long the search for a driver runs */}
+      <Box sx={{ mt: '26px' }}>
+        <SafetyEndTripPanel
+          trips={safetyTrips}
+          onEnd={async (end) => {
+            const message = await endTripSafely(end);
+            if (!message) loadTrips();
+            return message;
+          }}
+        />
+
+        <DispatchSettingsCard />
+      </Box>
+
+      {/* Trip details window */}
       {selectedTrip && (
         <TripDetailModal
           open={Boolean(selectedTrip)}
@@ -602,4 +394,3 @@ export const LiveTripsPage: React.FC = () => {
     </Box>
   );
 };
-

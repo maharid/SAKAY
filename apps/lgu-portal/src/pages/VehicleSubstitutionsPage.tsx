@@ -37,7 +37,7 @@ export const VehicleSubstitutionsPage: React.FC = () => {
   }, []);
 
   return (
-    <Box sx={{ maxWidth: 1100, margin: '0 auto', pb: 4.8 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {loading ? (
         <Box role="status" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', p: 4.8 }}>
           <CircularProgress size={21} sx={{ color: 'var(--sakay-orange)' }} />

@@ -1,33 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  Alert,
-} from '@mui/material';
-import GavelIcon from '@mui/icons-material/Gavel';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Alert, Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import { APPEAL_CAUSE_LABELS, isPendingAppeal } from '@sakay/shared';
 import type { AppealRecord } from '@sakay/shared';
 
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { AppealDetailModal } from '../components/admin/AppealDetailModal';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
+import { StatStrip } from '../components/common/StatStrip';
 import { fetchAppeals } from '../services/adminApiService';
 import { FONT } from '../styles/density';
+import { PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 const stamp = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
@@ -113,44 +96,26 @@ export const AppealsPage: React.FC = () => {
     { label: 'Drivers', value: 'driver' },
   ];
 
-  const cards = [
-    { key: 'Waiting for the LGU', label: 'Waiting for the LGU', count: waiting.length, note: 'Passenger appeals, and driver appeals escalated to you', color: 'var(--sakay-orange)', Icon: HourglassEmptyIcon },
-    { key: 'Overdue', label: 'Overdue', count: overdue.length, note: 'Past the three business days', color: '#B91C1C', Icon: ScheduleIcon },
-    { key: 'With a TODA', label: 'With a TODA', count: withToda.length, note: 'Drivers\' appeals the TODA is still reviewing', color: '#1565C0', Icon: GavelIcon },
-    { key: 'Decided', label: 'Decided', count: decided.length, note: 'Full or partial waiver, or denied', color: '#2E7D32', Icon: CheckCircleIcon },
-  ];
+  // each number is also a button: it shows that group of appeals in the list below (pressing it again shows all)
+  const pick = (key: string) => () => setStatusFilter(statusFilter === key ? 'All' : key);
+  const filtering = Boolean(searchQuery) || typeFilter !== 'All' || statusFilter !== 'Waiting for the LGU';
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3.2 }}>
-        {cards.map(({ key, label, count, note, color, Icon }) => (
-          <Card
-            key={key}
-            onClick={() => setStatusFilter(statusFilter === key ? 'All' : key)}
-            sx={{
-              cursor: 'pointer',
-              borderRadius: 'var(--mac-radius-lg)',
-              border: statusFilter === key ? '2px solid var(--sakay-orange)' : '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <CardContent sx={{ p: '16px 18px !important' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
-                <Icon sx={{ color, fontSize: 16 }} />
-              </Box>
-              <Typography sx={{ fontSize: '22px', fontWeight: 700, color: count > 0 && key === 'Overdue' ? color : 'var(--mac-text-primary)', mb: 0.4 }}>{count}</Typography>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{note}</Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
+      <StatStrip
+        label="Appeal totals (press one to show those appeals)"
+        stats={[
+          { key: 'waiting', label: 'Waiting for the LGU', value: waiting.length, tone: waiting.length > 0 ? 'brand' : 'neutral', note: 'Passenger appeals, and driver appeals escalated to you', onSelect: pick('Waiting for the LGU'), selected: statusFilter === 'Waiting for the LGU' },
+          { key: 'overdue', label: 'Overdue', value: overdue.length, tone: overdue.length > 0 ? 'danger' : 'neutral', note: 'Past the 3 business days', onSelect: pick('Overdue'), selected: statusFilter === 'Overdue' },
+          { key: 'toda', label: 'With a TODA', value: withToda.length, note: "Driver appeals the TODA is still reviewing", onSelect: pick('With a TODA'), selected: statusFilter === 'With a TODA' },
+          { key: 'decided', label: 'Decided', value: decided.length, tone: 'success', note: 'Waived in full or in part, or denied', onSelect: pick('Decided'), selected: statusFilter === 'Decided' },
+        ]}
+      />
 
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search name, violation, or what the person wrote..."
+        searchPlaceholder="Search name, strike, or what they wrote"
         selectFilters={[
           { id: 'status', label: 'Show', value: statusFilter, options: statusOptions, onChange: setStatusFilter },
           { id: 'type', label: 'Who', value: typeFilter, options: typeOptions, onChange: setTypeFilter },
@@ -162,81 +127,65 @@ export const AppealsPage: React.FC = () => {
         }}
       />
 
-      {loadError && <Alert severity="error" sx={{ mb: 1.6, borderRadius: '10px' }}>{loadError}</Alert>}
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 1.6, borderRadius: '10px' }} action={<Button onClick={load} sx={rowActionSx('danger')}>Try again</Button>}>
+          {loadError}
+        </Alert>
+      )}
 
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', overflow: 'hidden', backgroundColor: '#FFFFFF' }}
+      <DataTableCard
+        label="Strike appeals"
+        minWidth={900}
+        columns={[{ label: 'Person' }, { label: 'Strike' }, { label: 'Cause' }, { label: 'Requested' }, { label: 'Decision due' }, { label: 'Status' }, { label: 'Action', align: 'right' }]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              {['Person', 'Strike', 'Cause', 'Requested', 'Decision due', 'Status'].map((h) => (
-                <TableCell key={h} sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>{h}</TableCell>
-              ))}
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Loading strike appeals...</Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={7} kind="loading" loadingText="Loading strike appeals..." />
+          ) : filtered.length > 0 ? (
+            filtered.map((a) => (
+              <TableRow key={a.requestId}>
+                <TableCell>
+                  <CellStack primary={a.subjectName} secondary={a.subjectType === 'passenger' ? 'Passenger' : 'Driver'} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={a.violation} secondary={`${a.pointsActive} of ${a.pointsIssued} point(s) active`} />
+                </TableCell>
+                <TableCell>{APPEAL_CAUSE_LABELS[a.causeCode] ?? a.causeCode}</TableCell>
+                <TableCell sx={{ color: PAGE_TEXT.secondary }}>{stamp(a.requestedAt)}</TableCell>
+                <TableCell>
+                  <Typography sx={{ fontSize: FONT.body, color: a.overdue ? PAGE_TEXT.danger : PAGE_TEXT.primary, fontWeight: a.overdue ? 700 : 400 }}>
+                    {isPendingAppeal(a.status) ? stamp(a.decisionDueAt) : '-'}
+                  </Typography>
+                  {a.overdue && <Box sx={{ mt: '3px' }}><FlagTag label="Overdue" tone="danger" /></Box>}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={a.status} />
+                  {a.status === 'Pending LGU Review' && a.subjectType === 'driver' && (
+                    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '3px' }}>Escalated by the TODA</Typography>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`${a.status === 'Pending LGU Review' ? 'Review' : 'View'} the appeal of ${a.subjectName}`} onClick={() => setSelectedId(a.requestId)} sx={rowActionSx('neutral')}>
+                    {a.status === 'Pending LGU Review' ? 'Review' : 'View'}
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : filtered.length > 0 ? (
-              filtered.map((a) => (
-                <TableRow key={a.requestId} sx={{ transition: 'var(--mac-transition-fast)', '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>{a.subjectName}</Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--sakay-orange)', fontWeight: 600, mt: '2px' }}>{a.subjectType === 'passenger' ? 'Passenger' : 'Driver'}</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{a.violation}</Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{a.pointsActive} of {a.pointsIssued} point(s) active</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>{APPEAL_CAUSE_LABELS[a.causeCode] ?? a.causeCode}</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>{stamp(a.requestedAt)}</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, color: a.overdue ? '#B91C1C' : 'var(--mac-text-primary)', fontWeight: a.overdue ? 700 : 400 }}>
-                      {isPendingAppeal(a.status) ? stamp(a.decisionDueAt) : '-'}
-                    </Typography>
-                    {a.overdue && <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#B91C1C' }}>OVERDUE</Typography>}
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={a.status} />
-                    {a.status === 'Pending LGU Review' && a.subjectType === 'driver' && (
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>Escalated by the TODA</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton label={a.status === 'Pending LGU Review' ? 'Review' : 'View'} onClick={() => setSelectedId(a.requestId)} />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={7}
-                icon={<GavelIcon />}
-                title="No strike appeals found"
-                description={
-                  searchQuery || typeFilter !== 'All' || statusFilter !== 'Waiting for the LGU'
-                    ? 'No appeals match your search or filter.'
-                    : 'Nothing is waiting for you. A passenger\'s appeal of a strike, and a driver\'s that the TODA escalates, will appear here.'
-                }
-                onRefresh={load}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={7}
+              kind={filtering ? 'noResults' : 'empty'}
+              title={filtering ? 'No appeals match' : 'Nothing is waiting for you'}
+              hint={
+                filtering
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : "A passenger's appeal of a strike, and a driver's that the TODA escalates, will appear here."
+              }
+              onRefresh={load}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
       {selected && <AppealDetailModal open onClose={() => setSelectedId(null)} appeal={selected} onChanged={load} />}
     </Box>

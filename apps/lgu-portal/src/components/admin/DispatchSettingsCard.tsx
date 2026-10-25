@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, TextField, Typography } from '@mui/material';
-import TuneIcon from '@mui/icons-material/Tune';
+import { Alert, Box, Button, TextField, Typography } from '@mui/material';
 
+import { DashboardCard } from '../dashboard/DashboardCard';
 import { fetchDispatchSettings, saveDispatchSetting, type DispatchSettings } from '../../services/adminApiService';
 import { FONT } from '../../styles/density';
+import { PAGE_DIVIDER, PAGE_TEXT, primaryButtonSx } from '../../styles/pageTheme';
 
 type SettingKey = 'offer_window_seconds' | 'tier3_max_seconds';
 
@@ -74,10 +75,10 @@ export const DispatchSettingsCard: React.FC = () => {
   }
 
   const row = (key: SettingKey, label: string, hint: string, value: string, setValue: (v: string) => void, current: number, def: number, limits: [number, number]) => (
-    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.6, flexWrap: 'wrap' }}>
-      <Box sx={{ minWidth: 260, flex: 1 }}>
-        <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{label}</Typography>
-        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '12px 16px', flexWrap: 'wrap', py: '12px', '&:first-of-type': { pt: 0 }, '&:last-of-type': { pb: 0 } }}>
+      <Box sx={{ minWidth: 'min(260px, 100%)', flex: 1 }}>
+        <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>{label}</Typography>
+        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>
           {hint} Default {def} s ({minutesText(def)}); allowed {limits[0]} to {limits[1]} s.
         </Typography>
       </Box>
@@ -90,31 +91,24 @@ export const DispatchSettingsCard: React.FC = () => {
         sx={{ width: 120 }}
         helperText={`now ${current} s`}
       />
-      <Button
-        variant="contained"
-        disabled={busy !== null || Number(value) === current}
-        onClick={() => save(key, value)}
-        sx={{ textTransform: 'none', fontWeight: 700, backgroundColor: 'var(--sakay-orange)', '&:hover': { backgroundColor: '#E04B00' } }}
-      >
+      <Button variant="contained" disabled={busy !== null || Number(value) === current} onClick={() => save(key, value)} sx={primaryButtonSx}>
         {busy === key ? 'Saving...' : 'Save'}
       </Button>
     </Box>
   );
 
   return (
-    <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF', mb: 2.8 }}>
-      <CardContent sx={{ p: '16px 18px !important', display: 'flex', flexDirection: 'column', gap: 1.6 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-          <TuneIcon sx={{ color: 'var(--sakay-orange)', fontSize: 14 }} />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)' }}>Driver Search Settings</Typography>
+    <Box sx={{ mb: '19px' }}>
+      <DashboardCard title="Driver search settings" description="How long drivers and the search for a driver may take.">
+        {message && <Alert severity={message.type} sx={{ mb: '10px', borderRadius: '10px' }}>{message.text}</Alert>}
+        <Box sx={{ '& > div + div': { borderTop: `1px solid ${PAGE_DIVIDER}` } }}>
+          {row('offer_window_seconds', 'Offer response window', 'How long one driver has to accept or decline an offer.', offerWindow, setOfferWindow,
+            settings.offerWindowSeconds, settings.defaults.offerWindowSeconds, settings.limits.offerWindowSeconds)}
+          {row('tier3_max_seconds', 'Longest search', 'How long the live search widens before the booking becomes "No Driver Found".', tier3Max, setTier3Max,
+            settings.tier3MaxSeconds, settings.defaults.tier3MaxSeconds, settings.limits.tier3MaxSeconds)}
         </Box>
-        {message && <Alert severity={message.type}>{message.text}</Alert>}
-        {row('offer_window_seconds', 'Offer response window', 'How long one driver has to accept or decline an offer.', offerWindow, setOfferWindow,
-          settings.offerWindowSeconds, settings.defaults.offerWindowSeconds, settings.limits.offerWindowSeconds)}
-        {row('tier3_max_seconds', 'Longest search', 'How long the live search widens before the booking becomes "No Driver Found".', tier3Max, setTier3Max,
-          settings.tier3MaxSeconds, settings.defaults.tier3MaxSeconds, settings.limits.tier3MaxSeconds)}
-      </CardContent>
-    </Card>
+      </DashboardCard>
+    </Box>
   );
 };
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Button, IconButton, Badge, Popover } from '@mui/material';
+import { Box, Typography, Button, IconButton, Badge, Popover, MenuList, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -12,10 +12,20 @@ import { NotificationItem } from '../../types/admin';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogoutConfirmModal } from '../admin/LogoutConfirmModal';
 import { supabase } from '../../services/supabaseClient';
-import { CONTROL, FONT } from '../../styles/density';
+import { FONT } from '../../styles/density';
+import { PAGE_TEXT } from '../../styles/pageTheme';
 
-// the header controls are as tall as a button of the compact scale (the TODA portal's header does the same)
-const HEADER_BUTTON_HEIGHT = CONTROL.height;
+// The header's buttons: 30px tall for a mouse, 40px for a finger (the same as the TODA portal's header)
+const HEADER_BUTTON_HEIGHT = 30;
+const headerButtonSx = {
+  height: HEADER_BUTTON_HEIGHT,
+  borderRadius: '8px',
+  border: '1px solid var(--mac-border-color)',
+  backgroundColor: '#FFFFFF',
+  transition: 'var(--mac-transition-fast)',
+  '@media (pointer: coarse)': { height: 40 },
+  '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '2px' },
+} as const;
 
 interface AdminHeaderProps {
   pageTitle?: string;
@@ -260,6 +270,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   // Account Popover State
   const [accountAnchorEl, setAccountAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLUListElement>(null);
 
   const adminName = adminProfile?.full_name || 'City Administrator';
   const adminEmail = adminProfile?.email || user?.email || '';
@@ -289,6 +300,12 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     }
   };
 
+  // When the account menu has finished opening, the keyboard lands on its first item (arrow keys then move between the items)
+  const focusFirstAccountItem = () => {
+    const menu = accountMenuRef.current;
+    if (menu && !menu.contains(document.activeElement)) (menu.querySelector('[role="menuitem"]') as HTMLElement | null)?.focus();
+  };
+
   return (
     <Box
       component="header"
@@ -296,26 +313,30 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         position: 'sticky',
         top: 0,
         zIndex: 80,
-        height: 'var(--mac-header-height)',
+        // The header sits above the scrolling page area (the page scrolls under it, not the header). It keeps the same height as the sidebar's logo row,
+        // and on a narrow screen it is allowed to grow into a second row instead of cutting its buttons off.
+        minHeight: 'var(--mac-header-height)',
         flexShrink: 0,
         backgroundColor: '#FFFFFF',
         borderBottom: '1px solid var(--mac-border-color)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: { xs: '0 16px', md: '0 29px' },
+        flexWrap: 'wrap',
+        gap: '6px 13px',
+        padding: { xs: '8px 13px', md: '0 29px' },
       }}
     >
       {/* Left: Primary Page Title & Subtitle */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: '1 1 160px', minWidth: 0 }}>
         <Typography
           variant="h1"
           sx={{
             fontSize: FONT.pageTitle,
             fontWeight: 700,
             color: 'var(--mac-text-primary)',
-            letterSpacing: '-0.3px',
-            lineHeight: 1.2,
+            letterSpacing: '-0.2px',
+            lineHeight: 1.25,
           }}
         >
           {pageTitle}
@@ -325,8 +346,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             sx={{
               fontSize: FONT.caption,
               fontWeight: 400,
-              color: 'var(--mac-text-muted)',
-              lineHeight: 1.3,
+              color: PAGE_TEXT.secondary,
+              lineHeight: 1.35,
               mt: '2px',
             }}
           >
@@ -336,21 +357,20 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       </Box>
 
       {/* Right: Global Sticky Header Controls */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative', flexShrink: 0 }}>
         {/* Notifications Icon Button */}
         <Box sx={{ position: 'relative' }}>
           <IconButton
             size="small"
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+            aria-haspopup="true"
+            aria-expanded={notifOpen}
             onClick={() => setNotifOpen(!notifOpen)}
             sx={{
+              ...headerButtonSx,
               width: HEADER_BUTTON_HEIGHT,
-              height: HEADER_BUTTON_HEIGHT,
-              '@media (pointer: coarse)': { width: 40, height: 40 },
-              borderRadius: '8px',
-              border: '1px solid var(--mac-border-color)',
-              backgroundColor: '#FFFFFF',
+              '@media (pointer: coarse)': { height: 40, width: 40 },
               color: 'var(--mac-text-secondary)',
-              transition: 'var(--mac-transition-fast)',
               '&:hover': {
                 backgroundColor: 'var(--sakay-orange-soft)',
                 color: 'var(--sakay-orange)',
@@ -376,18 +396,14 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           onClick={() => navigate('/tulong')}
           startIcon={<HelpOutlineOutlinedIcon fontSize="small" sx={{ fontSize: 14 }} />}
           sx={{
-            height: HEADER_BUTTON_HEIGHT,
-            '@media (pointer: coarse)': { height: 40 },
+            ...headerButtonSx,
             padding: '0 13px',
-            borderRadius: '8px',
-            border: '1px solid var(--mac-border-color)',
-            backgroundColor: '#FFFFFF',
             color: 'var(--mac-text-primary)',
-            fontSize: FONT.body,
-            fontWeight: 500,
+            fontSize: FONT.caption,
+            fontWeight: 600,
             textTransform: 'none',
             boxShadow: 'var(--mac-shadow-subtle)',
-            transition: 'var(--mac-transition-fast)',
+            minWidth: 0,
             '&:hover': {
               backgroundColor: 'var(--sakay-orange-soft)',
               color: 'var(--sakay-orange)',
@@ -400,22 +416,26 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
         {/* Header Account Profile Control */}
         <Box>
+          {/* A real button, so the keyboard can reach it and a screen reader announces it */}
           <Box
-            onClick={(e) => setAccountAnchorEl(e.currentTarget)}
+            component="button"
+            type="button"
+            aria-label="Account menu"
+            aria-haspopup="true"
+            aria-expanded={Boolean(accountAnchorEl)}
+            onClick={(e: React.MouseEvent<HTMLElement>) => setAccountAnchorEl(e.currentTarget)}
             sx={{
-              height: HEADER_BUTTON_HEIGHT,
-              '@media (pointer: coarse)': { height: 40 },
-              padding: '0 10px 0 8px',
-              borderRadius: '8px',
-              border: '1px solid var(--mac-border-color)',
-              backgroundColor: '#FFFFFF',
+              ...headerButtonSx,
+              padding: { xs: '0 6px', sm: '0 10px 0 8px' },
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               cursor: 'pointer',
               boxShadow: 'var(--mac-shadow-subtle)',
-              transition: 'var(--mac-transition-fast)',
               userSelect: 'none',
+              font: 'inherit',
+              color: 'inherit',
+              maxWidth: { xs: 'none', sm: 260 },
               '&:hover': {
                 backgroundColor: 'var(--mac-canvas-bg)',
                 borderColor: 'var(--mac-border-color)',
@@ -432,7 +452,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: FONT.caption,
+                fontSize: FONT.overline,
                 fontWeight: 700,
                 flexShrink: 0,
               }}
@@ -441,18 +461,24 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             </Box>
             <Typography
               sx={{
-                fontSize: FONT.body,
+                fontSize: FONT.caption,
                 fontWeight: 600,
                 color: 'var(--mac-text-primary)',
                 lineHeight: 1,
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                // on a phone only the initial shows; the name is still in the menu
+                display: { xs: 'none', sm: 'block' },
               }}
             >
               {adminName}
             </Typography>
-            <KeyboardArrowDownIcon fontSize="small" sx={{ fontSize: 15, color: 'var(--mac-text-muted)', ml: '-2px' }} />
+            <KeyboardArrowDownIcon fontSize="small" sx={{ fontSize: 15, color: 'var(--mac-text-muted)', ml: '-2px', flexShrink: 0 }} />
           </Box>
 
-          {/* Account Popover Card */}
+          {/* Account menu: who is signed in, then the two things they can do */}
           <Popover
             open={Boolean(accountAnchorEl)}
             anchorEl={accountAnchorEl}
@@ -460,86 +486,107 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             slotProps={{
+              transition: { onEntered: focusFirstAccountItem },
               paper: {
                 sx: {
+                  mt: '6px',
+                  width: 248,
+                  maxWidth: 'calc(100vw - 32px)',
                   borderRadius: '12px',
                   border: '1px solid var(--mac-border-color)',
-                  boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
-                  mt: 1,
-                  width: 248,
-                  padding: '13px',
+                  boxShadow: '0 12px 32px rgba(15, 23, 42, 0.14)',
                   backgroundColor: '#FFFFFF',
+                  overflow: 'hidden',
                 },
               },
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-              <Box>
-                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.25 }}>
+            {/* Identity: the initial, the name, the role and the e-mail the account was signed in with */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', p: '12px 14px' }}>
+              <Box
+                aria-hidden
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: FONT.heading,
+                  fontWeight: 700,
+                  color: '#FFFFFF',
+                  background: 'linear-gradient(135deg, var(--sakay-orange) 0%, #ff8a47 100%)',
+                }}
+              >
+                {adminName.charAt(0).toUpperCase()}
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.25, overflowWrap: 'anywhere' }}>
                   {adminName}
                 </Typography>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--sakay-orange)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: PAGE_TEXT.brand, lineHeight: 1.3 }}>
                   LGU Admin
                 </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px', wordBreak: 'break-all' }}>
-                  {adminEmail}
-                </Typography>
-              </Box>
-
-              <Box sx={{ borderTop: '1px solid var(--mac-border-color)', pt: 1.2, display: 'flex', flexDirection: 'column', gap: 0.8 }}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => {
-                    setAccountAnchorEl(null);
-                    navigate('/settings');
-                  }}
-                  startIcon={<ManageAccountsIcon fontSize="small" />}
-                  sx={{
-                    borderRadius: '8px',
-                    borderColor: 'var(--mac-border-color)',
-                    color: 'var(--mac-text-primary)',
-                    textTransform: 'none',
-                    fontSize: FONT.body,
-                    fontWeight: 600,
-                    justifyContent: 'flex-start',
-                    py: 0.6,
-                    '&:hover': {
-                      backgroundColor: 'var(--sakay-orange-soft)',
-                      borderColor: 'var(--sakay-orange-border)',
-                      color: 'var(--sakay-orange)',
-                    },
-                  }}
-                >
-                  Manage Account
-                </Button>
-
-                <Button
-                  fullWidth
-                  variant="text"
-                  color="error"
-                  onClick={() => {
-                    setAccountAnchorEl(null);
-                    setLogoutModalOpen(true);
-                  }}
-                  startIcon={<LogoutIcon fontSize="small" />}
-                  sx={{
-                    borderRadius: '8px',
-                    textTransform: 'none',
-                    fontSize: FONT.body,
-                    fontWeight: 600,
-                    justifyContent: 'flex-start',
-                    py: 0.6,
-                    color: '#DC2626',
-                    '&:hover': {
-                      backgroundColor: '#FEF2F2',
-                    },
-                  }}
-                >
-                  Log Out
-                </Button>
+                {adminEmail && (
+                  <Typography sx={{ fontSize: FONT.caption, color: PAGE_TEXT.secondary, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+                    {adminEmail}
+                  </Typography>
+                )}
               </Box>
             </Box>
+
+            <Divider />
+
+            <MenuList
+              ref={accountMenuRef}
+              aria-label="Account"
+              sx={{
+                p: '6px',
+                '& .MuiMenuItem-root': {
+                  minHeight: 34,
+                  borderRadius: '8px',
+                  gap: '10px',
+                  px: '10px',
+                  fontSize: FONT.body,
+                  fontWeight: 600,
+                  '@media (pointer: coarse)': { minHeight: 44 },
+                  '&:focus-visible': { outline: `2px solid ${PAGE_TEXT.brand}`, outlineOffset: '-2px' },
+                },
+                '& .MuiListItemIcon-root': { minWidth: 0, color: 'inherit' },
+                '& .MuiListItemText-primary': { fontSize: FONT.body, fontWeight: 600 },
+              }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setAccountAnchorEl(null);
+                  navigate('/settings');
+                }}
+                sx={{
+                  color: 'var(--mac-text-primary)',
+                  '&:hover, &.Mui-focusVisible': { backgroundColor: 'var(--sakay-orange-soft)', color: PAGE_TEXT.brand },
+                  '&:active': { backgroundColor: 'rgba(255, 102, 0, 0.16)' },
+                }}
+              >
+                <ListItemIcon><ManageAccountsIcon sx={{ fontSize: 16 }} /></ListItemIcon>
+                <ListItemText>Manage Account</ListItemText>
+              </MenuItem>
+
+              <MenuItem
+                onClick={() => {
+                  setAccountAnchorEl(null);
+                  setLogoutModalOpen(true);
+                }}
+                sx={{
+                  color: PAGE_TEXT.danger,
+                  '&:hover, &.Mui-focusVisible': { backgroundColor: '#FEF2F2' },
+                  '&:active': { backgroundColor: '#FEE2E2' },
+                }}
+              >
+                <ListItemIcon><LogoutIcon sx={{ fontSize: 16 }} /></ListItemIcon>
+                <ListItemText>Log Out</ListItemText>
+              </MenuItem>
+            </MenuList>
           </Popover>
         </Box>
       </Box>

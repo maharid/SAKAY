@@ -1,19 +1,16 @@
 import React from 'react';
-import { Box, Typography, Avatar, Chip } from '@mui/material';
-import NavigationIcon from '@mui/icons-material/Navigation';
-import PersonIcon from '@mui/icons-material/Person';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import RouteIcon from '@mui/icons-material/Route';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import { Box, Typography } from '@mui/material';
 
 import type { BookingRecordItem } from '../../services/adminApiService';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
+import { FlagTag } from '../common/DataTable';
+import { DetailField, DetailGrid, DetailSection } from '../common/DetailSection';
 import { TripCorrectionSection } from './TripCorrectionSection';
 import { TripRouteMap } from './TripRouteMap';
 import { FONT } from '../../styles/density';
+import { PAGE_BORDER, PAGE_TEXT } from '../../styles/pageTheme';
 
 interface TripDetailModalProps {
   open: boolean;
@@ -45,244 +42,130 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
     <MacCenterModal
       open={open}
       onClose={onClose}
-      title={`Trip Details — ${trip.id}`}
-      subtitle={`Booking ID: ${trip.bookingId} • ${trip.todaName}`}
+      title={`Trip details: ${trip.id}`}
+      subtitle={`Booking ID: ${trip.bookingId} · ${trip.todaName}`}
       badge={<StatusBadge status={trip.status as any} />}
       maxWidth={624}
     >
-      {/* Top Status & Telemetry Bar */}
+      {/* Where the trip stands now */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#FAFAFC',
-          padding: '14px 19px',
+          flexWrap: 'wrap',
+          gap: '8px 16px',
+          backgroundColor: '#FAFAF8',
+          padding: '12px 16px',
           borderRadius: '12px',
-          border: '1px solid var(--mac-border-color)',
-          mb: 3.2,
+          border: `1px solid ${PAGE_BORDER}`,
+          mb: '20px',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: '12px',
-              backgroundColor: trip.status === 'Trip Ongoing' ? 'rgba(21, 101, 192, 0.12)' : 'var(--sakay-orange-soft)',
-              color: trip.status === 'Trip Ongoing' ? '#1565C0' : 'var(--sakay-orange)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <NavigationIcon fontSize="medium" />
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
-              {trip.status}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-              {trip.driverLat !== null && trip.driverLng !== null ? (
-                <>
-                  Driver GPS ({trip.driverLat.toFixed(5)}, {trip.driverLng.toFixed(5)}) at{' '}
-                  <span style={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>{fmt(trip.driverFixAt)}</span>
-                </>
-              ) : (
-                <>No live driver position for this booking</>
-              )}
-            </Typography>
-          </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary, lineHeight: 1.2 }}>{trip.status}</Typography>
+          <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '2px' }}>
+            {trip.driverLat !== null && trip.driverLng !== null ? (
+              <>
+                Driver GPS ({trip.driverLat.toFixed(5)}, {trip.driverLng.toFixed(5)}) at{' '}
+                <Box component="span" sx={{ fontWeight: 600, color: PAGE_TEXT.primary }}>{fmt(trip.driverFixAt)}</Box>
+              </>
+            ) : (
+              <>No live driver position for this booking</>
+            )}
+          </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.8 }}>
-          <Chip
-            label={trip.tripType}
-            size="small"
-            sx={{
-              fontSize: FONT.caption,
-              fontWeight: 700,
-              backgroundColor: trip.tripType === 'Shared Trip' ? 'rgba(156, 39, 176, 0.12)' : 'rgba(52, 168, 83, 0.12)',
-              color: trip.tripType === 'Shared Trip' ? '#9C27B0' : '#1E8E3E',
-              height: 26,
-            }}
-          />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--sakay-orange)' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+          <FlagTag label={trip.tripType} tone={trip.tripType === 'Shared Trip' ? 'warning' : 'success'} />
+          <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.brand }}>
             {trip.actualDistanceKm !== null ? `Recorded distance: ${km(trip.actualDistanceKm)}` : trip.estimatedDistanceKm !== null ? `Quoted distance: ${km(trip.estimatedDistanceKm)}` : 'Distance not recorded yet'}
           </Typography>
         </Box>
       </Box>
 
-      {/* Section 1: Passenger Information */}
-      <Box sx={{ mb: 3.2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-          <PersonIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-            Passenger Booking Details
-          </Typography>
-        </Box>
+      <DetailSection title="Passenger">
+        <DetailGrid>
+          <DetailField label="Name">{trip.passengerName}</DetailField>
+          <DetailField label="Mobile number">{trip.passengerPhone}</DetailField>
+          <DetailField label="Passengers declared">{trip.passengerCount} {trip.passengerCount === 1 ? 'commuter' : 'commuters'}</DetailField>
+          <DetailField label="Booking requested">{trip.bookingTime}</DetailField>
+        </DetailGrid>
+      </DetailSection>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Passenger Name</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerName}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Mobile Contact</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerPhone}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Declared Passengers</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerCount} Commuter(s)</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Booking Request Time</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.bookingTime}</Typography>
-          </Box>
-        </Box>
-      </Box>
+      <DetailSection title="Driver and tricycle">
+        <DetailGrid>
+          <DetailField label="Name">{trip.driverName}</DetailField>
+          <DetailField label="Mobile number">{trip.driverPhone}</DetailField>
+          <DetailField label="TODA">{trip.todaName}</DetailField>
+          <DetailField label="Plate number">
+            <Box component="span" sx={{ color: PAGE_TEXT.brand, fontWeight: 700 }}>{trip.vehiclePlate}</Box>
+          </DetailField>
+        </DetailGrid>
+      </DetailSection>
 
-      {/* Section 2: Driver & Vehicle Credentials */}
-      <Box sx={{ mb: 3.2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-          <DirectionsCarIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-            Assigned Driver & Tricycle Unit
-          </Typography>
-        </Box>
+      <DetailSection title="Route and fare">
+        <DetailGrid>
+          <DetailField label="Pickup">{trip.pickupArea}</DetailField>
+          <DetailField label="Destination">{trip.destinationArea}</DetailField>
+        </DetailGrid>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
+        <Box sx={{ mt: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', backgroundColor: '#FFFFFF', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${PAGE_BORDER}` }}>
           <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Driver Name</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.driverName}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Driver Contact</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.driverPhone}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Affiliated TODA</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.todaName}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Vehicle Plate No.</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--sakay-orange)' }}>{trip.vehiclePlate}</Typography>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Section 3: Route & Fare Matrix Breakdown */}
-      <Box sx={{ mb: 1.6 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-          <RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-            Route & Fare Matrix Computation
-          </Typography>
-        </Box>
-
-        <Box sx={{ backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Pickup Point</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.pickupArea}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Destination Point</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.destinationArea}</Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', padding: '13px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '2px' }}>Estimated Cash Fare (confirmed by the passenger)</Typography>
-              <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
-                ₱{Number(trip.estimatedFare).toFixed(2)}
-              </Typography>
-              {trip.finalFare !== null && trip.finalFare !== undefined && (
-                <>
-                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '6px', mb: '2px' }}>Final Fare (computed by the system, binding)</Typography>
-                  <Typography sx={{ fontSize: '19px', fontWeight: 700, color: '#1E8E3E' }}>
-                    ₱{Number(trip.finalFare).toFixed(2)}
+            <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mb: '2px' }}>Estimated cash fare (confirmed by the passenger)</Typography>
+            <Typography sx={{ fontSize: FONT.sectionTitle, fontWeight: 700, color: PAGE_TEXT.brand }}>₱{Number(trip.estimatedFare).toFixed(2)}</Typography>
+            {trip.finalFare !== null && trip.finalFare !== undefined && (
+              <>
+                <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '8px', mb: '2px' }}>Final fare (computed by the system, binding)</Typography>
+                <Typography sx={{ fontSize: FONT.sectionTitle, fontWeight: 700, color: PAGE_TEXT.success }}>₱{Number(trip.finalFare).toFixed(2)}</Typography>
+                {trip.fareBasis === 'unmatched_solo' && (
+                  <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '2px' }}>
+                    Shared booking with no matched passenger: billed as a Solo Trip.
                   </Typography>
-                  {trip.fareBasis === 'unmatched_solo' && (
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      Shared booking with no matched passenger: billed as a Solo Trip.
-                    </Typography>
-                  )}
-                  {trip.fareDeviation && (
-                    <Typography sx={{ fontSize: FONT.caption, color: '#C25E00', mt: '2px' }}>
-                      Route deviation recorded: the fare follows the actual distance travelled.
-                    </Typography>
-                  )}
-                </>
-              )}
-            </Box>
-
-            {trip.sharedTripDetails && (
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#9C27B0' }}>
-                  Ride-Sharing Allocation Active
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                  {trip.sharedTripDetails.sharedSavings}
-                </Typography>
-              </Box>
+                )}
+                {trip.fareDeviation && (
+                  <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.warning, mt: '2px' }}>
+                    Route deviation recorded: the fare follows the actual distance travelled.
+                  </Typography>
+                )}
+              </>
             )}
           </Box>
-        </Box>
-      </Box>
 
-      {/* Section 4: what happened and when (Rule 16.2: timestamps, distance and duration are recorded automatically) */}
-      <Box sx={{ mb: 3.2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-          <AccessTimeIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-            Timeline, Distance & Duration
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
-          {timeline.map(([label, at]) => (
-            <Box key={label}>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>{label}</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{fmt(at)}</Typography>
+          {trip.sharedTripDetails && (
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.primary }}>Ride-sharing allocation active</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '2px' }}>{trip.sharedTripDetails.sharedSavings}</Typography>
             </Box>
+          )}
+        </Box>
+      </DetailSection>
+
+      {/* What happened and when (Rule 16.2: timestamps, distance and duration are recorded automatically) */}
+      <DetailSection title="Timeline, distance and duration">
+        <DetailGrid>
+          {timeline.map(([label, at]) => (
+            <DetailField key={label} label={label}>{fmt(at)}</DetailField>
           ))}
           {(cancelled || trip.cancelledAt) && (
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Cancelled</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#B91C1C' }}>{fmt(trip.cancelledAt)}</Typography>
-            </Box>
+            <DetailField label="Cancelled">
+              <Box component="span" sx={{ color: PAGE_TEXT.danger }}>{fmt(trip.cancelledAt)}</Box>
+            </DetailField>
           )}
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Quoted road distance</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.estimatedDistanceKm)}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Distance recorded by the driver's phone</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.actualDistanceKm)}</Typography>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Trip duration (start to completion)</Typography>
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{tripMinutes === null ? '\u2014' : `${tripMinutes} min`}</Typography>
-          </Box>
+          <DetailField label="Quoted road distance">{km(trip.estimatedDistanceKm)}</DetailField>
+          <DetailField label="Distance recorded by the driver's phone">{km(trip.actualDistanceKm)}</DetailField>
+          <DetailField label="Trip duration (start to completion)">{tripMinutes === null ? '\u2014' : `${tripMinutes} min`}</DetailField>
           {trip.fareDeviation && (
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Route deviation</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#C25E00' }}>Recorded: the fare follows the distance travelled</Typography>
-            </Box>
+            <DetailField label="Route deviation">
+              <Box component="span" sx={{ color: PAGE_TEXT.warning }}>Recorded: the fare follows the distance travelled</Box>
+            </DetailField>
           )}
-        </Box>
-      </Box>
+        </DetailGrid>
+      </DetailSection>
 
       {(cancelled || noDriver) && (
-        <Box sx={{ mb: 3.2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-            <NavigationIcon fontSize="small" sx={{ color: '#B91C1C' }} />
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              {noDriver ? 'No Driver Found' : 'Cancellation'}
-            </Typography>
-          </Box>
-          <Box sx={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', padding: '13px 16px', borderRadius: '12px' }}>
+        <DetailSection title={noDriver ? 'No driver found' : 'Cancellation'}>
+          <Box sx={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', padding: '12px 16px', borderRadius: '12px' }}>
             {noDriver ? (
               <Typography sx={{ fontSize: FONT.body, color: '#7F1D1D' }}>Every eligible driver declined, did not answer, or none was available. No strike applies to anyone.</Typography>
             ) : (
@@ -296,20 +179,14 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
               </>
             )}
           </Box>
-        </Box>
+        </DetailSection>
       )}
 
-      {/* Section 5: the route the driver's phone recorded */}
+      {/* The route the driver's phone recorded */}
       {trip.driverId && (
-        <Box sx={{ mb: 3.2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-            <RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              Route Recorded by the Driver's Phone
-            </Typography>
-          </Box>
+        <DetailSection title="Route recorded by the driver's phone">
           <TripRouteMap bookingId={trip.bookingId} pickupLat={trip.startLat} pickupLng={trip.startLng} destLat={trip.destLat} destLng={trip.destLng} />
-        </Box>
+        </DetailSection>
       )}
 
       {/* Rule 16.3 / PI-15: the audited correction of a completed trip, and closing a trip the driver never finished */}

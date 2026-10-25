@@ -2,27 +2,21 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Table,
   TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
   TableRow,
-  Paper,
   Button,
   TextField,
   MenuItem,
   Select,
   FormControl,
   InputLabel,
-  Chip,
   RadioGroup,
   FormControlLabel,
   Radio,
   Snackbar,
   Alert,
 } from '@mui/material';
-import CampaignIcon from '@mui/icons-material/Campaign';
 import AddAlertIcon from '@mui/icons-material/AddAlert';
 import PublishIcon from '@mui/icons-material/Publish';
 import UnpublishedIcon from '@mui/icons-material/Unpublished';
@@ -32,11 +26,12 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { AnnouncementRecord, AccreditedTodaRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { CalamityPanel } from '../components/admin/CalamityPanel';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
+import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
+import { StatStrip } from '../components/common/StatStrip';
 import {
   fetchAnnouncements,
   fetchAccreditedTodas,
@@ -45,7 +40,8 @@ import {
   setAnnouncementPublished,
   deleteAnnouncement,
 } from '../services/adminApiService';
-import { CONTROL, FONT } from '../styles/density';
+import { FONT } from '../styles/density';
+import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, secondaryButtonSx, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -135,7 +131,6 @@ export const AnnouncementManagementPage: React.FC = () => {
 
   const roleOptions: FilterOption[] = [
     { label: 'All Audiences', value: 'All' },
-    { label: 'All Users', value: 'All' },
     { label: 'Passengers', value: 'Passenger' },
     { label: 'Drivers', value: 'Driver' },
     { label: 'TODA Administrators', value: 'TODA Administrator' },
@@ -146,21 +141,6 @@ export const AnnouncementManagementPage: React.FC = () => {
     { label: 'Published', value: 'Published' },
     { label: 'Draft / Unpublished', value: 'Draft / Unpublished' },
   ];
-
-  const getRoleBadgeStyle = (role: AnnouncementRecord['target_role']) => {
-    switch (role) {
-      case 'All':
-        return { bg: 'rgba(255, 102, 0, 0.12)', color: 'var(--sakay-orange)' };
-      case 'Passenger':
-        return { bg: 'rgba(26, 115, 232, 0.12)', color: '#1A73E8' };
-      case 'Driver':
-        return { bg: 'rgba(46, 125, 50, 0.12)', color: '#2E7D32' };
-      case 'TODA Administrator':
-        return { bg: 'rgba(106, 27, 154, 0.12)', color: '#6A1B9A' };
-      default:
-        return { bg: '#F1F3F4', color: '#5F6368' };
-    }
-  };
 
   /** Reads the list again from the database (what the apps and the audit log will see) and keeps the open details window in step. */
   const reload = async () => {
@@ -258,6 +238,9 @@ export const AnnouncementManagementPage: React.FC = () => {
     }
   };
 
+  const filtering = Boolean(searchQuery) || roleFilter !== 'All' || statusFilter !== 'All';
+  const audienceLabel = (role: AnnouncementRecord['target_role']) => (role === 'All' ? 'Everyone' : `${role}s`);
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 0. Rules 15.4 / 29.6: declaring a calamity (the announcement and the strike pause, one audited action) */}
@@ -271,220 +254,121 @@ export const AnnouncementManagementPage: React.FC = () => {
         }}
       />
 
-      {/* 1. Summary Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2,
-          mb: 2.8,
+      {/* 1. How many announcements there are */}
+      <StatStrip
+        label="Announcement totals"
+        stats={[
+          { key: 'total', label: 'All announcements', value: totalCount },
+          { key: 'active', label: 'Published', value: publishedCount, tone: 'success', note: 'Shown to users now' },
+          { key: 'toda', label: 'For one TODA', value: todaScopedCount, note: 'Limited to a TODA' },
+          { key: 'draft', label: 'Drafts', value: draftCount, tone: draftCount > 0 ? 'brand' : 'neutral', note: 'Not shown to anyone yet' },
+        ]}
+      />
+
+      {/* 2. Search, filters and the "New announcement" button */}
+      <FilterToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search title, text, or TODA"
+        selectFilters={[
+          {
+            id: 'role',
+            label: 'Audience',
+            value: roleFilter,
+            options: roleOptions,
+            onChange: setRoleFilter,
+          },
+          {
+            id: 'status',
+            label: 'Status',
+            value: statusFilter,
+            options: statusOptions,
+            onChange: setStatusFilter,
+          },
+        ]}
+        onResetFilters={() => {
+          setSearchQuery('');
+          setRoleFilter('All');
+          setStatusFilter('All');
         }}
+        actionButton={
+          <Button onClick={openCreate} variant="contained" startIcon={<AddAlertIcon sx={{ fontSize: 16 }} />} sx={primaryButtonSx}>
+            New announcement
+          </Button>
+        }
+      />
+
+      {/* 3. The announcements */}
+      <DataTableCard
+        label="Announcements"
+        minWidth={860}
+        columns={[{ label: 'Announcement' }, { label: 'Audience' }, { label: 'TODA' }, { label: 'Status' }, { label: 'Created by' }, { label: 'Action', align: 'right' }]}
       >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Total Announcements</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Active Broadcasts</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#2E7D32' }}>{publishedCount}</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>TODA Scoped Notices</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#1565C0' }}>{todaScopedCount}</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Drafts</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{draftCount}</Typography>
-        </Box>
-      </Box>
-
-      {/* 2. Filter Toolbar with "+ New Announcement" */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'stretch' }, justifyContent: 'space-between', gap: 1.6, mb: 2.4 }}>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <FilterToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search announcement title, text, or TODA scope..."
-            selectFilters={[
-              {
-                id: 'role',
-                label: 'Audience',
-                value: roleFilter,
-                options: roleOptions,
-                onChange: setRoleFilter,
-              },
-              {
-                id: 'status',
-                label: 'Status',
-                value: statusFilter,
-                options: statusOptions,
-                onChange: setStatusFilter,
-              },
-            ]}
-            onResetFilters={() => {
-              setSearchQuery('');
-              setRoleFilter('All');
-              setStatusFilter('All');
-            }}
-            disableMarginBottom
-          />
-        </Box>
-
-        <Button
-          onClick={openCreate}
-          startIcon={<AddAlertIcon fontSize="small" />}
-          variant="contained"
-          sx={{
-            height: 'auto',
-            alignSelf: 'stretch',
-            padding: '0 19px',
-            borderRadius: 'var(--mac-radius-lg)',
-            textTransform: 'none',
-            fontSize: FONT.body,
-            fontWeight: 600,
-            backgroundColor: 'var(--sakay-orange)',
-            color: '#FFFFFF',
-            whiteSpace: 'nowrap',
-            boxShadow: 'var(--mac-shadow-subtle)',
-            flexShrink: 0,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': {
-              backgroundColor: 'var(--sakay-orange-hover)',
-            },
-          }}
-        >
-          New Announcement
-        </Button>
-      </Box>
-
-      {/* 3. Announcements Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Announcement Title & Message</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Target Audience</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>TODA / Jurisdiction</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Created By & Date</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredAnnouncements.length > 0 ? (
-              filteredAnnouncements.map((ann) => {
-                const roleBadge = getRoleBadgeStyle(ann.target_role);
-                return (
-                  <TableRow
-                    key={ann.id}
-                    sx={{
-                      transition: 'var(--mac-transition-fast)',
-                      '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                    }}
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading announcements..." />
+          ) : filteredAnnouncements.length > 0 ? (
+            filteredAnnouncements.map((ann) => (
+              <TableRow key={ann.id}>
+                <TableCell sx={{ maxWidth: 360 }}>
+                  <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{ann.title}</Typography>
+                  <Typography
+                    component="div"
+                    sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   >
-                    <TableCell sx={{ py: 2.2, px: 2.4, maxWidth: 360 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
-                        {ann.title}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: FONT.caption,
-                          color: 'var(--mac-text-muted)',
-                          mt: '3px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {ann.message}
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                      <Chip
-                        label={ann.target_role === 'All' ? 'All Platform Users' : `${ann.target_role}s`}
-                        size="small"
-                        sx={{
-                          fontSize: FONT.caption,
-                          fontWeight: 600,
-                          backgroundColor: roleBadge.bg,
-                          color: roleBadge.color,
-                          height: 26,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 2.2, px: 2.4 }}>
-                      {ann.toda_name || 'City-Wide'}
-                    </TableCell>
-                    <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                      <StatusBadge status={ann.is_published ? 'Published' : 'Draft'} />
-                    </TableCell>
-                    <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', fontWeight: 500 }}>
-                        {ann.created_by_lgu_admin.split('(')[0]}
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                        {ann.created_at}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                      <ActionButton
-                        label="Manage"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedAnn(ann);
-                        }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableEmptyState
-                colSpan={6}
-                icon={<CampaignIcon />}
-                title="No announcements yet."
-                description={
-                  searchQuery || roleFilter !== 'All' || statusFilter !== 'All'
-                    ? 'No announcements match your search or filter parameters.'
-                    : 'Municipal announcements and broadcast messages will appear here once you publish them.'
+                    {ann.message}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <FlagTag label={audienceLabel(ann.target_role)} tone={ann.target_role === 'All' ? 'brand' : 'neutral'} />
+                </TableCell>
+                <TableCell sx={{ color: PAGE_TEXT.secondary }}>{ann.toda_name || 'Whole city'}</TableCell>
+                <TableCell>
+                  <StatusBadge status={ann.is_published ? 'Published' : 'Draft'} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={ann.created_by_lgu_admin.split('(')[0]} secondary={ann.created_at} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`Manage the announcement ${ann.title}`} onClick={() => setSelectedAnn(ann)} sx={rowActionSx('neutral')}>
+                    Manage
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={6}
+              kind={filtering ? 'noResults' : 'empty'}
+              title={filtering ? 'No announcements match' : 'No announcements yet'}
+              hint={
+                filtering
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'Announcements appear here once you publish them.'
+              }
+              onRefresh={async () => {
+                setIsLoading(true);
+                try {
+                  await reload();
+                } catch (err) {
+                  failure(err);
+                } finally {
+                  setIsLoading(false);
                 }
-                onRefresh={async () => {
-                  setIsLoading(true);
-                  try {
-                    await reload();
-                  } catch (err) {
-                    failure(err);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              }}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 4. New Announcement Modal */}
+      {/* 4. New / edit announcement window */}
       <MacCenterModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title={editingId ? 'Edit Municipal Announcement' : 'Compose Municipal Announcement'}
-        subtitle={editingId ? 'Changes are saved to the same announcement.' : 'Broadcast notices, route advisories, or compliance reminders.'}
+        title={editingId ? 'Edit announcement' : 'New announcement'}
+        subtitle={editingId ? 'Changes are saved to the same announcement.' : 'Notices, route advisories and reminders.'}
         maxWidth={544}
-        primaryActionLabel={saving ? 'Saving...' : editingId ? 'Save Changes' : formPublish ? 'Publish Now' : 'Save as Draft'}
+        primaryActionLabel={saving ? 'Saving...' : editingId ? 'Save changes' : formPublish ? 'Publish now' : 'Save as draft'}
         onPrimaryAction={handleSaveSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setCreateModalOpen(false)}
@@ -492,7 +376,7 @@ export const AnnouncementManagementPage: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             fullWidth
-            label="Announcement Headline / Title"
+            label="Title"
             placeholder="e.g. Annual Franchise Renewal Advisory"
             value={formTitle}
             onChange={(e) => setFormTitle(e.target.value)}
@@ -503,41 +387,41 @@ export const AnnouncementManagementPage: React.FC = () => {
             fullWidth
             multiline
             rows={4}
-            label="Official Message Body"
-            placeholder="Enter official advisory, instructions, or regulatory details for commuters or operators..."
+            label="Message"
+            placeholder="Write the advisory, instructions, or details for commuters or operators."
             value={formMessage}
             onChange={(e) => setFormMessage(e.target.value)}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
           />
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.6 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.6 }}>
             <FormControl fullWidth>
-              <InputLabel id="target-audience-label">Target Audience</InputLabel>
+              <InputLabel id="target-audience-label">Audience</InputLabel>
               <Select
                 labelId="target-audience-label"
                 value={formRole}
-                label="Target Audience"
+                label="Audience"
                 onChange={(e) => setFormRole(e.target.value as AnnouncementRecord['target_role'])}
                 sx={{ borderRadius: '10px' }}
               >
-                <MenuItem value="All">All Users (Passengers, Drivers, TODAs)</MenuItem>
-                <MenuItem value="Passenger">Passengers Only</MenuItem>
-                <MenuItem value="Driver">Tricycle Drivers Only</MenuItem>
-                <MenuItem value="TODA Administrator">TODA Administrators Only</MenuItem>
+                <MenuItem value="All">Everyone</MenuItem>
+                <MenuItem value="Passenger">Passengers only</MenuItem>
+                <MenuItem value="Driver">Tricycle drivers only</MenuItem>
+                <MenuItem value="TODA Administrator">TODA administrators only</MenuItem>
               </Select>
             </FormControl>
 
             {formRole !== 'All' ? (
               <FormControl fullWidth>
-                <InputLabel id="toda-scope-label">TODA Scope</InputLabel>
+                <InputLabel id="toda-scope-label">TODA</InputLabel>
                 <Select
                   labelId="toda-scope-label"
                   value={formTodaId}
-                  label="TODA Scope"
+                  label="TODA"
                   onChange={(e) => setFormTodaId(e.target.value)}
                   sx={{ borderRadius: '10px' }}
                 >
-                  <MenuItem value="all-todas">All City TODAs (City-Wide)</MenuItem>
+                  <MenuItem value="all-todas">All TODAs (whole city)</MenuItem>
                   {todasList.map((toda) => (
                     <MenuItem key={toda.id} value={toda.id}>
                       {toda.name} ({toda.barangay})
@@ -546,176 +430,109 @@ export const AnnouncementManagementPage: React.FC = () => {
                 </Select>
               </FormControl>
             ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center', backgroundColor: '#F8F9FA', padding: '0 13px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                  Jurisdiction: <strong>City-Wide (All Sectors)</strong>
+              <Box sx={{ display: 'flex', alignItems: 'center', backgroundColor: '#FAFAF8', padding: '0 13px', minHeight: 40, borderRadius: '10px', border: `1px solid ${PAGE_BORDER}` }}>
+                <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
+                  Area: <strong>whole city</strong>
                 </Typography>
               </Box>
             )}
           </Box>
 
           {editingId ? (
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '11px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
+            <Box sx={{ backgroundColor: '#FAFAF8', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${PAGE_BORDER}` }}>
+              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
                 This announcement stays {formPublish ? 'published' : 'unpublished'}. Use Publish / Unpublish in its details window to change that.
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '13px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 0.8 }}>
-                Publication
+            <Box sx={{ backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${PAGE_BORDER}` }}>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, mb: 0.8 }}>
+                When to show it
               </Typography>
               <RadioGroup
-                row
                 value={formPublish ? 'now' : 'draft'}
                 onChange={(e) => setFormPublish(e.target.value === 'now')}
               >
-                <FormControlLabel value="now" control={<Radio sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }} />} label="Publish now" />
-                <FormControlLabel value="draft" control={<Radio sx={{ color: 'var(--sakay-orange)', '&.Mui-checked': { color: 'var(--sakay-orange)' } }} />} label="Save as a draft (nobody sees it yet)" />
+                <FormControlLabel value="now" control={<Radio size="small" sx={{ '&.Mui-checked': { color: '#C75000' } }} />} label={<Typography sx={{ fontSize: FONT.body }}>Publish now</Typography>} />
+                <FormControlLabel value="draft" control={<Radio size="small" sx={{ '&.Mui-checked': { color: '#C75000' } }} />} label={<Typography sx={{ fontSize: FONT.body }}>Save as a draft (nobody sees it yet)</Typography>} />
               </RadioGroup>
             </Box>
           )}
         </Box>
       </MacCenterModal>
 
-      {/* 5. Manage Announcement Modal */}
+      {/* 5. Manage window */}
       {selectedAnn && (
         <MacCenterModal
           open={Boolean(selectedAnn)}
           onClose={() => setSelectedAnn(null)}
           title={selectedAnn.title}
-          subtitle={`Announcement ID: ${selectedAnn.announcement_id} • Target: ${selectedAnn.target_role}`}
+          subtitle={`Announcement ID: ${selectedAnn.announcement_id} · For: ${audienceLabel(selectedAnn.target_role)}`}
           badge={<StatusBadge status={selectedAnn.is_published ? 'Published' : 'Draft'} />}
           maxWidth={560}
         >
-          <Box sx={{ mb: 2.4 }}>
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '16px', borderRadius: '12px', border: '1px solid var(--mac-border-color)', mb: 2.4 }}>
-              <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          <DetailSection title="Message">
+            <Box sx={{ backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '12px', border: `1px solid ${PAGE_BORDER}` }}>
+              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.primary, lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                 "{selectedAnn.message}"
               </Typography>
             </Box>
+          </DetailSection>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.6, backgroundColor: '#F5F5F7', padding: '14px', borderRadius: '12px', mb: 2.4 }}>
+          <DetailSection title="Details">
+            <DetailGrid>
+              <DetailField label="Audience">{selectedAnn.target_role}</DetailField>
+              <DetailField label="TODA">{selectedAnn.toda_name || 'Whole city'}</DetailField>
+              <DetailField label="Written by">{selectedAnn.created_by_lgu_admin}</DetailField>
+              <DetailField label="Created">{selectedAnn.created_at}</DetailField>
+              <DetailField label="Published">{selectedAnn.published_at ?? 'Not published yet'}</DetailField>
+              <DetailField label="Unpublished">{selectedAnn.unpublished_at ?? '\u2014'}</DetailField>
+              <DetailField label="Last changed">{selectedAnn.updated_at ?? '\u2014'}</DetailField>
+            </DetailGrid>
+          </DetailSection>
+
+          <DetailSection title="Publishing">
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', mb: '12px' }}>
+              {selectedAnn.is_published ? <PublishIcon aria-hidden sx={{ color: PAGE_TEXT.success, fontSize: 20 }} /> : <UnpublishedIcon aria-hidden sx={{ color: PAGE_TEXT.warning, fontSize: 20 }} />}
               <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Target Audience</Typography>
-                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedAnn.target_role}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>TODA Scope</Typography>
-                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedAnn.toda_name || 'City-Wide'}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Author / Officer</Typography>
-                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_by_lgu_admin}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Created</Typography>
-                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_at}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Published</Typography>
-                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.published_at ?? 'Not published yet'}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Unpublished</Typography>
-                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.unpublished_at ?? '\u2014'}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Last changed</Typography>
-                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.updated_at ?? '\u2014'}</Typography>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>
+                  {selectedAnn.is_published ? 'Showing in the mobile apps' : 'Not showing (hidden from users)'}
+                </Typography>
+                <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>
+                  {selectedAnn.is_published ? 'Commuters and drivers can read this announcement.' : 'Publish it to make it visible.'}
+                </Typography>
               </Box>
             </Box>
 
-            {/* Actions Bar */}
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.2 }}>
-              Publication Controls
-            </Typography>
+            <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Button onClick={() => openEdit(selectedAnn)} startIcon={<EditIcon sx={{ fontSize: 16 }} />} sx={secondaryButtonSx}>
+                Edit
+              </Button>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                {selectedAnn.is_published ? <PublishIcon sx={{ color: '#2E7D32' }} /> : <UnpublishedIcon sx={{ color: '#EA580C' }} />}
-                <Box>
-                  <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                    {selectedAnn.is_published ? 'Currently Active on Mobile PWAs' : 'Unpublished (Hidden from Users)'}
-                  </Typography>
-                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                    {selectedAnn.is_published ? 'Commuters and drivers can view this broadcast.' : 'Save changes or publish to make visible.'}
-                  </Typography>
-                </Box>
-              </Box>
+              <Button
+                onClick={() => handleTogglePublish(selectedAnn)}
+                variant={selectedAnn.is_published ? 'outlined' : 'contained'}
+                sx={selectedAnn.is_published ? secondaryButtonSx : primaryButtonSx}
+              >
+                {selectedAnn.is_published ? 'Unpublish' : 'Publish'}
+              </Button>
 
-              <Box sx={{ display: 'flex', gap: 0.8 }}>
-                <Button
-                  onClick={() => openEdit(selectedAnn)}
-                  variant="outlined"
-                  size="small"
-                  startIcon={<EditIcon fontSize="small" />}
-                  sx={{
-                    height: CONTROL.height,
-                    '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                    fontSize: FONT.small,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    color: 'var(--sakay-orange)',
-                    borderColor: 'var(--sakay-orange-border)',
-                    backgroundColor: 'var(--sakay-orange-soft)',
-                    '&:hover': { backgroundColor: 'var(--sakay-orange)', color: '#FFFFFF' },
-                  }}
-                >
-                  Edit Announcement
-                </Button>
-
-                <Button
-                  onClick={() => handleTogglePublish(selectedAnn)}
-                  variant="outlined"
-                  size="small"
-                  sx={{
-                    height: CONTROL.height,
-                    '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                    fontSize: FONT.small,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    color: selectedAnn.is_published ? '#FF6600' : '#2E7D32',
-                    borderColor: selectedAnn.is_published ? '#FDBA74' : '#A7F3D0',
-                    '&:hover': { backgroundColor: selectedAnn.is_published ? '#FFF7ED' : '#ECFDF5' },
-                  }}
-                >
-                  {selectedAnn.is_published ? 'Unpublish' : 'Publish Broadcast'}
-                </Button>
-
-                <Button
-                  onClick={() => setDeleteDialogOpen(true)}
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<DeleteIcon fontSize="small" />}
-                  sx={{
-                    height: CONTROL.height,
-                    '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                    fontSize: FONT.small,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                  }}
-                >
-                  Delete
-                </Button>
-              </Box>
+              <Button onClick={() => setDeleteDialogOpen(true)} startIcon={<DeleteIcon sx={{ fontSize: 16 }} />} sx={dangerOutlineButtonSx}>
+                Delete
+              </Button>
             </Box>
-          </Box>
+          </DetailSection>
         </MacCenterModal>
       )}
 
-      {/* 6. Delete Confirmation Dialog */}
+      {/* 6. Delete confirmation */}
       {selectedAnn && (
         <MacConfirmDialog
           open={deleteDialogOpen}
           onClose={() => setDeleteDialogOpen(false)}
-          title="Delete Announcement?"
+          title="Delete this announcement?"
           message={`Are you sure you want to permanently delete "${selectedAnn.title}"? This cannot be undone.`}
-          confirmLabel="Delete Announcement"
+          confirmLabel="Delete announcement"
           confirmVariant="danger"
           onConfirm={handleDeleteConfirm}
         />
@@ -734,4 +551,3 @@ export const AnnouncementManagementPage: React.FC = () => {
     </Box>
   );
 };
-
