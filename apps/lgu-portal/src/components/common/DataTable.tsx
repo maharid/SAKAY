@@ -197,10 +197,11 @@ export const PersonCell: React.FC<PersonCellProps> = ({ name, detail, tags }) =>
   </Box>
 );
 
-type FlagTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
+type FlagTone = 'neutral' | 'info' | 'brand' | 'success' | 'warning' | 'danger';
 
 const FLAG_COLORS: Record<FlagTone, { background: string; color: string }> = {
   neutral: { background: '#F1F3F4', color: '#4B5563' },
+  info: { background: '#DBEAFE', color: '#1E40AF' },
   brand: { background: 'rgba(255, 102, 0, 0.1)', color: '#B34700' },
   success: { background: '#DCFCE7', color: '#166534' },
   warning: { background: '#FEF3C7', color: '#92400E' },

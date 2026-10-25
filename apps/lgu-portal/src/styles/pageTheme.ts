@@ -29,6 +29,16 @@ export const pageFocusRing = {
   '&:focus-visible': { outline: `2px solid ${PAGE_TEXT.brand}`, outlineOffset: '2px' },
 } as const;
 
+/** A table that sits INSIDE a card (the card is its frame): thin lines, sentence-case headings, the page's text sizes. Put it on the scrolling TableContainer. */
+export const innerTableSx = {
+  overflowX: 'auto',
+  ...pageFocusRing,
+  '& .MuiTableCell-root': { fontSize: FONT.body, color: PAGE_TEXT.primary, py: '9px', px: '12px', borderBottom: `1px solid ${PAGE_DIVIDER}`, verticalAlign: 'middle' },
+  '& .MuiTableCell-head': { fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.secondary, backgroundColor: '#FAFAF8', whiteSpace: 'nowrap', borderBottomColor: 'rgba(15, 23, 42, 0.14)' },
+  '& .MuiTableBody-root .MuiTableRow-root:last-of-type .MuiTableCell-root': { borderBottom: 'none' },
+  '& .MuiTableBody-root .MuiTableRow-root:hover': { backgroundColor: '#FAFAF8' },
+} as const;
+
 /** Plain-language buttons: sentence case, the same height on every action (taller on a touch screen). */
 export const pageButtonSx = {
   minHeight: CONTROL.height,

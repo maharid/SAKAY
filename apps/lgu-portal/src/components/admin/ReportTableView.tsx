@@ -1,7 +1,9 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import type { ReportTable } from '@sakay/shared';
+
 import { FONT } from '../../styles/density';
+import { PAGE_TEXT, innerTableSx } from '../../styles/pageTheme';
 
 interface ReportTableViewProps {
   table: ReportTable;
@@ -11,16 +13,16 @@ interface ReportTableViewProps {
 /** A report table as the page shows it; the exports contain exactly the same headers and rows. */
 export const ReportTableView: React.FC<ReportTableViewProps> = ({ table, emptyText }) => (
   <>
-    <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>{table.title}</Typography>
+    <Typography component="h3" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary, mb: '2px' }}>{table.title}</Typography>
     {table.notes.map((n) => (
-      <Typography key={n} sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 0.4 }}>{n}</Typography>
+      <Typography key={n} sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, lineHeight: 1.5, mb: '2px' }}>{n}</Typography>
     ))}
-    <TableContainer sx={{ mt: 1.2 }}>
+    <TableContainer role="region" aria-label={`${table.title}, scrollable`} tabIndex={0} sx={{ ...innerTableSx, mt: '10px', border: '1px solid rgba(15, 23, 42, 0.12)', borderRadius: '10px' }}>
       <Table size="small">
-        <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
+        <TableHead>
           <TableRow>
             {table.headers.map((h) => (
-              <TableCell key={h} sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: FONT.small }}>{h}</TableCell>
+              <TableCell key={h}>{h}</TableCell>
             ))}
           </TableRow>
         </TableHead>
@@ -34,8 +36,8 @@ export const ReportTableView: React.FC<ReportTableViewProps> = ({ table, emptyTe
               </TableRow>
             ))
           ) : (
-            <TableRow>
-              <TableCell colSpan={table.headers.length} align="center" sx={{ py: 3.2, color: 'var(--mac-text-muted)' }}>{emptyText}</TableCell>
+            <TableRow sx={{ '&:hover': { backgroundColor: 'transparent !important' } }}>
+              <TableCell colSpan={table.headers.length} align="center" sx={{ py: '32px !important', color: PAGE_TEXT.secondary }}>{emptyText}</TableCell>
             </TableRow>
           )}
         </TableBody>

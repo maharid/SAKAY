@@ -22,14 +22,16 @@ interface DashboardCardProps {
   actions?: React.ReactNode;
   /** A little extra next to the title (a count, a pill) */
   titleAdornment?: React.ReactNode;
+  /** Lets the corner controls drop under the title when they do not fit beside it (a card with a group of toggles) */
+  wrapHeader?: boolean;
   children: React.ReactNode;
 }
 
 // The frame every Dashboard card shares: a white card with the title on the left and the one button that opens the full screen on the right.
 // The content fills the rest of the card, so cards in the same row end at the same line.
-export const DashboardCard: React.FC<DashboardCardProps> = ({ title, description, action, actions, titleAdornment, children }) => (
+export const DashboardCard: React.FC<DashboardCardProps> = ({ title, description, action, actions, titleAdornment, wrapHeader = false, children }) => (
   <Box component="section" aria-label={title} sx={{ ...pageCardSx, p: SPACE.cardLarge, display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, overflow: 'hidden' }}>
-    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', mb: '14px' }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px 12px', mb: '14px', flexWrap: wrapHeader ? 'wrap' : 'nowrap' }}>
       <Box sx={{ minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary }}>{title}</Typography>

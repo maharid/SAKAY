@@ -20,6 +20,7 @@ import { ReportsPage } from '../pages/ReportsPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { AccountManagementPage } from '../pages/AccountManagementPage';
 import { AuditLogPage } from '../pages/AuditLogPage';
+import { SettingsPage } from '../pages/SettingsPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
 
 export const AdminRoutes: React.FC = () => {
@@ -213,8 +214,19 @@ export const AdminRoutes: React.FC = () => {
         path="/settings"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Account Management" pageSubtitle="Manage LGU administrator profile, credentials, and system settings.">
+            <AdminLayout pageTitle="Account Management" pageSubtitle="Your profile, contact details and password.">
               <AccountManagementPage />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/preferences"
+        element={
+          <ProtectedRoute>
+            <AdminLayout pageTitle="Settings" pageSubtitle="How the portal looks, and where to find help.">
+              <SettingsPage />
             </AdminLayout>
           </ProtectedRoute>
         }

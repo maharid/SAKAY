@@ -1,35 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Button,
-  TextField,
-  Chip,
-  Divider,
-  Alert,
-} from '@mui/material';
-import PaymentsIcon from '@mui/icons-material/Payments';
-import CalculateIcon from '@mui/icons-material/Calculate';
-import HistoryIcon from '@mui/icons-material/History';
+import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, Alert, CircularProgress } from '@mui/material';
 import EditNoteIcon from '@mui/icons-material/EditNote';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 import { FareMatrixRecord } from '../mockData/adminData';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
+import { CellStack, DataTableCard, FlagTag } from '../components/common/DataTable';
+import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
+import { PageNotice } from '../components/common/PageNotice';
+import { StatStrip } from '../components/common/StatStrip';
+import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { fetchFareMatrices, enactFareMatrix, fetchFareExample, type FareExample } from '../services/adminApiService';
-import { CONTROL, FONT } from '../styles/density';
+import { FONT, SPACE } from '../styles/density';
+import { PAGE_BORDER, PAGE_DIVIDER, PAGE_TEXT, primaryButtonSx, rowActionSx } from '../styles/pageTheme';
+
+// The rounded fields of the form window
+const FIELD_SX = { '& .MuiOutlinedInput-root': { borderRadius: '10px' } };
 
 /**
  * ============================================================================
@@ -165,10 +152,89 @@ export const FareConfigurationPage: React.FC = () => {
     }
   };
 
+  // The window for a new fare rule. It is shown in every state of the page, so "Configure new rate" works even when no rule is in force yet.
+  const configureWindow = (
+    <MacCenterModal
+      open={updateModalOpen}
+      onClose={() => setUpdateModalOpen(false)}
+      title="Configure new fare rate"
+      subtitle="Adds a new version. Earlier versions are kept as they were."
+      maxWidth={512}
+      primaryActionLabel={saving ? 'Saving...' : 'Enact and publish rate'}
+      primaryActionDisabled={saving}
+      onPrimaryAction={handleUpdateMatrixSubmit}
+      secondaryActionLabel="Cancel"
+      onSecondaryAction={() => setUpdateModalOpen(false)}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px', backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', padding: '11px 14px', borderRadius: '10px' }}>
+          <InfoOutlinedIcon aria-hidden sx={{ fontSize: 18, color: '#0369A1', mt: '1px' }} />
+          <Typography sx={{ fontSize: FONT.body, color: '#0C4A6E', lineHeight: 1.5 }}>
+            <strong>New versions only.</strong> A new version never edits or deletes an old one, and it applies only to bookings confirmed after its effective time. Bookings already
+            confirmed keep the rate they were confirmed at. The change and your reason are written to the audit trail.
+          </Typography>
+        </Box>
+
+        {formError && <Alert severity="error" sx={{ borderRadius: '10px' }}>{formError}</Alert>}
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.6 }}>
+          <TextField fullWidth label="Base fare (PHP)" placeholder="15.00" value={newBaseFare} onChange={(e) => setNewBaseFare(e.target.value)} sx={FIELD_SX} />
+          <TextField fullWidth label="Base distance (km)" placeholder="2.0" value={newBaseDistance} onChange={(e) => setNewBaseDistance(e.target.value)} sx={FIELD_SX} />
+        </Box>
+
+        <TextField fullWidth label="Rate per extra km (PHP)" placeholder="1.00" value={newSucceedingRate} onChange={(e) => setNewSucceedingRate(e.target.value)} sx={FIELD_SX} />
+
+        <TextField
+          fullWidth
+          label="Ordinance or resolution"
+          placeholder="e.g. City Ordinance No. 110, Series of 2022"
+          value={newOrdinance}
+          onChange={(e) => setNewOrdinance(e.target.value)}
+          sx={FIELD_SX}
+        />
+
+        <TextField
+          fullWidth
+          type="datetime-local"
+          label="Effective from (Manila time)"
+          value={newEffectiveLocal}
+          onChange={(e) => setNewEffectiveLocal(e.target.value)}
+          helperText="Leave empty to take effect immediately. It cannot be in the past."
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={FIELD_SX}
+        />
+
+        <TextField
+          fullWidth
+          label="Reason for the change"
+          placeholder="e.g. Sangguniang Panlungsod resolution adjusting the tariff"
+          value={newReason}
+          onChange={(e) => setNewReason(e.target.value)}
+          helperText="Written to the audit trail. At least 5 characters."
+          sx={FIELD_SX}
+        />
+
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          label="Notes (optional)"
+          placeholder="Anything else worth keeping with this version..."
+          value={newNotes}
+          onChange={(e) => setNewNotes(e.target.value)}
+          sx={FIELD_SX}
+        />
+      </Box>
+    </MacCenterModal>
+  );
+
   if (isLoading) {
     return (
       <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-        <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Loading the fare rules...</Typography>
+        <Box role="status" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', py: '48px' }}>
+          <CircularProgress size={21} sx={{ color: 'var(--sakay-orange)' }} />
+          <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>Loading the fare rules...</Typography>
+        </Box>
       </Box>
     );
   }
@@ -176,450 +242,194 @@ export const FareConfigurationPage: React.FC = () => {
   if (loadError || !activeMatrix) {
     return (
       <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-        <Alert
-          severity="error"
+        <PageNotice
+          tone="danger"
+          title={loadError ? 'The fare rules could not be loaded' : 'No fare rule is in force'}
           action={
-            <Button color="inherit" size="small" onClick={loadHistory}>
-              Retry
-            </Button>
+            loadError ? (
+              <Button onClick={loadHistory} sx={rowActionSx('neutral')}>
+                Try again
+              </Button>
+            ) : (
+              <Button onClick={openConfigureModal} variant="contained" sx={primaryButtonSx}>
+                Configure new rate
+              </Button>
+            )
           }
         >
-          {loadError
-            ? 'The fare rules could not be loaded: ' + loadError.replace(/^ERR_[A-Z_]+:\s*/, '')
-            : 'No fare rule is in force. Enact one to allow bookings.'}
-        </Alert>
-        {!loadError && (
-          <Button onClick={openConfigureModal} variant="contained" sx={{ mt: 1.6, textTransform: 'none' }}>
-            Configure New Rate
-          </Button>
-        )}
+          {loadError ? loadError.replace(/^ERR_[A-Z_]+:\s*/, '') : 'Enact a fare rule to allow bookings.'}
+        </PageNotice>
+        {configureWindow}
       </Box>
     );
   }
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Top Summary Stat Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2,
-          mb: 2.8,
-        }}
-      >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Standard Base Fare</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{activeMatrix.base_fare.toFixed(2)}</Typography>
-          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>First {activeMatrix.base_distance_km.toFixed(1)} kilometers</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Succeeding Per-KM Rate</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#1565C0' }}>₱{activeMatrix.succeeding_rate.toFixed(2)} / km</Typography>
-          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>Excess distance increment</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Solo Trip Base</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#2E7D32' }}>₱{(activeMatrix.solo_base_fare ?? 0).toFixed(2)}</Typography>
-          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>4-Seat capacity charter</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Matrix Versions</Typography>
-          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{fareHistory.length} Versions</Typography>
-          <Typography sx={{ fontSize: FONT.caption, color: '#1E8E3E', mt: 0.4, fontWeight: 600 }}>Active: V{versionNumber(activeMatrix)}</Typography>
-        </Box>
-      </Box>
+      {/* 1. The figures of the rule in force */}
+      <StatStrip
+        label="Fare rule in force"
+        stats={[
+          { key: 'base', label: 'Base fare', value: `₱${activeMatrix.base_fare.toFixed(2)}`, note: `First ${activeMatrix.base_distance_km.toFixed(1)} km` },
+          { key: 'rate', label: 'Rate per extra km', value: `₱${activeMatrix.succeeding_rate.toFixed(2)}`, note: `After the first ${activeMatrix.base_distance_km.toFixed(1)} km` },
+          { key: 'solo', label: 'Solo trip base', value: `₱${(activeMatrix.solo_base_fare ?? 0).toFixed(2)}`, note: 'The whole 4-seat tricycle' },
+          { key: 'versions', label: 'Rule versions', value: fareHistory.length, note: `Version V${versionNumber(activeMatrix)} is in force` },
+        ]}
+      />
 
-      {/* 2. Active Fare Matrix & Derived Formulas Split Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.4, mb: 3.2, alignItems: 'start' }}>
-        {/* Active Fare Matrix Card */}
-        <Card
+      {/* 2. The rule in force, and how a fare is worked out from it */}
+      <Box sx={{ containerType: 'inline-size', mb: SPACE.section }}>
+        <Box
           sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            gap: SPACE.gapLarge,
+            alignItems: 'stretch',
+            '@container (min-width: 900px)': { gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)' },
           }}
         >
-          <CardContent sx={{ p: '22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.4 }}>
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: '3px' }}>
-                  <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                    Current Active Fare Matrix
-                  </Typography>
-                  <Chip
-                    label="Active Standard"
-                    size="small"
-                    sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E', fontWeight: 700, fontSize: FONT.caption, height: 24 }}
-                  />
-                </Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                  {activeMatrix.ordinance_reference}
-                </Typography>
-              </Box>
-
-              <Button
-                onClick={openConfigureModal}
-                startIcon={<EditNoteIcon />}
-                variant="contained"
-                sx={{
-                  height: CONTROL.height,
-                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                  padding: '0 16px',
-                  borderRadius: '9px',
-                  textTransform: 'none',
-                  fontSize: FONT.body,
-                  fontWeight: 600,
-                  backgroundColor: 'var(--sakay-orange)',
-                  color: '#FFFFFF',
-                  boxShadow: 'var(--mac-shadow-subtle)',
-                  '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
-                }}
-              >
-                Configure New Rate
+          <DashboardCard
+            title="Current fare rule"
+            description={activeMatrix.ordinance_reference}
+            titleAdornment={<FlagTag label="In force" tone="success" />}
+            actions={
+              <Button onClick={openConfigureModal} variant="contained" startIcon={<EditNoteIcon sx={{ fontSize: 16 }} />} sx={primaryButtonSx}>
+                Configure new rate
               </Button>
-            </Box>
+            }
+          >
+            <DetailGrid>
+              <DetailField label="Base fare">{`₱${activeMatrix.base_fare.toFixed(2)} for the first ${activeMatrix.base_distance_km.toFixed(1)} km`}</DetailField>
+              <DetailField label="Rate per extra km">{`₱${activeMatrix.succeeding_rate.toFixed(2)} after ${activeMatrix.base_distance_km.toFixed(1)} km`}</DetailField>
+              <DetailField label="In force since">{activeMatrix.effective_date}</DetailField>
+              <DetailField label="Applies to">The whole city</DetailField>
+              <DetailField label="Set by">{activeMatrix.configured_by_lgu_admin}</DetailField>
+              <DetailField label="Rule ID">{activeMatrix.fare_matrix_id}</DetailField>
+            </DetailGrid>
+          </DashboardCard>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, backgroundColor: '#FAFAFC', padding: '18px', borderRadius: '12px', border: '1px solid var(--mac-border-color)', mb: 2.4 }}>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Base Minimum Fare
-                </Typography>
-                <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
-                  ₱{activeMatrix.base_fare.toFixed(2)}
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: '2px' }}>
-                  Covers first {activeMatrix.base_distance_km.toFixed(1)} km
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Per-Kilometer Increment
-                </Typography>
-                <Typography sx={{ fontSize: '19px', fontWeight: 700, color: '#1565C0' }}>
-                  ₱{activeMatrix.succeeding_rate.toFixed(2)}
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: '2px' }}>
-                  Applied after {activeMatrix.base_distance_km.toFixed(1)} km
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Effective Since
-                </Typography>
-                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  {activeMatrix.effective_date}
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: '2px' }}>
-                  Enforced City-Wide
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                Configured By: <strong style={{ color: 'var(--mac-text-primary)' }}>{activeMatrix.configured_by_lgu_admin}</strong>
-              </Typography>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                System Version ID: {activeMatrix.fare_matrix_id}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Derived Calculations Context Card */}
-        <Card
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-          }}
-        >
-          <CardContent sx={{ p: '21px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-              <CalculateIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
-              <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                Derived Metering Formulas
-              </Typography>
-            </Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 2 }}>
-              Standard algorithmic fare computations mandated by Calapan City Local Transport Framework:
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
-              {/* Formula 1: Single Seat Fare */}
-              <Box sx={{ backgroundColor: '#F8F9FA', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
-                  1. Standard Single Seat Fare
-                </Typography>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: FONT.caption, color: 'var(--sakay-orange)', fontWeight: 600 }}>
-                  Seat Fare = Base Fare + (Excess Distance × Per-KM Rate)
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px' }}>
-                  {example
+          <DashboardCard title="How a fare is worked out" description="Fares follow the Calapan City transport rules. The examples are calculated by the system from the rule in force.">
+            <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', '& > li + li': { borderTop: `1px solid ${PAGE_DIVIDER}` } }}>
+              <FormulaItem
+                title="1. Seat fare"
+                formula="Seat fare = Base fare + (Extra distance × Rate per km)"
+                example={
+                  example
                     ? 'Example (4.5 km, rule in force): ₱' + activeMatrix.base_fare.toFixed(2) + ' + (' + example.excessKm.toFixed(1) + ' km × ₱' + activeMatrix.succeeding_rate.toFixed(2) + ') = ₱' + example.seatFare.toFixed(2)
-                    : 'Example unavailable right now.'}
-                </Typography>
-              </Box>
-
-              {/* Formula 2: Solo Trip Charter */}
-              <Box sx={{ backgroundColor: '#F8F9FA', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
-                  2. Solo Trip (Full Unit Charter)
-                </Typography>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: FONT.caption, color: '#1565C0', fontWeight: 600 }}>
-                  Solo Trip Fare = Seat Fare × the seats of the tricycle{example ? ' (₱' + example.soloBase.toFixed(2) + ' base)' : ''}
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px' }}>
-                  {example
-                    ? 'Example (4.5 km): ₱' + example.soloFare.toFixed(2) + ' (rounded to the nearest peso). Guarantees exclusive vehicle occupancy, whatever the headcount.'
-                    : 'Guarantees exclusive vehicle occupancy for the passenger party.'}
-                </Typography>
-              </Box>
-
-              {/* Formula 3: Ride-Sharing Split */}
-              <Box sx={{ backgroundColor: '#F8F9FA', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
-                  3. Ride-Sharing Proportional Split
-                </Typography>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: FONT.caption, color: '#2E7D32', fontWeight: 600 }}>
-                  Shared Fare = the vehicle fare of the route, split per kilometre by passengers on board
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px' }}>
-                  {example
-                    ? 'The vehicle fare is the Solo Trip Fare of the whole route. Example (4.5 km, two 1-passenger bookings sharing it): ₱' + example.sharedEstimate.toFixed(2) + ' each. Kilometres travelled by one booking alone are charged to that booking.'
-                    : 'Kilometres travelled by one booking alone are charged to that booking.'}
-                </Typography>
-              </Box>
+                    : 'Example unavailable right now.'
+                }
+              />
+              <FormulaItem
+                title="2. Solo trip (the whole tricycle)"
+                formula={'Solo trip fare = Seat fare × the seats of the tricycle' + (example ? ' (₱' + example.soloBase.toFixed(2) + ' base)' : '')}
+                example={
+                  example
+                    ? 'Example (4.5 km): ₱' + example.soloFare.toFixed(2) + ' (rounded to the nearest peso). The passenger has the vehicle to themselves, whatever the headcount.'
+                    : 'The passenger has the vehicle to themselves.'
+                }
+              />
+              <FormulaItem
+                title="3. Shared ride"
+                formula="Shared fare = the vehicle fare of the route, split per kilometre by the passengers on board"
+                example={
+                  example
+                    ? 'The vehicle fare is the Solo trip fare of the whole route. Example (4.5 km, two 1-passenger bookings sharing it): ₱' + example.sharedEstimate.toFixed(2) + ' each. Kilometres travelled by one booking alone are charged to that booking.'
+                    : 'Kilometres travelled by one booking alone are charged to that booking.'
+                }
+              />
             </Box>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* 3. Version History Table */}
-      <Box sx={{ mb: 1.6 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-          <HistoryIcon sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-            Fare Matrix Version History & Historical Records
-          </Typography>
+          </DashboardCard>
         </Box>
-
-        <TableContainer
-          component={Paper}
-          elevation={0}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            overflow: 'hidden',
-          }}
-        >
-          <Table>
-            <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>VERSION & ORDINANCE</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>BASE FARE</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>BASE DISTANCE</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>PER-KM INCREMENT</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>EFFECTIVE TIMEFRAME</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>STATUS</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>ACTIONS</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {fareHistory.map((version) => (
-                <TableRow
-                  key={version.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    backgroundColor: version.is_active ? 'rgba(255, 102, 0, 0.03)' : 'transparent',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
-                      {version.id} ({version.fare_matrix_id})
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      {version.ordinance_reference}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--sakay-orange)', py: 2.2, px: 2.4 }}>
-                    ₱{version.base_fare.toFixed(2)}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
-                    {version.base_distance_km.toFixed(1)} km
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.small, fontWeight: 600, color: '#1565C0', py: 2.2, px: 2.4 }}>
-                    ₱{version.succeeding_rate.toFixed(2)} / km
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 2.2, px: 2.4 }}>
-                    {version.effective_date}
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={version.status === 'In force' ? 'Active' : version.status ?? 'Superseded'} />
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton
-                      label="Inspect"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedVersion(version);
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
       </Box>
 
-      {/* 4. Configure New Fare Matrix Modal */}
-      <MacCenterModal
-        open={updateModalOpen}
-        onClose={() => setUpdateModalOpen(false)}
-        title="Configure New Fare Matrix Version"
-        subtitle="Appends an immutable rate record to the municipal ledger."
-        maxWidth={512}
-        primaryActionLabel={saving ? 'Saving...' : 'Enact & Publish Rate'}
-        primaryActionDisabled={saving}
-        onPrimaryAction={handleUpdateMatrixSubmit}
-        secondaryActionLabel="Cancel"
-        onSecondaryAction={() => setUpdateModalOpen(false)}
+      {/* 3. Every version of the rule */}
+      <Box sx={{ mb: '10px' }}>
+        <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary }}>Fare history</Typography>
+        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '2px' }}>Every version is kept. A new version never changes an old one.</Typography>
+      </Box>
+      <DataTableCard
+        label="Fare history"
+        minWidth={860}
+        columns={[
+          { label: 'Version and ordinance' },
+          { label: 'Base fare' },
+          { label: 'Base distance' },
+          { label: 'Rate per km' },
+          { label: 'Effective' },
+          { label: 'Status' },
+          { label: 'Action', align: 'right' },
+        ]}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Box sx={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', padding: '11px 14px', borderRadius: '10px' }}>
-            <Typography sx={{ fontSize: FONT.caption, color: '#0369A1', lineHeight: 1.4 }}>
-              <strong>Forward-only, append-only:</strong> a new version never edits or deletes an old one, and it applies only to bookings confirmed after its effective time. Bookings already confirmed keep the rate they were confirmed at. The change and your reason are written to the audit trail.
-            </Typography>
-          </Box>
+        <TableBody>
+          {fareHistory.map((version) => (
+            <TableRow key={version.id} sx={version.is_active ? { backgroundColor: 'rgba(255, 102, 0, 0.04)' } : undefined}>
+              <TableCell sx={{ maxWidth: 320 }}>
+                <CellStack primary={`${version.id} (${version.fare_matrix_id})`} secondary={version.ordinance_reference} />
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>₱{version.base_fare.toFixed(2)}</TableCell>
+              <TableCell>{version.base_distance_km.toFixed(1)} km</TableCell>
+              <TableCell>₱{version.succeeding_rate.toFixed(2)} / km</TableCell>
+              <TableCell sx={{ color: PAGE_TEXT.secondary }}>{version.effective_date}</TableCell>
+              <TableCell>
+                <StatusBadge status={version.status === 'In force' ? 'Active' : version.status ?? 'Superseded'} />
+              </TableCell>
+              <TableCell align="right">
+                <Button aria-label={`Inspect fare record ${version.id}`} onClick={() => setSelectedVersion(version)} sx={rowActionSx('neutral')}>
+                  Inspect
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </DataTableCard>
 
-          {formError && <Alert severity="error">{formError}</Alert>}
+      {/* 4. Configure a new fare rule */}
+      {configureWindow}
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.6 }}>
-            <TextField
-              fullWidth
-              label="Base Fare (PHP)"
-              placeholder="15.00"
-              value={newBaseFare}
-              onChange={(e) => setNewBaseFare(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-            <TextField
-              fullWidth
-              label="Base Distance Coverage (KM)"
-              placeholder="2.0"
-              value={newBaseDistance}
-              onChange={(e) => setNewBaseDistance(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-          </Box>
-
-          <TextField
-            fullWidth
-            label="Succeeding Per-Kilometer Rate (PHP/KM)"
-            placeholder="1.00"
-            value={newSucceedingRate}
-            onChange={(e) => setNewSucceedingRate(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-
-          <TextField
-            fullWidth
-            label="Ordinance / Resolution Legal Reference"
-            placeholder="e.g. City Ordinance No. 110, Series of 2022"
-            value={newOrdinance}
-            onChange={(e) => setNewOrdinance(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-
-          <TextField
-            fullWidth
-            type="datetime-local"
-            label="Effective From (Asia/Manila)"
-            value={newEffectiveLocal}
-            onChange={(e) => setNewEffectiveLocal(e.target.value)}
-            helperText="Leave empty to take effect immediately. It cannot be in the past."
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-
-          <TextField
-            fullWidth
-            label="Reason for the change (audit trail)"
-            placeholder="e.g. Sangguniang Panlungsod resolution adjusting the tariff"
-            value={newReason}
-            onChange={(e) => setNewReason(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Regulatory Notes (optional)"
-            placeholder="Anything else worth keeping with this version..."
-            value={newNotes}
-            onChange={(e) => setNewNotes(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-        </Box>
-      </MacCenterModal>
-
-      {/* 5. Inspect Version Modal */}
+      {/* 5. One version in detail */}
       {selectedVersion && (
         <MacCenterModal
           open={Boolean(selectedVersion)}
           onClose={() => setSelectedVersion(null)}
-          title={`Fare Matrix Record — ${selectedVersion.fare_matrix_id}`}
+          title={`Fare record ${selectedVersion.fare_matrix_id}`}
           subtitle={selectedVersion.ordinance_reference}
           badge={<StatusBadge status={selectedVersion.status === 'In force' ? 'Active' : selectedVersion.status ?? 'Superseded'} />}
           maxWidth={512}
         >
-          <Box sx={{ mb: 2.4 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px', mb: 2.4 }}>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Base Minimum Fare</Typography>
-                <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{selectedVersion.base_fare.toFixed(2)}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Base Distance Covered</Typography>
-                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedVersion.base_distance_km.toFixed(1)} km</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Succeeding Rate</Typography>
-                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: '#1565C0' }}>₱{selectedVersion.succeeding_rate.toFixed(2)} / km</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Solo Trip Base (4 Seats)</Typography>
-                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: '#2E7D32' }}>₱{(selectedVersion.solo_base_fare ?? 0).toFixed(2)}</Typography>
-              </Box>
-              <Box sx={{ gridColumn: 'span 2' }}>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Authorized Officer</Typography>
-                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedVersion.configured_by_lgu_admin}</Typography>
-              </Box>
-            </Box>
+          <DetailSection title="Rates">
+            <DetailGrid>
+              <DetailField label="Base fare">{`₱${selectedVersion.base_fare.toFixed(2)}`}</DetailField>
+              <DetailField label="Base distance covered">{`${selectedVersion.base_distance_km.toFixed(1)} km`}</DetailField>
+              <DetailField label="Rate per extra km">{`₱${selectedVersion.succeeding_rate.toFixed(2)} / km`}</DetailField>
+              <DetailField label="Solo trip base (4 seats)">{`₱${(selectedVersion.solo_base_fare ?? 0).toFixed(2)}`}</DetailField>
+              <DetailField label="Set by">{selectedVersion.configured_by_lgu_admin}</DetailField>
+            </DetailGrid>
+          </DetailSection>
 
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.2 }}>
-              Administrative Notes & Background
-            </Typography>
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '13px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
-                {selectedVersion.notes || 'No supplementary notes attached to this record.'}
+          <DetailSection title="Notes">
+            <Box sx={{ backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '12px', border: `1px solid ${PAGE_BORDER}` }}>
+              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.primary, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
+                {selectedVersion.notes || 'No notes were attached to this record.'}
               </Typography>
             </Box>
-          </Box>
+          </DetailSection>
         </MacCenterModal>
       )}
     </Box>
   );
 };
+
+interface FormulaItemProps {
+  title: string;
+  formula: string;
+  example: string;
+}
+
+// One way of working out a fare: its name, the formula, and the example for the rule in force
+const FormulaItem: React.FC<FormulaItemProps> = ({ title, formula, example }) => (
+  <Box component="li" sx={{ py: '12px', '&:first-of-type': { pt: 0 }, '&:last-of-type': { pb: 0 } }}>
+    <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary }}>{title}</Typography>
+    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.brand, mt: '3px', lineHeight: 1.45 }}>{formula}</Typography>
+    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '3px', lineHeight: 1.5 }}>{example}</Typography>
+  </Box>
+);

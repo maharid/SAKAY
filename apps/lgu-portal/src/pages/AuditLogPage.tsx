@@ -1,31 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
-  CircularProgress,
-  Button,
-  Alert,
-  TextField,
-} from '@mui/material';
-import SecurityIcon from '@mui/icons-material/Security';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { Alert, Box, Button, TableBody, TableCell, TableRow, TextField, Typography } from '@mui/material';
 
 import { AuditLogRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
-import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
+import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
+import { PageNotice } from '../components/common/PageNotice';
+import { StatStrip } from '../components/common/StatStrip';
 import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
 import { fetchAuditLogs, exportAuditLog } from '../services/adminApiService';
-import { FONT } from '../styles/density';
+import { FONT, SPACE } from '../styles/density';
+import { PAGE_BORDER, PAGE_TEXT, pageCardSx, rowActionSx, secondaryButtonSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -37,9 +23,33 @@ import { FONT } from '../styles/density';
  *     ○ Cryptographic timestamp & target entity tracking
  * ============================================================================
  */
+
+// The category tag of a row: the colour only repeats what the words say
+const categoryTone = (category: string): 'info' | 'danger' | 'success' | 'brand' => {
+  switch (category) {
+    case 'Verification':
+      return 'info';
+    case 'User Oversight':
+      return 'danger';
+    case 'Fare Matrix':
+      return 'success';
+    default:
+      return 'brand';
+  }
+};
+
+// "ANNOUNCEMENT_BROADCASTED" -> "Announcement broadcasted": the database's action name in words (the exact name stays in the event's details)
+const readableAction = (actionType: string): string => {
+  const words = actionType.replace(/[_-]+/g, ' ').trim().toLowerCase();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : actionType;
+};
+
+const FIELD_SX = { flex: '1 1 160px', minWidth: 150, maxWidth: 220 } as const;
+
 export const AuditLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
@@ -54,8 +64,12 @@ export const AuditLogPage: React.FC = () => {
     try {
       const data = await fetchAuditLogs({ fromDay, toDay });
       setLogs(data);
+      setLoadError(null);
     } catch (err) {
       console.error('[AuditLogPage] Failed to fetch audit logs:', err);
+      // the rows on screen belong to an earlier dates choice: do not leave them looking like the answer to this one
+      setLogs([]);
+      setLoadError(err instanceof Error && err.message ? err.message : 'The activity log could not be read.');
     } finally {
       setIsLoading(false);
     }
@@ -110,60 +124,35 @@ export const AuditLogPage: React.FC = () => {
     { label: 'System & Announcement', value: 'System' },
   ];
 
-  const getCategoryBadgeStyle = (category: string) => {
-    switch (category) {
-      case 'Verification':
-        return { bg: 'rgba(21, 101, 192, 0.12)', color: '#1565C0', border: 'rgba(21, 101, 192, 0.3)' };
-      case 'User Oversight':
-        return { bg: 'rgba(234, 67, 53, 0.12)', color: '#D93025', border: 'rgba(234, 67, 53, 0.3)' };
-      case 'Fare Matrix':
-        return { bg: 'rgba(46, 125, 50, 0.12)', color: '#2E7D32', border: 'rgba(46, 125, 50, 0.3)' };
-      default:
-        return { bg: 'rgba(255, 102, 0, 0.12)', color: 'var(--sakay-orange)', border: 'rgba(255, 102, 0, 0.3)' };
-    }
-  };
+  const filtering = Boolean(searchQuery) || categoryFilter !== 'All';
+  const exportDisabled = exporting !== null;
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Summary Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2,
-          mb: 2.8,
-        }}
-      >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Total Audit Trail Events</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalLogs}</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Accreditation & Verifications</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#1565C0' }}>{verificationLogs}</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Policy Strikes & Suspensions</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#C62828' }}>{userOversightLogs}</Typography>
-        </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Fare & System Actions</Typography>
-          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#2E7D32' }}>{systemRateLogs}</Typography>
-        </Box>
-      </Box>
+      {/* 1. How many events there are */}
+      <StatStrip
+        label="Audit log totals"
+        stats={[
+          { key: 'total', label: 'All events', value: totalLogs },
+          { key: 'verification', label: 'Accreditation and verification', value: verificationLogs },
+          { key: 'oversight', label: 'Strikes and suspensions', value: userOversightLogs },
+          { key: 'system', label: 'Fare and system actions', value: systemRateLogs },
+        ]}
+      />
 
-      {/* 2. Filter Toolbar */}
+      {/* 2. Search and category */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search audit details, actor, target entity, or log ID..."
+        searchPlaceholder="Search details, actor, target, or log ID"
         selectFilters={[
           {
             id: 'category',
-            label: 'Action Category',
+            label: 'Action category',
             value: categoryFilter,
             options: categoryOptions,
             onChange: setCategoryFilter,
+            width: 220,
           },
         ]}
         onResetFilters={() => {
@@ -173,199 +162,143 @@ export const AuditLogPage: React.FC = () => {
       />
 
       {/* 2B. Date range and export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-        <TextField size="small" type="date" label="From (Manila)" value={fromDay} onChange={(e) => setFromDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        <TextField size="small" type="date" label="To (Manila)" value={toDay} onChange={(e) => setToDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        <Box sx={{ flex: 1 }} />
-        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-          {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
-        </Button>
-        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('csv')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-          {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
-        </Button>
-        <Button variant="outlined" size="small" disabled={exporting !== null} onClick={() => void runExport('pdf')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-          {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
-        </Button>
+      <Box component="section" aria-label="Dates and export" sx={{ ...pageCardSx, p: '12px 16px', mb: SPACE.gapLarge }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 12px' }}>
+          <TextField size="small" type="date" label="From (Manila)" value={fromDay} onChange={(e) => setFromDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} sx={FIELD_SX} />
+          <TextField size="small" type="date" label="To (Manila)" value={toDay} onChange={(e) => setToDay(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} sx={FIELD_SX} />
+          <Box role="group" aria-label="Export the log" sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', ml: { sm: 'auto' } }}>
+            <Button disabled={exportDisabled} onClick={() => void runExport('xlsx')} sx={secondaryButtonSx}>
+              {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
+            </Button>
+            <Button disabled={exportDisabled} onClick={() => void runExport('csv')} sx={secondaryButtonSx}>
+              {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
+            </Button>
+            <Button disabled={exportDisabled} onClick={() => void runExport('pdf')} sx={secondaryButtonSx}>
+              {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
+            </Button>
+          </Box>
+        </Box>
+        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '8px' }}>
+          The export follows the dates and the search text above. Every export is recorded in this log.
+        </Typography>
       </Box>
-      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 1.6 }}>{exportNote.text}</Alert>}
+      {exportNote && (
+        <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: SPACE.gapLarge, borderRadius: '10px' }}>
+          {exportNote.text}
+        </Alert>
+      )}
+      {loadError && (
+        <PageNotice
+          tone="danger"
+          title="The activity log could not be loaded"
+          action={
+            <Button onClick={loadLogs} disabled={isLoading} sx={rowActionSx('neutral')}>
+              Try again
+            </Button>
+          }
+        >
+          {loadError}
+        </PageNotice>
+      )}
 
-      {/* 3. Audit Log Ledger Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-        }}
+      {/* 3. The events */}
+      <DataTableCard
+        label="Audit log events"
+        minWidth={900}
+        columns={[{ label: 'When' }, { label: 'Who' }, { label: 'Action' }, { label: 'Category' }, { label: 'Details' }, { label: 'Event', align: 'right' }]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Timestamp & ID</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actor</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Action Event</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Category</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Audit Details</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
-                    Loading activity logs...
-                  </Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading activity logs..." />
+          ) : filteredLogs.length > 0 ? (
+            filteredLogs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell>
+                  <CellStack primary={log.timestamp} secondary={`${log.id.slice(0, 16)}...`} quiet />
                 </TableCell>
-              </TableRow>
-            ) : filteredLogs.length > 0 ? (
-              filteredLogs.map((log) => {
-                const badgeStyle = getCategoryBadgeStyle(log.category);
-                return (
-                  <TableRow
-                    key={log.id}
+                <TableCell>
+                  <CellStack primary={log.actor_name} secondary={log.actor_role} />
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{readableAction(log.action_type)}</TableCell>
+                <TableCell>
+                  <FlagTag label={log.category} tone={categoryTone(log.category)} />
+                </TableCell>
+                <TableCell sx={{ maxWidth: 380 }}>
+                  <Typography
+                    title={log.details}
                     sx={{
-                      transition: 'var(--mac-transition-fast)',
-                      '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
+                      fontSize: FONT.body,
+                      color: PAGE_TEXT.secondary,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      overflowWrap: 'anywhere',
                     }}
                   >
-                    <TableCell sx={{ py: 1.6, px: 2.4 }}>
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                        {log.timestamp}
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontFamily: 'monospace', mt: '2px' }}>
-                        {log.id.slice(0, 16)}...
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ py: 1.6, px: 2.4 }}>
-                      <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                        {log.actor_name}
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                        {log.actor_role}
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ py: 1.6, px: 2.4 }}>
-                      <Chip
-                        label={log.action_type}
-                        size="small"
-                        sx={{
-                          fontSize: FONT.caption,
-                          fontWeight: 700,
-                          backgroundColor: '#F5F5F7',
-                          color: 'var(--mac-text-primary)',
-                          fontFamily: 'monospace',
-                          height: 24,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 1.6, px: 2.4 }}>
-                      <Chip
-                        label={log.category}
-                        size="small"
-                        sx={{
-                          fontSize: FONT.caption,
-                          fontWeight: 600,
-                          backgroundColor: badgeStyle.bg,
-                          color: badgeStyle.color,
-                          border: `1px solid ${badgeStyle.border}`,
-                          height: 24,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 1.6, px: 2.4, maxWidth: 380 }}>
-                      <Typography
-                        sx={{
-                          fontSize: FONT.caption,
-                          color: 'var(--mac-text-secondary)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {log.details}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 1.6, px: 2.4 }}>
-                      <ActionButton
-                        label="View Event"
-                        showArrow={false}
-                        onClick={() => setSelectedLog(log)}
-                        sx={{ height: 32, fontSize: FONT.caption }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableEmptyState
-                colSpan={6}
-                icon={<SecurityIcon />}
-                title="No activity log records found"
-                description={
-                  searchQuery || categoryFilter !== 'All'
-                    ? 'No events match your active search filters.'
-                    : 'Administrative actions, approvals, and system events will be recorded and appear here.'
-                }
-                onRefresh={loadLogs}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                    {log.details}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`View the event: ${readableAction(log.action_type)}${log.timestamp ? `, ${log.timestamp}` : ''}`} onClick={() => setSelectedLog(log)} sx={rowActionSx('neutral')}>
+                    View event
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : loadError ? (
+            <DataTableMessageRow colSpan={6} kind="empty" title="The activity log could not be loaded" hint="Check the connection, then try again." onRefresh={loadLogs} isRefreshing={isLoading} />
+          ) : (
+            <DataTableMessageRow
+              colSpan={6}
+              kind={filtering ? 'noResults' : 'empty'}
+              title={filtering ? 'No events match' : 'No activity log records found'}
+              hint={filtering ? 'No events match your search or filter. Try clearing them.' : 'Administrative actions, approvals, and system events will be recorded and appear here.'}
+              onRefresh={loadLogs}
+              isRefreshing={isLoading}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 4. Event Detail Modal */}
+      {/* 4. One event in detail */}
       {selectedLog && (
         <MacCenterModal
           open={Boolean(selectedLog)}
           onClose={() => setSelectedLog(null)}
-          title="Administrative Audit Event"
+          title="Audit event"
           subtitle={`Log ID: ${selectedLog.id}`}
-          badge={<Chip label={selectedLog.category} size="small" />}
-          maxWidth={544}
+          badge={<FlagTag label={selectedLog.category} tone={categoryTone(selectedLog.category)} />}
+          maxWidth={560}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Action Type</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 700, fontFamily: 'monospace', color: 'var(--sakay-orange)' }}>
-                {selectedLog.action_type}
-              </Typography>
+          <DetailSection title="What happened">
+            <DetailGrid>
+              <DetailField label="Action">{readableAction(selectedLog.action_type)}</DetailField>
+              <DetailField label="Action code">
+                <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{selectedLog.action_type}</Box>
+              </DetailField>
+              <DetailField label="Acting officer">{`${selectedLog.actor_name} (${selectedLog.actor_role})`}</DetailField>
+              <DetailField label="When">{selectedLog.timestamp}</DetailField>
+            </DetailGrid>
+          </DetailSection>
+
+          <DetailSection title="Details and remarks">
+            <Box sx={{ backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '12px', border: `1px solid ${PAGE_BORDER}` }}>
+              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.primary, lineHeight: 1.55, overflowWrap: 'anywhere' }}>{selectedLog.details}</Typography>
             </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Acting Officer</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {selectedLog.actor_name} ({selectedLog.actor_role})
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Timestamp</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {selectedLog.timestamp}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Event Details & System Remarks</Typography>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)', mt: '3px', lineHeight: 1.5 }}>
-                {selectedLog.details}
-              </Typography>
-            </Box>
-            {(selectedLog.before_state != null || selectedLog.after_state != null) && (
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Before / After</Typography>
-                <Typography component="pre" sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', mt: '3px', m: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'monospace' }}>
+          </DetailSection>
+
+          {(selectedLog.before_state != null || selectedLog.after_state != null) && (
+            <DetailSection title="Before and after">
+              <Box sx={{ backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '12px', border: `1px solid ${PAGE_BORDER}`, overflowX: 'auto' }}>
+                <Typography component="pre" sx={{ fontSize: FONT.small, color: PAGE_TEXT.primary, m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'monospace' }}>
                   {JSON.stringify({ before: selectedLog.before_state ?? null, after: selectedLog.after_state ?? null }, null, 2)}
                 </Typography>
               </Box>
-            )}
-          </Box>
+            </DetailSection>
+          )}
         </MacCenterModal>
       )}
     </Box>
   );
 };
-

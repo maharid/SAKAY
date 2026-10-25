@@ -1,465 +1,47 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Alert,
-  Avatar,
-  Snackbar,
-  Paper,
-  IconButton,
-  Fade,
-} from '@mui/material';
-import SecurityIcon from '@mui/icons-material/Security';
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
-import EmailIcon from '@mui/icons-material/Email';
-import BadgeIcon from '@mui/icons-material/Badge';
-import PaletteIcon from '@mui/icons-material/Palette';
-import CheckIcon from '@mui/icons-material/Check';
-import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import CloseIcon from '@mui/icons-material/Close';
-import ColorizeIcon from '@mui/icons-material/Colorize';
-import AddIcon from '@mui/icons-material/Add';
+import React, { useState, useEffect } from 'react';
+import { Alert, Avatar, Box, Button, TextField, Typography } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabaseClient';
 import { SakayPhoneInput } from '../components/common/SakayPhoneInput';
-import { CONTROL, FONT } from '../styles/density';
+import { FlagTag } from '../components/common/DataTable';
+import { DashboardCard } from '../components/dashboard/DashboardCard';
+import { FONT, SPACE } from '../styles/density';
+import { PAGE_TEXT, pageCardSx, primaryButtonSx } from '../styles/pageTheme';
 
-// Helper HSV <-> HEX Conversion Utilities
-function hexToHsv(hexStr: string): { h: number; s: number; v: number } {
-  let c = hexStr.replace('#', '').trim();
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
-  const num = parseInt(c, 16);
-  if (isNaN(num) || (c.length !== 6)) return { h: 25, s: 100, v: 100 };
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
+type Message = { type: 'success' | 'error'; text: string } | null;
 
-  const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
-  const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
-  const d = max - min;
-  let h = 0;
-  const s = max === 0 ? 0 : d / max;
-  const v = max;
-
-  if (max !== min) {
-    switch (max) {
-      case rNorm: h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0); break;
-      case gNorm: h = (bNorm - rNorm) / d + 2; break;
-      case bNorm: h = (rNorm - gNorm) / d + 4; break;
-    }
-    h /= 6;
-  }
-  return { h: Math.round(h * 360), s: Math.round(s * 100), v: Math.round(v * 100) };
-}
-
-function hsvToHex(h: number, s: number, v: number): string {
-  const sNorm = Math.max(0, Math.min(100, s)) / 100;
-  const vNorm = Math.max(0, Math.min(100, v)) / 100;
-  const c = vNorm * sNorm;
-  const hNorm = (h % 360 + 360) % 360;
-  const x = c * (1 - Math.abs(((hNorm / 60) % 2) - 1));
-  const m = vNorm - c;
-  let r = 0, g = 0, b = 0;
-
-  if (0 <= hNorm && hNorm < 60) { r = c; g = x; b = 0; }
-  else if (60 <= hNorm && hNorm < 120) { r = x; g = c; b = 0; }
-  else if (120 <= hNorm && hNorm < 180) { r = 0; g = c; b = x; }
-  else if (180 <= hNorm && hNorm < 240) { r = 0; g = x; b = c; }
-  else if (240 <= hNorm && hNorm < 300) { r = x; g = 0; b = c; }
-  else if (300 <= hNorm && hNorm <= 360) { r = c; g = 0; b = x; }
-
-  const rHex = Math.round((r + m) * 255).toString(16).padStart(2, '0');
-  const gHex = Math.round((g + m) * 255).toString(16).padStart(2, '0');
-  const bHex = Math.round((b + m) * 255).toString(16).padStart(2, '0');
-
-  return `#${rHex}${gHex}${bHex}`.toUpperCase();
-}
-
-const PRESET_SWATCHES = [
-  { name: 'SAKAY Orange', hex: '#FF6600' },
-  { name: 'Municipal Blue', hex: '#2563EB' },
-  { name: 'City Emerald', hex: '#059669' },
-  { name: 'Royal Violet', hex: '#7C3AED' },
-  { name: 'Rose Pink', hex: '#DB2777' },
-  { name: 'Crimson Red', hex: '#DC2626' },
-];
-
-const DEFAULT_SAVED_SWATCHES = [
-  '#059669', // Emerald Green
-  '#2563EB', // Municipal Blue
-  '#4F46E5', // Indigo
-  '#7C3AED', // Royal Violet
-  '#C026D3', // Magenta
-  '#E11D48', // Crimson
-  '#FF6600', // SAKAY Orange
-  '#7F56D9', // Purple
-];
-
+// The look of the fields on this page: the same 40px field as the rest of the portal
 const accountInputStyles = {
   '& .MuiOutlinedInput-root': {
-    borderRadius: '12px',
+    borderRadius: '10px',
     backgroundColor: '#FFFFFF',
-    fontSize: FONT.caption,
-    '& fieldset': {
-      borderColor: '#E5E5EA',
-    },
-    '&:hover fieldset': {
-      borderColor: '#C7C7CC',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: 'var(--sakay-orange)',
-    },
-    '&.Mui-focused': {
-      boxShadow: '0 0 0 3px var(--sakay-orange-soft)',
-    },
+    fontSize: FONT.body,
   },
-  '& .MuiInputLabel-root': {
-    fontSize: FONT.caption,
-    color: '#86868B',
-    backgroundColor: '#FFFFFF',
-    px: 0.6,
-    borderRadius: '4px',
-    '&.Mui-focused': {
-      color: 'var(--sakay-orange)',
-    },
-  },
+  '& .MuiInputLabel-root': { fontSize: FONT.body },
+  '& .MuiFormHelperText-root': { fontSize: FONT.small },
 };
 
-// Embedded Compact Hex-Only Color Picker Component (No Alpha / No Format Dropdown)
-interface EmbeddedColorPickerProps {
-  color: string;
-  onChange: (hex: string) => void;
-}
+// The result of the last save, shown above the field it belongs to
+const FormMessage: React.FC<{ message: Message }> = ({ message }) =>
+  message ? (
+    <Alert severity={message.type} sx={{ mb: '14px', borderRadius: '10px', py: '2px', '& .MuiAlert-message': { fontSize: FONT.body } }}>
+      {message.text}
+    </Alert>
+  ) : null;
 
-const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChange }) => {
-  const [hsv, setHsv] = useState(() => hexToHsv(color));
-  const [hexInput, setHexInput] = useState(color);
-  const [savedSwatches, setSavedSwatches] = useState<string[]>(DEFAULT_SAVED_SWATCHES);
-
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const isDraggingCanvas = useRef(false);
-
-  useEffect(() => {
-    const newHsv = hexToHsv(color);
-    setHsv(newHsv);
-    setHexInput(color.toUpperCase());
-  }, [color]);
-
-  const updateColorFromHsv = useCallback((h: number, s: number, v: number) => {
-    const newHsv = { h, s, v };
-    setHsv(newHsv);
-    const hex = hsvToHex(h, s, v);
-    setHexInput(hex);
-    onChange(hex);
-  }, [onChange]);
-
-  // Handle Dragging inside 2D Saturation / Value canvas
-  const handleCanvasMove = useCallback((e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
-    if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
-    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
-
-    const s = Math.round((x / rect.width) * 100);
-    const v = Math.round((1 - y / rect.height) * 100);
-
-    updateColorFromHsv(hsv.h, s, v);
-  }, [hsv.h, updateColorFromHsv]);
-
-  const handleCanvasMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
-    isDraggingCanvas.current = true;
-    handleCanvasMove(e);
-  };
-
-  useEffect(() => {
-    const handleMouseUp = () => { isDraggingCanvas.current = false; };
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDraggingCanvas.current) handleCanvasMove(e);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [handleCanvasMove]);
-
-  // Eyedropper integration
-  const handleEyeDropper = async () => {
-    if ('EyeDropper' in window) {
-      try {
-        const eyeDropper = new (window as any).EyeDropper();
-        const result = await eyeDropper.open();
-        if (result.sRGBHex) {
-          const hex = result.sRGBHex.toUpperCase();
-          onChange(hex);
-        }
-      } catch (e) {
-        // User canceled eyedropper
-      }
-    }
-  };
-
-  const handleAddSavedSwatch = () => {
-    const currentHex = hsvToHex(hsv.h, hsv.s, hsv.v);
-    if (!savedSwatches.includes(currentHex)) {
-      setSavedSwatches([...savedSwatches, currentHex]);
-    }
-  };
-
-  const pureHueColor = `hsl(${hsv.h}, 100%, 50%)`;
-  const pointerLeft = `${hsv.s}%`;
-  const pointerTop = `${100 - hsv.v}%`;
-  const currentColorHex = hsvToHex(hsv.h, hsv.s, hsv.v);
-
-  return (
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: 380,
-        backgroundColor: '#FFFFFF',
-        borderRadius: '16px',
-        border: '1px solid var(--mac-border-color)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-        padding: '13px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1.6,
-        userSelect: 'none',
-      }}
-    >
-      {/* 1. 2D Saturation / Brightness Gradient Canvas */}
-      <Box
-        ref={canvasRef}
-        onMouseDown={handleCanvasMouseDown}
-        onTouchStart={handleCanvasMouseDown}
-        sx={{
-          width: '100%',
-          height: 170,
-          borderRadius: '12px',
-          position: 'relative',
-          cursor: 'crosshair',
-          backgroundColor: pureHueColor,
-          backgroundImage: `
-            linear-gradient(to top, #000000, transparent),
-            linear-gradient(to right, #FFFFFF, transparent)
-          `,
-          overflow: 'hidden',
-          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
-        }}
-      >
-        {/* Pointer Circle Handle */}
-        <Box
-          sx={{
-            position: 'absolute',
-            left: pointerLeft,
-            top: pointerTop,
-            width: 18,
-            height: 18,
-            borderRadius: '50%',
-            border: '2.5px solid #FFFFFF',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-            backgroundColor: currentColorHex,
-            transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none',
-            transition: isDraggingCanvas.current ? 'none' : 'all 0.05s ease',
-          }}
-        />
-      </Box>
-
-      {/* 2. Controls Row: Eyedropper + Hue Slider Bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-        {/* Eyedropper Button */}
-        <IconButton
-          size="small"
-          onClick={handleEyeDropper}
-          sx={{
-            width: 36,
-            height: 36,
-            borderRadius: '10px',
-            border: '1px solid var(--mac-border-color)',
-            backgroundColor: '#FFFFFF',
-            color: 'var(--mac-text-secondary)',
-            flexShrink: 0,
-            '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-          }}
-        >
-          <ColorizeIcon fontSize="small" sx={{ fontSize: 14 }} />
-        </IconButton>
-
-        {/* Hue Rainbow Slider Bar */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            height: 14,
-            borderRadius: '7px',
-            background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)',
-            position: 'relative',
-            cursor: 'pointer',
-          }}
-        >
-          <input
-            type="range"
-            min="0"
-            max="360"
-            value={hsv.h}
-            onChange={(e) => updateColorFromHsv(Number(e.target.value), hsv.s, hsv.v)}
-            style={{
-              width: '100%',
-              height: '100%',
-              opacity: 0,
-              cursor: 'pointer',
-              margin: 0,
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              left: `${(hsv.h / 360) * 100}%`,
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 16,
-              height: 16,
-              borderRadius: '50%',
-              backgroundColor: pureHueColor,
-              border: '2px solid #FFFFFF',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              pointerEvents: 'none',
-            }}
-          />
-        </Box>
-      </Box>
-
-      {/* 3. HEX Format Input (Strictly HEX Only, No Alpha) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-        <Box
-          sx={{
-            px: 1.2,
-            py: 0.8,
-            borderRadius: '8px',
-            backgroundColor: '#F5F5F7',
-            border: '1px solid var(--mac-border-color)',
-            fontSize: FONT.caption,
-            fontWeight: 700,
-            color: 'var(--mac-text-secondary)',
-          }}
-        >
-          HEX
-        </Box>
-
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', position: 'relative' }}>
-          <Box
-            sx={{
-              width: 18,
-              height: 18,
-              borderRadius: '50%',
-              backgroundColor: currentColorHex,
-              position: 'absolute',
-              left: 10,
-              zIndex: 2,
-              border: '1px solid rgba(0,0,0,0.12)',
-            }}
-          />
-          <TextField
-            size="small"
-            value={hexInput}
-            onChange={(e) => {
-              const val = e.target.value.toUpperCase();
-              setHexInput(val);
-              if (/^#[0-9A-F]{6}$/i.test(val)) {
-                const newHsv = hexToHsv(val);
-                setHsv(newHsv);
-                onChange(val);
-              }
-            }}
-            sx={{
-              width: '100%',
-              '& .MuiOutlinedInput-root': {
-                height: 36,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                borderRadius: '9px',
-                pl: 4.2,
-                fontSize: FONT.body,
-                fontFamily: 'monospace',
-                fontWeight: 600,
-              },
-            }}
-          />
-        </Box>
-      </Box>
-
-      {/* 4. Saved Swatches Row */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, pt: 0.4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-            Saved Swatches
-          </Typography>
-          <Button
-            size="small"
-            startIcon={<AddIcon fontSize="small" sx={{ fontSize: 13 }} />}
-            onClick={handleAddSavedSwatch}
-            sx={{
-              fontSize: FONT.small,
-              fontWeight: 600,
-              textTransform: 'none',
-              color: 'var(--mac-text-secondary)',
-              p: 0,
-              minWidth: 'auto',
-              '&:hover': { color: 'var(--sakay-orange)' },
-            }}
-          >
-            Add
-          </Button>
-        </Box>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
-          {savedSwatches.map((hex) => {
-            const isSelected = currentColorHex.toUpperCase() === hex.toUpperCase();
-            return (
-              <Box
-                key={hex}
-                onClick={() => {
-                  const newHsv = hexToHsv(hex);
-                  setHsv(newHsv);
-                  setHexInput(hex.toUpperCase());
-                  onChange(hex.toUpperCase());
-                }}
-                sx={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  backgroundColor: hex,
-                  cursor: 'pointer',
-                  border: isSelected ? `2.5px solid var(--mac-text-primary)` : '1px solid rgba(0,0,0,0.15)',
-                  boxShadow: isSelected ? '0 0 0 2px rgba(0,0,0,0.1)' : 'none',
-                  transition: 'all 0.15s ease',
-                  '&:hover': { transform: 'scale(1.15)' },
-                }}
-              />
-            );
-          })}
-        </Box>
-      </Box>
-    </Box>
-  );
-};
+// One form of the page. The button sits at the bottom of its card, so the cards of a row end on the same line.
+const AccountForm: React.FC<{ onSubmit: (e: React.FormEvent) => void; children: React.ReactNode }> = ({ onSubmit, children }) => (
+  <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+    {children}
+  </Box>
+);
 
 export const AccountManagementPage: React.FC = () => {
   const { user, adminProfile, refreshProfile } = useAuth();
-  const { themeColor, setThemeColor } = useTheme();
 
   // Name State
   const [fullName, setFullName] = useState(adminProfile?.full_name || 'City Administrator');
-  const [nameMsg, setNameMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [nameMsg, setNameMsg] = useState<Message>(null);
   const [isUpdatingName, setIsUpdatingName] = useState(false);
 
   // Contact (mobile) number State: stored as +639XXXXXXXXX, edited as 09XXXXXXXXX
@@ -469,25 +51,19 @@ export const AccountManagementPage: React.FC = () => {
     return digits.startsWith('09') ? digits : '';
   };
   const [contact, setContact] = useState(nationalOf(adminProfile?.contact_number));
-  const [contactMsg, setContactMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [contactMsg, setContactMsg] = useState<Message>(null);
   const [isUpdatingContact, setIsUpdatingContact] = useState(false);
 
   // Email State
   const [email, setEmail] = useState(user?.email || adminProfile?.email || '');
-  const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [emailMsg, setEmailMsg] = useState<Message>(null);
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
 
   // Password State
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [passwordMsg, setPasswordMsg] = useState<Message>(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-
-  // Theme State & Toast State
-  const [selectedColor, setSelectedColor] = useState(themeColor);
-  const [isSavingTheme, setIsSavingTheme] = useState(false);
-  const [toastOpen, setToastOpen] = useState(false);
-  const [toastProgress, setToastProgress] = useState(100);
 
   useEffect(() => {
     setContact(nationalOf(adminProfile?.contact_number));
@@ -506,34 +82,6 @@ export const AccountManagementPage: React.FC = () => {
       setEmail(currentMail);
     }
   }, [user?.email, adminProfile?.email]);
-
-  useEffect(() => {
-    setSelectedColor(themeColor);
-  }, [themeColor]);
-
-  // Handle Toast Timer Progress
-  useEffect(() => {
-    let timer: any;
-    let interval: any;
-    if (toastOpen) {
-      setToastProgress(100);
-      const startTime = Date.now();
-      const duration = 4000;
-      interval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
-        setToastProgress(remaining);
-      }, 50);
-
-      timer = setTimeout(() => {
-        setToastOpen(false);
-      }, duration);
-    }
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
-  }, [toastOpen]);
 
   const handleUpdateContact = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -634,515 +182,139 @@ export const AccountManagementPage: React.FC = () => {
     }
   };
 
-  const handleSaveTheme = async () => {
-    setIsSavingTheme(true);
-    try {
-      await setThemeColor(selectedColor);
-      setToastOpen(true);
-    } catch (err: any) {
-      console.error('Failed to save theme color:', err);
-    } finally {
-      setIsSavingTheme(false);
-    }
-  };
-
   const displayName = adminProfile?.full_name || fullName || 'City Administrator';
   const displayEmail = adminProfile?.email || user?.email || email || '';
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <Box sx={{ maxWidth: 1600, mx: 'auto', pb: 4.8, position: 'relative' }}>
-      {/* 1. Account Profile Header Card - FULL WIDTH */}
-      <Card
-        sx={{
-          mb: 3.2,
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          backgroundColor: '#FFFFFF',
-          overflow: 'hidden',
-        }}
-      >
-        <CardContent sx={{ p: 2.8, display: 'flex', alignItems: 'center', gap: 2.8 }}>
-          <Avatar
-            sx={{
-              width: 76,
-              height: 76,
-              bgcolor: 'var(--sakay-orange-soft)',
-              color: 'var(--sakay-orange)',
-              fontSize: '24px',
-              fontWeight: 700,
-              border: '2px solid var(--sakay-orange)',
-              boxShadow: 'none',
-              flexShrink: 0,
-            }}
-          >
-            {initial}
-          </Avatar>
-
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2, mb: 0.4 }}>
-              {displayName}
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.8 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, color: 'var(--mac-text-secondary)' }}>
-                <BadgeIcon fontSize="small" sx={{ color: 'var(--sakay-orange)', fontSize: 14 }} />
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--sakay-orange)' }}>
-                  LGU Administrator
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, color: 'var(--mac-text-secondary)' }}>
-                <EmailIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: 14 }} />
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
-                  {displayEmail}
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* 2. Main Content Grid - FULL WIDTH 2-COLUMN */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.8 }}>
-        
-        {/* Left Column: Profile Details & Credentials */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.8 }}>
-          
-          {/* Administrator Profile Name Update */}
-          <Card
-            sx={{
-              borderRadius: 'var(--mac-radius-lg)',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <CardContent sx={{ p: 2.8 }}>
-              <Box sx={{ mb: 2.4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
-                  <PersonOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
-                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                    Administrator Name
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                  Update the official City Administrator display name.
-                </Typography>
-              </Box>
-
-              {nameMsg && (
-                <Alert severity={nameMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
-                  {nameMsg.text}
-                </Alert>
-              )}
-
-              <form onSubmit={handleUpdateName}>
-                <TextField
-                  fullWidth
-                  label="Full Name"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  disabled={isUpdatingName}
-                  sx={{ mb: 2, ...accountInputStyles }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={isUpdatingName || fullName === adminProfile?.full_name}
-                  sx={{
-                    borderRadius: '10px',
-                    px: 2.8,
-                    py: 1.1,
-                    backgroundColor: 'var(--sakay-orange)',
-                    boxShadow: 'none',
-                    textTransform: 'none',
-                    fontSize: FONT.body,
-                    fontWeight: 600,
-                    '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
-                  }}
-                >
-                  {isUpdatingName ? 'Saving...' : 'Save Name'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Contact (mobile) number */}
-          <Card
-            sx={{
-              borderRadius: 'var(--mac-radius-lg)',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              backgroundColor: '#FFFFFF',
-              mb: 2.4,
-            }}
-          >
-            <CardContent sx={{ p: 2.8 }}>
-              <Box sx={{ mb: 2.4 }}>
-                <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>Contact Number</Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                  The mobile number of the City Administrator, kept on the administrator record.
-                </Typography>
-              </Box>
-              {contactMsg && (
-                <Alert severity={contactMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
-                  {contactMsg.text}
-                </Alert>
-              )}
-              <form onSubmit={handleUpdateContact}>
-                <Box sx={{ mb: 2 }}>
-                  <SakayPhoneInput label="Mobile Number" value={contact} onChange={setContact} required compact />
-                </Box>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={isUpdatingContact || contact === nationalOf(adminProfile?.contact_number)}
-                  sx={{
-                    borderRadius: '10px',
-                    px: 2.8,
-                    py: 1.1,
-                    backgroundColor: 'var(--sakay-orange)',
-                    boxShadow: 'none',
-                    textTransform: 'none',
-                    fontSize: FONT.body,
-                    fontWeight: 600,
-                    '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
-                  }}
-                >
-                  {isUpdatingContact ? 'Saving...' : 'Save Contact Number'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Change Email Address */}
-          <Card
-            sx={{
-              borderRadius: 'var(--mac-radius-lg)',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <CardContent sx={{ p: 2.8 }}>
-              <Box sx={{ mb: 2.4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
-                  <ManageAccountsIcon sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
-                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                    Change Email Address
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                  Update your official municipal email credentials securely.
-                </Typography>
-              </Box>
-
-              {emailMsg && (
-                <Alert severity={emailMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
-                  {emailMsg.text}
-                </Alert>
-              )}
-
-              <form onSubmit={handleUpdateEmail}>
-                <TextField
-                  fullWidth
-                  label="New Email Address"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isUpdatingEmail}
-                  sx={{ mb: 2, ...accountInputStyles }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={isUpdatingEmail || email === displayEmail}
-                  sx={{
-                    borderRadius: '10px',
-                    px: 2.8,
-                    py: 1.1,
-                    backgroundColor: 'var(--sakay-orange)',
-                    boxShadow: 'none',
-                    textTransform: 'none',
-                    fontSize: FONT.body,
-                    fontWeight: 600,
-                    '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
-                  }}
-                >
-                  {isUpdatingEmail ? 'Updating...' : 'Update Email'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Change Password */}
-          <Card
-            sx={{
-              borderRadius: 'var(--mac-radius-lg)',
-              border: '1px solid var(--mac-border-color)',
-              boxShadow: 'var(--mac-shadow-card)',
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <CardContent sx={{ p: 2.8 }}>
-              <Box sx={{ mb: 2.4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
-                  <SecurityIcon sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
-                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                    Change Password
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                  Update your LGU administrator password securely.
-                </Typography>
-              </Box>
-
-              {passwordMsg && (
-                <Alert severity={passwordMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
-                  {passwordMsg.text}
-                </Alert>
-              )}
-
-              <form onSubmit={handleUpdatePassword}>
-                <TextField
-                  fullWidth
-                  label="New Password"
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={isUpdatingPassword}
-                  sx={{ mb: 2, ...accountInputStyles }}
-                />
-                <TextField
-                  fullWidth
-                  label="Confirm New Password"
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isUpdatingPassword}
-                  sx={{ mb: 2, ...accountInputStyles }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={isUpdatingPassword || !newPassword || !confirmPassword}
-                  sx={{
-                    borderRadius: '10px',
-                    px: 2.8,
-                    py: 1.1,
-                    backgroundColor: 'var(--sakay-orange)',
-                    boxShadow: 'none',
-                    textTransform: 'none',
-                    fontSize: FONT.body,
-                    fontWeight: 600,
-                    '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
-                  }}
-                >
-                  {isUpdatingPassword ? 'Updating...' : 'Update Password'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Right Column: System Appearance & Embedded Inline Color Picker */}
-        <Card
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            height: 'fit-content',
-          }}
+      {/* 1. Who is signed in */}
+      <Box component="section" aria-label="Your account" sx={{ ...pageCardSx, p: SPACE.cardLarge, mb: SPACE.gapLarge, display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <Avatar
+          aria-hidden
+          sx={{ width: 56, height: 56, bgcolor: 'var(--sakay-orange-soft)', color: PAGE_TEXT.brand, fontSize: '20px', fontWeight: 700, border: '2px solid var(--sakay-orange-border)', flexShrink: 0 }}
         >
-          <CardContent sx={{ p: 2.8 }}>
-            <Box sx={{ mb: 2.4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
-                <PaletteIcon sx={{ color: selectedColor, fontSize: 17 }} />
-                <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                  System Appearance
-                </Typography>
-              </Box>
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                Customize the primary accent color used throughout the SAKAY LGU Portal.
-              </Typography>
-            </Box>
-
-            {/* Predefined System Presets Grid */}
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1.2 }}>
-              System Accent Presets
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.2, mb: 2.8 }}>
-              {PRESET_SWATCHES.map((swatch) => {
-                const isSelected = selectedColor.toUpperCase() === swatch.hex.toUpperCase();
-                return (
-                  <Box
-                    key={swatch.hex}
-                    onClick={() => setSelectedColor(swatch.hex)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.2,
-                      padding: '8px 10px',
-                      borderRadius: '10px',
-                      border: isSelected ? `2px solid ${swatch.hex}` : '1px solid var(--mac-border-color)',
-                      backgroundColor: isSelected ? 'rgba(0,0,0,0.02)' : '#FFFFFF',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        borderColor: swatch.hex,
-                        transform: 'translateY(-1px)',
-                      },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: '50%',
-                        backgroundColor: swatch.hex,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isSelected && <CheckIcon sx={{ color: '#FFFFFF', fontSize: 13 }} />}
-                    </Box>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: isSelected ? 700 : 500, color: 'var(--mac-text-primary)' }}>
-                      {swatch.name}
-                    </Typography>
-                  </Box>
-                );
-              })}
-            </Box>
-
-            {/* Custom Embedded Inline 2D Color Picker */}
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1.2 }}>
-              Custom HEX Color Picker
-            </Typography>
-            
-            <Box sx={{ mb: 2.4 }}>
-              <EmbeddedColorPicker
-                color={selectedColor}
-                onChange={(newHex) => setSelectedColor(newHex)}
-              />
-            </Box>
-
-            {/* Live Visual Preview Card */}
-            <Box
-              sx={{
-                padding: '13px 16px',
-                borderRadius: '12px',
-                border: '1px solid var(--mac-border-color)',
-                backgroundColor: '#FAFAFC',
-                mb: 2.4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Box>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  Theme Preview
-                </Typography>
-                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                  Current active accent color: {selectedColor.toUpperCase()}
-                </Typography>
-              </Box>
-              <Button
-                size="small"
-                variant="contained"
-                sx={{
-                  backgroundColor: selectedColor,
-                  color: '#FFFFFF',
-                  borderRadius: '8px',
-                  textTransform: 'none',
-                  fontSize: FONT.small,
-                  fontWeight: 600,
-                  boxShadow: 'none',
-                  '&:hover': { backgroundColor: selectedColor, boxShadow: 'none' },
-                }}
-              >
-                Active Button
-              </Button>
-            </Box>
-
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={handleSaveTheme}
-              disabled={isSavingTheme || selectedColor === themeColor}
-              sx={{
-                borderRadius: '10px',
-                py: 1.3,
-                backgroundColor: selectedColor,
-                boxShadow: 'none',
-                textTransform: 'none',
-                fontSize: FONT.body,
-                fontWeight: 600,
-                '&:hover': { backgroundColor: selectedColor, boxShadow: 'none' },
-              }}
-            >
-              {isSavingTheme ? 'Saving Theme...' : 'Save Theme'}
-            </Button>
-          </CardContent>
-        </Card>
+          {initial}
+        </Avatar>
+        <Box sx={{ minWidth: 0, flex: '1 1 240px' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 10px' }}>
+            <Typography component="h2" sx={{ fontSize: FONT.sectionTitle, fontWeight: 700, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{displayName}</Typography>
+            <FlagTag label="LGU Administrator" tone="brand" />
+          </Box>
+          {displayEmail && (
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, mt: '3px', overflowWrap: 'anywhere' }}>{displayEmail}</Typography>
+          )}
+        </Box>
       </Box>
 
-      {/* Bottom-Right Toast Notification for Theme Customization */}
-      <Snackbar
-        open={toastOpen}
-        onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 2000,
-        }}
-        slots={{ transition: Fade }}
-      >
-        <Paper
-          elevation={0}
+      {/* 2. The details you can change: name, contact number, e-mail and password */}
+      <Box sx={{ containerType: 'inline-size' }}>
+        <Box
           sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-            border: '1px solid #D1FADF',
-            backgroundColor: '#ECFDF3',
-            overflow: 'hidden',
-            minWidth: 320,
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            gap: SPACE.gapLarge,
+            alignItems: 'stretch',
+            '@container (min-width: 760px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.8, gap: 1.2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-              <CheckCircleOutlinedIcon sx={{ color: '#027A48', fontSize: 17 }} />
-              <Typography sx={{ color: '#027A48', fontSize: FONT.caption, fontWeight: 600 }}>
-                System theme color updated and saved successfully!
-              </Typography>
-            </Box>
-            <IconButton size="small" onClick={() => setToastOpen(false)} sx={{ color: '#027A48', p: 0.4 }}>
-              <CloseIcon fontSize="small" sx={{ fontSize: 13 }} />
-            </IconButton>
-          </Box>
+          {/* Administrator Profile Name Update */}
+          <DashboardCard title="Administrator name" description="The City Administrator's name as it is shown in the portal.">
+            <FormMessage message={nameMsg} />
+            <AccountForm onSubmit={handleUpdateName}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Full name"
+                required
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={isUpdatingName}
+                sx={accountInputStyles}
+              />
+              <Box sx={{ mt: 'auto' }}>
+                <Button type="submit" variant="contained" disabled={isUpdatingName || fullName === adminProfile?.full_name} sx={primaryButtonSx}>
+                  {isUpdatingName ? 'Saving...' : 'Save name'}
+                </Button>
+              </Box>
+            </AccountForm>
+          </DashboardCard>
 
-          {/* Visible Progress Timer Indicator */}
-          <Box
-            sx={{
-              height: 3,
-              width: `${toastProgress}%`,
-              backgroundColor: '#12B76A',
-              transition: 'width 0.05s linear',
-            }}
-          />
-        </Paper>
-      </Snackbar>
+          {/* Contact (mobile) number */}
+          <DashboardCard title="Contact number" description="The mobile number of the City Administrator, kept on the administrator record.">
+            <FormMessage message={contactMsg} />
+            <AccountForm onSubmit={handleUpdateContact}>
+              <SakayPhoneInput label="Mobile number" value={contact} onChange={setContact} required compact />
+              <Box sx={{ mt: 'auto' }}>
+                <Button type="submit" variant="contained" disabled={isUpdatingContact || contact === nationalOf(adminProfile?.contact_number)} sx={primaryButtonSx}>
+                  {isUpdatingContact ? 'Saving...' : 'Save contact number'}
+                </Button>
+              </Box>
+            </AccountForm>
+          </DashboardCard>
+
+          {/* Change Email Address */}
+          <DashboardCard title="Change email address" description="Update your official municipal email. A confirmation is sent to the new address.">
+            <FormMessage message={emailMsg} />
+            <AccountForm onSubmit={handleUpdateEmail}>
+              <TextField
+                fullWidth
+                size="small"
+                label="New email address"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isUpdatingEmail}
+                sx={accountInputStyles}
+              />
+              <Box sx={{ mt: 'auto' }}>
+                <Button type="submit" variant="contained" disabled={isUpdatingEmail || email === displayEmail} sx={primaryButtonSx}>
+                  {isUpdatingEmail ? 'Updating...' : 'Update email'}
+                </Button>
+              </Box>
+            </AccountForm>
+          </DashboardCard>
+
+          {/* Change Password */}
+          <DashboardCard title="Change password" description="Use at least 8 characters.">
+            <FormMessage message={passwordMsg} />
+            <AccountForm onSubmit={handleUpdatePassword}>
+              <TextField
+                fullWidth
+                size="small"
+                label="New password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isUpdatingPassword}
+                sx={accountInputStyles}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Confirm new password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isUpdatingPassword}
+                sx={accountInputStyles}
+              />
+              <Box sx={{ mt: 'auto' }}>
+                <Button type="submit" variant="contained" disabled={isUpdatingPassword || !newPassword || !confirmPassword} sx={primaryButtonSx}>
+                  {isUpdatingPassword ? 'Updating...' : 'Update password'}
+                </Button>
+              </Box>
+            </AccountForm>
+          </DashboardCard>
+        </Box>
+      </Box>
     </Box>
   );
 };

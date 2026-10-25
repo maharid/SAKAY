@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, IconButton, Badge, Popover, MenuList, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
-import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -39,7 +38,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const navigate = useNavigate();
   const { adminProfile, user, signOut } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
+  // the first reading of the notices, and whether the last one failed (shown in the panel, so an empty list is not mistaken for "nothing new")
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [notifFailed, setNotifFailed] = useState(false);
 
   // Helper: Format relative timestamp
   const formatRelativeTime = (dateStr?: string | null): string => {
@@ -110,6 +112,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             .order('performed_at', { ascending: false })
             .limit(5),
         ]);
+
+        // a failed read comes back as an error value, not as an exception, and would look like an empty list: when every read failed, say so instead of "nothing new"
+        if ([awaitingLgu, pendingTodas, notifsRes, logsRes].every((res) => res.error)) throw new Error(notifsRes.error?.message || 'The notices could not be read.');
 
         const awaitingRows = (awaitingLgu.data || []) as any[];
         const resubmittedToLgu = new Set<string>();
@@ -252,9 +257,15 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
         if (isMounted) {
           setNotifications(items);
+          setNotifFailed(false);
+          setNotifLoading(false);
         }
       } catch (err) {
         console.warn('[AdminHeader] Could not load notifications:', err);
+        if (isMounted) {
+          setNotifFailed(true);
+          setNotifLoading(false);
+        }
       }
     };
 
@@ -364,8 +375,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             size="small"
             aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
             aria-haspopup="true"
-            aria-expanded={notifOpen}
-            onClick={() => setNotifOpen(!notifOpen)}
+            aria-expanded={Boolean(notifAnchor)}
+            onClick={(e) => setNotifAnchor(e.currentTarget)}
             sx={{
               ...headerButtonSx,
               width: HEADER_BUTTON_HEIGHT,
@@ -383,36 +394,16 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             </Badge>
           </IconButton>
           <NotificationPopover
-            open={notifOpen}
-            onClose={() => setNotifOpen(false)}
+            open={Boolean(notifAnchor)}
+            anchorEl={notifAnchor}
+            onClose={() => setNotifAnchor(null)}
+            loading={notifLoading}
+            failed={notifFailed}
             notifications={notifications}
             onMarkAllAsRead={handleMarkAllAsRead}
             onNotificationClick={handleNotificationClick}
           />
         </Box>
-
-        {/* Tulong Action Button */}
-        <Button
-          onClick={() => navigate('/tulong')}
-          startIcon={<HelpOutlineOutlinedIcon fontSize="small" sx={{ fontSize: 14 }} />}
-          sx={{
-            ...headerButtonSx,
-            padding: '0 13px',
-            color: 'var(--mac-text-primary)',
-            fontSize: FONT.caption,
-            fontWeight: 600,
-            textTransform: 'none',
-            boxShadow: 'var(--mac-shadow-subtle)',
-            minWidth: 0,
-            '&:hover': {
-              backgroundColor: 'var(--sakay-orange-soft)',
-              color: 'var(--sakay-orange)',
-              borderColor: 'var(--sakay-orange-border)',
-            },
-          }}
-        >
-          Tulong
-        </Button>
 
         {/* Header Account Profile Control */}
         <Box>
@@ -490,8 +481,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               paper: {
                 sx: {
                   mt: '6px',
-                  width: 248,
-                  maxWidth: 'calc(100vw - 32px)',
+                  width: 'max-content',
+                  minWidth: 248,
+                  maxWidth: 'min(400px, calc(100vw - 32px))',
                   borderRadius: '12px',
                   border: '1px solid var(--mac-border-color)',
                   boxShadow: '0 12px 32px rgba(15, 23, 42, 0.14)',
@@ -521,7 +513,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               >
                 {adminName.charAt(0).toUpperCase()}
               </Box>
-              <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
                 <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.25, overflowWrap: 'anywhere' }}>
                   {adminName}
                 </Typography>
@@ -529,7 +521,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                   LGU Admin
                 </Typography>
                 {adminEmail && (
-                  <Typography sx={{ fontSize: FONT.caption, color: PAGE_TEXT.secondary, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+                  <Typography title={adminEmail} sx={{ fontSize: FONT.caption, color: PAGE_TEXT.secondary, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {adminEmail}
                   </Typography>
                 )}

@@ -77,12 +77,13 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
         border: `1px solid ${calamity.active ? '#FCD34D' : PAGE_BORDER}`,
         backgroundColor: calamity.active ? '#FFFBEB' : '#FFFFFF',
         display: 'flex',
-        alignItems: 'flex-start',
+        // the button sits level with the middle of the heading and description; the icon stays beside the heading
+        alignItems: 'center',
         gap: '12px 16px',
         flexWrap: 'wrap',
       }}
     >
-      <ThunderstormIcon aria-hidden sx={{ color: calamity.active ? PAGE_TEXT.warning : PAGE_TEXT.secondary, fontSize: 20, mt: '1px' }} />
+      <ThunderstormIcon aria-hidden sx={{ color: calamity.active ? PAGE_TEXT.warning : PAGE_TEXT.secondary, fontSize: 20, mt: '1px', alignSelf: 'flex-start' }} />
       <Box sx={{ flex: 1, minWidth: 260 }}>
         <Typography component="h2" sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
           {calamity.active ? `Calamity in effect: ${calamity.title}` : 'Calamity and emergency declaration'}
@@ -98,8 +99,6 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
             cancellations, stalls and no-shows in ONE recorded action, instead of waiving them case by case.
           </Typography>
         )}
-        {done && <Alert severity="success" sx={{ mt: 1.2, borderRadius: '10px' }} onClose={() => setDone(null)}>{done}</Alert>}
-        {problem && !formOpen && <Alert severity="error" sx={{ mt: 1.2, borderRadius: '10px' }} onClose={() => setProblem(null)}>{problem}</Alert>}
       </Box>
       {calamity.active ? (
         <Button onClick={() => setEndOpen(true)} disabled={flight.busy} sx={secondaryButtonSx}>
@@ -109,6 +108,13 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
         <Button onClick={() => { setProblem(null); setDone(null); setFormOpen(true); }} variant="contained" sx={primaryButtonSx}>
           Declare a calamity
         </Button>
+      )}
+      {/* the result of the last action, on its own row under the card's content, so showing it does not move the button */}
+      {(done || (problem && !formOpen)) && (
+        <Box sx={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {done && <Alert severity="success" sx={{ borderRadius: '10px' }} onClose={() => setDone(null)}>{done}</Alert>}
+          {problem && !formOpen && <Alert severity="error" sx={{ borderRadius: '10px' }} onClose={() => setProblem(null)}>{problem}</Alert>}
+        </Box>
       )}
 
       <MacCenterModal

@@ -17,6 +17,7 @@ import CampaignIcon from '@mui/icons-material/Campaign';
 import StarRateIcon from '@mui/icons-material/StarRate';
 import PaidIcon from '@mui/icons-material/Paid';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import GavelIcon from '@mui/icons-material/Gavel';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import MapIcon from '@mui/icons-material/Map';
@@ -127,6 +128,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
       groupTitle: 'System',
       items: [
         { id: 'settings', label: 'Account Management', path: '/settings', icon: <ManageAccountsIcon /> },
+        { id: 'preferences', label: 'Settings', path: '/preferences', icon: <SettingsOutlinedIcon /> },
         { id: 'audit-logs', label: 'Audit Logs', path: '/audit-logs', icon: <SecurityIcon /> },
       ],
     },

@@ -68,7 +68,7 @@ export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key number
               </Typography>
               <Typography
                 component="span"
-                sx={{ display: 'block', mt: '5px', fontSize: FONT.display, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', color: VALUE_COLOR[stat.tone ?? 'neutral'] }}
+                sx={{ display: 'block', mt: '5px', fontSize: FONT.display, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere', color: VALUE_COLOR[stat.tone ?? 'neutral'] }}
               >
                 {stat.value}
               </Typography>

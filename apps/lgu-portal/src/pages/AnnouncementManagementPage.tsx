@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -11,9 +11,6 @@ import {
   Select,
   FormControl,
   InputLabel,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
   Snackbar,
   Alert,
 } from '@mui/material';
@@ -28,6 +25,7 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { UnsavedChangesDialog } from '../components/admin/UnsavedChangesDialog';
 import { CalamityPanel } from '../components/admin/CalamityPanel';
 import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
 import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
@@ -42,6 +40,27 @@ import {
 } from '../services/adminApiService';
 import { FONT } from '../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, secondaryButtonSx, rowActionSx } from '../styles/pageTheme';
+import { shakeElement } from '../utils/shakeElement';
+
+// How the form is being written to the database: a new announcement shown now, a new one kept as a draft, or changes to an existing one
+type SaveMode = 'publish' | 'draft' | 'update';
+
+// A short message under each field that is missing
+interface FormErrors {
+  title?: string;
+  message?: string;
+}
+
+// The text fields of the form. A field that needs attention keeps a red outline and label even while it has the focus (the portal's focus colour is orange).
+const TEXT_FIELD_SX = {
+  '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+  '&& .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: PAGE_TEXT.danger },
+  '&& .MuiInputLabel-root.Mui-error': { color: PAGE_TEXT.danger },
+} as const;
+
+// The TODA an announcement is limited to (none = the whole city): only an audience other than "everyone" can be limited to one TODA
+const effectiveTodaId = (role: AnnouncementRecord['target_role'], todaId: string): string | null =>
+  role !== 'All' && todaId !== 'all-todas' ? todaId : null;
 
 /**
  * ============================================================================
@@ -76,11 +95,25 @@ export const AnnouncementManagementPage: React.FC = () => {
   const [formMessage, setFormMessage] = useState('');
   const [formRole, setFormRole] = useState<AnnouncementRecord['target_role']>('All');
   const [formTodaId, setFormTodaId] = useState<string>('all-todas');
-  const [formPublish, setFormPublish] = useState<boolean>(true);
-  // the announcement being edited (null = composing a new one)
+  // the announcement being edited (null = composing a new one) and whether it is published (an edit never changes that)
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [editingPublished, setEditingPublished] = useState(false);
+  // what is being written to the database right now (null = nothing)
+  const [savingMode, setSavingMode] = useState<SaveMode | null>(null);
+  const saving = savingMode !== null;
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  // "keep what you typed?" window, shown when the form is closed with content that has not been saved
+  const [dismissOpen, setDismissOpen] = useState(false);
+  const [dismissError, setDismissError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
+
+  // What the form held when it was opened: closing it is only a question when it now holds something different
+  const formBaseline = useRef({ title: '', message: '', role: 'All' as AnnouncementRecord['target_role'], todaId: null as string | null });
+  // The fields, so the first missing one can be focused and every missing one can shake
+  const titleFieldRef = useRef<HTMLDivElement>(null);
+  const messageFieldRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   /**
    * Effect: Fetch live municipal announcements and accredited TODAs on initial mount.
@@ -151,60 +184,135 @@ export const AnnouncementManagementPage: React.FC = () => {
 
   const failure = (err: unknown) => setNotice({ severity: 'error', text: err instanceof Error ? err.message : 'The change could not be saved.' });
 
-  const resetForm = () => {
-    setEditingId(null);
-    setFormTitle('');
-    setFormMessage('');
-    setFormRole('All');
-    setFormTodaId('all-todas');
-    setFormPublish(true);
-  };
-
-  const openCreate = () => {
-    resetForm();
+  // Opens the form with these values, and remembers them as the starting point
+  const openForm = (values: { id: string | null; published: boolean; title: string; message: string; role: AnnouncementRecord['target_role']; todaId: string | null }) => {
+    setEditingId(values.id);
+    setEditingPublished(values.published);
+    setFormTitle(values.title);
+    setFormMessage(values.message);
+    setFormRole(values.role);
+    setFormTodaId(values.todaId || 'all-todas');
+    setFormErrors({});
+    setDismissOpen(false);
+    setDismissError(null);
+    formBaseline.current = { title: values.title.trim(), message: values.message.trim(), role: values.role, todaId: values.todaId };
     setCreateModalOpen(true);
   };
+
+  const openCreate = () => openForm({ id: null, published: false, title: '', message: '', role: 'All', todaId: null });
 
   const openEdit = (ann: AnnouncementRecord) => {
-    setEditingId(ann.id);
-    setFormTitle(ann.title);
-    setFormMessage(ann.message);
-    setFormRole(ann.target_role);
-    setFormTodaId(ann.toda_id || 'all-todas');
-    setFormPublish(ann.is_published);
     setSelectedAnn(null);
-    setCreateModalOpen(true);
+    openForm({ id: ann.id, published: ann.is_published, title: ann.title, message: ann.message, role: ann.target_role, todaId: ann.toda_id ?? null });
+  };
+
+  /** True when the form holds something that would be lost by closing it: any text in a new announcement, or any change to an existing one. */
+  const hasUnsavedChanges = (): boolean => {
+    const base = formBaseline.current;
+    if (!editingId) return Boolean(formTitle.trim() || formMessage.trim());
+    return (
+      formTitle.trim() !== base.title ||
+      formMessage.trim() !== base.message ||
+      formRole !== base.role ||
+      effectiveTodaId(formRole, formTodaId) !== (base.role !== 'All' ? base.todaId : null)
+    );
+  };
+
+  /** Cancel, the X, Escape or a click outside: closes at once when there is nothing to lose, otherwise asks first. The form is never cleared here. */
+  const requestClose = () => {
+    if (saving) return;
+    if (hasUnsavedChanges()) {
+      setDismissError(null);
+      setDismissOpen(true);
+    } else {
+      setCreateModalOpen(false);
+    }
   };
 
   /**
-   * Action Handler: saves a new announcement, or the changes to the one being edited, in the database.
-   * The list is reloaded afterwards, so what is shown is what was saved.
+   * Checks that the title and the message are filled in. A missing one gets a short message under it, the first is focused, and each shakes once.
+   * Nothing is saved and nothing the person typed is touched. Returns true when both are there.
    */
-  const handleSaveSubmit = async () => {
-    if (!formTitle.trim() || !formMessage.trim() || saving) return;
-    setSaving(true);
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+    if (!formTitle.trim()) errors.title = 'Enter a title.';
+    if (!formMessage.trim()) errors.message = 'Enter the message.';
+    setFormErrors(errors);
+    if (!errors.title && !errors.message) return true;
+    // after this click has settled (a window that asked may still be closing and handing the focus back)
+    window.setTimeout(() => {
+      (errors.title ? titleInputRef : messageInputRef).current?.focus();
+      if (errors.title) shakeElement(titleFieldRef.current);
+      if (errors.message) shakeElement(messageFieldRef.current);
+    }, 0);
+    return false;
+  };
+
+  /**
+   * Writes the form to the database as a published announcement, a draft, or changes to the one being edited, then closes it and reads the list again, so what is
+   * shown is what was saved. Returns null when it was saved, or the reason it was not (the form then stays open with everything in it).
+   */
+  const persist = async (mode: SaveMode): Promise<string | null> => {
+    setSavingMode(mode);
     const input = {
       title: formTitle.trim(),
       message: formMessage.trim(),
       targetRole: formRole,
-      targetTodaId: formRole !== 'All' && formTodaId !== 'all-todas' ? formTodaId : null,
+      targetTodaId: effectiveTodaId(formRole, formTodaId),
     };
     try {
-      if (editingId) {
+      if (mode === 'update' && editingId) {
         await updateAnnouncement(editingId, input);
-        setNotice({ severity: 'success', text: 'The announcement was updated.' });
       } else {
-        await createAnnouncement({ ...input, publish: formPublish });
-        setNotice({ severity: 'success', text: formPublish ? 'The announcement was published.' : 'Saved as a draft. Open it and choose Publish when it is ready.' });
+        await createAnnouncement({ ...input, publish: mode === 'publish' });
       }
-      setCreateModalOpen(false);
-      resetForm();
+    } catch (err) {
+      return err instanceof Error ? err.message : 'The change could not be saved.';
+    } finally {
+      setSavingMode(null);
+    }
+    setNotice({
+      severity: 'success',
+      text:
+        mode === 'update'
+          ? 'The announcement was updated.'
+          : mode === 'publish'
+          ? 'The announcement was published.'
+          : 'Saved as a draft. Open it and choose Publish when it is ready.',
+    });
+    setCreateModalOpen(false);
+    try {
       await reload();
     } catch (err) {
       failure(err);
-    } finally {
-      setSaving(false);
     }
+    return null;
+  };
+
+  /** The form's main button: Publish for a new announcement, Save changes for an existing one. Both need a title and a message. */
+  const handleSaveSubmit = async () => {
+    if (saving || !validateForm()) return;
+    const error = await persist(editingId ? 'update' : 'publish');
+    if (error) setNotice({ severity: 'error', text: error });
+  };
+
+  /** "Save as Draft" (or "Save Changes") in the window that asks about unsaved content: the form closes only if the save worked. */
+  const handleDismissSave = async () => {
+    if (saving) return;
+    if (!validateForm()) {
+      // a draft needs a title and a message too: back to the form, which now points at what is missing
+      setDismissOpen(false);
+      return;
+    }
+    setDismissError(null);
+    const error = await persist(editingId ? 'update' : 'draft');
+    if (error) setDismissError(error);
+    else setDismissOpen(false);
+  };
+
+  const handleDiscard = () => {
+    setDismissOpen(false);
+    setCreateModalOpen(false);
   };
 
   /**
@@ -364,34 +472,53 @@ export const AnnouncementManagementPage: React.FC = () => {
       {/* 4. New / edit announcement window */}
       <MacCenterModal
         open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={requestClose}
         title={editingId ? 'Edit announcement' : 'New announcement'}
         subtitle={editingId ? 'Changes are saved to the same announcement.' : 'Notices, route advisories and reminders.'}
         maxWidth={544}
-        primaryActionLabel={saving ? 'Saving...' : editingId ? 'Save changes' : formPublish ? 'Publish now' : 'Save as draft'}
+        primaryActionLabel={savingMode === 'publish' ? 'Publishing...' : saving ? 'Saving...' : editingId ? 'Save changes' : 'Publish'}
+        primaryActionDisabled={saving}
         onPrimaryAction={handleSaveSubmit}
         secondaryActionLabel="Cancel"
-        onSecondaryAction={() => setCreateModalOpen(false)}
+        onSecondaryAction={requestClose}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             fullWidth
+            required
             label="Title"
             placeholder="e.g. Annual Franchise Renewal Advisory"
             value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            onChange={(e) => {
+              setFormTitle(e.target.value);
+              if (formErrors.title && e.target.value.trim()) setFormErrors((prev) => ({ ...prev, title: undefined }));
+            }}
+            ref={titleFieldRef}
+            inputRef={titleInputRef}
+            error={Boolean(formErrors.title)}
+            helperText={formErrors.title}
+            slotProps={{ formHelperText: { role: 'alert' } }}
+            sx={TEXT_FIELD_SX}
           />
 
           <TextField
             fullWidth
+            required
             multiline
             rows={4}
             label="Message"
             placeholder="Write the advisory, instructions, or details for commuters or operators."
             value={formMessage}
-            onChange={(e) => setFormMessage(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            onChange={(e) => {
+              setFormMessage(e.target.value);
+              if (formErrors.message && e.target.value.trim()) setFormErrors((prev) => ({ ...prev, message: undefined }));
+            }}
+            ref={messageFieldRef}
+            inputRef={messageInputRef}
+            error={Boolean(formErrors.message)}
+            helperText={formErrors.message}
+            slotProps={{ formHelperText: { role: 'alert' } }}
+            sx={TEXT_FIELD_SX}
           />
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.6 }}>
@@ -438,28 +565,32 @@ export const AnnouncementManagementPage: React.FC = () => {
             )}
           </Box>
 
-          {editingId ? (
-            <Box sx={{ backgroundColor: '#FAFAF8', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${PAGE_BORDER}` }}>
-              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
-                This announcement stays {formPublish ? 'published' : 'unpublished'}. Use Publish / Unpublish in its details window to change that.
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${PAGE_BORDER}` }}>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, mb: 0.8 }}>
-                When to show it
-              </Typography>
-              <RadioGroup
-                value={formPublish ? 'now' : 'draft'}
-                onChange={(e) => setFormPublish(e.target.value === 'now')}
-              >
-                <FormControlLabel value="now" control={<Radio size="small" sx={{ '&.Mui-checked': { color: '#C75000' } }} />} label={<Typography sx={{ fontSize: FONT.body }}>Publish now</Typography>} />
-                <FormControlLabel value="draft" control={<Radio size="small" sx={{ '&.Mui-checked': { color: '#C75000' } }} />} label={<Typography sx={{ fontSize: FONT.body }}>Save as a draft (nobody sees it yet)</Typography>} />
-              </RadioGroup>
-            </Box>
-          )}
+          <Box sx={{ backgroundColor: '#FAFAF8', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${PAGE_BORDER}` }}>
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
+              {editingId
+                ? `This announcement stays ${editingPublished ? 'published' : 'unpublished'}. Use Publish / Unpublish in its details window to change that.`
+                : 'Publish shows it to the audience now. To keep it for later, close this window and choose Save as Draft.'}
+            </Typography>
+          </Box>
         </Box>
       </MacCenterModal>
+
+      {/* 4b. Closing the form with content that is not saved yet */}
+      <UnsavedChangesDialog
+        open={createModalOpen && dismissOpen}
+        title={editingId ? 'Save your changes?' : 'Save this as a draft?'}
+        message={
+          editingId
+            ? 'You changed this announcement but have not saved the changes.'
+            : 'This announcement has not been published. Save it as a draft to finish it later, or discard what you wrote.'
+        }
+        saveLabel={editingId ? 'Save Changes' : 'Save as Draft'}
+        busy={saving}
+        error={dismissError}
+        onSave={handleDismissSave}
+        onDiscard={handleDiscard}
+        onKeepEditing={() => setDismissOpen(false)}
+      />
 
       {/* 5. Manage window */}
       {selectedAnn && (
