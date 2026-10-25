@@ -2,33 +2,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
-  Table,
   TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
   TableRow,
-  Paper,
-  Avatar,
   Pagination,
-  CircularProgress,
   Button,
 } from '@mui/material';
-import MapIcon from '@mui/icons-material/Map';
-import PeopleIcon from '@mui/icons-material/People';
 import DescriptionIcon from '@mui/icons-material/Description';
 import L from 'leaflet';
 
 import { AccreditedTodaRecord, DriverRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
-import { ActionButton } from './ActionButton';
+import { DataTableCard, DataTableMessageRow, PersonCell } from '../common/DataTable';
+import { DetailField, DetailGrid, DetailSection } from '../common/DetailSection';
+import { PageNotice } from '../common/PageNotice';
 import { DriverDetailModal } from './DriverDetailModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { TodaAccreditationDialog } from './TodaAccreditationDialog';
 import { fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
 import { FONT } from '../../styles/density';
+import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../../styles/pageTheme';
 
 interface TodaDetailModalProps {
   open: boolean;
@@ -148,30 +143,18 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         open={open}
         onClose={onClose}
         title={toda.name}
-        subtitle={`Permit: ${toda.accreditationNo} • ${toda.barangay}`}
+        subtitle={`Permit no. ${toda.accreditationNo} · ${toda.barangay}`}
         badge={<StatusBadge status={toda.status as any} />}
         maxWidth={736}
       >
         {/* Terminal Relocation Request Banner (Rule 2.2) */}
         {(toda.terminalRelocationStatus === 'Pending LGU Re-approval' || toda.pendingTerminalLat) && (
-          <Box sx={{ mb: 2.8, backgroundColor: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: '12px', padding: '14px 19px' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.6 }}>
-              <Box>
-                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: '#9A3412', mb: 0.4 }}>
-                  Terminal Relocation Request (Pending LGU Re-approval)
-                </Typography>
-                <Typography sx={{ fontSize: FONT.body, color: '#C2410C' }}>
-                  Requested Terminal: {toda.pendingTerminalLocation || 'New Terminal Location'} ({toda.pendingTerminalLat}, {toda.pendingTerminalLng})
-                </Typography>
-                <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mt: 0.4 }}>
-                  Active coordinates remain: ({toda.centerLat}, {toda.centerLng}) until approved.
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1.2 }}>
+          <PageNotice
+            tone="warning"
+            title="Terminal move waiting for your approval"
+            action={
+              <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
                   disabled={isRelocationLoading}
                   onClick={async () => {
                     setIsRelocationLoading(true);
@@ -184,13 +167,12 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                       setIsRelocationLoading(false);
                     }
                   }}
-                  sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}
+                  sx={rowActionSx('danger')}
                 >
-                  Reject Relocation
+                  Reject move
                 </Button>
                 <Button
                   variant="contained"
-                  size="small"
                   disabled={isRelocationLoading}
                   onClick={async () => {
                     setIsRelocationLoading(true);
@@ -203,130 +185,98 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                       setIsRelocationLoading(false);
                     }
                   }}
-                  sx={{ backgroundColor: '#1E8E3E', '&:hover': { backgroundColor: '#137333' }, textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}
+                  sx={primaryButtonSx}
                 >
-                  Approve Relocation
+                  Approve move
                 </Button>
               </Box>
-            </Box>
+            }
+          >
+            Requested terminal: {toda.pendingTerminalLocation || 'New terminal location'} ({toda.pendingTerminalLat}, {toda.pendingTerminalLng}). The current coordinates ({toda.centerLat}, {toda.centerLng}) stay until you approve.
             {relocationFeedback && (
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#9A3412', mt: 0.8 }}>
+              <Box component="span" sx={{ display: 'block', fontWeight: 700, color: PAGE_TEXT.warning, mt: '4px' }}>
                 {relocationFeedback}
-              </Typography>
+              </Box>
             )}
-          </Box>
+          </PageNotice>
         )}
 
         {/* Accreditation controls: record the renewal of the Barangay Clearance, remind the TODA, or suspend the accreditation after review */}
-        <Box sx={{ mb: 2.8, backgroundColor: '#F8FAFC', border: '1px solid var(--mac-border-color)', borderRadius: '12px', padding: '13px 16px' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.2 }}>
-            <Box>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                Accreditation Controls
+        <DetailSection title="Accreditation">
+          <Box sx={{ backgroundColor: '#FAFAF8', border: `1px solid ${PAGE_BORDER}`, borderRadius: '12px', padding: '14px 16px' }}>
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>
+              Clearance valid until <b>{toda.barangayClearanceExpiry}</b> ({toda.clearanceStatus}). After it passes, every driver of this TODA is blocked from going Online until a renewal is recorded.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap', mt: '12px' }}>
+              <Button
+                onClick={async () => {
+                  const problem = await sendTodaRenewalReminder(toda.id);
+                  setAccreditationFeedback(problem ? { ok: false, text: problem } : { ok: true, text: 'The reminder was sent to the TODA administrators.' });
+                }}
+                sx={secondaryButtonSx}
+              >
+                Send renewal reminder
+              </Button>
+              <Button variant="contained" onClick={() => setRenewOpen(true)} sx={primaryButtonSx}>
+                Record renewal
+              </Button>
+              <Button onClick={() => setSuspendOpen(true)} sx={dangerOutlineButtonSx}>
+                Suspend accreditation
+              </Button>
+            </Box>
+            {toda.renewalSubmittedAt && (
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.warning, mt: '12px', backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '8px', p: '8px 12px', lineHeight: 1.5 }}>
+                The TODA sent a renewed Barangay Clearance on {new Date(toda.renewalSubmittedAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}
+                {toda.declaredClearanceValidUntil ? `, stating it is valid until ${toda.declaredClearanceValidUntil}` : ''}. Open it with View, then press Record renewal and enter the certificate number and the date you read on it.
               </Typography>
-              <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', mt: 0.4 }}>
-                Clearance valid until <b>{toda.barangayClearanceExpiry}</b> ({toda.clearanceStatus}). After it passes, every driver of this TODA is blocked from going Online until a renewal is recorded.
+            )}
+            {accreditationFeedback && (
+              <Typography role="status" sx={{ fontSize: FONT.body, fontWeight: 600, color: accreditationFeedback.ok ? PAGE_TEXT.success : PAGE_TEXT.danger, mt: '8px' }}>
+                {accreditationFeedback.text}
               </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 0.8, flexWrap: 'wrap' }}>
-              <Button size="small" variant="outlined" onClick={async () => {
-                const problem = await sendTodaRenewalReminder(toda.id);
-                setAccreditationFeedback(problem ? { ok: false, text: problem } : { ok: true, text: 'The reminder was sent to the TODA administrators.' });
-              }} sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}>
-                Send Renewal Reminder
-              </Button>
-              <Button size="small" variant="contained" onClick={() => setRenewOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600, backgroundColor: 'var(--sakay-orange)', boxShadow: 'none', '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' } }}>
-                Record Renewal
-              </Button>
-              <Button size="small" variant="outlined" color="error" onClick={() => setSuspendOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}>
-                Suspend Accreditation
-              </Button>
-            </Box>
+            )}
           </Box>
-          {toda.renewalSubmittedAt && (
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#9A3412', mt: 1.2, backgroundColor: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: '8px', p: '6px 10px' }}>
-              The TODA sent a renewed Barangay Clearance on {new Date(toda.renewalSubmittedAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}
-              {toda.declaredClearanceValidUntil ? `, stating it is valid until ${toda.declaredClearanceValidUntil}` : ''}. Open it with View Document, then press Record Renewal and enter the certificate number and the date you read on it.
-            </Typography>
-          )}
-          {accreditationFeedback && (
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: accreditationFeedback.ok ? '#1E8E3E' : '#B91C1C', mt: 0.8 }}>
-              {accreditationFeedback.text}
-            </Typography>
-          )}
-        </Box>
+        </DetailSection>
 
-        {/* Section 1: TODA Information Grid */}
-        <Box sx={{ mb: 2.8 }}>
-          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.2, letterSpacing: '0.3px' }}>
-            1. TODA Accreditation & Contact Information
-          </Typography>
+        {/* TODA details */}
+        <DetailSection title="TODA details">
+          <DetailGrid>
+            <DetailField label="Representative">{toda.representative}</DetailField>
+            <DetailField label="Contact number">{toda.phone}</DetailField>
+            <DetailField label="Email address">{toda.email || 'N/A'}</DetailField>
+            <DetailField label="Service area">{toda.serviceZone || toda.barangay}</DetailField>
+            <DetailField label="Registered drivers">
+              <Box component="span" sx={{ color: PAGE_TEXT.brand }}>{toda.registeredDrivers} {toda.registeredDrivers === 1 ? 'driver' : 'drivers'}</Box>
+            </DetailField>
+            <DetailField label="Accreditation expires">{toda.expiryDate}</DetailField>
+          </DetailGrid>
+        </DetailSection>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1.6, backgroundColor: '#F5F5F7', padding: '14px', borderRadius: '12px' }}>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Representative</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{toda.representative}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Contact Number</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{toda.phone}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Email Address</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{toda.email || 'N/A'}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Service Coverage Area</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{toda.serviceZone || toda.barangay}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Registered Drivers</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--sakay-orange)' }}>{toda.registeredDrivers} Drivers</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Accreditation Expiry</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{toda.expiryDate}</Typography>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Section 2: Service Zone & Boundary Map */}
-        <Box sx={{ mb: 2.8 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1.2 }}>
-            <MapIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              2. Service Zone & Operational Boundary
-            </Typography>
-          </Box>
-
+        {/* Service zone and boundary map */}
+        <DetailSection title="Service zone and boundary">
           <Box
             sx={{
               width: '100%',
               height: 210,
               borderRadius: '12px',
               overflow: 'hidden',
-              border: '1px solid var(--mac-border-color)',
+              border: `1px solid ${PAGE_BORDER}`,
               position: 'relative',
-              boxShadow: 'var(--mac-shadow-subtle)',
             }}
           >
             <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
           </Box>
-        </Box>
+        </DetailSection>
 
-        {/* Section 3: Official Records & Permits */}
-        <Box sx={{ mb: 2.8 }}>
-          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.2, letterSpacing: '0.3px' }}>
-            3. Registration & Accreditation Documents ({officialDocs.length})
-          </Typography>
-
+        {/* Official records and permits */}
+        <DetailSection title="Registration and accreditation documents" note={`${officialDocs.length} ${officialDocs.length === 1 ? 'file' : 'files'}`}>
           {officialDocs.length === 0 && (
-            <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)', py: 0.8 }}>
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, py: 0.8 }}>
               No registration documents are on file for this TODA.
             </Typography>
           )}
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {officialDocs.map((doc, idx) => (
               <Box
                 key={idx}
@@ -334,140 +284,86 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '11px 13px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--mac-border-color)',
+                  flexWrap: 'wrap',
+                  gap: '10px 12px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: `1px solid ${PAGE_BORDER}`,
                   backgroundColor: '#FFFFFF',
-                  boxShadow: 'var(--mac-shadow-subtle)',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                  <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: '19px' }} />
-                  <Box>
-                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <DescriptionIcon aria-hidden sx={{ color: PAGE_TEXT.brand, fontSize: 20 }} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>
                       {doc.name}
                     </Typography>
-                    <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      {doc.type} • Submitted {doc.date}
+                    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px' }}>
+                      {doc.type} · Submitted {doc.date}
                     </Typography>
                   </Box>
                 </Box>
-                <ActionButton
-                  label="View Document"
-                  showArrow={false}
+                <Button
+                  aria-label={`View ${doc.name}`}
                   onClick={() => setSelectedDoc({ name: doc.name, type: doc.type, url: doc.url })}
-                  sx={{ height: 34, fontSize: FONT.body }}
-                />
+                  sx={rowActionSx('brand')}
+                >
+                  View
+                </Button>
               </Box>
             ))}
           </Box>
-        </Box>
+        </DetailSection>
 
-        {/* Section 4: Affiliated Driver Roster Table */}
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-              <PeopleIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                4. Affiliated Tricycle Drivers ({totalDrivers})
-              </Typography>
-            </Box>
-            {totalDrivers > 0 && (
-              <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)', fontWeight: 500 }}>
-                Showing {startIndex + 1}–{endIndex} of {totalDrivers} drivers
-              </Typography>
-            )}
-          </Box>
-
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{ border: '1px solid var(--mac-border-color)', borderRadius: '12px', overflow: 'hidden' }}
+        {/* Affiliated driver roster */}
+        <DetailSection title="Affiliated drivers" note={totalDrivers > 0 ? `Showing ${startIndex + 1}–${endIndex} of ${totalDrivers}` : `${totalDrivers} drivers`}>
+          <DataTableCard
+            label="Affiliated drivers"
+            minWidth={620}
+            stackBelow={560}
+            columns={[{ label: 'Driver' }, { label: 'Plate' }, { label: 'Online' }, { label: 'Verification' }, { label: 'Account' }, { label: 'Action', align: 'right' }]}
           >
-            <Table size="small">
-              <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, py: 1.2 }}>DRIVER NAME</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, py: 1.2 }}>PLATE NO.</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, py: 1.2 }}>ONLINE STATUS</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, py: 1.2 }}>VERIFICATION</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, py: 1.2 }}>ACCOUNT</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, py: 1.2 }}>ACTIONS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoadingDrivers ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 3.2 }}>
-                      <CircularProgress size={24} sx={{ color: 'var(--sakay-orange)', mb: 0.8 }} />
-                      <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)' }}>
-                        Loading driver records...
-                      </Typography>
+            <TableBody>
+              {isLoadingDrivers ? (
+                <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading drivers..." />
+              ) : currentPageDrivers.length > 0 ? (
+                currentPageDrivers.map((drv) => (
+                  <TableRow key={drv.id} onClick={() => setSelectedDriver(drv)} sx={{ cursor: 'pointer' }}>
+                    <TableCell>
+                      <PersonCell name={drv.name} />
+                    </TableCell>
+                    <TableCell sx={{ color: PAGE_TEXT.secondary }}>{drv.vehiclePlate}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: drv.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6' }} />
+                        <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>{drv.onlineStatus}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={drv.verificationStatus as any} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={drv.accountStatus as any} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        aria-label={`Review driver ${drv.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDriver(drv);
+                        }}
+                        sx={rowActionSx('neutral')}
+                      >
+                        Review
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : currentPageDrivers.length > 0 ? (
-                  currentPageDrivers.map((drv) => (
-                    <TableRow
-                      key={drv.id}
-                      onClick={() => setSelectedDriver(drv)}
-                      sx={{
-                        cursor: 'pointer',
-                        transition: 'var(--mac-transition-fast)',
-                        '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                      }}
-                    >
-                      <TableCell sx={{ py: 1.2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                          <Avatar sx={{ width: 28, height: 28, fontSize: FONT.body, backgroundColor: 'var(--sakay-orange-soft)', color: 'var(--sakay-orange)' }}>
-                            {drv.name.charAt(0)}
-                          </Avatar>
-                          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                            {drv.name}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 1.2 }}>
-                        {drv.vehiclePlate}
-                      </TableCell>
-                      <TableCell sx={{ py: 1.2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                          <Box sx={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: drv.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6' }} />
-                          <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)' }}>
-                            {drv.onlineStatus}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ py: 1.2 }}>
-                        <StatusBadge status={drv.verificationStatus as any} />
-                      </TableCell>
-                      <TableCell sx={{ py: 1.2 }}>
-                        <StatusBadge status={drv.accountStatus as any} />
-                      </TableCell>
-                      <TableCell align="right" sx={{ py: 1.2 }}>
-                        <ActionButton
-                          label="Inspect"
-                          showArrow={false}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedDriver(drv);
-                          }}
-                          sx={{ height: 28, fontSize: FONT.small }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 3.2 }}>
-                      <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)' }}>
-                        No registered drivers currently affiliated with this TODA.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                ))
+              ) : (
+                <DataTableMessageRow colSpan={6} kind="empty" title="No drivers yet" hint="No registered drivers are affiliated with this TODA." />
+              )}
+            </TableBody>
+          </DataTableCard>
 
           {totalPages > 1 && (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
@@ -478,14 +374,14 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                 size="small"
                 sx={{
                   '& .Mui-selected': {
-                    backgroundColor: 'var(--sakay-orange) !important',
+                    backgroundColor: '#C75000 !important',
                     color: '#FFFFFF',
                   },
                 }}
               />
             </Box>
           )}
-        </Box>
+        </DetailSection>
       </MacCenterModal>
 
 
@@ -512,7 +408,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         onClose={() => setSuspendOpen(false)}
         title="Suspend this TODA's accreditation?"
         message={`The TODA administrator of "${toda.name}" and every one of its drivers lose access until the accreditation is approved again.`}
-        confirmLabel="Suspend Accreditation"
+        confirmLabel="Suspend accreditation"
         confirmVariant="danger"
         requireReason
         minReasonLength={10}

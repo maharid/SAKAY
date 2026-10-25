@@ -83,6 +83,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                     </InputAdornment>
                   ),
                 },
+                htmlInput: { 'aria-label': searchPlaceholder },
               }}
               sx={{
                 width: '100%',
@@ -135,6 +136,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 value={filter.value}
                 onChange={(e) => filter.onChange(e.target.value)}
                 displayEmpty
+                SelectDisplayProps={{ 'aria-label': filter.label ?? filter.id }}
                 sx={{
                   borderRadius: '10px',
                   backgroundColor: '#FAFAFC',

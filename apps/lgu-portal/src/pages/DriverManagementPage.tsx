@@ -1,28 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Avatar,
-  Chip,
-  CircularProgress,
-} from '@mui/material';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
 import { DriverRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { DriverDetailModal } from '../components/admin/DriverDetailModal';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag, PersonCell } from '../components/common/DataTable';
 import { fetchDrivers } from '../services/adminApiService';
-import { TableEmptyState } from '../components/common/TableEmptyState';
 import { FONT } from '../styles/density';
+import { PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -112,11 +98,11 @@ export const DriverManagementPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Filter Toolbar */}
+      {/* 1. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search by driver name, license no., plate no., franchise, or TODA..."
+        searchPlaceholder="Search driver, license, plate, TODA"
         selectFilters={[
           {
             id: 'verification',
@@ -140,189 +126,75 @@ export const DriverManagementPage: React.FC = () => {
         }}
       />
 
-      {/* 2. Driver Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-        }}
+      {/* 2. The drivers */}
+      <DataTableCard
+        label="Drivers"
+        minWidth={940}
+        columns={[
+          { label: 'Driver' },
+          { label: 'TODA' },
+          { label: 'Franchise and plate' },
+          { label: 'Online' },
+          { label: 'Verification' },
+          { label: 'Account' },
+          { label: 'Action', align: 'right' },
+        ]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Driver & Credentials
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                TODA Affiliation
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Franchise & Plate
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Online Session
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Verification
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Account Status
-              </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                    Loading driver records...
-                  </Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={7} kind="loading" loadingText="Loading drivers..." />
+          ) : filteredDrivers.length > 0 ? (
+            filteredDrivers.map((driver) => (
+              <TableRow key={driver.id}>
+                <TableCell>
+                  <PersonCell name={driver.name} detail={`License ${driver.licenseNo} · ${driver.phone}`} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={driver.todaName} secondary={`Brgy. ${driver.barangay}`} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={`MTOP ${driver.mtopNo}`} secondary={`Plate ${driver.vehiclePlate}`} />
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: driver.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6' }} />
+                    <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>{driver.onlineStatus}</Typography>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 6px' }}>
+                    <StatusBadge status={driver.verificationStatus as any} />
+                    {driver.isResubmitted && <FlagTag label="Resubmitted" tone="warning" />}
+                    {driver.isOverdue5Days && <FlagTag label="Overdue (over 5 days)" tone="danger" />}
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={driver.accountStatus as any} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`Review driver ${driver.name}`} onClick={() => setSelectedDriver(driver)} sx={rowActionSx('neutral')}>
+                    Review
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : filteredDrivers.length > 0 ? (
-              filteredDrivers.map((driver) => (
-                <TableRow
-                  key={driver.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
-                      <Avatar
-                        sx={{
-                          width: 38,
-                          height: 38,
-                          backgroundColor: 'var(--sakay-orange-soft)',
-                          color: 'var(--sakay-orange)',
-                          fontSize: FONT.caption,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {driver.name.charAt(0)}
-                      </Avatar>
-                      <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                          <Typography sx={{ fontWeight: 600, fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
-                            {driver.name}
-                          </Typography>
-                          {driver.isResubmitted && (
-                            <Chip
-                              label="Resubmitted"
-                              size="small"
-                              sx={{
-                                fontSize: FONT.caption,
-                                fontWeight: 700,
-                                backgroundColor: '#FEF3C7',
-                                color: '#B45309',
-                                border: '1px solid #FCD34D',
-                                height: 22,
-                              }}
-                            />
-                          )}
-                          {driver.isOverdue5Days && (
-                            <Chip
-                              label="Overdue >5 Days"
-                              size="small"
-                              sx={{ fontSize: FONT.caption, fontWeight: 600, backgroundColor: '#FEE2E2', color: '#DC2626', height: 22 }}
-                            />
-                          )}
-                        </Box>
-                        <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                          License: {driver.licenseNo} • Tel: {driver.phone}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
-                      {driver.todaName}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
-                      Brgy. {driver.barangay}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                      MTOP: {driver.mtopNo}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-secondary)', mt: '2px' }}>
-                      Plate: {driver.vehiclePlate}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          backgroundColor: driver.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6',
-                        }}
-                      />
-                      <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-secondary)' }}>
-                        {driver.onlineStatus}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                      <StatusBadge status={driver.verificationStatus as any} />
-                      {driver.isResubmitted && (
-                        <Chip
-                          label="Resubmitted"
-                          size="small"
-                          sx={{
-                            fontSize: FONT.caption,
-                            fontWeight: 700,
-                            backgroundColor: '#FEF3C7',
-                            color: '#B45309',
-                            border: '1px solid #FCD34D',
-                            height: 20,
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={driver.accountStatus as any} />
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton
-                      label="Inspect"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedDriver(driver);
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={7}
-                icon={<DirectionsCarIcon />}
-                title="No drivers registered yet."
-                description="Driver accounts will appear here once accredited TODAs begin registering their drivers in the SAKAY system."
-                onRefresh={loadDrivers}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={7}
+              kind={drivers.length > 0 ? 'noResults' : 'empty'}
+              title={drivers.length > 0 ? 'No drivers match' : 'No drivers registered yet'}
+              hint={
+                drivers.length > 0
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'Drivers appear here once accredited TODAs start registering them.'
+              }
+              onRefresh={loadDrivers}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 3. Driver Detail Inspection Modal */}
+      {/* 3. Driver review window */}
       {selectedDriver && (
         <DriverDetailModal
           open={Boolean(selectedDriver)}
@@ -337,5 +209,3 @@ export const DriverManagementPage: React.FC = () => {
     </Box>
   );
 };
-
-

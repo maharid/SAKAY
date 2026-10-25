@@ -1,32 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Card,
-  CardContent,
-  Rating,
-  Chip,
-  CircularProgress,
-  Button,
-  Alert,
-} from '@mui/material';
-import StarIcon from '@mui/icons-material/Star';
-import FeedbackIcon from '@mui/icons-material/Feedback';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { Box, Typography, TableBody, TableCell, TableRow, Rating, Button, Alert, CircularProgress } from '@mui/material';
 
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
-import { TableEmptyState } from '../components/common/TableEmptyState';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
+import { StatStrip } from '../components/common/StatStrip';
 import { fetchPassengerFeedback, excludeRating, PassengerFeedbackItem } from '../services/adminApiService';
 import { FONT } from '../styles/density';
+import { PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -105,7 +86,7 @@ export const PassengerFeedbackPage: React.FC = () => {
     { label: '5 Stars (Excellent)', value: '5' },
     { label: '4 Stars (Good)', value: '4' },
     { label: '3 Stars (Average)', value: '3' },
-    { label: 'Complaints (<= 2 Stars)', value: 'Complaints' },
+    { label: 'Complaints (2 stars or lower)', value: 'Complaints' },
   ];
 
   const categoryOptions: FilterOption[] = [
@@ -117,91 +98,31 @@ export const PassengerFeedbackPage: React.FC = () => {
     { label: 'General', value: 'General' },
   ];
 
+  const showCount = (n: number) => (isLoading ? <CircularProgress size={24} aria-label="Loading" sx={{ color: 'var(--sakay-orange)' }} /> : n);
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Summary Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2,
-          mb: 3.2,
-        }}
-      >
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Overall Commuter Rating
-              </Typography>
-              <StarIcon sx={{ color: '#FBBC04', fontSize: '18px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
-              {avgRating === null ? 'Not Yet Rated' : `⭐ ${avgRating} / 5.0`}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              From {totalReviews} passenger evaluations
-            </Typography>
-          </CardContent>
-        </Card>
+      {/* 1. The ratings at a glance */}
+      <StatStrip
+        label="Rating totals"
+        stats={[
+          {
+            key: 'average',
+            label: 'Average rating',
+            value: isLoading ? <CircularProgress size={24} aria-label="Loading" sx={{ color: 'var(--sakay-orange)' }} /> : avgRating === null ? 'Not yet rated' : `${avgRating} / 5.0`,
+            note: `From ${totalReviews} ${totalReviews === 1 ? 'rating' : 'ratings'}`,
+          },
+          { key: 'fiveStar', label: '5-star ratings', value: showCount(fiveStarCount), tone: 'success', note: 'Excellent driver reviews' },
+          { key: 'complaints', label: 'Complaints', value: showCount(complaintsCount), tone: complaintsCount > 0 ? 'danger' : 'neutral', note: 'Rated 2 stars or lower' },
+          { key: 'total', label: 'All feedback', value: showCount(totalReviews), note: 'Ratings that count' },
+        ]}
+      />
 
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                5-Star Commendations
-              </Typography>
-              <StarIcon sx={{ color: '#2E7D32', fontSize: '18px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#2E7D32', mb: 0.4 }}>
-              {fiveStarCount}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              Excellent driver reviews
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Critical Complaints
-              </Typography>
-              <WarningAmberIcon sx={{ color: '#DC2626', fontSize: '18px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#DC2626', mb: 0.4 }}>
-              {complaintsCount}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              Low ratings (&le;2 stars) for review
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Total Feedback Records
-              </Typography>
-              <FeedbackIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />
-            </Box>
-            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--sakay-orange)', mb: 0.4 }}>
-              {totalReviews}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              Total passenger reviews
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* 2. Filter Toolbar */}
+      {/* 2. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search feedback comments, passenger, driver, or TODA..."
+        searchPlaceholder="Search comment, passenger, driver, TODA"
         selectFilters={[
           {
             id: 'rating',
@@ -225,129 +146,76 @@ export const PassengerFeedbackPage: React.FC = () => {
         }}
       />
 
-      {actionNote && <Alert severity={actionNote.severity} onClose={() => setActionNote(null)} sx={{ mb: 1.6 }}>{actionNote.text}</Alert>}
+      {actionNote && <Alert severity={actionNote.severity} onClose={() => setActionNote(null)} sx={{ mb: 1.6, borderRadius: '10px' }}>{actionNote.text}</Alert>}
 
-      {/* 3. Feedback Data Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-        }}
+      {/* 3. The feedback */}
+      <DataTableCard
+        label="Passenger feedback"
+        minWidth={860}
+        columns={[
+          { label: 'Passenger' },
+          { label: 'Driver and TODA' },
+          { label: 'Rating' },
+          { label: 'Comment' },
+          { label: 'Action', align: 'right' },
+        ]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                PASSENGER & DATE
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                EVALUATED DRIVER & TODA
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                RATING & CATEGORY
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                PASSENGER FEEDBACK COMMENT
-              </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                ACTION
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
-                    Loading passenger feedback...
-                  </Typography>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={5} kind="loading" loadingText="Loading passenger feedback..." />
+          ) : filteredFeedback.length > 0 ? (
+            filteredFeedback.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  <CellStack primary={item.passengerName} secondary={item.createdAt} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={item.driverName} secondary={item.todaName} />
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Rating value={item.ratingValue} readOnly size="small" />
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary }}>{item.ratingValue}.0</Typography>
+                  </Box>
+                  <Box sx={{ mt: '4px' }}>
+                    <FlagTag label={item.category} tone="neutral" />
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>"{item.comment}"</Typography>
+                  {(item.isComplaint || item.isExcluded) && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px 6px', mt: '4px' }}>
+                      {item.isComplaint && <FlagTag label="Complaint for LGU review" tone="danger" />}
+                      {item.isExcluded && <FlagTag label="Excluded from the Average Rating" tone="warning" />}
+                    </Box>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  <Button
+                    aria-label={`${item.isExcluded ? 'Count again' : 'Exclude'} the rating of ${item.passengerName}`}
+                    onClick={() => setExcludeTarget(item)}
+                    sx={rowActionSx('neutral')}
+                  >
+                    {item.isExcluded ? 'Count again' : 'Exclude'}
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : filteredFeedback.length > 0 ? (
-              filteredFeedback.map((item) => (
-                <TableRow
-                  key={item.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
-                      {item.passengerName}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      {item.createdAt}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>
-                      {item.driverName}
-                    </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                      {item.todaName}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                      <Rating value={item.ratingValue} readOnly size="small" />
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 700 }}>
-                        {item.ratingValue}.0
-                      </Typography>
-                    </Box>
-                    <Box sx={{ mt: '3px' }}>
-                      <Chip
-                        label={item.category}
-                        size="small"
-                        sx={{ fontSize: FONT.caption, fontWeight: 600, height: 22 }}
-                      />
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', fontStyle: 'italic' }}>
-                      "{item.comment}"
-                    </Typography>
-                    {item.isComplaint && (
-                      <Typography sx={{ fontSize: FONT.caption, color: '#DC2626', fontWeight: 700, mt: '3px' }}>
-                        ⚠️ Flagged for Triage Officer Attention
-                      </Typography>
-                    )}
-                    {item.isExcluded && (
-                      <Typography sx={{ fontSize: FONT.caption, color: '#92400E', fontWeight: 700, mt: '3px' }}>
-                        Excluded from the Average Rating
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <Button size="small" variant="outlined" onClick={() => setExcludeTarget(item)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.small }}>
-                      {item.isExcluded ? 'Count again' : 'Exclude'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={5}
-                icon={<FeedbackIcon />}
-                title="No passenger feedback records found"
-                description={
-                  searchQuery || ratingFilter !== 'All'
-                    ? 'No feedback entries match your search criteria.'
-                    : 'Passenger ratings and feedback will appear here once commuters begin submitting reviews after their rides.'
-                }
-                onRefresh={loadFeedback}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={5}
+              kind={feedbackList.length > 0 ? 'noResults' : 'empty'}
+              title={feedbackList.length > 0 ? 'No feedback matches' : 'No passenger feedback yet'}
+              hint={
+                feedbackList.length > 0
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'Ratings and comments appear here after passengers review their rides.'
+              }
+              onRefresh={loadFeedback}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
       <MacConfirmDialog
         open={Boolean(excludeTarget)}

@@ -10,7 +10,8 @@ import {
   Button,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { CONTROL, FONT } from '../../styles/density';
+import { FONT } from '../../styles/density';
+import { PAGE_TEXT, dangerButtonSx, dangerOutlineButtonSx, pageFocusRing, primaryButtonSx, secondaryButtonSx } from '../../styles/pageTheme';
 
 interface MacCenterModalProps {
   open: boolean;
@@ -91,7 +92,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
             {badge}
           </Box>
           {subtitle && (
-            <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)', fontWeight: 400 }}>
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, fontWeight: 400 }}>
               {subtitle}
             </Typography>
           )}
@@ -99,13 +100,18 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
 
         <IconButton
           onClick={onClose}
+          aria-label="Close"
           size="small"
           sx={{
-            color: 'var(--mac-text-muted)',
+            width: 32,
+            height: 32,
+            '@media (pointer: coarse)': { width: 44, height: 44 },
+            color: PAGE_TEXT.secondary,
             backgroundColor: 'var(--mac-canvas-bg)',
+            ...pageFocusRing,
             '&:hover': {
               backgroundColor: 'rgba(0,0,0,0.06)',
-              color: 'var(--mac-text-primary)',
+              color: PAGE_TEXT.primary,
             },
           }}
         >
@@ -126,30 +132,15 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
             borderTop: '1px solid var(--mac-border-color)',
             backgroundColor: '#FAFAFC',
             gap: 1.2,
+            flexWrap: 'wrap',
+            '& > :not(style) ~ :not(style)': { ml: 0 },
           }}
         >
           {secondaryActionLabel && (
             <Button
               variant="outlined"
               onClick={onSecondaryAction || onClose}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 16px',
-                borderRadius: '8px',
-                border: '1.5px solid',
-                borderColor: secondaryActionColor === 'error' ? '#EF4444' : '#94A3B8',
-                color: secondaryActionColor === 'error' ? '#DC2626' : '#334155',
-                fontSize: FONT.body,
-                fontWeight: 600,
-                textTransform: 'none',
-                backgroundColor: secondaryActionColor === 'error' ? '#FEF2F2' : '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: secondaryActionColor === 'error' ? '#FEE2E2' : '#F1F5F9',
-                  borderColor: secondaryActionColor === 'error' ? '#DC2626' : '#64748B',
-                  color: secondaryActionColor === 'error' ? '#B91C1C' : '#0F172A',
-                },
-              }}
+              sx={secondaryActionColor === 'error' ? dangerOutlineButtonSx : secondaryButtonSx}
             >
               {secondaryActionLabel}
             </Button>
@@ -163,36 +154,13 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
               onClick={onPrimaryAction}
               color={primaryActionColor}
               disabled={primaryActionDisabled}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 18px',
-                borderRadius: '8px',
-                fontSize: FONT.body,
-                fontWeight: 600,
-                textTransform: 'none',
-                backgroundColor: primaryActionDisabled
-                  ? undefined
-                  : primaryActionColor === 'primary'
-                  ? 'var(--sakay-orange)'
+              sx={
+                primaryActionColor === 'error'
+                  ? dangerButtonSx
                   : primaryActionColor === 'warning'
-                  ? '#D97706'
-                  : undefined,
-                color: '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: primaryActionDisabled
-                    ? undefined
-                    : primaryActionColor === 'primary'
-                    ? 'var(--sakay-orange-hover)'
-                    : primaryActionColor === 'warning'
-                    ? '#B45309'
-                    : undefined,
-                },
-                '&.Mui-disabled': {
-                  backgroundColor: '#E2E8F0',
-                  color: '#94A3B8',
-                },
-              }}
+                  ? { ...primaryButtonSx, backgroundColor: '#B45309', '&:hover': { backgroundColor: '#92400E', boxShadow: 'none' } }
+                  : primaryButtonSx
+              }
             >
               {primaryActionLabel}
             </Button>

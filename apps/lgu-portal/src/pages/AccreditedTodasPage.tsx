@@ -1,30 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
-  CircularProgress,
-  Button,
-} from '@mui/material';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
 import { AccreditedTodaRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { TodaDetailModal } from '../components/admin/TodaDetailModal';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
 import { fetchAccreditedTodas } from '../services/adminApiService';
 import { FONT } from '../styles/density';
+import { PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -90,18 +74,18 @@ export const AccreditedTodasPage: React.FC = () => {
 
   const driverCountOptions: FilterOption[] = [
     { label: 'All Roster Sizes', value: 'All' },
-    { label: 'Small (<25 Units)', value: 'Small' },
-    { label: 'Medium (25-50 Units)', value: 'Medium' },
-    { label: 'Large (>50 Units)', value: 'Large' },
+    { label: 'Small (under 25 units)', value: 'Small' },
+    { label: 'Medium (25 to 50 units)', value: 'Medium' },
+    { label: 'Large (over 50 units)', value: 'Large' },
   ];
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Filter Toolbar */}
+      {/* 1. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search accredited TODAs, acronym, barangay, or permit number..."
+        searchPlaceholder="Search TODA, barangay, permit number"
         selectFilters={[
           {
             id: 'status',
@@ -125,161 +109,85 @@ export const AccreditedTodasPage: React.FC = () => {
         }}
       />
 
-      {/* 2. Directory Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-        }}
+      {/* 2. The registry */}
+      <DataTableCard
+        label="Accredited TODAs"
+        minWidth={900}
+        columns={[
+          { label: 'TODA' },
+          { label: 'Representative' },
+          { label: 'Service zone' },
+          { label: 'Barangay Clearance' },
+          { label: 'Fleet' },
+          { label: 'Status' },
+          { label: 'Action', align: 'right' },
+        ]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                TODA Name & Acronym
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Representative
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Service Zone (Barangay)
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Barangay Clearance
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Authorized Fleet
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Status
-              </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6.4 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
-                    Loading accredited TODAs from municipal registry...
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={7} kind="loading" loadingText="Loading accredited TODAs..." />
+          ) : filteredTodas.length > 0 ? (
+            filteredTodas.map((toda) => (
+              <TableRow key={toda.id}>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: '6px', rowGap: '2px' }}>
+                    <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{toda.name}</Typography>
+                    {toda.acronym && <FlagTag label={toda.acronym} tone="brand" />}
+                    {toda.flaggedForReview && <FlagTag label={`Flagged (${toda.confirmedIncidents} ${toda.confirmedIncidents === 1 ? 'incident' : 'incidents'})`} tone="warning" />}
+                  </Box>
+                  <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px' }}>Permit / cert. no. {toda.accreditationNo}</Typography>
+                </TableCell>
+                <TableCell>{toda.representative}</TableCell>
+                <TableCell sx={{ color: PAGE_TEXT.secondary }}>{toda.barangay}</TableCell>
+                <TableCell>
+                  <Typography
+                    sx={{
+                      fontSize: FONT.body,
+                      fontWeight: 600,
+                      color: toda.clearanceStatus === 'Expired' ? PAGE_TEXT.danger : toda.clearanceStatus === 'Expiring Soon' ? PAGE_TEXT.warning : PAGE_TEXT.primary,
+                    }}
+                  >
+                    Expires {toda.barangayClearanceExpiry}
                   </Typography>
+                  <Box sx={{ mt: '3px' }}>
+                    <StatusBadge status={toda.clearanceStatus as any} />
+                  </Box>
+                  {toda.renewalSubmittedAt && (
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.warning, mt: '3px' }}>
+                      Renewal received: record it
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={`${toda.registeredDrivers} ${toda.registeredDrivers === 1 ? 'driver' : 'drivers'}`} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={toda.status as any} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`View details of ${toda.name}`} onClick={() => setSelectedToda(toda)} sx={rowActionSx('neutral')}>
+                    View details
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : filteredTodas.length > 0 ? (
-              filteredTodas.map((toda) => (
-                <TableRow
-                  key={toda.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
-                        {toda.name}
-                      </Typography>
-                      {toda.acronym && (
-                        <Chip
-                          label={toda.acronym}
-                          size="small"
-                          sx={{ fontSize: FONT.caption, fontWeight: 600, backgroundColor: 'rgba(255, 102, 0, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
-                        />
-                      )}
-                      {toda.flaggedForReview && (
-                        <Chip
-                          icon={<WarningAmberIcon style={{ fontSize: '12px', color: '#EA580C' }} />}
-                          label={`Flagged (${toda.confirmedIncidents} Incidents)`}
-                          size="small"
-                          sx={{
-                            fontSize: FONT.caption,
-                            fontWeight: 600,
-                            backgroundColor: '#FFF7ED',
-                            color: '#EA580C',
-                            border: '1px solid #FDBA74',
-                            height: 22,
-                          }}
-                        />
-                      )}
-                    </Box>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                      Permit / Cert: {toda.accreditationNo}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
-                    {toda.representative}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 2.2, px: 2.4 }}>
-                    {toda.barangay}
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Typography
-                      sx={{
-                        fontSize: FONT.caption,
-                        fontWeight: 600,
-                        color:
-                          toda.clearanceStatus === 'Expired'
-                            ? '#DC2626'
-                            : toda.clearanceStatus === 'Expiring Soon'
-                            ? '#EA580C'
-                            : 'var(--mac-text-primary)',
-                      }}
-                    >
-                      Expires: {toda.barangayClearanceExpiry}
-                    </Typography>
-                    <Box sx={{ mt: '3px' }}>
-                      <StatusBadge status={toda.clearanceStatus as any} />
-                    </Box>
-                    {toda.renewalSubmittedAt && (
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#9A3412', mt: '3px' }}>
-                        Renewal received: record it
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
-                    {toda.registeredDrivers} Drivers
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={toda.status as any} />
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton
-                      label="View Directory"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedToda(toda);
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={7}
-                icon={<AccountBalanceIcon />}
-                title="No accredited TODAs found"
-                description={
-                  searchQuery || statusFilter !== 'All'
-                    ? 'No records match your active search or filter parameters.'
-                    : 'Accredited TODA organizations will appear here once they have been approved for municipal accreditation.'
-                }
-                onRefresh={loadTodas}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={7}
+              kind={todas.length > 0 ? 'noResults' : 'empty'}
+              title={todas.length > 0 ? 'No TODAs match' : 'No accredited TODAs yet'}
+              hint={
+                todas.length > 0
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'TODAs appear here once they are approved for municipal accreditation.'
+              }
+              onRefresh={loadTodas}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 3. Centered Widescreen TODA Driver Directory Modal */}
+      {/* 3. Window with the TODA's details and driver directory */}
       {selectedToda && (
         <TodaDetailModal
           open={Boolean(selectedToda)}
@@ -291,5 +199,3 @@ export const AccreditedTodasPage: React.FC = () => {
     </Box>
   );
 };
-
-

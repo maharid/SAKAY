@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Card, CardContent, Button, IconButton, CircularProgress, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
-import PeopleIcon from '@mui/icons-material/People';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import RouteIcon from '@mui/icons-material/Route';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import CloseIcon from '@mui/icons-material/Close';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import FlagIcon from '@mui/icons-material/Flag';
-import { useNavigate } from 'react-router-dom';
+import { Box, Typography, Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 
 import { WelcomeHeader } from '../components/layout/WelcomeHeader';
 import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
+import { FlagTag } from '../components/common/DataTable';
+import { PageNotice } from '../components/common/PageNotice';
+import { StatStrip } from '../components/common/StatStrip';
+import type { StatItem } from '../components/common/StatStrip';
+import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { BookingTrendCard } from '../components/dashboard/BookingTrendCard';
 import { DriverVerificationCard } from '../components/dashboard/DriverVerificationCard';
 import { LiveTripsMapCard } from '../components/dashboard/LiveTripsMapCard';
@@ -21,7 +16,9 @@ import { RecentIncidentReportsCard } from '../components/dashboard/RecentInciden
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
 import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes, closeUnfinishedTrip, confirmAvailabilityViolation } from '../services/adminApiService';
 import { closeProblem, isAvailabilityFlag } from '@sakay/shared';
-import { CONTROL, FONT } from '../styles/density';
+import { flagTypeLabel } from '../utils/flagTypeLabel';
+import { FONT, SPACE } from '../styles/density';
+import { PAGE_DIVIDER, PAGE_TEXT, dangerButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../styles/pageTheme';
 
 /** The flags a detector raises (Rules 27.1, 27.3 - 27.6): the LGU Administrator confirms them, which records the violation against every account named */
 const INTEGRITY_FLAG_TYPES = ['GPS_SPOOFING_REVIEW', 'RATING_MANIPULATION_REVIEW', 'COLLUSIVE_MATCHING_REVIEW', 'POSSIBLE_REREGISTRATION_REVIEW'];
@@ -132,8 +129,6 @@ const describeFlagDetails = (flag: any): string[] => {
 };
 
 export const DashboardPage: React.FC = () => {
-  const navigate = useNavigate();
-
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -310,467 +305,144 @@ export const DashboardPage: React.FC = () => {
 
   const flaggedTodas = stats?.flaggedTodas || [];
 
+  const openFlags = adminFlags.filter(isOpenFlag);
+  const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
+  // the number while the page is still reading it, then the figure
+  const figure = (n: number) => (isLoading ? <CircularProgress size={24} aria-label="Loading" sx={{ color: 'var(--sakay-orange)' }} /> : n.toLocaleString());
+
+  const statItems: StatItem[] = [
+    {
+      key: 'passengers',
+      label: 'Passengers',
+      value: figure(kpis.passengers.total),
+      note: isLoading ? undefined : `${kpis.passengers.active} active, ${kpis.passengers.inactive} inactive`,
+      to: '/passengers',
+    },
+    {
+      key: 'drivers',
+      label: 'Drivers',
+      value: figure(kpis.drivers.total),
+      note: isLoading ? undefined : `${kpis.drivers.active} verified, ${kpis.drivers.inactive} not verified`,
+      to: '/drivers',
+    },
+    {
+      key: 'todas',
+      label: 'Accredited TODAs',
+      value: figure(kpis.todas.total),
+      note: isLoading ? undefined : `${kpis.todas.pendingReview} pending review`,
+      to: '/accredited-todas',
+    },
+    {
+      key: 'trips',
+      label: 'Completed trips',
+      value: figure(kpis.trips.total),
+      note: isLoading ? undefined : `${kpis.trips.ongoing} in transit, ${kpis.trips.cancelled} cancelled, ${kpis.trips.allBookings} bookings in all`,
+      to: '/live-trips',
+    },
+    {
+      key: 'verifications',
+      label: 'Pending verifications',
+      value: figure(kpis.verifications.pending),
+      tone: kpis.verifications.pending > 0 ? 'brand' : 'neutral',
+      note: isLoading ? undefined : `${kpis.todas.pendingReview} TODA, ${kpis.verifications.pending - kpis.todas.pendingReview} drivers`,
+      to: '/toda-applications',
+    },
+    {
+      key: 'incidents',
+      label: 'Open incidents',
+      value: figure(kpis.incidents.open),
+      tone: kpis.incidents.open > 0 ? 'danger' : 'neutral',
+      note: isLoading ? undefined : `${kpis.incidents.resolved} resolved, ${kpis.incidents.total} reports in all`,
+      to: '/incident-reports',
+    },
+  ];
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Welcome Greeting Text Header */}
       <WelcomeHeader />
-      <Box sx={{ mb: 2 }}>
-        <PilotCoverageNote />
-      </Box>
 
-      {/* 2. TODA Supervisory Review Banner (Conditional from live DB) */}
+      {/* Alerts: the same quiet look for each; the button opens the screen that handles it */}
       {showTodaAlert && flaggedTodas.length > 0 && (
-        <Box
-          sx={{
-            mb: 2.4,
-            backgroundColor: '#FFF7ED',
-            border: '1px solid #FDBA74',
-            borderRadius: 'var(--mac-radius-lg)',
-            padding: '14px 19px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--mac-shadow-subtle)',
-            position: 'relative',
-          }}
+        <PageNotice
+          tone="warning"
+          title={`${flaggedTodas.length} ${plural(flaggedTodas.length, 'TODA needs', 'TODAs need')} a supervisory review`}
+          action={<Button component={RouterLink} to="/accredited-todas" sx={rowActionSx('neutral')}>Review TODAs</Button>}
+          onDismiss={() => setShowTodaAlert(false)}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 1.6 }}>
-            <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 21, flexShrink: 0 }} />
-            <Box>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#9A3412', mb: '3px' }}>
-                TODA Supervisory Review Alert
-              </Typography>
-              <Typography sx={{ fontSize: FONT.caption, color: '#C2410C', lineHeight: 1.4 }}>
-                {flaggedTodas.length} accredited TODA(s) ({flaggedTodas.map((t) => t.name).join(', ')}) have accumulated 3 or more confirmed incident reports requiring supervisory review.
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
-            <Button
-              onClick={() => navigate('/accredited-todas')}
-              endIcon={<ArrowForwardIcon sx={{ fontSize: '13px !important' }} />}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 14px',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: FONT.body,
-                fontWeight: 600,
-                backgroundColor: '#EA580C',
-                color: '#FFFFFF',
-                whiteSpace: 'nowrap',
-                boxShadow: 'var(--mac-shadow-subtle)',
-                '&:hover': { backgroundColor: '#C2410C' },
-              }}
-            >
-              Review TODAs
-            </Button>
-            <IconButton
-              onClick={() => setShowTodaAlert(false)}
-              aria-label="Dismiss alert"
-              size="small"
-              sx={{
-                color: '#C2410C',
-                '&:hover': { backgroundColor: 'rgba(234, 88, 12, 0.12)' },
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
+          {flaggedTodas.map((t) => t.name).join(', ')} {plural(flaggedTodas.length, 'has', 'have')} 3 or more confirmed incident reports.
+        </PageNotice>
       )}
 
-      {/* 3. Overdue Applications Alert Banner */}
       {showOverdueAlert && kpis.verifications.overdue5Days > 0 && (
-        <Box
-          sx={{
-            mb: 2.8,
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #FCA5A5',
-            borderRadius: 'var(--mac-radius-lg)',
-            padding: '14px 19px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--mac-shadow-subtle)',
-          }}
+        <PageNotice
+          tone="danger"
+          title="Verification requests are overdue"
+          action={<Button component={RouterLink} to="/toda-applications" sx={rowActionSx('danger')}>View pending</Button>}
+          onDismiss={() => setShowOverdueAlert(false)}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 1.6 }}>
-            <AccessTimeIcon sx={{ color: '#DC2626', fontSize: 21, flexShrink: 0 }} />
-            <Box>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#991B1B', mb: '3px' }}>
-                Overdue Verifications Alert
-              </Typography>
-              <Typography sx={{ fontSize: FONT.caption, color: '#B91C1C', lineHeight: 1.4 }}>
-                {kpis.verifications.overdue5Days} verification request(s) pending beyond 5 calendar days require immediate review.
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
-            <Button
-              onClick={() => navigate('/toda-applications')}
-              endIcon={<ArrowForwardIcon sx={{ fontSize: '13px !important' }} />}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 14px',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: FONT.body,
-                fontWeight: 600,
-                backgroundColor: '#DC2626',
-                color: '#FFFFFF',
-                whiteSpace: 'nowrap',
-                boxShadow: 'var(--mac-shadow-subtle)',
-                '&:hover': { backgroundColor: '#B91C1C' },
-              }}
-            >
-              View Pending
-            </Button>
-            <IconButton
-              onClick={() => setShowOverdueAlert(false)}
-              aria-label="Dismiss alert"
-              size="small"
-              sx={{
-                color: '#B91C1C',
-                '&:hover': { backgroundColor: 'rgba(220, 38, 38, 0.12)' },
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
+          {kpis.verifications.overdue5Days} verification {plural(kpis.verifications.overdue5Days, 'request has', 'requests have')} been pending for more than 5 days and {plural(kpis.verifications.overdue5Days, 'needs', 'need')} review now.
+        </PageNotice>
       )}
 
       {disputeCount.waiting > 0 && (
-        <Box
-          role="status"
-          sx={{ mb: 2.8, p: '11px 14px', borderRadius: 'var(--mac-radius-lg)', border: '1px solid #FDBA74', backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.6, flexWrap: 'wrap' }}
-        >
-          <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: '#9A3412' }}>
-            {disputeCount.waiting} fare dispute{disputeCount.waiting === 1 ? '' : 's'} waiting for an administrator
-            {disputeCount.overdue > 0 ? ' (' + disputeCount.overdue + ' overdue)' : ''}
-          </Typography>
-          <Button onClick={() => navigate('/live-trips')} sx={{ textTransform: 'none', fontWeight: 600, color: '#9A3412' }}>
-            Open Live Trips
-          </Button>
+        <PageNotice tone="warning" action={<Button component={RouterLink} to="/live-trips" sx={rowActionSx('neutral')}>Open Live Trips</Button>}>
+          {disputeCount.waiting} fare {plural(disputeCount.waiting, 'dispute', 'disputes')} waiting for an administrator
+          {disputeCount.overdue > 0 ? ' (' + disputeCount.overdue + ' overdue)' : ''}.
+        </PageNotice>
+      )}
+
+      {/* The key numbers: each one opens the screen that lists those records */}
+      <StatStrip stats={statItems} footnote={<PilotCoverageNote compact />} />
+
+      {/* Administrative review flags (Rules 2.4, 2.5, 3.7) */}
+      {openFlags.length > 0 && (
+        <Box sx={{ mb: SPACE.gapLarge }}>
+          <DashboardCard
+            title="Review flags"
+            description="Items that need an administrator's decision."
+            titleAdornment={<FlagTag label={`${openFlags.length} pending`} tone="warning" />}
+          >
+            <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', '& > li + li': { borderTop: `1px solid ${PAGE_DIVIDER}` } }}>
+              {openFlags.slice(0, 12).map((flag) => (
+                <Box
+                  component="li"
+                  key={flag.flag_id}
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 12px', py: '10px' }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>{flagTypeLabel(flag.flag_type)}</Typography>
+                    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px', overflowWrap: 'anywhere' }}>
+                      {flag.subject_type}: <Box component="span" sx={{ fontFamily: 'monospace' }}>{flag.subject_id}</Box>
+                      {' · '}
+                      {new Date(flag.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </Typography>
+                  </Box>
+
+                  <Button
+                    aria-label={`Resolve flag: ${flagTypeLabel(flag.flag_type)}`}
+                    onClick={() => {
+                      setSelectedFlag(flag);
+                      setFlagDialogOpen(true);
+                    }}
+                    sx={rowActionSx('brand')}
+                  >
+                    Resolve flag
+                  </Button>
+                </Box>
+              ))}
+            </Box>
+          </DashboardCard>
         </Box>
       )}
 
-      {/* 3B. Administrative Review Flags Card (Rules 2.4, 2.5, 3.7) */}
-      {adminFlags.some(isOpenFlag) && (
-        <Card
-          sx={{
-            mb: 2.8,
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid #CBD5E1',
-            backgroundColor: '#F8FAFC',
-            boxShadow: 'var(--mac-shadow-subtle)',
-            overflow: 'hidden',
-          }}
-        >
-          <Box
-            sx={{
-              p: '13px 16px',
-              backgroundColor: '#EDE9FE',
-              borderBottom: '1px solid #DDD6FE',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-              <FlagIcon sx={{ color: '#6D28D9', fontSize: 18 }} />
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: '#4C1D95' }}>
-                Administrative Review Flags ({adminFlags.filter(isOpenFlag).length} Pending Action)
-              </Typography>
-            </Box>
-            <Typography sx={{ fontSize: FONT.caption, color: '#6D28D9', fontWeight: 500 }}>
-              Items that need an administrator's decision
-            </Typography>
-          </Box>
-          <CardContent sx={{ p: '13px 16px !important' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-              {adminFlags
-                .filter(isOpenFlag)
-                .slice(0, 12)
-                .map((flag) => (
-                  <Box
-                    key={flag.flag_id}
-                    sx={{
-                      p: 1.2,
-                      borderRadius: '8px',
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid #E2E8F0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 1.2,
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                      <Chip
-                        label={flag.flag_type}
-                        size="small"
-                        sx={{
-                          fontWeight: 700,
-                          fontSize: FONT.caption,
-                          backgroundColor:
-                            flag.flag_type === 'ROSTER_MISMATCH'
-                              ? '#FEE2E2'
-                              : flag.flag_type === 'TERMINAL_RELOCATION_PENDING'
-                              ? '#FEF3C7'
-                              : '#FFEDD5',
-                          color:
-                            flag.flag_type === 'ROSTER_MISMATCH'
-                              ? '#DC2626'
-                              : flag.flag_type === 'TERMINAL_RELOCATION_PENDING'
-                              ? '#D97706'
-                              : '#EA580C',
-                        }}
-                      />
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                        {flag.subject_type}: <span style={{ fontFamily: 'monospace' }}>{flag.subject_id}</span>
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                        {new Date(flag.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </Typography>
-                    </Box>
-
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={() => {
-                        setSelectedFlag(flag);
-                        setFlagDialogOpen(true);
-                      }}
-                      sx={{
-                        backgroundColor: '#6D28D9',
-                        '&:hover': { backgroundColor: '#5B21B6' },
-                        fontSize: FONT.small,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        height: 30,
-                      }}
-                    >
-                      Resolve Flag
-                    </Button>
-                  </Box>
-                ))}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 4. Real Live KPI Summary Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(6, 1fr)' },
-          gap: 2,
-          mb: 3.2,
-        }}
-      >
-        {/* Passengers */}
-        <Card
-          onClick={() => navigate('/passengers')}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            cursor: 'pointer',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Passengers
-              </Typography>
-              <PeopleIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
-            </Box>
-            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
-              {isLoading ? <CircularProgress size={20} /> : kpis.passengers.total.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.passengers.active} Active</span> • {kpis.passengers.inactive} Inactive
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Drivers */}
-        <Card
-          onClick={() => navigate('/drivers')}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            cursor: 'pointer',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Drivers
-              </Typography>
-              <DirectionsCarIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
-            </Box>
-            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
-              {isLoading ? <CircularProgress size={20} /> : kpis.drivers.total.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.drivers.active} Verified</span> • {kpis.drivers.inactive} Other
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Accredited TODAs */}
-        <Card
-          onClick={() => navigate('/accredited-todas')}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            cursor: 'pointer',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Accredited TODAs
-              </Typography>
-              <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
-            </Box>
-            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
-              {isLoading ? <CircularProgress size={20} /> : kpis.todas.total.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              <span style={{ fontWeight: 600, color: '#1565C0' }}>{kpis.todas.total} Active</span> • {kpis.todas.pendingReview} Pending
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Completed Trips */}
-        <Card
-          onClick={() => navigate('/live-trips')}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            cursor: 'pointer',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Completed Trips
-              </Typography>
-              <RouteIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
-            </Box>
-            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
-              {isLoading ? <CircularProgress size={20} /> : kpis.trips.total.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.trips.ongoing} In Transit</span> • <span style={{ fontWeight: 600, color: '#D93025' }}>{kpis.trips.cancelled} Cancelled</span> • {kpis.trips.allBookings} Total
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Pending Verifications */}
-        <Card
-          onClick={() => navigate('/toda-applications')}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            cursor: 'pointer',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Pending Verifications
-              </Typography>
-              <AccessTimeIcon sx={{ color: '#EA580C', fontSize: 16 }} />
-            </Box>
-            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#EA580C', mb: 0.4 }}>
-              {isLoading ? <CircularProgress size={20} /> : kpis.verifications.pending.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              {kpis.todas.pendingReview} TODA • {kpis.verifications.pending - kpis.todas.pendingReview} Drivers
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Open Incidents */}
-        <Card
-          onClick={() => navigate('/incident-reports')}
-          sx={{
-            borderRadius: 'var(--mac-radius-lg)',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-card)',
-            backgroundColor: '#FFFFFF',
-            cursor: 'pointer',
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
-          }}
-        >
-          <CardContent sx={{ p: '16px 18px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Open Incidents
-              </Typography>
-              <ReportProblemIcon sx={{ color: '#D93025', fontSize: 16 }} />
-            </Box>
-            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#D93025', mb: 0.4 }}>
-              {isLoading ? <CircularProgress size={20} /> : kpis.incidents.open.toLocaleString()}
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.incidents.resolved} Resolved</span> • {kpis.incidents.total} Total Complaints
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* 5. Row 1: Booking Trend Card & Driver Verification Card */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' },
-          gap: 2.8,
-          mb: 2.8,
-        }}
-      >
+      {/* Booking trend and driver verification */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: SPACE.gapLarge, mb: SPACE.gapLarge }}>
         <BookingTrendCard />
         <DriverVerificationCard data={stats?.driverBreakdown} />
       </Box>
 
-      {/* 6. Row 2: Live Trips Map, Recent TODA Applications & Recent Incident Reports */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' },
-          gap: 2.8,
-        }}
-      >
+      {/* The live map and the two most recent lists */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: SPACE.gapLarge }}>
         <LiveTripsMapCard ongoingTripsCount={kpis.trips.ongoing} />
         <RecentTodaApplicationsCard applications={stats?.recentApplications} />
         <RecentIncidentReportsCard reports={stats?.recentIncidents} />
@@ -778,47 +450,46 @@ export const DashboardPage: React.FC = () => {
 
       {/* Flag Resolution Dialog */}
       <Dialog open={flagDialogOpen} onClose={() => setFlagDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: FONT.heading }}>
-          Resolve Administrative Flag ({selectedFlag?.flag_type})
+        <DialogTitle sx={{ fontWeight: 700, fontSize: FONT.cardTitle, color: PAGE_TEXT.primary }}>
+          Resolve flag: {flagTypeLabel(selectedFlag?.flag_type)}
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mb: 1.6 }}>
+          <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, mb: 1.6 }}>
             Provide resolution notes for {selectedFlag?.subject_type} {selectedFlag?.subject_id} ({selectedFlag?.source_rule}).
           </Typography>
           {describeFlagDetails(selectedFlag).length > 0 && (
             <Box sx={{ mb: 1.6, p: 1.2, borderRadius: '8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               {describeFlagDetails(selectedFlag).map((line, i) => (
-                <Typography key={i} sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
+                <Typography key={i} sx={{ fontSize: FONT.body, color: PAGE_TEXT.primary, lineHeight: 1.5 }}>
                   {line}
                 </Typography>
               ))}
             </Box>
           )}
           {flagError && (
-            <Typography sx={{ fontSize: FONT.caption, color: '#B91C1C', mb: 1.2 }}>{flagError}</Typography>
+            <Typography role="alert" sx={{ fontSize: FONT.body, color: PAGE_TEXT.danger, mb: 1.2 }}>{flagError}</Typography>
           )}
           <TextField
             autoFocus
             fullWidth
             multiline
             rows={3}
-            label="Resolution Notes"
+            label="Resolution notes"
             value={flagResolutionText}
             onChange={(e) => setFlagResolutionText(e.target.value)}
             placeholder="e.g. Verified with manual certificate, franchise validated, or inspection completed..."
           />
         </DialogContent>
-        <DialogActions sx={{ p: 1.6 }}>
-          <Button onClick={() => { setFlagDialogOpen(false); setFlagError(null); }} sx={{ textTransform: 'none' }}>
+        <DialogActions sx={{ p: 1.6, flexWrap: 'wrap', gap: 1, '& > :not(style) ~ :not(style)': { ml: 0 } }}>
+          <Button onClick={() => { setFlagDialogOpen(false); setFlagError(null); }} sx={secondaryButtonSx}>
             Cancel
           </Button>
           {selectedFlag?.flag_type === 'DRIVER_DELIBERATE_OFFLINE_REPORT' && (
             <Button
               onClick={handleConfirmDeliberateOffline}
               variant="contained"
-              color="error"
               disabled={!flagResolutionText.trim()}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={dangerButtonSx}
             >
               Confirm: 2 strikes
             </Button>
@@ -827,9 +498,8 @@ export const DashboardPage: React.FC = () => {
             <Button
               onClick={handleConfirmViolation}
               variant="contained"
-              color="error"
               disabled={flagResolutionText.trim().length < 10}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={dangerButtonSx}
             >
               Confirm: 1 strike
             </Button>
@@ -838,9 +508,8 @@ export const DashboardPage: React.FC = () => {
             <Button
               onClick={handleConfirmIntegrity}
               variant="contained"
-              color="error"
               disabled={flagResolutionText.trim().length < 10}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={dangerButtonSx}
             >
               Confirm the violation
             </Button>
@@ -849,9 +518,8 @@ export const DashboardPage: React.FC = () => {
             <Button
               onClick={handleConfirmAvailability}
               variant="contained"
-              color="error"
               disabled={flagResolutionText.trim().length < 10}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={dangerButtonSx}
             >
               Confirm: record the strike
             </Button>
@@ -862,7 +530,7 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => handleCloseStuckTrip('Paid')}
                 variant="contained"
                 disabled={closeProblem('Paid', flagResolutionText) !== null}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
+                sx={primaryButtonSx}
               >
                 Close the trip: Paid
               </Button>
@@ -870,7 +538,7 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => handleCloseStuckTrip('Waived')}
                 variant="outlined"
                 disabled={closeProblem('Waived', flagResolutionText) !== null}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
+                sx={secondaryButtonSx}
               >
                 Close the trip: Waived
               </Button>
@@ -880,19 +548,14 @@ export const DashboardPage: React.FC = () => {
             <Button
               onClick={handleSendWarning}
               variant="contained"
-              color="warning"
               disabled={flagResolutionText.trim().length < 10}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={primaryButtonSx}
             >
               Send the passenger a warning
             </Button>
           )}
-          <Button
-            onClick={handleResolveFlag}
-            variant="contained"
-            sx={{ backgroundColor: '#6D28D9', '&:hover': { backgroundColor: '#5B21B6' }, textTransform: 'none', fontWeight: 600 }}
-          >
-            Mark Resolved
+          <Button onClick={handleResolveFlag} variant="contained" sx={primaryButtonSx}>
+            Mark as resolved
           </Button>
         </DialogActions>
       </Dialog>

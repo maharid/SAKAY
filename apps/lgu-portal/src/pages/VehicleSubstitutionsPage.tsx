@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Box, CircularProgress, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
 import { VehicleSubstitutionsPanel, asSubstitutionClient, decideVehicleSubstitution, endVehicleSubstitution, fetchVehicleSubstitutions } from '@sakay/shared';
 import type { VehicleSubstitution } from '@sakay/shared';
 
 import { supabase } from '../services/supabaseClient';
 import { FONT } from '../styles/density';
+import { PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -14,6 +15,7 @@ import { FONT } from '../styles/density';
  *   ● The requests the TODA Administrator already approved (or of a driver with no TODA) wait here
  *   ● Approving puts the substitute vehicle in place until the days are over; the registered vehicle comes back by itself
  *   ● An active substitution can be ended early; the driver is told of every decision
+ * The list itself is the panel shared with the TODA portal (packages/shared); this page only loads it and frames it.
  * ============================================================================
  */
 export const VehicleSubstitutionsPage: React.FC = () => {
@@ -37,12 +39,21 @@ export const VehicleSubstitutionsPage: React.FC = () => {
   return (
     <Box sx={{ maxWidth: 1100, margin: '0 auto', pb: 4.8 }}>
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4.8 }}>
-          <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
+        <Box role="status" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', p: 4.8 }}>
+          <CircularProgress size={21} sx={{ color: 'var(--sakay-orange)' }} />
+          <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>Loading substitution requests...</Typography>
         </Box>
       ) : (
         <>
-          {failed && <Alert severity="error" sx={{ mb: 1.6, borderRadius: '10px' }}>The requests could not be loaded. Please try again.</Alert>}
+          {failed && (
+            <Alert
+              severity="error"
+              sx={{ mb: 1.6, borderRadius: '10px' }}
+              action={<Button onClick={load} sx={rowActionSx('danger')}>Try again</Button>}
+            >
+              The requests could not be loaded. Please try again.
+            </Alert>
+          )}
           <VehicleSubstitutionsPanel
             role="lgu_admin"
             requests={requests}
@@ -59,7 +70,7 @@ export const VehicleSubstitutionsPage: React.FC = () => {
             }}
           />
           {!failed && requests.length === 0 && (
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center' }}>
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, textAlign: 'center' }}>
               No driver has asked to use another vehicle. A request appears here after the driver's TODA Administrator approves it.
             </Typography>
           )}

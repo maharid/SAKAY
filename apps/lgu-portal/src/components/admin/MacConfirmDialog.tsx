@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Typography, Button, TextField, Box, MenuItem } from '@mui/material';
-import { CONTROL, FONT } from '../../styles/density';
+import { FONT } from '../../styles/density';
+import { PAGE_TEXT, dangerButtonSx, primaryButtonSx, secondaryButtonSx } from '../../styles/pageTheme';
 
 export interface MacConfirmDialogOption {
   value: string;
@@ -85,14 +86,14 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ paddingTop: '22px !important', paddingBottom: '16px !important', paddingLeft: '19px !important', paddingRight: '19px !important' }}>
-        <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? 1.6 : 0 }}>
+        <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5, mb: requireReason ? 1.6 : 0 }}>
           {message}
         </Typography>
 
         {options && (
           <Box sx={{ mt: 1.6 }}>
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 0.8 }}>
-              {optionLabel} (Required)
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.primary, mb: 0.8 }}>
+              {optionLabel} (required)
             </Typography>
             <TextField
               select
@@ -113,8 +114,8 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
 
         {requireReason && (
           <Box sx={{ mt: 1.6 }}>
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 0.8 }}>
-              Reason for Decision (Required{minReasonLength > 1 ? `, at least ${minReasonLength} characters` : ''})
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.primary, mb: 0.8 }}>
+              Reason (required{minReasonLength > 1 ? `, at least ${minReasonLength} characters` : ''})
             </Typography>
             <TextField
               fullWidth
@@ -138,27 +139,8 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.2 }}>
-        <Button
-          onClick={onClose}
-          sx={{
-            height: CONTROL.height,
-            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-            padding: '0 14px',
-            borderRadius: '9px',
-            textTransform: 'none',
-            fontSize: FONT.body,
-            fontWeight: 600,
-            color: '#334155',
-            border: '1.5px solid #94A3B8',
-            backgroundColor: '#FFFFFF',
-            '&:hover': {
-              backgroundColor: '#F1F5F9',
-              borderColor: '#64748B',
-              color: '#0F172A',
-            },
-          }}
-        >
+      <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.2, flexWrap: 'wrap', '& > :not(style) ~ :not(style)': { ml: 0 } }}>
+        <Button onClick={onClose} sx={secondaryButtonSx}>
           Cancel
         </Button>
 
@@ -166,25 +148,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
           onClick={handleConfirm}
           disabled={(requireReason && reason.trim().length < minReasonLength) || (Boolean(options) && !option)}
           variant="contained"
-          sx={{
-            height: CONTROL.height,
-            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-            padding: '0 16px',
-            borderRadius: '9px',
-            textTransform: 'none',
-            fontSize: FONT.body,
-            fontWeight: 600,
-            backgroundColor: confirmVariant === 'danger' ? '#DC2626' : 'var(--sakay-orange)',
-            color: '#FFFFFF',
-            boxShadow: 'var(--mac-shadow-subtle)',
-            '&:hover': {
-              backgroundColor: confirmVariant === 'danger' ? '#B91C1C' : 'var(--sakay-orange-hover)',
-            },
-            '&.Mui-disabled': {
-              backgroundColor: '#E5E5EA',
-              color: '#8E8E93',
-            },
-          }}
+          sx={confirmVariant === 'danger' ? dangerButtonSx : primaryButtonSx}
         >
           {confirmLabel}
         </Button>

@@ -149,6 +149,7 @@ import {
   updateDriverDocumentReview,
 } from '../../services/adminApiService';
 import { CONTROL, FONT } from '../../styles/density';
+import { PAGE_TEXT } from '../../styles/pageTheme';
 
 interface DriverDetailModalProps {
   open: boolean;
@@ -724,14 +725,14 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   let onPrimaryAction: () => void = () => {};
 
   if (!isVerified) {
-    primaryActionLabel = 'Approve Stage 2 Verification';
+    primaryActionLabel = 'Approve Stage 2 verification';
     primaryActionColor = 'primary';
     // With TODA applications on record, the LGU can only decide one that its TODA has already endorsed (sequential review, Policy 3.1).
     const nothingWaitingForLgu = affiliations.length > 0 && !decisionAffiliation;
     primaryActionDisabled = !allDocumentsVerified || pendingReturnCount > 0 || nothingWaitingForLgu;
     onPrimaryAction = () => setVerifyDialogOpen(true);
   } else {
-    primaryActionLabel = isAccountActive ? 'Suspend Driver' : 'Reactivate Driver';
+    primaryActionLabel = isAccountActive ? 'Suspend driver' : 'Reactivate driver';
     primaryActionColor = isAccountActive ? 'error' : 'primary';
     onPrimaryAction = isAccountActive ? () => setSuspendDialogOpen(true) : () => setReactivateDialogOpen(true);
   }
@@ -742,14 +743,14 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         open={open}
         onClose={handleRequestClose}
         title={driver.name}
-        subtitle={`License No: ${driver.licenseNo} • ${driver.todaName}`}
+        subtitle={`License no. ${driver.licenseNo} · ${driver.todaName}`}
         badge={<StatusBadge status={(driver.verificationStatus && driver.verificationStatus !== 'Verified' ? driver.verificationStatus : driver.accountStatus) as any} />}
         maxWidth={672}
         primaryActionLabel={primaryActionLabel}
         primaryActionColor={primaryActionColor}
         primaryActionDisabled={primaryActionDisabled}
         onPrimaryAction={onPrimaryAction}
-        secondaryActionLabel={!isVerified ? 'Reject Application' : 'Close'}
+        secondaryActionLabel={!isVerified ? 'Reject application' : 'Close'}
         secondaryActionColor={!isVerified ? 'error' : 'inherit'}
         onSecondaryAction={!isVerified ? () => setRejectDialogOpen(true) : handleRequestClose}
         extraActions={
@@ -796,7 +797,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                       }),
                 }}
               >
-                Return for Resubmission
+                Return for resubmission
               </Button>
             </Badge>
           ) : driver.restrictionKind !== 'CLOSED' ? (
@@ -816,8 +817,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         {/* TODA applications (Driver Module 2.1 / Policy 3.1): one row per affiliation, each with its own TODA and LGU stage */}
         {affiliations.length > 0 && (
           <Box sx={{ mb: 1.6, p: 1.6, borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 0.8 }}>
-              TODA Applications ({affiliations.length})
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary, mb: 0.8 }}>
+              TODA applications ({affiliations.length})
             </Typography>
             {affiliations.map((aff) => {
               const waiting = isAwaitingLgu(aff);
@@ -1132,8 +1133,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
               <FlashOnIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                Policy Strikes & Disciplinary Status
+              <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+                Strikes and discipline
               </Typography>
             </Box>
             <Chip
@@ -1212,8 +1213,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         <Box sx={{ mb: 3.2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <PersonIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              1. Personal Details
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+              Personal details
             </Typography>
           </Box>
 
@@ -1241,8 +1242,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         <Box sx={{ mb: 3.2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <AccountBalanceIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              2. TODA Affiliation & Endorsement
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+              TODA membership and endorsement
             </Typography>
           </Box>
 
@@ -1272,8 +1273,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         <Box sx={{ mb: 3.2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <DirectionsCarIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              3. Vehicle Credentials & MTOP Franchise (City Ord. No. 118)
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+              Vehicle and MTOP franchise (City Ord. No. 118)
             </Typography>
           </Box>
 
@@ -1323,8 +1324,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                 <VerifiedUserIcon sx={{ color: '#D97706', fontSize: 16 }} />
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#92400E', textTransform: 'uppercase' }}>
-                  Pending Document Renewal Application
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.warning }}>
+                  Pending document renewal application
                 </Typography>
               </Box>
               <Chip label="Pending LGU Verification" size="small" sx={{ backgroundColor: '#FEF3C7', color: '#92400E', fontWeight: 600, fontSize: FONT.caption }} />
@@ -1355,7 +1356,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 onClick={() => setRenewalRejectDialogOpen(true)}
                 sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.small }}
               >
-                Reject Renewal
+                Reject renewal
               </Button>
               <Button
                 variant="contained"
@@ -1374,8 +1375,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
               <VerifiedUserIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                4. Verification Documents ({docList.length})
+              <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+                Verification documents ({docList.length})
               </Typography>
             </Box>
             {!isVerified && !allDocumentsVerified && !hasResubmissionIssues && (
@@ -1482,13 +1483,13 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={verifyDialogOpen}
         onClose={() => { setVerifyDialogOpen(false); setTargetAffiliationId(null); }}
-        title={rosterOverrideNeeded ? 'Approve despite the Roster Mismatch?' : 'Approve Stage 2 Driver Verification?'}
+        title={rosterOverrideNeeded ? 'Approve despite the roster mismatch?' : 'Approve Stage 2 driver verification?'}
         message={
           rosterOverrideNeeded
             ? `"${driver.name}" is NOT on the ${decisionTodaLabel} master roster (open Roster Mismatch flag). You may still approve, but you must write why. The reason is recorded on the flag and in the audit log under your name.`
             : `Authorize driver "${driver.name}" (${decisionTodaLabel}) for official franchise operations in Calapan City.`
         }
-        confirmLabel={rosterOverrideNeeded ? 'Approve with Override' : 'Approve Driver'}
+        confirmLabel={rosterOverrideNeeded ? 'Approve with override' : 'Approve driver'}
         confirmVariant="orange"
         requireReason={rosterOverrideNeeded}
         minReasonLength={10}
@@ -1557,8 +1558,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                      Faulty Document Issue #{idx + 1}
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.warning }}>
+                      Faulty document issue #{idx + 1}
                     </Typography>
                     <Button
                       size="small"
@@ -1586,8 +1587,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
                   {/* Document Name - Locked text */}
                   <Box sx={{ mb: 1.2 }}>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                      Document Name
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.secondary }}>
+                      Document name
                     </Typography>
                     <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mt: '2px' }}>
                       {docName}
@@ -1596,8 +1597,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
                   {/* Grounds */}
                   <Box sx={{ mb: 1.2 }}>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                      Selected Grounds
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.secondary }}>
+                      Selected grounds
                     </Typography>
                     <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-secondary)', mt: '2px' }}>
                       {issue.grounds}
@@ -1606,8 +1607,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
                   {/* Reviewer Notes */}
                   <Box>
-                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                      Reviewer Notes / Instructions
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.secondary }}>
+                      Reviewer notes and instructions
                     </Typography>
                     <Typography sx={{ fontSize: FONT.caption, fontStyle: 'italic', color: '#334155', mt: '2px', backgroundColor: '#FFFFFF', p: '6px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                       "{issue.notes}"
@@ -1706,8 +1707,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
               {/* Document Type - Locked / Non-editable */}
               <Box>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.4 }}>
-                  Target Document (Locked)
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.secondary, mb: 0.4 }}>
+                  Target document (locked)
                 </Typography>
                 <Box
                   sx={{
@@ -1729,8 +1730,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
               {/* Grounds Dropdown */}
               <Box>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                  Select Grounds
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.primary, mb: 0.6 }}>
+                  Select grounds
                 </Typography>
                 <FormControl fullWidth size="small">
                   <Select
@@ -1755,7 +1756,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                   fullWidth
                   multiline
                   rows={3}
-                  label="Reviewer Notes / Instructions for Driver"
+                  label="Reviewer notes and instructions for the driver"
                   placeholder={DEFAULT_NOTES_BY_DOC_TYPE[configureDocIssue.docType]}
                   value={configureDocIssue.notes}
                   onChange={(e) =>
@@ -1825,9 +1826,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={rejectDialogOpen}
         onClose={() => { setRejectDialogOpen(false); setTargetAffiliationId(null); }}
-        title="Reject Driver Application?"
+        title="Reject this driver application?"
         message={`Disapprove Stage 2 LGU verification for "${driver.name}" (${decisionTodaLabel}). Only this TODA application is rejected; the driver's other TODA applications are not affected. Specify the reason for rejection or return for correction.`}
-        confirmLabel="Reject Application"
+        confirmLabel="Reject application"
         confirmVariant="danger"
         requireReason
         reasonPlaceholder="Specify rejection reasons (e.g. Expired Professional License, Invalid MTOP)..."
@@ -1837,9 +1838,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={suspendDialogOpen}
         onClose={() => setSuspendDialogOpen(false)}
-        title="Suspend Driver Account?"
+        title="Suspend this driver?"
         message={`Enact an administrative suspension on "${driver.name}". The driver will be barred from accepting booking dispatches.`}
-        confirmLabel="Suspend Driver"
+        confirmLabel="Suspend driver"
         confirmVariant="danger"
         requireReason
         reasonPlaceholder="Specify mandatory suspension reason..."
@@ -1849,13 +1850,13 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={reactivateDialogOpen}
         onClose={() => setReactivateDialogOpen(false)}
-        title="Reactivate Driver Account?"
+        title="Reactivate this driver?"
         message={
           driver.restrictionKind === 'DEACTIVATED'
             ? `"${driver.name}" is deactivated. Confirm that you reviewed the full violation history. Strike counts are not reset; they age out of the 90-day window.`
             : `Reactivate "${driver.name}" to active status. The driver will immediately become eligible to receive ride bookings.`
         }
-        confirmLabel={driver.restrictionKind === 'DEACTIVATED' ? 'I Reviewed the History — Reactivate' : 'Reactivate Account'}
+        confirmLabel={driver.restrictionKind === 'DEACTIVATED' ? 'I reviewed the history: reactivate' : 'Reactivate driver'}
         confirmVariant="orange"
         onConfirm={handleReactivateConfirm}
       />
@@ -1863,9 +1864,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={strikeDialogOpen}
         onClose={() => setStrikeDialogOpen(false)}
-        title="Record a Policy Violation?"
+        title="Record a policy violation?"
         message={`Record a confirmed violation against "${driver.name}". The platform applies the strike count and any consequence automatically (warning at 1, review at 3, suspension at 5 and 8, deactivation at 10).`}
-        confirmLabel="Record Violation"
+        confirmLabel="Record violation"
         confirmVariant="danger"
         options={strikeData.violationOptions}
         optionLabel="Violation"
@@ -1877,9 +1878,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={renewalApproveDialogOpen}
         onClose={() => setRenewalApproveDialogOpen(false)}
-        title="Approve Driver Document Renewal?"
+        title="Approve this document renewal?"
         message={`Approve and advance license/MTOP expiry credentials for "${driver.name}". Official records will update immediately.`}
-        confirmLabel="Approve Renewal"
+        confirmLabel="Approve renewal"
         confirmVariant="orange"
         onConfirm={handleRenewalApproveConfirm}
       />
@@ -1887,9 +1888,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       <MacConfirmDialog
         open={renewalRejectDialogOpen}
         onClose={() => setRenewalRejectDialogOpen(false)}
-        title="Reject Document Renewal?"
+        title="Reject this document renewal?"
         message={`Reject renewal application for "${driver.name}". The driver will be required to correct and re-upload valid documents.`}
-        confirmLabel="Reject Renewal"
+        confirmLabel="Reject renewal"
         confirmVariant="danger"
         requireReason
         reasonPlaceholder="Specify reason for renewal rejection (e.g. illegible photocopy, mismatched validity)..."

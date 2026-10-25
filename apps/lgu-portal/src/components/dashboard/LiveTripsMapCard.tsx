@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import L from 'leaflet';
-import { CONTROL, FONT } from '../../styles/density';
+
+import { DashboardCard } from './DashboardCard';
+import { FONT } from '../../styles/density';
+import { PAGE_BORDER, PAGE_TEXT } from '../../styles/pageTheme';
 
 interface LiveTripsMapCardProps {
   ongoingTripsCount?: number;
 }
 
 export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTripsCount = 0 }) => {
-  const navigate = useNavigate();
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletInstanceRef = useRef<L.Map | null>(null);
 
@@ -43,79 +44,24 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
   }, []);
 
   return (
-    <Box
-      sx={{
-        backgroundColor: 'var(--mac-card-bg)',
-        borderRadius: 'var(--mac-radius-lg)',
-        border: '1px solid var(--mac-border-color)',
-        boxShadow: 'var(--mac-shadow-card)',
-        padding: '21px 22px',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Header & Subtitle Block with exactly 8px gap (1 in MUI = 8px) */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 0.8, mb: 2 }}>
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-            Live Trips & Fleet Map
-          </Typography>
-          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-            Real-time transportation operations in Calapan City.
-          </Typography>
-        </Box>
-
-        <Button
-          onClick={() => navigate('/live-trips')}
-          size="small"
-          sx={{
-            height: CONTROL.height,
-            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-            padding: '0 14px',
-            borderRadius: '9px',
-            backgroundColor: '#FFFFFF',
-            color: 'var(--mac-text-primary)',
-            fontSize: FONT.small,
-            fontWeight: 500,
-            textTransform: 'none',
-            border: '1px solid var(--mac-border-color)',
-            boxShadow: 'var(--mac-shadow-subtle)',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            transition: 'var(--mac-transition-fast)',
-            '&:hover': {
-              backgroundColor: 'var(--sakay-orange-soft)',
-              color: 'var(--sakay-orange)',
-              borderColor: 'var(--sakay-orange-border)',
-            },
-          }}
-        >
-          View full map
-        </Button>
-      </Box>
-
-      {/* Map Surface with specified Corner Treatment */}
+    <DashboardCard title="Live trips map" action={{ label: 'Open full map', to: '/live-trips' }}>
       <Box
         sx={{
           flex: 1,
           minHeight: 230,
           width: '100%',
-          borderRadius: '0 0 8px 8px', // Top: square, Bottom: subtle rounding
+          borderRadius: '8px',
           overflow: 'hidden',
           position: 'relative',
-          border: '1px solid var(--mac-border-subtle)',
-          '& .leaflet-container': {
-            borderRadius: '0 0 8px 8px !important',
-          },
+          border: `1px solid ${PAGE_BORDER}`,
+          '& .leaflet-container': { borderRadius: '8px' },
         }}
       >
         <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 
         {/* Floating Active Trip Status Badge */}
         <Box
+          role="status"
           sx={{
             position: 'absolute',
             bottom: 12,
@@ -128,10 +74,11 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
             alignItems: 'center',
             gap: 0.8,
             zIndex: 400,
-            border: '1px solid var(--mac-border-color)',
+            border: `1px solid ${PAGE_BORDER}`,
           }}
         >
           <Box
+            aria-hidden
             sx={{
               width: 8,
               height: 8,
@@ -139,11 +86,11 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
               backgroundColor: ongoingTripsCount > 0 ? '#34A853' : '#9CA3AF',
             }}
           />
-          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-            {ongoingTripsCount > 0 ? `Active Trips (${ongoingTripsCount})` : 'No Active Trips'}
+          <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.primary }}>
+            {ongoingTripsCount > 0 ? `Active trips (${ongoingTripsCount})` : 'No active trips'}
           </Typography>
         </Box>
       </Box>
-    </Box>
+    </DashboardCard>
   );
 };

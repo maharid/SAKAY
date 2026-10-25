@@ -43,7 +43,7 @@ export const AdminRoutes: React.FC = () => {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Dashboard" pageSubtitle="Here is your municipal transport operations overview for today.">
+            <AdminLayout pageTitle="Dashboard" pageSubtitle="Your municipal transport operations at a glance.">
               <DashboardPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -55,7 +55,7 @@ export const AdminRoutes: React.FC = () => {
         path="/toda-applications"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="TODA Applications" pageSubtitle="Review and manage TODA accreditation requests.">
+            <AdminLayout pageTitle="TODA Applications" pageSubtitle="Review TODA accreditation requests.">
               <TodaApplicationsPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -66,7 +66,7 @@ export const AdminRoutes: React.FC = () => {
         path="/accredited-todas"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Accredited TODAs" pageSubtitle="Manage accredited TODAs, service zones, and registration records.">
+            <AdminLayout pageTitle="Accredited TODAs" pageSubtitle="The accredited TODAs, their service zones and records.">
               <AccreditedTodasPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -77,7 +77,7 @@ export const AdminRoutes: React.FC = () => {
         path="/drivers"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Driver Verification & Management" pageSubtitle="Review driver credentials, affiliations, and verification status.">
+            <AdminLayout pageTitle="Drivers" pageSubtitle="Review driver documents, TODA membership and verification.">
               <DriverManagementPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -88,7 +88,7 @@ export const AdminRoutes: React.FC = () => {
         path="/passengers"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Passenger Management" pageSubtitle="Manage passenger accounts, sessions, and compliance.">
+            <AdminLayout pageTitle="Passengers" pageSubtitle="Passenger accounts, strikes and suspensions.">
               <PassengerManagementPage />
             </AdminLayout>
           </ProtectedRoute>
@@ -99,7 +99,7 @@ export const AdminRoutes: React.FC = () => {
         path="/feedback"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Passenger Feedback & Ratings" pageSubtitle="Review commuter trip feedback, star evaluations, and triage complaints.">
+            <AdminLayout pageTitle="Passenger Feedback" pageSubtitle="Ratings and comments from passengers after their rides.">
               <PassengerFeedbackPage />
             </AdminLayout>
           </ProtectedRoute>

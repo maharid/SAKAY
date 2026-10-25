@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar, Rating, Chip, Button } from '@mui/material';
-import PersonIcon from '@mui/icons-material/Person';
+import { Box, Typography, TableBody, TableCell, TableRow, Rating, Chip, Button } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
 import ShieldIcon from '@mui/icons-material/Shield';
 
 import { PassengerRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { CloseAccountButton, VoidStrikeButton } from '../components/admin/AccountSanctionActions';
 import { RestrictionBanner } from '../components/admin/RestrictionBanner';
 import { SakayToast } from '../components/common/SakayToast';
-import { TableEmptyState } from '../components/common/TableEmptyState';
+import { CellStack, DataTableCard, DataTableMessageRow, FlagTag, PersonCell } from '../components/common/DataTable';
+import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
 import { useStrikeData } from '../hooks/useStrikeData';
 import { getStrikeLevel } from '../utils/strikeLevel';
 import {
@@ -25,6 +23,7 @@ import {
   excludeRating,
 } from '../services/adminApiService';
 import { FONT } from '../styles/density';
+import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -193,13 +192,15 @@ export const PassengerManagementPage: React.FC = () => {
   };
 
 
+  const strikeLevel = getStrikeLevel(activeStrikes);
+
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. Filter Toolbar */}
+      {/* 1. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search passenger by name, phone, or email..."
+        searchPlaceholder="Search name, phone, or email"
         selectFilters={[
           {
             id: 'status',
@@ -219,131 +220,82 @@ export const PassengerManagementPage: React.FC = () => {
         onResetFilters={() => {
           setSearchQuery('');
           setStatusFilter('All');
-          setStatusFilter('All');
+          setVerificationFilter('All');
         }}
       />
 
-      {/* 2. Passenger Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          borderRadius: 'var(--mac-radius-lg)',
-          border: '1px solid var(--mac-border-color)',
-          boxShadow: 'var(--mac-shadow-card)',
-          overflow: 'hidden',
-        }}
+      {/* 2. The passengers */}
+      <DataTableCard
+        label="Passengers"
+        minWidth={900}
+        columns={[
+          { label: 'Passenger' },
+          { label: 'Phone and email' },
+          { label: 'Verification' },
+          { label: 'Bookings' },
+          { label: 'Strikes' },
+          { label: 'Account' },
+          { label: 'Action', align: 'right' },
+        ]}
       >
-        <Table>
-          <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Passenger</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Phone / Email</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Verification</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Bookings</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Policy Strikes</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Account Status</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredPassengers.length > 0 ? (
-              filteredPassengers.map((passenger) => (
-                <TableRow
-                  key={passenger.id}
-                  sx={{
-                    transition: 'var(--mac-transition-fast)',
-                    '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  }}
-                >
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
-                      <Avatar
-                        sx={{
-                          width: 36,
-                          height: 36,
-                          backgroundColor: '#E8F0FE',
-                          color: '#1A73E8',
-                          fontSize: FONT.caption,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {passenger.name.charAt(0)}
-                      </Avatar>
-                      <Box>
-                        <Typography sx={{ fontWeight: 600, fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
-                          {passenger.name}
-                        </Typography>
-                        <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mt: '2px' }}>
-                          Registered: {passenger.registeredDate}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
-                    {passenger.phone}
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={passenger.verificationStatus} />
-                  </TableCell>
-                  <TableCell sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
-                    {passenger.totalBookings} {passenger.totalBookings === 1 ? 'Booking' : 'Bookings'}
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                      <Chip
-                        label={`${passenger.strikesCount} Strike(s)`}
-                        size="small"
-                        sx={{
-                          fontSize: FONT.small,
-                          fontWeight: 600,
-                          backgroundColor: passenger.strikesCount > 0 ? 'rgba(234, 67, 53, 0.12)' : 'rgba(52, 168, 83, 0.12)',
-                          color: passenger.strikesCount > 0 ? '#D93025' : '#1E8E3E',
-                          height: 24,
-                        }}
-                      />
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
-                    <StatusBadge status={passenger.accountStatus} />
-                  </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
-                    <ActionButton
-                      label="View Account"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPassenger(passenger);
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={7}
-                icon={<PersonIcon />}
-                title="No passengers registered yet."
-                description="Registered commuter accounts will appear here once passengers begin signing up for SAKAY."
-                onRefresh={() => {
-                  setIsLoading(true);
-                  fetchPassengers().then((data) => { if (data) setPassengers(data || []); }).finally(() => setIsLoading(false));
-                }}
-                isRefreshing={isLoading}
-              />
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+        <TableBody>
+          {isLoading ? (
+            <DataTableMessageRow colSpan={7} kind="loading" loadingText="Loading passengers..." />
+          ) : filteredPassengers.length > 0 ? (
+            filteredPassengers.map((passenger) => (
+              <TableRow key={passenger.id}>
+                <TableCell>
+                  <PersonCell name={passenger.name} detail={`Registered ${passenger.registeredDate}`} />
+                </TableCell>
+                <TableCell>
+                  <CellStack primary={passenger.phone} secondary={passenger.email} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={passenger.verificationStatus} />
+                </TableCell>
+                <TableCell>{passenger.totalBookings} {passenger.totalBookings === 1 ? 'booking' : 'bookings'}</TableCell>
+                <TableCell>
+                  <FlagTag label={`${passenger.strikesCount} ${passenger.strikesCount === 1 ? 'strike' : 'strikes'}`} tone={passenger.strikesCount > 0 ? 'danger' : 'success'} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={passenger.accountStatus} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button aria-label={`View the account of ${passenger.name}`} onClick={() => setSelectedPassenger(passenger)} sx={rowActionSx('neutral')}>
+                    View account
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <DataTableMessageRow
+              colSpan={7}
+              kind={passengers.length > 0 ? 'noResults' : 'empty'}
+              title={passengers.length > 0 ? 'No passengers match' : 'No passengers registered yet'}
+              hint={
+                passengers.length > 0
+                  ? 'Nothing matches your search or filter. Try clearing them.'
+                  : 'Passengers appear here once they sign up for SAKAY.'
+              }
+              onRefresh={() => {
+                setIsLoading(true);
+                fetchPassengers().then((data) => { if (data) setPassengers(data || []); }).finally(() => setIsLoading(false));
+              }}
+            />
+          )}
+        </TableBody>
+      </DataTableCard>
 
-      {/* 3. Centered Passenger Account Modal */}
+      {/* 3. Passenger account window */}
       {selectedPassenger && (
         <MacCenterModal
           open={Boolean(selectedPassenger)}
           onClose={() => setSelectedPassenger(null)}
-          title={`Passenger Account — ${selectedPassenger.name}`}
+          title={`Passenger account: ${selectedPassenger.name}`}
           subtitle={`Passenger ID: ${selectedPassenger.id}`}
           badge={<StatusBadge status={selectedPassenger.accountStatus} />}
-          primaryActionLabel={selectedPassenger.accountStatus === 'Pending' ? undefined : selectedPassenger.accountStatus === 'Active' ? 'Suspend Account' : 'Reactivate Account'}
+          primaryActionLabel={selectedPassenger.accountStatus === 'Pending' ? undefined : selectedPassenger.accountStatus === 'Active' ? 'Suspend account' : 'Reactivate account'}
+          primaryActionColor={selectedPassenger.accountStatus === 'Active' ? 'error' : 'primary'}
           onPrimaryAction={() => {
             if (selectedPassenger.accountStatus === 'Active') {
               setSuspendDialogOpen(true);
@@ -366,70 +318,54 @@ export const PassengerManagementPage: React.FC = () => {
             ) : undefined
           }
         >
-          {/* Account Rating Bar */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAFAFC', padding: '13px 16px', borderRadius: '12px', mb: 3.2, border: '1px solid var(--mac-border-color)' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+          {/* Rating from drivers */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', backgroundColor: '#FAFAF8', padding: '12px 14px', borderRadius: '12px', mb: '20px', border: `1px solid ${PAGE_BORDER}` }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               {selectedPassenger.ratingCount > 0 ? (
                 <>
                   <Rating value={selectedPassenger.rating} readOnly precision={0.1} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
-                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary }}>
                     {selectedPassenger.rating} / 5
                   </Typography>
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
+                  <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>
                     ({selectedPassenger.ratingCount} {selectedPassenger.ratingCount === 1 ? 'rating' : 'ratings'} from drivers)
                   </Typography>
                 </>
               ) : (
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)' }}>
-                  Not Yet Rated
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.secondary }}>
+                  Not yet rated
                 </Typography>
               )}
             </Box>
 
-            <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-secondary)' }}>
-              Registered: {selectedPassenger.registeredDate}
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.secondary }}>
+              Registered {selectedPassenger.registeredDate}
             </Typography>
           </Box>
 
-          {/* Section 1: Passenger Strike System & Policy Compliance Log */}
-          <Box sx={{ mb: 3.2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                <FlashOnIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-                <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                  Passenger Strike System & Compliance Log (Rolling 90 Days)
-                </Typography>
-              </Box>
-              <Chip
-                icon={<ShieldIcon style={{ fontSize: '12px', color: getStrikeLevel(activeStrikes).color }} />}
-                label={getStrikeLevel(activeStrikes).label}
-                size="small"
-                sx={{
-                  backgroundColor: getStrikeLevel(activeStrikes).bg,
-                  color: getStrikeLevel(activeStrikes).color,
-                  fontWeight: 700,
-                  fontSize: FONT.small,
-                  height: 26,
-                  border: `1px solid ${getStrikeLevel(activeStrikes).border}`,
-                }}
-              />
-            </Box>
-
-            <Box sx={{ backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px', mb: 1.6 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                  Active Strike Count: <span style={{ color: activeStrikes > 0 ? '#DC2626' : '#1E8E3E', fontWeight: 700 }}>{activeStrikes} Strike(s)</span>
-                </Typography>
-                <ActionButton
-                  label={strikeIssued ? 'Violation Recorded ✓' : '+ Record Violation / Strike'}
-                  showArrow={false}
-                  onClick={() => setStrikeDialogOpen(true)}
-                  sx={{ height: 32, fontSize: FONT.small }}
-                />
+          {/* Strikes and policy compliance */}
+          <DetailSection title="Strikes" note="Last 90 days">
+            <Box sx={{ backgroundColor: '#FAFAF8', border: `1px solid ${PAGE_BORDER}`, padding: '14px 16px', borderRadius: '12px' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 12px', mb: strikeItems.length > 0 ? '12px' : 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>
+                    Active strikes:{' '}
+                    <Box component="span" sx={{ color: activeStrikes > 0 ? PAGE_TEXT.danger : PAGE_TEXT.success, fontWeight: 700 }}>{activeStrikes}</Box>
+                  </Typography>
+                  <Chip
+                    icon={<ShieldIcon style={{ fontSize: '12px', color: strikeLevel.color }} />}
+                    label={strikeLevel.label}
+                    size="small"
+                    sx={{ backgroundColor: strikeLevel.bg, color: strikeLevel.color, fontWeight: 700, fontSize: FONT.small, height: 24, border: `1px solid ${strikeLevel.border}` }}
+                  />
+                </Box>
+                <Button onClick={() => setStrikeDialogOpen(true)} sx={rowActionSx('neutral')}>
+                  {strikeIssued ? 'Violation recorded' : 'Record a violation'}
+                </Button>
               </Box>
 
               {strikeItems.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {strikeItems.map((item) => (
                     <Box
                       key={item.id}
@@ -437,35 +373,26 @@ export const PassengerManagementPage: React.FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '6px 12px',
                         backgroundColor: '#FFFFFF',
-                        padding: '11px 14px',
-                        borderRadius: '9.2px',
-                        border: '1px solid var(--mac-border-color)',
-                        boxShadow: 'var(--mac-shadow-subtle)',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: `1px solid ${PAGE_BORDER}`,
                       }}
                     >
-                      <Box sx={{ pr: 1.6 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: '3px' }}>
-                          <Chip
-                            label={`+${item.strikesApplied} Strike`}
-                            size="small"
-                            sx={{ fontSize: FONT.caption, fontWeight: 700, backgroundColor: '#FEE2E2', color: '#DC2626', height: 20 }}
-                          />
-                          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                            {item.reason}
-                          </Typography>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', mb: '2px' }}>
+                          <FlagTag label={`+${item.strikesApplied} strike`} tone="danger" />
+                          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>{item.reason}</Typography>
                         </Box>
-                        <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
-                          Date: {item.date} • Issued by: {item.issuedBy}
+                        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>
+                          {item.date} · Issued by {item.issuedBy}
                         </Typography>
                       </Box>
 
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0 }}>
-                        <Chip
-                          label={item.status}
-                          size="small"
-                          sx={{ fontSize: FONT.caption, fontWeight: 600, backgroundColor: 'rgba(255, 149, 0, 0.12)', color: '#C25E00', height: 24 }}
-                        />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        <FlagTag label={item.status} tone="warning" />
                         {item.voidable && (
                           <VoidStrikeButton
                             strikeId={item.id}
@@ -480,12 +407,12 @@ export const PassengerManagementPage: React.FC = () => {
                   ))}
                 </Box>
               ) : (
-                <Typography sx={{ fontSize: FONT.small, color: '#1E8E3E', fontStyle: 'italic', fontWeight: 500 }}>
-                  ✓ Clean Record: No policy strikes recorded against this passenger within the current 90-day window.
+                <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.success, fontWeight: 600, mt: '10px' }}>
+                  Clean record: no strikes in the last 90 days.
                 </Typography>
               )}
             </Box>
-          </Box>
+          </DetailSection>
 
           {/* Suspension / deactivation state, as decided by the database */}
           <RestrictionBanner
@@ -494,134 +421,114 @@ export const PassengerManagementPage: React.FC = () => {
             reason={selectedPassenger.suspensionReason}
           />
 
-          {/* Account Details */}
-          <Box sx={{ mb: 3.2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-              <PersonIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
-                Account & Activity Summary
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
-              <Box>
-                <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Mobile Phone</Typography>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedPassenger.phone}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Email Address</Typography>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedPassenger.email}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Verification Status</Typography>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: selectedPassenger.verificationStatus === 'Verified' ? '#34A853' : '#FBBC04' }}>
+          {/* Account details */}
+          <DetailSection title="Account details">
+            <DetailGrid>
+              <DetailField label="Mobile phone">{selectedPassenger.phone}</DetailField>
+              <DetailField label="Email address">{selectedPassenger.email}</DetailField>
+              <DetailField label="Verification">
+                <Box component="span" sx={{ color: selectedPassenger.verificationStatus === 'Verified' ? PAGE_TEXT.success : PAGE_TEXT.warning }}>
                   {selectedPassenger.verificationStatus === 'Verified' ? 'Verified (mobile number confirmed by OTP)' : 'Unverified (the OTP step is not finished; no booking is possible yet)'}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Total Completed Rides</Typography>
-                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedPassenger.totalBookings} Bookings</Typography>
-              </Box>
-            </Box>
-          </Box>
+                </Box>
+              </DetailField>
+              <DetailField label="Completed rides">{selectedPassenger.totalBookings} {selectedPassenger.totalBookings === 1 ? 'booking' : 'bookings'}</DetailField>
+            </DetailGrid>
+          </DetailSection>
 
-          {/* Passenger Feedback Summary */}
-          <Box>
-            <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.6 }}>
-              Recent Passenger Feedback & Complaints Log
-            </Typography>
-
+          {/* Recent feedback about this passenger */}
+          <DetailSection title="Recent feedback and complaints">
             {selectedPassenger.recentFeedback && selectedPassenger.recentFeedback.length > 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {selectedPassenger.recentFeedback.map((fb, idx) => (
                   <Box
                     key={idx}
                     sx={{
-                      padding: '13px 14px',
+                      padding: '12px 14px',
                       borderRadius: '12px',
-                      border: '1px solid var(--mac-border-color)',
+                      border: `1px solid ${PAGE_BORDER}`,
                       backgroundColor: '#FFFFFF',
-                      boxShadow: 'var(--mac-shadow-subtle)',
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '6px' }}>
                       <Rating value={fb.rating} readOnly precision={0.5} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
-                      <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>{fb.date}</Typography>
+                      <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>{fb.date}</Typography>
                     </Box>
-                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--sakay-orange)', mb: '3px' }}>
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.brand, mb: '3px' }}>
                       Category: {fb.category}
                     </Typography>
-                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', lineHeight: 1.4 }}>
+                    <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.primary, lineHeight: 1.4 }}>
                       "{fb.comment}"
                     </Typography>
                     {fb.excluded && (
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#92400E', mt: 0.4 }}>Excluded from the Average Rating</Typography>
+                      <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: PAGE_TEXT.warning, mt: '6px' }}>Excluded from the Average Rating</Typography>
                     )}
-                    {fb.ratingId && (
-                      <Button size="small" variant="outlined" onClick={() => setExcludeTarget({ ratingId: fb.ratingId as string, excluded: Boolean(fb.excluded) })} sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.small, mt: 0.4 }}>
-                        {fb.excluded ? 'Count again' : 'Exclude rating'}
-                      </Button>
-                    )}
-                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mt: 0.8 }}>
-                      Trip Ref: {fb.tripId}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px 12px', mt: '8px' }}>
+                      <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>
+                        Trip ref. {fb.tripId}
+                      </Typography>
+                      {fb.ratingId && (
+                        <Button onClick={() => setExcludeTarget({ ratingId: fb.ratingId as string, excluded: Boolean(fb.excluded) })} sx={rowActionSx('neutral')}>
+                          {fb.excluded ? 'Count again' : 'Exclude rating'}
+                        </Button>
+                      )}
+                    </Box>
                   </Box>
                 ))}
               </Box>
             ) : (
-              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontStyle: 'italic' }}>
-                No recent feedback or complaints submitted for this passenger.
+              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
+                No recent feedback or complaints for this passenger.
               </Typography>
             )}
-          </Box>
+          </DetailSection>
         </MacCenterModal>
       )}
 
-      {/* 4. Suspend Account Confirmation Dialog */}
+      {/* 4. Suspend */}
       {selectedPassenger && (
         <MacConfirmDialog
           open={suspendDialogOpen}
           onClose={() => setSuspendDialogOpen(false)}
-          title="Suspend Passenger Account?"
-          message={`Are you sure you want to suspend "${selectedPassenger.name}"? Specify the policy violation reason below.`}
-          confirmLabel="Suspend Passenger"
+          title="Suspend this passenger?"
+          message={`Are you sure you want to suspend "${selectedPassenger.name}"? Write the policy violation below.`}
+          confirmLabel="Suspend passenger"
           confirmVariant="danger"
           requireReason
-          reasonPlaceholder="Specify violation (e.g. Repeated booking cancellations, abusive conduct)..."
+          reasonPlaceholder="Describe the violation (e.g. repeated booking cancellations, abusive conduct)"
           onConfirm={handleSuspendConfirm}
         />
       )}
 
-      {/* 5. Reactivate Account Confirmation Dialog */}
+      {/* 5. Reactivate */}
       {selectedPassenger && (
         <MacConfirmDialog
           open={reactivateDialogOpen}
           onClose={() => setReactivateDialogOpen(false)}
-          title="Reactivate Passenger Account?"
+          title="Reactivate this passenger?"
           message={
             selectedPassenger.accountStatus === 'Deactivated'
               ? `"${selectedPassenger.name}" is deactivated. Confirm that you reviewed the full violation history above. Strike counts are not reset; they age out of the 90-day window.`
               : `Reactivate account access for "${selectedPassenger.name}"? They will regain ability to book rides through the SAKAY Passenger PWA.`
           }
-          confirmLabel={selectedPassenger.accountStatus === 'Deactivated' ? 'I Reviewed the History — Reactivate' : 'Reactivate Account'}
+          confirmLabel={selectedPassenger.accountStatus === 'Deactivated' ? 'I reviewed the history: reactivate' : 'Reactivate account'}
           confirmVariant="orange"
           onConfirm={handleReactivateConfirm}
         />
       )}
 
-      {/* 6. Record Violation / Strike Dialog (catalog-driven; the engine applies the ladder) */}
+      {/* 6. Record a violation (catalog-driven; the engine applies the ladder) */}
       {selectedPassenger && (
         <MacConfirmDialog
           open={strikeDialogOpen}
           onClose={() => setStrikeDialogOpen(false)}
-          title="Record a Policy Violation?"
+          title="Record a policy violation?"
           message={`Record a confirmed violation against "${selectedPassenger.name}". The platform applies the strike count and any consequence automatically (warning at 1, review at 3, suspension at 5 and 8, deactivation at 10).`}
-          confirmLabel="Record Violation"
+          confirmLabel="Record violation"
           confirmVariant="danger"
           options={strikeData.violationOptions}
           optionLabel="Violation"
           requireReason
-          reasonPlaceholder="Describe the evidence that confirms this violation..."
+          reasonPlaceholder="Describe the evidence that confirms this violation"
           onConfirm={handleIssueStrike}
         />
       )}
