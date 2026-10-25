@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import type { ReportTable } from '@sakay/shared';
+import { FONT } from '../../styles/density';
 
 interface ReportTableViewProps {
   table: ReportTable;
@@ -10,16 +11,16 @@ interface ReportTableViewProps {
 /** A report table as the page shows it; the exports contain exactly the same headers and rows. */
 export const ReportTableView: React.FC<ReportTableViewProps> = ({ table, emptyText }) => (
   <>
-    <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>{table.title}</Typography>
+    <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>{table.title}</Typography>
     {table.notes.map((n) => (
-      <Typography key={n} sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)', mb: 0.5 }}>{n}</Typography>
+      <Typography key={n} sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 0.4 }}>{n}</Typography>
     ))}
-    <TableContainer sx={{ mt: 1.5 }}>
+    <TableContainer sx={{ mt: 1.2 }}>
       <Table size="small">
         <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
           <TableRow>
             {table.headers.map((h) => (
-              <TableCell key={h} sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: '11px' }}>{h}</TableCell>
+              <TableCell key={h} sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: FONT.small }}>{h}</TableCell>
             ))}
           </TableRow>
         </TableHead>
@@ -34,7 +35,7 @@ export const ReportTableView: React.FC<ReportTableViewProps> = ({ table, emptyTe
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={table.headers.length} align="center" sx={{ py: 4, color: 'var(--mac-text-muted)' }}>{emptyText}</TableCell>
+              <TableCell colSpan={table.headers.length} align="center" sx={{ py: 3.2, color: 'var(--mac-text-muted)' }}>{emptyText}</TableCell>
             </TableRow>
           )}
         </TableBody>

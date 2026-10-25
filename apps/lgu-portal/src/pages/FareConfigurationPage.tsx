@@ -29,6 +29,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { ActionButton } from '../components/admin/ActionButton';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { fetchFareMatrices, enactFareMatrix, fetchFareExample, type FareExample } from '../services/adminApiService';
+import { CONTROL, FONT } from '../styles/density';
 
 /**
  * ============================================================================
@@ -166,15 +167,15 @@ export const FareConfigurationPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
-        <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)' }}>Loading the fare rules...</Typography>
+      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
+        <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Loading the fare rules...</Typography>
       </Box>
     );
   }
 
   if (loadError || !activeMatrix) {
     return (
-      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+      <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
         <Alert
           severity="error"
           action={
@@ -188,7 +189,7 @@ export const FareConfigurationPage: React.FC = () => {
             : 'No fare rule is in force. Enact one to allow bookings.'}
         </Alert>
         {!loadError && (
-          <Button onClick={openConfigureModal} variant="contained" sx={{ mt: 2, textTransform: 'none' }}>
+          <Button onClick={openConfigureModal} variant="contained" sx={{ mt: 1.6, textTransform: 'none' }}>
             Configure New Rate
           </Button>
         )}
@@ -197,40 +198,40 @@ export const FareConfigurationPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Top Summary Stat Cards */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 3.5,
+          gap: 2,
+          mb: 2.8,
         }}
       >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Standard Base Fare</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{activeMatrix.base_fare.toFixed(2)}</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>First {activeMatrix.base_distance_km.toFixed(1)} kilometers</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Standard Base Fare</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{activeMatrix.base_fare.toFixed(2)}</Typography>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>First {activeMatrix.base_distance_km.toFixed(1)} kilometers</Typography>
         </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Succeeding Per-KM Rate</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#1565C0' }}>₱{activeMatrix.succeeding_rate.toFixed(2)} / km</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>Excess distance increment</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Succeeding Per-KM Rate</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#1565C0' }}>₱{activeMatrix.succeeding_rate.toFixed(2)} / km</Typography>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>Excess distance increment</Typography>
         </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Solo Trip Base</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#2E7D32' }}>₱{(activeMatrix.solo_base_fare ?? 0).toFixed(2)}</Typography>
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 0.5 }}>4-Seat capacity charter</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Solo Trip Base</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: '#2E7D32' }}>₱{(activeMatrix.solo_base_fare ?? 0).toFixed(2)}</Typography>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>4-Seat capacity charter</Typography>
         </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '20px 24px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Matrix Versions</Typography>
-          <Typography sx={{ fontSize: '32px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{fareHistory.length} Versions</Typography>
-          <Typography sx={{ fontSize: '12px', color: '#1E8E3E', mt: 0.5, fontWeight: 600 }}>Active: V{versionNumber(activeMatrix)}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 19px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Matrix Versions</Typography>
+          <Typography sx={{ fontSize: '26px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{fareHistory.length} Versions</Typography>
+          <Typography sx={{ fontSize: FONT.caption, color: '#1E8E3E', mt: 0.4, fontWeight: 600 }}>Active: V{versionNumber(activeMatrix)}</Typography>
         </Box>
       </Box>
 
       {/* 2. Active Fare Matrix & Derived Formulas Split Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 3, mb: 4, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: 2.4, mb: 3.2, alignItems: 'start' }}>
         {/* Active Fare Matrix Card */}
         <Card
           sx={{
@@ -243,20 +244,20 @@ export const FareConfigurationPage: React.FC = () => {
             justifyContent: 'space-between',
           }}
         >
-          <CardContent sx={{ p: '28px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
+          <CardContent sx={{ p: '22px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.4 }}>
               <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: '4px' }}>
-                  <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: '3px' }}>
+                  <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                     Current Active Fare Matrix
                   </Typography>
                   <Chip
                     label="Active Standard"
                     size="small"
-                    sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E', fontWeight: 700, fontSize: '12px', height: 24 }}
+                    sx={{ backgroundColor: '#E6F4EA', color: '#1E8E3E', fontWeight: 700, fontSize: FONT.caption, height: 24 }}
                   />
                 </Box>
-                <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   {activeMatrix.ordinance_reference}
                 </Typography>
               </Box>
@@ -266,11 +267,12 @@ export const FareConfigurationPage: React.FC = () => {
                 startIcon={<EditNoteIcon />}
                 variant="contained"
                 sx={{
-                  height: 40,
-                  padding: '0 20px',
+                  height: CONTROL.height,
+                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                  padding: '0 16px',
                   borderRadius: '9px',
                   textTransform: 'none',
-                  fontSize: '13.5px',
+                  fontSize: FONT.body,
                   fontWeight: 600,
                   backgroundColor: 'var(--sakay-orange)',
                   color: '#FFFFFF',
@@ -282,49 +284,49 @@ export const FareConfigurationPage: React.FC = () => {
               </Button>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2.5, backgroundColor: '#FAFAFC', padding: '22px', borderRadius: '12px', border: '1px solid var(--mac-border-color)', mb: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, backgroundColor: '#FAFAFC', padding: '18px', borderRadius: '12px', border: '1px solid var(--mac-border-color)', mb: 2.4 }}>
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px', textTransform: 'uppercase', fontWeight: 600 }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px', textTransform: 'uppercase', fontWeight: 600 }}>
                   Base Minimum Fare
                 </Typography>
-                <Typography sx={{ fontSize: '24px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
+                <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
                   ₱{activeMatrix.base_fare.toFixed(2)}
                 </Typography>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: '2px' }}>
                   Covers first {activeMatrix.base_distance_km.toFixed(1)} km
                 </Typography>
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px', textTransform: 'uppercase', fontWeight: 600 }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px', textTransform: 'uppercase', fontWeight: 600 }}>
                   Per-Kilometer Increment
                 </Typography>
-                <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#1565C0' }}>
+                <Typography sx={{ fontSize: '19px', fontWeight: 700, color: '#1565C0' }}>
                   ₱{activeMatrix.succeeding_rate.toFixed(2)}
                 </Typography>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: '2px' }}>
                   Applied after {activeMatrix.base_distance_km.toFixed(1)} km
                 </Typography>
               </Box>
 
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px', textTransform: 'uppercase', fontWeight: 600 }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px', textTransform: 'uppercase', fontWeight: 600 }}>
                   Effective Since
                 </Typography>
-                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {activeMatrix.effective_date}
                 </Typography>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: '2px' }}>
                   Enforced City-Wide
                 </Typography>
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1 }}>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 0.8 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 Configured By: <strong style={{ color: 'var(--mac-text-primary)' }}>{activeMatrix.configured_by_lgu_admin}</strong>
               </Typography>
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 System Version ID: {activeMatrix.fare_matrix_id}
               </Typography>
             </Box>
@@ -340,27 +342,27 @@ export const FareConfigurationPage: React.FC = () => {
             backgroundColor: '#FFFFFF',
           }}
         >
-          <CardContent sx={{ p: '26px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <CalculateIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24 }} />
-              <Typography sx={{ fontSize: '18px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <CardContent sx={{ p: '21px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
+              <CalculateIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
+              <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                 Derived Metering Formulas
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: 2.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 2 }}>
               Standard algorithmic fare computations mandated by Calapan City Local Transport Framework:
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
               {/* Formula 1: Single Seat Fare */}
-              <Box sx={{ backgroundColor: '#F8F9FA', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '4px' }}>
+              <Box sx={{ backgroundColor: '#F8F9FA', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
                   1. Standard Single Seat Fare
                 </Typography>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: '13px', color: 'var(--sakay-orange)', fontWeight: 600 }}>
+                <Typography sx={{ fontFamily: 'monospace', fontSize: FONT.caption, color: 'var(--sakay-orange)', fontWeight: 600 }}>
                   Seat Fare = Base Fare + (Excess Distance × Per-KM Rate)
                 </Typography>
-                <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '4px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px' }}>
                   {example
                     ? 'Example (4.5 km, rule in force): ₱' + activeMatrix.base_fare.toFixed(2) + ' + (' + example.excessKm.toFixed(1) + ' km × ₱' + activeMatrix.succeeding_rate.toFixed(2) + ') = ₱' + example.seatFare.toFixed(2)
                     : 'Example unavailable right now.'}
@@ -368,14 +370,14 @@ export const FareConfigurationPage: React.FC = () => {
               </Box>
 
               {/* Formula 2: Solo Trip Charter */}
-              <Box sx={{ backgroundColor: '#F8F9FA', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '4px' }}>
+              <Box sx={{ backgroundColor: '#F8F9FA', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
                   2. Solo Trip (Full Unit Charter)
                 </Typography>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: '13px', color: '#1565C0', fontWeight: 600 }}>
+                <Typography sx={{ fontFamily: 'monospace', fontSize: FONT.caption, color: '#1565C0', fontWeight: 600 }}>
                   Solo Trip Fare = Seat Fare × the seats of the tricycle{example ? ' (₱' + example.soloBase.toFixed(2) + ' base)' : ''}
                 </Typography>
-                <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '4px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px' }}>
                   {example
                     ? 'Example (4.5 km): ₱' + example.soloFare.toFixed(2) + ' (rounded to the nearest peso). Guarantees exclusive vehicle occupancy, whatever the headcount.'
                     : 'Guarantees exclusive vehicle occupancy for the passenger party.'}
@@ -383,14 +385,14 @@ export const FareConfigurationPage: React.FC = () => {
               </Box>
 
               {/* Formula 3: Ride-Sharing Split */}
-              <Box sx={{ backgroundColor: '#F8F9FA', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: '4px' }}>
+              <Box sx={{ backgroundColor: '#F8F9FA', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: '3px' }}>
                   3. Ride-Sharing Proportional Split
                 </Typography>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: '13px', color: '#2E7D32', fontWeight: 600 }}>
+                <Typography sx={{ fontFamily: 'monospace', fontSize: FONT.caption, color: '#2E7D32', fontWeight: 600 }}>
                   Shared Fare = the vehicle fare of the route, split per kilometre by passengers on board
                 </Typography>
-                <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '4px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '3px' }}>
                   {example
                     ? 'The vehicle fare is the Solo Trip Fare of the whole route. Example (4.5 km, two 1-passenger bookings sharing it): ₱' + example.sharedEstimate.toFixed(2) + ' each. Kilometres travelled by one booking alone are charged to that booking.'
                     : 'Kilometres travelled by one booking alone are charged to that booking.'}
@@ -402,10 +404,10 @@ export const FareConfigurationPage: React.FC = () => {
       </Box>
 
       {/* 3. Version History Table */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+      <Box sx={{ mb: 1.6 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
           <HistoryIcon sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: '18px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
             Fare Matrix Version History & Historical Records
           </Typography>
         </Box>
@@ -423,13 +425,13 @@ export const FareConfigurationPage: React.FC = () => {
           <Table>
             <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>VERSION & ORDINANCE</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>BASE FARE</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>BASE DISTANCE</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>PER-KM INCREMENT</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>EFFECTIVE TIMEFRAME</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>STATUS</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>ACTIONS</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>VERSION & ORDINANCE</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>BASE FARE</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>BASE DISTANCE</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>PER-KM INCREMENT</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>EFFECTIVE TIMEFRAME</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>STATUS</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>ACTIONS</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -442,30 +444,30 @@ export const FareConfigurationPage: React.FC = () => {
                     '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                   }}
                 >
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '14.5px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
                       {version.id} ({version.fare_matrix_id})
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                       {version.ordinance_reference}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--sakay-orange)', py: 2.2, px: 3 }}>
+                  <TableCell sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--sakay-orange)', py: 2.2, px: 2.4 }}>
                     ₱{version.base_fare.toFixed(2)}
                   </TableCell>
-                  <TableCell sx={{ fontSize: '14px', color: 'var(--mac-text-primary)', py: 2.2, px: 3 }}>
+                  <TableCell sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
                     {version.base_distance_km.toFixed(1)} km
                   </TableCell>
-                  <TableCell sx={{ fontSize: '14px', fontWeight: 600, color: '#1565C0', py: 2.2, px: 3 }}>
+                  <TableCell sx={{ fontSize: FONT.small, fontWeight: 600, color: '#1565C0', py: 2.2, px: 2.4 }}>
                     ₱{version.succeeding_rate.toFixed(2)} / km
                   </TableCell>
-                  <TableCell sx={{ fontSize: '13.5px', color: 'var(--mac-text-secondary)', py: 2.2, px: 3 }}>
+                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 2.2, px: 2.4 }}>
                     {version.effective_date}
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
                     <StatusBadge status={version.status === 'In force' ? 'Active' : version.status ?? 'Superseded'} />
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
                     <ActionButton
                       label="Inspect"
                       onClick={(e) => {
@@ -487,23 +489,23 @@ export const FareConfigurationPage: React.FC = () => {
         onClose={() => setUpdateModalOpen(false)}
         title="Configure New Fare Matrix Version"
         subtitle="Appends an immutable rate record to the municipal ledger."
-        maxWidth={640}
+        maxWidth={512}
         primaryActionLabel={saving ? 'Saving...' : 'Enact & Publish Rate'}
         primaryActionDisabled={saving}
         onPrimaryAction={handleUpdateMatrixSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setUpdateModalOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Box sx={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', padding: '14px 18px', borderRadius: '10px' }}>
-            <Typography sx={{ fontSize: '13px', color: '#0369A1', lineHeight: 1.4 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', padding: '11px 14px', borderRadius: '10px' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: '#0369A1', lineHeight: 1.4 }}>
               <strong>Forward-only, append-only:</strong> a new version never edits or deletes an old one, and it applies only to bookings confirmed after its effective time. Bookings already confirmed keep the rate they were confirmed at. The change and your reason are written to the audit trail.
             </Typography>
           </Box>
 
           {formError && <Alert severity="error">{formError}</Alert>}
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.6 }}>
             <TextField
               fullWidth
               label="Base Fare (PHP)"
@@ -581,37 +583,37 @@ export const FareConfigurationPage: React.FC = () => {
           title={`Fare Matrix Record — ${selectedVersion.fare_matrix_id}`}
           subtitle={selectedVersion.ordinance_reference}
           badge={<StatusBadge status={selectedVersion.status === 'In force' ? 'Active' : selectedVersion.status ?? 'Superseded'} />}
-          maxWidth={640}
+          maxWidth={512}
         >
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px', mb: 3 }}>
+          <Box sx={{ mb: 2.4 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px', mb: 2.4 }}>
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Base Minimum Fare</Typography>
-                <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{selectedVersion.base_fare.toFixed(2)}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Base Minimum Fare</Typography>
+                <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--sakay-orange)' }}>₱{selectedVersion.base_fare.toFixed(2)}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Base Distance Covered</Typography>
-                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedVersion.base_distance_km.toFixed(1)} km</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Base Distance Covered</Typography>
+                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedVersion.base_distance_km.toFixed(1)} km</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Succeeding Rate</Typography>
-                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#1565C0' }}>₱{selectedVersion.succeeding_rate.toFixed(2)} / km</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Succeeding Rate</Typography>
+                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: '#1565C0' }}>₱{selectedVersion.succeeding_rate.toFixed(2)} / km</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Solo Trip Base (4 Seats)</Typography>
-                <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#2E7D32' }}>₱{(selectedVersion.solo_base_fare ?? 0).toFixed(2)}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Solo Trip Base (4 Seats)</Typography>
+                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: '#2E7D32' }}>₱{(selectedVersion.solo_base_fare ?? 0).toFixed(2)}</Typography>
               </Box>
               <Box sx={{ gridColumn: 'span 2' }}>
-                <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mb: '4px' }}>Authorized Officer</Typography>
-                <Typography sx={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedVersion.configured_by_lgu_admin}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Authorized Officer</Typography>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedVersion.configured_by_lgu_admin}</Typography>
               </Box>
             </Box>
 
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.2 }}>
               Administrative Notes & Background
             </Typography>
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
+            <Box sx={{ backgroundColor: '#FAFAFC', padding: '13px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
                 {selectedVersion.notes || 'No supplementary notes attached to this record.'}
               </Typography>
             </Box>

@@ -37,6 +37,7 @@ import { useOperationalReports } from '../hooks/useOperationalReports';
 import { recordAdminAuditAction } from '../services/adminApiService';
 import { reportTableFor } from '../utils/reportTables';
 import type { ReportKind } from '../utils/reportTables';
+import { FONT } from '../styles/density';
 
 /**
  * ============================================================================
@@ -85,10 +86,10 @@ interface KpiCardProps {
 
 const KpiCard: React.FC<KpiCardProps> = ({ title, value, caption, color }) => (
   <Card sx={cardSx}>
-    <CardContent sx={{ p: '20px 22px !important' }}>
-      <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>{title}</Typography>
-      <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color, mb: 0.5 }}>{value}</Typography>
-      <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>{caption}</Typography>
+    <CardContent sx={{ p: '16px 18px !important' }}>
+      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 0.8 }}>{title}</Typography>
+      <Typography sx={{ fontSize: '22px', fontWeight: 700, color, mb: 0.4 }}>{value}</Typography>
+      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{caption}</Typography>
     </CardContent>
   </Card>
 );
@@ -140,17 +141,17 @@ export const ReportsPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Header Toolbar with Export Actions */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1.6 }}>
         <Box sx={{ maxWidth: 900 }}>
-          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Official Municipal Transportation Reports</Typography>
-          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: '3px', mb: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>Official Municipal Transportation Reports</Typography>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px', mb: 0.4 }}>
             Reporting for tricycle public transit operations in Calapan City
           </Typography>
           <PilotCoverageNote />
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexWrap: 'wrap' }}>
           <Button
             onClick={() => void reload()}
             startIcon={<RefreshIcon />}
@@ -179,13 +180,13 @@ export const ReportsPage: React.FC = () => {
         </Box>
       </Box>
 
-      {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
-      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 2 }}>{exportNote.text}</Alert>}
+      {loadError && <Alert severity="error" sx={{ mb: 1.6 }}>{loadError}</Alert>}
+      {exportNote && <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: 1.6 }}>{exportNote.text}</Alert>}
 
       {reportsData && <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={reportsData.todaOptions} barangayOptions={reportsData.barangayOptions} />}
 
       {/* 2. Top Summary KPI Cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3.2 }}>
         <KpiCard title="Total Completed Trips" value={summary.completedTrips} caption={`Out of ${summary.totalBookings} total bookings`} color="#2E7D32" />
         <KpiCard title="Estimated Gross Fare Value" value={`₱${summary.totalRevenue.toLocaleString()}`} caption={`Average ₱${summary.averageFare.toFixed(2)} / completed trip`} color="var(--sakay-orange)" />
         <KpiCard title="Verified Driver Workforce" value={summary.activeDrivers} caption="Verified drivers in this selection" color="#1565C0" />
@@ -193,7 +194,7 @@ export const ReportsPage: React.FC = () => {
       </Box>
 
       {/* 3. Report Category Tabs */}
-      <Box sx={{ mb: 3, borderBottom: '1px solid var(--mac-border-color)' }}>
+      <Box sx={{ mb: 2.4, borderBottom: '1px solid var(--mac-border-color)' }}>
         <Tabs
           value={activeReportTab}
           onChange={(_, val: ReportKind) => setActiveReportTab(val)}
@@ -201,7 +202,7 @@ export const ReportsPage: React.FC = () => {
           scrollButtons="auto"
           sx={{
             '& .MuiTabs-indicator': { backgroundColor: 'var(--sakay-orange)', height: 3 },
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '11.3px', minHeight: 48 },
+            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: FONT.small, minHeight: 48 },
             '& .Mui-selected': { color: 'var(--sakay-orange) !important' },
           }}
         >
@@ -220,28 +221,28 @@ export const ReportsPage: React.FC = () => {
 
       {/* 4. Tab Content Panels */}
       {isLoading && !reportsData ? (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-          <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>Generating report...</Typography>
+        <Box sx={{ textAlign: 'center', py: 6.4 }}>
+          <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
+          <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Generating report...</Typography>
         </Box>
       ) : (
         reportsData &&
         table && (
-          <Paper elevation={0} sx={{ ...cardSx, overflow: 'hidden', p: 3 }}>
-            <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)', mb: 2 }}>Showing: {reportsData.filterText}</Typography>
+          <Paper elevation={0} sx={{ ...cardSx, overflow: 'hidden', p: 2.4 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 1.6 }}>Showing: {reportsData.filterText}</Typography>
 
             {activeReportTab === 'Trend' && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6, flexWrap: 'wrap', mb: 1.6 }}>
                 <ToggleButtonGroup size="small" exclusive value={trendPeriod} onChange={(_, v: VolumePeriod | null) => v && setTrendPeriod(v)}>
-                  <ToggleButton value="day" sx={{ textTransform: 'none', px: 2 }}>Daily</ToggleButton>
-                  <ToggleButton value="week" sx={{ textTransform: 'none', px: 2 }}>Weekly</ToggleButton>
-                  <ToggleButton value="month" sx={{ textTransform: 'none', px: 2 }}>Monthly</ToggleButton>
+                  <ToggleButton value="day" sx={{ textTransform: 'none', px: 1.6 }}>Daily</ToggleButton>
+                  <ToggleButton value="week" sx={{ textTransform: 'none', px: 1.6 }}>Weekly</ToggleButton>
+                  <ToggleButton value="month" sx={{ textTransform: 'none', px: 1.6 }}>Monthly</ToggleButton>
                 </ToggleButtonGroup>
                 {(() => {
                   const c = reportsData.comparison[trendPeriod];
-                  if (!c) return <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)' }}>Fewer than two complete periods: nothing to compare yet.</Typography>;
+                  if (!c) return <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Fewer than two complete periods: nothing to compare yet.</Typography>;
                   return (
-                    <Alert severity={c.direction === 'decline' ? 'warning' : c.direction === 'growth' ? 'success' : 'info'} sx={{ py: 0, '& .MuiAlert-message': { fontSize: '11.3px' } }}>
+                    <Alert severity={c.direction === 'decline' ? 'warning' : c.direction === 'growth' ? 'success' : 'info'} sx={{ py: 0, '& .MuiAlert-message': { fontSize: FONT.small } }}>
                       {c.direction === 'growth' ? 'Growth' : c.direction === 'decline' ? 'Decline' : 'No change'}: {c.current.label} had {c.current.total} booking{c.current.total === 1 ? '' : 's'} against {c.previous.total} in {c.previous.label}
                       {c.changePct === null ? '' : ` (${c.change > 0 ? '+' : ''}${c.changePct}%)`}.
                     </Alert>
@@ -251,14 +252,14 @@ export const ReportsPage: React.FC = () => {
             )}
 
             {activeReportTab === 'PeakHours' && (
-              <Box sx={{ mb: 4 }}>
-                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>
+              <Box sx={{ mb: 3.2 }}>
+                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1.6 }}>
                   Peak Travel Hours (when SAKAY bookings are created, Asia/Manila time)
                 </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
                   {reportsData.peakHourDistribution.map((h) => (
-                    <Box key={h.hour} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography sx={{ width: 100, fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{h.hour}</Typography>
+                    <Box key={h.hour} sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
+                      <Typography sx={{ width: 100, fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{h.hour}</Typography>
                       <Box sx={{ flex: 1 }}>
                         <LinearProgress
                           variant="determinate"
@@ -266,28 +267,28 @@ export const ReportsPage: React.FC = () => {
                           sx={{ height: 12, borderRadius: 6, backgroundColor: '#F0F0F2', '& .MuiLinearProgress-bar': { backgroundColor: 'var(--sakay-orange)', borderRadius: 6 } }}
                         />
                       </Box>
-                      <Typography sx={{ width: 80, fontSize: '10.8px', fontWeight: 700, textAlign: 'right', color: 'var(--mac-text-primary)' }}>
+                      <Typography sx={{ width: 80, fontSize: FONT.caption, fontWeight: 700, textAlign: 'right', color: 'var(--mac-text-primary)' }}>
                         {h.count} {h.count === 1 ? 'Trip' : 'Trips'}
                       </Typography>
                     </Box>
                   ))}
                 </Box>
-                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 4, mb: 1.5 }}>Peak hours of each TODA</Typography>
+                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mt: 3.2, mb: 1.2 }}>Peak hours of each TODA</Typography>
                 <PeakHoursByGroupTable groupLabel="TODA" rows={reportsData.peakHoursByToda} />
-                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 4, mb: 1.5 }}>Peak hours of each barangay (pickup)</Typography>
+                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mt: 3.2, mb: 1.2 }}>Peak hours of each barangay (pickup)</Typography>
                 <PeakHoursByGroupTable groupLabel="Barangay (pickup)" rows={reportsData.peakHoursByBarangay} />
-                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 4, mb: 1.5 }}>The exported table</Typography>
+                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mt: 3.2, mb: 1.2 }}>The exported table</Typography>
               </Box>
             )}
 
             {activeReportTab === 'Barangay' && (
-              <Box sx={{ mb: 4 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ mb: 3.2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
                   {reportsData.barangayDemand.map((b) => (
-                    <Box key={b.barangay} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography sx={{ width: 190, fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{b.barangay}</Typography>
+                    <Box key={b.barangay} sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
+                      <Typography sx={{ width: 190, fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{b.barangay}</Typography>
                       <LinearProgress variant="determinate" value={b.percentage} sx={{ flex: 1, height: 8, borderRadius: 4, '& .MuiLinearProgress-bar': { backgroundColor: '#1565C0' } }} />
-                      <Typography sx={{ width: 110, fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-secondary)', textAlign: 'right' }}>
+                      <Typography sx={{ width: 110, fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-secondary)', textAlign: 'right' }}>
                         {b.count} pickup{b.count === 1 ? '' : 's'} · {b.percentage}%
                       </Typography>
                     </Box>

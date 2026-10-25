@@ -6,6 +6,7 @@ import type { ServiceAreaRecord } from '@sakay/shared';
 
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { fetchServiceAreas, fetchTodaTerminals, setPilotServiceArea, useWholeCityServiceArea } from '../services/adminApiService';
+import { FONT } from '../styles/density';
 
 const stamp = (iso: string): string =>
   new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -59,54 +60,54 @@ export const ServiceAreaPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 900, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 900, margin: '0 auto', pb: 4.8 }}>
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} /></Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4.8 }}><CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} /></Box>
       ) : (
         <>
-          {message && <Alert severity={message.severity} onClose={() => setMessage(null)} sx={{ mb: 2, borderRadius: '10px' }}>{message.text}</Alert>}
-          {areas === null && <Alert severity="error" sx={{ mb: 2, borderRadius: '10px' }}>The service area could not be read.</Alert>}
+          {message && <Alert severity={message.severity} onClose={() => setMessage(null)} sx={{ mb: 1.6, borderRadius: '10px' }}>{message.text}</Alert>}
+          {areas === null && <Alert severity="error" sx={{ mb: 1.6, borderRadius: '10px' }}>The service area could not be read.</Alert>}
 
           <Paper elevation={0} sx={cardSx}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.2 }}>
               <MapIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>Where bookings may start and end now</Typography>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>Where bookings may start and end now</Typography>
             </Box>
             {active ? (
               <>
-                <Typography sx={{ fontSize: '18px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{active.name}</Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', mt: 0.5 }}>
+                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>{active.name}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mt: 0.4 }}>
                   {active.isWholeCity ? 'The whole city, by its boundary.' : `A circle of ${active.radiusKm} km around the terminal: a pilot area.`} Changed {stamp(active.updatedAt)}.
                 </Typography>
               </>
             ) : (
-              <Typography sx={{ fontSize: '14px', color: '#B91C1C', fontWeight: 600 }}>No service area is active.</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: '#B91C1C', fontWeight: 600 }}>No service area is active.</Typography>
             )}
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: 1.5, lineHeight: 1.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 1.2, lineHeight: 1.5 }}>
               A passenger can book only when the pickup AND the destination are inside. A change applies to every new booking at once; trips already under way are not affected.
             </Typography>
           </Paper>
 
           <Paper elevation={0} sx={cardSx}>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1 }}>The whole of Calapan City</Typography>
-            <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', mb: 2, lineHeight: 1.5 }}>Use the city boundary as the service area (the normal setting).</Typography>
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.8 }}>The whole of Calapan City</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mb: 1.6, lineHeight: 1.5 }}>Use the city boundary as the service area (the normal setting).</Typography>
             <Button variant="outlined" disabled={busy || Boolean(active?.isWholeCity)} onClick={() => setConfirm('city')} sx={{ textTransform: 'none', fontWeight: 600 }}>
               {active?.isWholeCity ? 'Already the whole city' : 'Use the whole of Calapan City'}
             </Button>
           </Paper>
 
           <Paper elevation={0} sx={cardSx}>
-            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1 }}>A pilot area around one TODA's terminal</Typography>
-            <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', mb: 2, lineHeight: 1.5 }}>
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.8 }}>A pilot area around one TODA's terminal</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mb: 1.6, lineHeight: 1.5 }}>
               Narrows bookings to a circle around the terminal of one TODA, from {PILOT_RADIUS_MIN_KM} to {PILOT_RADIUS_MAX_KM} km. Use it while only that TODA's drivers are on SAKAY.
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr' }, gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr' }, gap: 1.6, mb: 1.6 }}>
               <TextField select size="small" label="TODA (its terminal is the centre)" value={todaId} onChange={(e) => setTodaId(e.target.value)}>
                 {terminals.map((t) => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
               </TextField>
               <TextField size="small" type="number" label="Radius (km)" value={radius} onChange={(e) => setRadius(e.target.value)} slotProps={{ htmlInput: { min: PILOT_RADIUS_MIN_KM, max: PILOT_RADIUS_MAX_KM, step: '0.1' } }} />
             </Box>
-            {problem && todaId !== '' && <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mb: 1 }}>{problem}</Typography>}
+            {problem && todaId !== '' && <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 0.8 }}>{problem}</Typography>}
             <Button variant="contained" disabled={busy || Boolean(problem)} onClick={() => setConfirm('pilot')} sx={{ textTransform: 'none', fontWeight: 600, boxShadow: 'none', backgroundColor: 'var(--sakay-orange)', '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' } }}>
               Narrow to the pilot area
             </Button>
@@ -114,9 +115,9 @@ export const ServiceAreaPage: React.FC = () => {
 
           {areas && areas.length > 1 && (
             <Paper elevation={0} sx={cardSx}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1 }}>Earlier settings</Typography>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 0.8 }}>Earlier settings</Typography>
               {areas.filter((a) => !a.active).slice(0, 8).map((a) => (
-                <Typography key={a.configId} sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.7 }}>
+                <Typography key={a.configId} sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.7 }}>
                   {a.name} ({a.isWholeCity ? 'city boundary' : `${a.radiusKm} km circle`}), last used {stamp(a.updatedAt)}
                 </Typography>
               ))}

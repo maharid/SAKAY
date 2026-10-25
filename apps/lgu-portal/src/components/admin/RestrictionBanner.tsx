@@ -4,6 +4,7 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
 import type { AccountRestrictionKind } from '../../mockData/adminData';
+import { FONT } from '../../styles/density';
 
 interface RestrictionBannerProps {
   kind?: AccountRestrictionKind;
@@ -31,16 +32,16 @@ export const RestrictionBanner: React.FC<RestrictionBannerProps> = ({ kind, susp
             : 'Account Suspended';
 
   return (
-    <Box sx={{ mb: 4, backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', padding: '16px 20px', borderRadius: '12px' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-        <ReportProblemIcon sx={{ color: '#DC2626', fontSize: '17.6px' }} />
-        <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#991B1B' }}>{headline}</Typography>
+    <Box sx={{ mb: 3.2, backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', padding: '13px 16px', borderRadius: '12px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
+        <ReportProblemIcon sx={{ color: '#DC2626', fontSize: '18px' }} />
+        <Typography sx={{ fontSize: FONT.heading, fontWeight: 600, color: '#991B1B' }}>{headline}</Typography>
       </Box>
       {reason && (
-        <Typography sx={{ fontSize: '11.2px', color: '#B91C1C', mt: '4px' }}>{reason}</Typography>
+        <Typography sx={{ fontSize: FONT.small, color: '#B91C1C', mt: '3px' }}>{reason}</Typography>
       )}
       {kind === 'SUSPENDED' && (
-        <Typography sx={{ fontSize: '11.2px', color: '#B91C1C', mt: '4px' }}>
+        <Typography sx={{ fontSize: FONT.small, color: '#B91C1C', mt: '3px' }}>
           The suspension lifts automatically when this period ends.
         </Typography>
       )}

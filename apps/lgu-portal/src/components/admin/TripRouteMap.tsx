@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { fetchTripTrack } from '../../services/adminApiService';
+import { FONT } from '../../styles/density';
 
 interface TripRouteMapProps {
   bookingId: string;
@@ -68,14 +69,14 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ bookingId, pickupLat
   return (
     <Box>
       <div ref={container} style={{ width: '100%', height: fixes !== null && fixes >= 2 ? 240 : 0, borderRadius: 10, overflow: 'hidden' }} />
-      {fixes === null && <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Loading the recorded route...</Typography>}
+      {fixes === null && <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Loading the recorded route...</Typography>}
       {fixes !== null && fixes < 2 && (
-        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
           {fixes === 0 ? 'No GPS positions were recorded for this booking.' : 'Only one GPS position was recorded, so there is no route to draw.'}
         </Typography>
       )}
       {fixes !== null && fixes >= 2 && (
-        <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)', mt: 0.8 }}>{fixes} GPS positions recorded by the driver's phone.</Typography>
+        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.8 }}>{fixes} GPS positions recorded by the driver's phone.</Typography>
       )}
     </Box>
   );

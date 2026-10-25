@@ -24,6 +24,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
 import { refreshStorageUrl } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
+import { CONTROL, FONT } from '../../styles/density';
 
 export interface DocumentPreviewModalProps {
   open: boolean;
@@ -159,7 +160,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         paper: {
           sx: {
             borderRadius: 'var(--mac-radius-xl)',
-            maxWidth: 720,
+            maxWidth: 576,
             width: '100%',
             backgroundColor: '#FFFFFF',
             boxShadow: 'var(--mac-shadow-popover)',
@@ -170,7 +171,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     >
       <DialogTitle
         sx={{
-          padding: '18px 24px',
+          padding: '14px 19px',
           borderBottom: '1px solid var(--mac-border-color)',
           display: 'flex',
           alignItems: 'center',
@@ -178,55 +179,55 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           backgroundColor: '#FAFAFC',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 22 }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+          <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
           <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                 {documentName}
               </Typography>
               {currentStatus === 'Verified' && (
                 <Chip
                   label="Verified"
                   size="small"
-                  sx={{ backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: '10.5px', height: 20 }}
+                  sx={{ backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
                 />
               )}
               {currentStatus === 'Resubmitted (Awaiting Review)' && (
                 <Chip
                   label="Resubmitted (Awaiting Review)"
                   size="small"
-                  sx={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: '10.5px', height: 20, border: '1px solid #93C5FD' }}
+                  sx={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: FONT.caption, height: 20, border: '1px solid #93C5FD' }}
                 />
               )}
               {currentStatus === 'Resubmission Required' && (
                 <Chip
                   label="Resubmission Required"
                   size="small"
-                  sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: '10.5px', height: 20 }}
+                  sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
                 />
               )}
               {(currentStatus === 'Pending' || currentStatus === 'Pending Inspection') && (
                 <Chip
                   label="Pending Inspection"
                   size="small"
-                  sx={{ backgroundColor: '#F1F5F9', color: '#475569', fontWeight: 700, fontSize: '10.5px', height: 20 }}
+                  sx={{ backgroundColor: '#F1F5F9', color: '#475569', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
                 />
               )}
             </Box>
-            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
               {documentType} • Issued: {issueDate}
             </Typography>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
           {isImage && activeUrl && !imgError && (
             <>
               <IconButton size="small" onClick={handleZoomOut} title="Zoom Out" sx={{ color: 'var(--mac-text-secondary)' }}>
                 <ZoomOutIcon fontSize="small" />
               </IconButton>
-              <Typography sx={{ fontSize: '11px', fontWeight: 600, color: 'var(--mac-text-muted)', minWidth: 36, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', minWidth: 36, textAlign: 'center' }}>
                 {Math.round(zoomLevel * 100)}%
               </Typography>
               <IconButton size="small" onClick={handleZoomIn} title="Zoom In" sx={{ color: 'var(--mac-text-secondary)' }}>
@@ -255,7 +256,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
       <DialogContent
         sx={{
-          padding: isImage && activeUrl && !imgError ? '16px' : '24px',
+          padding: isImage && activeUrl && !imgError ? '13px' : '19px',
           backgroundColor: isImage && activeUrl && !imgError ? '#18181B' : '#F8F9FA',
           minHeight: 380,
           display: 'flex',
@@ -290,10 +291,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                       backgroundColor: 'rgba(0, 0, 0, 0.75)',
                       backdropFilter: 'blur(4px)',
                       color: '#FFFFFF',
-                      px: 2,
-                      py: 0.5,
+                      px: 1.6,
+                      py: 0.4,
                       borderRadius: '20px',
-                      fontSize: '11.5px',
+                      fontSize: FONT.caption,
                       fontWeight: 700,
                       zIndex: 10,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
@@ -325,7 +326,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                       '&.Mui-disabled': { opacity: 0.2, color: '#9CA3AF', backgroundColor: 'transparent' },
                     }}
                   >
-                    <ChevronLeftIcon sx={{ fontSize: 26 }} />
+                    <ChevronLeftIcon sx={{ fontSize: 21 }} />
                   </IconButton>
 
                   {/* Next Photo Button */}
@@ -347,15 +348,15 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                       '&.Mui-disabled': { opacity: 0.2, color: '#9CA3AF', backgroundColor: 'transparent' },
                     }}
                   >
-                    <ChevronRightIcon sx={{ fontSize: 26 }} />
+                    <ChevronRightIcon sx={{ fontSize: 21 }} />
                   </IconButton>
                 </>
               )}
 
               {imgLoading && (
-                <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2 }}>
                   <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
-                  <Typography sx={{ fontSize: '12px', color: '#A1A1AA' }}>Loading image preview...</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, color: '#A1A1AA' }}>Loading image preview...</Typography>
                 </Box>
               )}
               <Box
@@ -400,9 +401,9 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             </Box>
           )
         ) : resolving ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2 }}>
             <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>Preparing secure link...</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Preparing secure link...</Typography>
           </Box>
         ) : (
           <Box
@@ -416,16 +417,16 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '24px',
+              padding: '19px',
               textAlign: 'center',
               boxShadow: 'var(--mac-shadow-subtle)',
             }}
           >
-            <DescriptionIcon sx={{ fontSize: 52, color: 'var(--mac-text-tertiary)', mb: 1.5 }} />
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: '4px' }}>
+            <DescriptionIcon sx={{ fontSize: 42, color: 'var(--mac-text-tertiary)', mb: 1.2 }} />
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: '3px' }}>
               Official Document Preview
             </Typography>
-            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 360 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 360 }}>
               LGU Administrative Record Verified • Official Seal & Electronic Signature Intact
             </Typography>
           </Box>
@@ -434,14 +435,14 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
       <DialogActions
         sx={{
-          padding: { xs: '16px', sm: '18px 24px' },
+          padding: { xs: '13px', sm: '14px 19px' },
           borderTop: '1px solid var(--mac-border-color)',
           backgroundColor: '#FAFAFC',
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: 'space-between',
           alignItems: 'center',
-          columnGap: 3,
+          columnGap: 2.4,
           rowGap: 1.75,
           // MUI puts its own left margin on every action after the first, on top of the gap
           '& > :not(style) ~ :not(style)': { marginLeft: 0 },
@@ -462,11 +463,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               startIcon={<AssignmentReturnIcon fontSize="small" />}
               onClick={onRequestResubmit}
               sx={{
-                height: 38,
-                padding: '0 18px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 14px',
                 borderRadius: '8px',
                 textTransform: 'none',
-                fontSize: '11.5px',
+                fontSize: FONT.small,
                 fontWeight: 700,
                 color: '#B45309',
                 border: '1.5px solid #D97706',
@@ -485,11 +487,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               startIcon={<CheckCircleIcon fontSize="small" />}
               onClick={onApproveDocument}
               sx={{
-                height: 38,
-                padding: '0 18px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 14px',
                 borderRadius: '8px',
                 textTransform: 'none',
-                fontSize: '11.5px',
+                fontSize: FONT.small,
                 fontWeight: 700,
                 color: '#FFFFFF',
                 backgroundColor: '#16A34A',
@@ -501,7 +504,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           )}
 
           {!onRequestResubmit && !onApproveDocument && (
-            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               {activeUrl ? 'Official Compliance Submission' : 'Document Submission Record'}
             </Typography>
           )}
@@ -515,11 +518,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               startIcon={<OpenInNewIcon fontSize="small" />}
               onClick={handleOpenOriginal}
               sx={{
-                height: 38,
-                padding: '0 16px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 13px',
                 borderRadius: '8px',
                 textTransform: 'none',
-                fontSize: '11.5px',
+                fontSize: FONT.small,
                 fontWeight: 600,
                 color: 'var(--mac-text-secondary)',
                 border: '1px solid var(--mac-border-color)',
@@ -537,11 +541,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             disabled={!activeUrl}
             onClick={handleDownload}
             sx={{
-              height: 38,
-              padding: '0 18px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '8px',
               textTransform: 'none',
-              fontSize: '11.5px',
+              fontSize: FONT.small,
               fontWeight: 600,
               color: '#FFFFFF',
               backgroundColor: 'var(--sakay-orange)',
@@ -555,11 +560,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           <Button
             onClick={onClose}
             sx={{
-              height: 38,
-              padding: '0 16px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 13px',
               borderRadius: '8px',
               textTransform: 'none',
-              fontSize: '11.5px',
+              fontSize: FONT.body,
               fontWeight: 500,
               color: 'var(--mac-text-secondary)',
               border: '1px solid var(--mac-border-color)',

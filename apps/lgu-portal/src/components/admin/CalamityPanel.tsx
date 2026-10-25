@@ -6,6 +6,7 @@ import { CALAMITY_KINDS, CALAMITY_SCOPES, useInFlight, type ActiveCalamity, type
 import { MacCenterModal } from './MacCenterModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { declareCalamity, endCalamity, fetchCalamity } from '../../services/adminApiService';
+import { FONT } from '../../styles/density';
 
 interface CalamityPanelProps {
   /** called after a declaration or its end, so the page lists the new announcement */
@@ -69,36 +70,36 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
   return (
     <Box
       sx={{
-        mb: 4,
-        p: 2.5,
+        mb: 3.2,
+        p: 2,
         borderRadius: 'var(--mac-radius-lg)',
         border: `1px solid ${calamity.active ? '#FDBA74' : 'var(--mac-border-color)'}`,
         backgroundColor: calamity.active ? '#FFF7ED' : '#FFFFFF',
         boxShadow: 'var(--mac-shadow-card)',
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 2,
+        gap: 1.6,
         flexWrap: 'wrap',
       }}
     >
       <ThunderstormIcon sx={{ color: calamity.active ? '#EA580C' : 'var(--mac-text-muted)', mt: '2px' }} />
       <Box sx={{ flex: 1, minWidth: 260 }}>
-        <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+        <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
           {calamity.active ? `Calamity in effect: ${calamity.title}` : 'Calamity and emergency declaration'}
         </Typography>
         {calamity.active ? (
-          <Typography sx={{ fontSize: '12px', color: '#9A3412', lineHeight: 1.5, mt: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: '#9A3412', lineHeight: 1.5, mt: 0.4 }}>
             {calamity.kind} · declared {manila(calamity.declaredAt)} · strikes paused for{' '}
             {calamity.scope === 'ALL' ? 'every violation that can be paused' : 'cancellations, stalls and no-shows'} (serious and safety violations are never paused).
           </Typography>
         ) : (
-          <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', lineHeight: 1.5, mt: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', lineHeight: 1.5, mt: 0.4 }}>
             When a typhoon, a flood, an earthquake, a road closure or an officially declared emergency disrupts trips, publish a platform-wide announcement and suspend strikes for
             cancellations, stalls and no-shows in ONE recorded action, instead of waiving them case by case.
           </Typography>
         )}
-        {done && <Alert severity="success" sx={{ mt: 1.5 }} onClose={() => setDone(null)}>{done}</Alert>}
-        {problem && !formOpen && <Alert severity="error" sx={{ mt: 1.5 }} onClose={() => setProblem(null)}>{problem}</Alert>}
+        {done && <Alert severity="success" sx={{ mt: 1.2 }} onClose={() => setDone(null)}>{done}</Alert>}
+        {problem && !formOpen && <Alert severity="error" sx={{ mt: 1.2 }} onClose={() => setProblem(null)}>{problem}</Alert>}
       </Box>
       {calamity.active ? (
         <Button onClick={() => setEndOpen(true)} disabled={flight.busy} variant="outlined" sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', borderColor: '#EA580C', color: '#9A3412' }}>
@@ -115,14 +116,14 @@ export const CalamityPanel: React.FC<CalamityPanelProps> = ({ onChanged }) => {
         onClose={() => !flight.busy && setFormOpen(false)}
         title="Declare a calamity or emergency"
         subtitle="One action: the announcement and the strike pause, recorded together"
-        maxWidth={620}
+        maxWidth={496}
         primaryActionLabel={flight.busy ? 'Declaring...' : 'Declare and publish'}
         onPrimaryAction={submit}
         primaryActionDisabled={flight.busy || title.trim().length < 5 || message.trim().length < 10}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setFormOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
           <TextField select size="small" fullWidth label="Kind of event" value={kind} onChange={(e) => setKind(e.target.value as CalamityKind)}>
             {CALAMITY_KINDS.map((k) => (
               <MenuItem key={k} value={k}>{k}</MenuItem>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Drawer, IconButton, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface SlideOverDetailProps {
   open: boolean;
@@ -48,7 +49,7 @@ export const SlideOverDetail: React.FC<SlideOverDetailProps> = ({
       {/* Header Bar */}
       <Box
         sx={{
-          padding: '20px 24px',
+          padding: '16px 19px',
           borderBottom: '1px solid var(--mac-border-color)',
           display: 'flex',
           alignItems: 'flex-start',
@@ -56,15 +57,15 @@ export const SlideOverDetail: React.FC<SlideOverDetailProps> = ({
           backgroundColor: '#FAFAFC',
         }}
       >
-        <Box sx={{ pr: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: '4px' }}>
-            <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+        <Box sx={{ pr: 1.6 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: '3px' }}>
+            <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
               {title}
             </Typography>
             {badge}
           </Box>
           {subtitle && (
-            <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               {subtitle}
             </Typography>
           )}
@@ -86,19 +87,19 @@ export const SlideOverDetail: React.FC<SlideOverDetailProps> = ({
       </Box>
 
       {/* Main Content Area */}
-      <Box sx={{ flex: 1, overflowY: 'auto', padding: '24px' }}>{children}</Box>
+      <Box sx={{ flex: 1, overflowY: 'auto', padding: '19px' }}>{children}</Box>
 
       {/* Action Footer Bar if Actions Provided */}
       {(primaryActionLabel || secondaryActionLabel) && (
         <Box
           sx={{
-            padding: '16px 24px',
+            padding: '13px 19px',
             borderTop: '1px solid var(--mac-border-color)',
             backgroundColor: '#FAFAFC',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            gap: 1.5,
+            gap: 1.2,
           }}
         >
           {secondaryActionLabel && (
@@ -107,11 +108,12 @@ export const SlideOverDetail: React.FC<SlideOverDetailProps> = ({
               variant="outlined"
               color="error"
               sx={{
-                height: 38,
-                padding: '0 20px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 16px',
                 borderRadius: '9px',
                 textTransform: 'none',
-                fontSize: '11.3px',
+                fontSize: FONT.body,
                 fontWeight: 500,
                 borderColor: '#FCA5A5',
                 color: '#DC2626',
@@ -127,11 +129,12 @@ export const SlideOverDetail: React.FC<SlideOverDetailProps> = ({
               onClick={onPrimaryAction}
               variant="contained"
               sx={{
-                height: 38,
-                padding: '0 20px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 16px',
                 borderRadius: '9px',
                 textTransform: 'none',
-                fontSize: '11.3px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 backgroundColor: 'var(--sakay-orange)',
                 color: '#FFFFFF',

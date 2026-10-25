@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button } from '@mui/material';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { StatusBadge } from '../common/StatusBadge';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface TodaAppItem {
   id: string;
@@ -30,20 +31,20 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
         borderRadius: 'var(--mac-radius-lg)',
         border: '1px solid var(--mac-border-color)',
         boxShadow: 'var(--mac-shadow-card)',
-        padding: '26px 28px',
+        padding: '21px 22px',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
       }}
     >
       {/* Header & Subtitle Block matching Recent Incident Reports */}
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 1.6 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
               Recent TODA Applications
             </Typography>
-            <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
               Recent TODA accreditation requests.
             </Typography>
           </Box>
@@ -52,12 +53,13 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
             onClick={() => navigate('/toda-applications')}
             size="small"
             sx={{
-              height: 38,
-              padding: '0 18px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '9px',
               backgroundColor: '#FFFFFF',
               color: 'var(--mac-text-primary)',
-              fontSize: '14px',
+              fontSize: FONT.small,
               fontWeight: 500,
               textTransform: 'none',
               border: '1px solid var(--mac-border-color)',
@@ -78,7 +80,7 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
 
       {/* List Items or Empty State */}
       {applications.length > 0 ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {applications.map((app) => (
             <Box
               key={app.id}
@@ -87,7 +89,7 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '12px 16px',
+                padding: '10px 13px',
                 borderRadius: 'var(--mac-radius-md)',
                 backgroundColor: '#FAFAFC',
                 border: '1px solid var(--mac-border-subtle)',
@@ -99,7 +101,7 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
                 },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                 <Box
                   sx={{
                     width: 36,
@@ -115,10 +117,10 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
                   <AccountBalanceIcon fontSize="small" />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
                     {app.name}
                   </Typography>
-                  <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', lineHeight: 1.2, mt: '3px' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', lineHeight: 1.2, mt: '2px' }}>
                     Brgy. {app.barangay} • Submitted {app.submittedDate}
                   </Typography>
                 </Box>
@@ -137,8 +139,8 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
             alignItems: 'center',
             justifyContent: 'center',
             flexGrow: 1,
-            py: 5,
-            gap: 1.5,
+            py: 4,
+            gap: 1.2,
           }}
         >
           <Box
@@ -155,10 +157,10 @@ export const RecentTodaApplicationsCard: React.FC<RecentTodaApplicationsCardProp
           >
             <AccountBalanceIcon fontSize="medium" />
           </Box>
-          <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
             No TODA applications yet.
           </Typography>
-          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 300 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 300 }}>
             New TODA applications will appear here after organizations submit their registration.
           </Typography>
         </Box>

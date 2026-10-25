@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { PEAK_HOURS_CORE_END, PEAK_HOURS_CORE_START } from '@sakay/shared';
 import type { GroupPeakRow } from '@sakay/shared';
+import { FONT } from '../../styles/density';
 
 interface PeakHoursByGroupTableProps {
   /** "TODA" or "Barangay" */
@@ -18,7 +19,7 @@ const hourShort = (h: number): string => `${h % 12 === 0 ? 12 : h % 12}${h >= 12
  */
 export const PeakHoursByGroupTable: React.FC<PeakHoursByGroupTableProps> = ({ groupLabel, rows }) => {
   if (rows.length === 0) {
-    return <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>No bookings match the filter.</Typography>;
+    return <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>No bookings match the filter.</Typography>;
   }
   return (
     <TableContainer>

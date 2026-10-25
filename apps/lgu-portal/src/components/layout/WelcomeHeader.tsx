@@ -3,6 +3,7 @@ import { Box, Typography, Button } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { DateCalendarPopover } from '../popovers/DateCalendarPopover';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface WelcomeHeaderProps {
   welcomeText?: string;
@@ -32,15 +33,15 @@ export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({
         alignItems: 'flex-start',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 2,
-        mb: 3,
+        gap: 1.6,
+        mb: 2.4,
       }}
     >
       <Box sx={{ flex: 1, minWidth: 240 }}>
         <Typography
           variant="h2"
           sx={{
-            fontSize: '20px',
+            fontSize: FONT.pageTitle,
             fontWeight: 700,
             color: 'var(--mac-text-primary)',
             letterSpacing: '-0.3px',
@@ -52,11 +53,11 @@ export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({
         {supportingText && (
           <Typography
             sx={{
-              fontSize: '12px',
+              fontSize: FONT.caption,
               fontWeight: 400,
               color: 'var(--mac-text-muted)',
               lineHeight: 1.3,
-              mt: '3px',
+              mt: '2px',
             }}
           >
             {supportingText}
@@ -68,16 +69,17 @@ export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({
         <Box sx={{ position: 'relative', flexShrink: 0, pt: '2px' }}>
           <Button
             onClick={() => setDateOpen(!dateOpen)}
-            startIcon={<CalendarTodayIcon fontSize="small" sx={{ fontSize: 15 }} />}
-            endIcon={<KeyboardArrowDownIcon fontSize="small" sx={{ fontSize: 17 }} />}
+            startIcon={<CalendarTodayIcon fontSize="small" sx={{ fontSize: 13 }} />}
+            endIcon={<KeyboardArrowDownIcon fontSize="small" sx={{ fontSize: 14 }} />}
             sx={{
-              height: 38,
-              padding: '0 16px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 13px',
               borderRadius: '10px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               color: 'var(--mac-text-primary)',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 500,
               textTransform: 'none',
               boxShadow: 'var(--mac-shadow-subtle)',

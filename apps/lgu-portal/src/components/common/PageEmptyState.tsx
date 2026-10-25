@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface PageEmptyStateProps {
   icon: React.ReactNode;
@@ -25,9 +26,9 @@ export const PageEmptyState: React.FC<PageEmptyStateProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 1.5,
-        py: 10,
-        px: 4,
+        gap: 1.2,
+        py: 8,
+        px: 3.2,
         maxWidth: 440,
         mx: 'auto',
         textAlign: 'center',
@@ -45,7 +46,7 @@ export const PageEmptyState: React.FC<PageEmptyStateProps> = ({
           justifyContent: 'center',
           flexShrink: 0,
           '& svg': {
-            fontSize: 26,
+            fontSize: 21,
             color: 'var(--sakay-orange)',
           },
         }}
@@ -55,7 +56,7 @@ export const PageEmptyState: React.FC<PageEmptyStateProps> = ({
 
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: FONT.caption,
           fontWeight: 700,
           color: 'var(--mac-text-primary)',
           lineHeight: 1.3,
@@ -66,7 +67,7 @@ export const PageEmptyState: React.FC<PageEmptyStateProps> = ({
 
       <Typography
         sx={{
-          fontSize: '11px',
+          fontSize: FONT.caption,
           fontWeight: 400,
           color: 'var(--mac-text-muted)',
           lineHeight: 1.5,
@@ -85,14 +86,15 @@ export const PageEmptyState: React.FC<PageEmptyStateProps> = ({
               : <RefreshIcon />
           }
           sx={{
-            mt: 0.5,
+            mt: 0.4,
             height: 36,
-            padding: '0 18px',
+            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+            padding: '0 14px',
             borderRadius: '10px',
             border: '1px solid var(--mac-border-color)',
             backgroundColor: '#FFFFFF',
             color: 'var(--mac-text-secondary)',
-            fontSize: '12px',
+            fontSize: FONT.body,
             fontWeight: 500,
             textTransform: 'none',
             boxShadow: 'var(--mac-shadow-subtle)',

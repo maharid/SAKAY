@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, Card, CardContent } from '@mui/material';
 import RouteIcon from '@mui/icons-material/Route';
+import { FONT } from '../../styles/density';
 
 interface TrendDataPoint {
   day: string;
@@ -59,12 +60,12 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
         flexDirection: 'column',
       }}
     >
-      <CardContent sx={{ padding: '24px 28px !important', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ padding: '19px 22px !important', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Header Block */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.4 }}>
           <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-              <Typography sx={{ fontSize: '18px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
+              <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                 Booking Trend
               </Typography>
               {hasData && growthPercentage && (
@@ -73,8 +74,8 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
                     backgroundColor: 'rgba(52, 168, 83, 0.12)',
                     color: '#1E8E3E',
                     fontWeight: 600,
-                    fontSize: '12px',
-                    padding: '2px 8px',
+                    fontSize: FONT.caption,
+                    padding: '2px 6px',
                     borderRadius: '999px',
                     border: '1px solid rgba(52, 168, 83, 0.25)',
                   }}
@@ -83,7 +84,7 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
                 </Box>
               )}
             </Box>
-            <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', fontWeight: 400 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontWeight: 400 }}>
               Number of completed passenger ride bookings across Calapan City.
             </Typography>
           </Box>
@@ -155,7 +156,7 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
                     top: `calc(${(hoveredPoint.y / 240) * 100}% - 85px)`,
                     backgroundColor: '#FFFFFF',
                     color: 'var(--mac-text-primary)',
-                    padding: '10px 16px',
+                    padding: '8px 13px',
                     borderRadius: '10px',
                     border: '1px solid var(--mac-border-color)',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
@@ -167,10 +168,10 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
                     minWidth: 150,
                   }}
                 >
-                  <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
                     {hoveredPoint.label}
                   </Typography>
-                  <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
+                  <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--sakay-orange)' }}>
                     {hoveredPoint.value.toLocaleString()} Bookings
                   </Typography>
                 </Box>
@@ -186,8 +187,8 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               flexGrow: 1,
-              py: 6,
-              gap: 1.5,
+              py: 4.8,
+              gap: 1.2,
             }}
           >
             <Box
@@ -204,10 +205,10 @@ export const BookingTrendCard: React.FC<BookingTrendCardProps> = ({
             >
               <RouteIcon fontSize="medium" />
             </Box>
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               No bookings yet.
             </Typography>
-            <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 360 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 360 }}>
               Booking activity will appear here once passengers start booking rides.
             </Typography>
           </Box>

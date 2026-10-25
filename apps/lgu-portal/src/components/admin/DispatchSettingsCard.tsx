@@ -3,6 +3,7 @@ import { Alert, Box, Button, Card, CardContent, TextField, Typography } from '@m
 import TuneIcon from '@mui/icons-material/Tune';
 
 import { fetchDispatchSettings, saveDispatchSetting, type DispatchSettings } from '../../services/adminApiService';
+import { FONT } from '../../styles/density';
 
 type SettingKey = 'offer_window_seconds' | 'tier3_max_seconds';
 
@@ -66,17 +67,17 @@ export const DispatchSettingsCard: React.FC = () => {
 
   if (!settings) {
     return message ? (
-      <Alert severity="warning" sx={{ mb: 3 }}>
+      <Alert severity="warning" sx={{ mb: 2.4 }}>
         {message.text}
       </Alert>
     ) : null;
   }
 
   const row = (key: SettingKey, label: string, hint: string, value: string, setValue: (v: string) => void, current: number, def: number, limits: [number, number]) => (
-    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.6, flexWrap: 'wrap' }}>
       <Box sx={{ minWidth: 260, flex: 1 }}>
-        <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{label}</Typography>
-        <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>
+        <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{label}</Typography>
+        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
           {hint} Default {def} s ({minutesText(def)}); allowed {limits[0]} to {limits[1]} s.
         </Typography>
       </Box>
@@ -101,11 +102,11 @@ export const DispatchSettingsCard: React.FC = () => {
   );
 
   return (
-    <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF', mb: 3.5 }}>
-      <CardContent sx={{ p: '20px 22px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TuneIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
-          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Driver Search Settings</Typography>
+    <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF', mb: 2.8 }}>
+      <CardContent sx={{ p: '16px 18px !important', display: 'flex', flexDirection: 'column', gap: 1.6 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+          <TuneIcon sx={{ color: 'var(--sakay-orange)', fontSize: 14 }} />
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)' }}>Driver Search Settings</Typography>
         </Box>
         {message && <Alert severity={message.type}>{message.text}</Alert>}
         {row('offer_window_seconds', 'Offer response window', 'How long one driver has to accept or decline an offer.', offerWindow, setOfferWindow,

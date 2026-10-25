@@ -1,6 +1,7 @@
 import React from 'react';
 import { Chip, ChipProps } from '@mui/material';
 import { StatusType } from '../../types/admin';
+import { FONT } from '../../styles/density';
 
 interface StatusBadgeProps extends Omit<ChipProps, 'color'> {
   status: StatusType | string;
@@ -101,7 +102,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, sx, ...props }
       variant="outlined"
       sx={{
         height: '24px',
-        fontSize: '9.6px',
+        fontSize: FONT.caption,
         fontWeight: 600,
         borderRadius: '6px',
         borderWidth: '1px',

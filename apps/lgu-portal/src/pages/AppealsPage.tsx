@@ -27,6 +27,7 @@ import { ActionButton } from '../components/admin/ActionButton';
 import { AppealDetailModal } from '../components/admin/AppealDetailModal';
 import { TableEmptyState } from '../components/common/TableEmptyState';
 import { fetchAppeals } from '../services/adminApiService';
+import { FONT } from '../styles/density';
 
 const stamp = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
@@ -120,8 +121,8 @@ export const AppealsPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5, mb: 4 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3.2 }}>
         {cards.map(({ key, label, count, note, color, Icon }) => (
           <Card
             key={key}
@@ -134,13 +135,13 @@ export const AppealsPage: React.FC = () => {
               backgroundColor: '#FFFFFF',
             }}
           >
-            <CardContent sx={{ p: '20px 22px !important' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
+            <CardContent sx={{ p: '16px 18px !important' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
                 <Icon sx={{ color, fontSize: 16 }} />
               </Box>
-              <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: count > 0 && key === 'Overdue' ? color : 'var(--mac-text-primary)', mb: 0.5 }}>{count}</Typography>
-              <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>{note}</Typography>
+              <Typography sx={{ fontSize: '22px', fontWeight: 700, color: count > 0 && key === 'Overdue' ? color : 'var(--mac-text-primary)', mb: 0.4 }}>{count}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{note}</Typography>
             </CardContent>
           </Card>
         ))}
@@ -161,7 +162,7 @@ export const AppealsPage: React.FC = () => {
         }}
       />
 
-      {loadError && <Alert severity="error" sx={{ mb: 2, borderRadius: '10px' }}>{loadError}</Alert>}
+      {loadError && <Alert severity="error" sx={{ mb: 1.6, borderRadius: '10px' }}>{loadError}</Alert>}
 
       <TableContainer
         component={Paper}
@@ -172,49 +173,49 @@ export const AppealsPage: React.FC = () => {
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
               {['Person', 'Strike', 'Cause', 'Requested', 'Decision due', 'Status'].map((h) => (
-                <TableCell key={h} sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>{h}</TableCell>
+                <TableCell key={h} sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>{h}</TableCell>
               ))}
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Actions</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>Loading strike appeals...</Typography>
+                <TableCell colSpan={7} align="center" sx={{ py: 6.4 }}>
+                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
+                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Loading strike appeals...</Typography>
                 </TableCell>
               </TableRow>
             ) : filtered.length > 0 ? (
               filtered.map((a) => (
                 <TableRow key={a.requestId} sx={{ transition: 'var(--mac-transition-fast)', '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' } }}>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: '11.6px', color: 'var(--mac-text-primary)' }}>{a.subjectName}</Typography>
-                    <Typography sx={{ fontSize: '10px', color: 'var(--sakay-orange)', fontWeight: 600, mt: '3px' }}>{a.subjectType === 'passenger' ? 'Passenger' : 'Driver'}</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>{a.subjectName}</Typography>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--sakay-orange)', fontWeight: 600, mt: '2px' }}>{a.subjectType === 'passenger' ? 'Passenger' : 'Driver'}</Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{a.violation}</Typography>
-                    <Typography sx={{ fontSize: '10.5px', color: 'var(--mac-text-muted)' }}>{a.pointsActive} of {a.pointsIssued} point(s) active</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{a.violation}</Typography>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{a.pointsActive} of {a.pointsIssued} point(s) active</Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-primary)' }}>{APPEAL_CAUSE_LABELS[a.causeCode] ?? a.causeCode}</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>{APPEAL_CAUSE_LABELS[a.causeCode] ?? a.causeCode}</Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-primary)' }}>{stamp(a.requestedAt)}</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>{stamp(a.requestedAt)}</Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '10.8px', color: a.overdue ? '#B91C1C' : 'var(--mac-text-primary)', fontWeight: a.overdue ? 700 : 400 }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: a.overdue ? '#B91C1C' : 'var(--mac-text-primary)', fontWeight: a.overdue ? 700 : 400 }}>
                       {isPendingAppeal(a.status) ? stamp(a.decisionDueAt) : '-'}
                     </Typography>
-                    {a.overdue && <Typography sx={{ fontSize: '10px', fontWeight: 700, color: '#B91C1C' }}>OVERDUE</Typography>}
+                    {a.overdue && <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#B91C1C' }}>OVERDUE</Typography>}
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
                     <StatusBadge status={a.status} />
                     {a.status === 'Pending LGU Review' && a.subjectType === 'driver' && (
-                      <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)', mt: '3px' }}>Escalated by the TODA</Typography>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>Escalated by the TODA</Typography>
                     )}
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
                     <ActionButton label={a.status === 'Pending LGU Review' ? 'Review' : 'View'} onClick={() => setSelectedId(a.requestId)} />
                   </TableCell>
                 </TableRow>

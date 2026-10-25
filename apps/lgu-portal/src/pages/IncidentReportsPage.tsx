@@ -28,6 +28,7 @@ import { ActionButton } from '../components/admin/ActionButton';
 import { IncidentDetailModal } from '../components/admin/IncidentDetailModal';
 import { TableEmptyState } from '../components/common/TableEmptyState';
 import { fetchIncidents, recordAdminAuditAction } from '../services/adminApiService';
+import { CONTROL, FONT } from '../styles/density';
 
 const PRIORITY_RANK: Record<string, number> = { Serious: 0, Emergency: 1, Standard: 2 };
 
@@ -163,14 +164,14 @@ export const IncidentReportsPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Summary Cards */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 4,
+          gap: 2,
+          mb: 3.2,
         }}
       >
         {cards.map(({ key, label, count, note, color, Icon }) => (
@@ -185,13 +186,13 @@ export const IncidentReportsPage: React.FC = () => {
               backgroundColor: '#FFFFFF',
             }}
           >
-            <CardContent sx={{ p: '20px 22px !important' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
-                <Icon sx={{ color, fontSize: '16' }} />
+            <CardContent sx={{ p: '16px 18px !important' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{label}</Typography>
+                <Icon sx={{ color, fontSize: '16px' }} />
               </Box>
-              <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: key === 'Pending Review' ? 'var(--mac-text-primary)' : color, mb: 0.5 }}>{count}</Typography>
-              <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)' }}>{note}</Typography>
+              <Typography sx={{ fontSize: '22px', fontWeight: 700, color: key === 'Pending Review' ? 'var(--mac-text-primary)' : color, mb: 0.4 }}>{count}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{note}</Typography>
             </CardContent>
           </Card>
         ))}
@@ -222,7 +223,7 @@ export const IncidentReportsPage: React.FC = () => {
             onClick={exportCsv}
             disabled={filteredIncidents.length === 0}
             startIcon={<FileDownloadIcon />}
-            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '12px', height: 40, borderRadius: '10px', border: '1px solid var(--mac-border-color)', color: 'var(--mac-text-secondary)', px: 2 }}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.body, height: CONTROL.height, '@media (pointer: coarse)': { height: CONTROL.touchHeight }, borderRadius: '10px', border: '1px solid var(--mac-border-color)', color: 'var(--mac-text-secondary)', px: 1.6 }}
           >
             Export (CSV)
           </Button>
@@ -245,17 +246,17 @@ export const IncidentReportsPage: React.FC = () => {
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
               {['Incident ID & Category', 'Reported Entity / Driver', 'Complainant', 'Submitted Date', 'Status'].map((h) => (
-                <TableCell key={h} sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>{h}</TableCell>
+                <TableCell key={h} sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>{h}</TableCell>
               ))}
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Actions</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
+                <TableCell colSpan={6} align="center" sx={{ py: 6.4 }}>
+                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
+                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>Loading incident reports...</Typography>
                 </TableCell>
               </TableRow>
             ) : filteredIncidents.length > 0 ? (
@@ -267,34 +268,34 @@ export const IncidentReportsPage: React.FC = () => {
                     '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                   }}
                 >
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: '11.6px', color: 'var(--mac-text-primary)' }}>{inc.id}</Typography>
-                    <Typography sx={{ fontSize: '10px', color: 'var(--sakay-orange)', fontWeight: 600, mt: '3px' }}>{inc.category}</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>{inc.id}</Typography>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--sakay-orange)', fontWeight: 600, mt: '2px' }}>{inc.category}</Typography>
                     {inc.priority && inc.priority !== 'Standard' && (
-                      <Typography sx={{ fontSize: '10px', fontWeight: 700, mt: '2px', color: inc.priority === 'Serious' ? '#991B1B' : '#9A3412' }}>
+                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, mt: '2px', color: inc.priority === 'Serious' ? '#991B1B' : '#9A3412' }}>
                         {inc.priority === 'Serious' ? 'SERIOUS' : 'EMERGENCY'}
                       </Typography>
                     )}
-                    {inc.overdue && <Typography sx={{ fontSize: '10px', fontWeight: 700, mt: '2px', color: '#B91C1C' }}>OVERDUE</Typography>}
+                    {inc.overdue && <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, mt: '2px', color: '#B91C1C' }}>OVERDUE</Typography>}
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{inc.driverName}</Typography>
-                    <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)' }}>{inc.todaName}</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{inc.driverName}</Typography>
+                    <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)' }}>{inc.todaName}</Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>
                       {inc.reporterName} ({inc.reportedBy})
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-primary)' }}>{inc.submittedDate}</Typography>
-                    <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)' }}>{inc.submittedTime}</Typography>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>{inc.submittedDate}</Typography>
+                    <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)' }}>{inc.submittedTime}</Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
                     <StatusBadge status={inc.status as any} />
-                    <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-muted)', mt: '3px' }}>{inc.routing === 'LGU' ? 'With the LGU' : 'With the TODA'}</Typography>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>{inc.routing === 'LGU' ? 'With the LGU' : 'With the TODA'}</Typography>
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
                     <ActionButton
                       label="Investigate"
                       onClick={(e) => {

@@ -45,6 +45,7 @@ import {
   setAnnouncementPublished,
   deleteAnnouncement,
 } from '../services/adminApiService';
+import { CONTROL, FONT } from '../styles/density';
 
 /**
  * ============================================================================
@@ -258,7 +259,7 @@ export const AnnouncementManagementPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 0. Rules 15.4 / 29.6: declaring a calamity (the announcement and the strike pause, one audited action) */}
       <CalamityPanel
         onChanged={async () => {
@@ -275,30 +276,30 @@ export const AnnouncementManagementPage: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 3.5,
+          gap: 2,
+          mb: 2.8,
         }}
       >
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 20px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Total Announcements</Typography>
-          <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Total Announcements</Typography>
+          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{totalCount}</Typography>
         </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 20px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Active Broadcasts</Typography>
-          <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#2E7D32' }}>{publishedCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Active Broadcasts</Typography>
+          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#2E7D32' }}>{publishedCount}</Typography>
         </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 20px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>TODA Scoped Notices</Typography>
-          <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#1565C0' }}>{todaScopedCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>TODA Scoped Notices</Typography>
+          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#1565C0' }}>{todaScopedCount}</Typography>
         </Box>
-        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '16px 20px', boxShadow: 'var(--mac-shadow-card)' }}>
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 500, color: 'var(--mac-text-muted)', mb: 1 }}>Drafts</Typography>
-          <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{draftCount}</Typography>
+        <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', padding: '13px 16px', boxShadow: 'var(--mac-shadow-card)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-muted)', mb: 0.8 }}>Drafts</Typography>
+          <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{draftCount}</Typography>
         </Box>
       </Box>
 
       {/* 2. Filter Toolbar with "+ New Announcement" */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'stretch' }, justifyContent: 'space-between', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'stretch' }, justifyContent: 'space-between', gap: 1.6, mb: 2.4 }}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <FilterToolbar
             searchQuery={searchQuery}
@@ -336,10 +337,10 @@ export const AnnouncementManagementPage: React.FC = () => {
           sx={{
             height: 'auto',
             alignSelf: 'stretch',
-            padding: '0 24px',
+            padding: '0 19px',
             borderRadius: 'var(--mac-radius-lg)',
             textTransform: 'none',
-            fontSize: '11.3px',
+            fontSize: FONT.body,
             fontWeight: 600,
             backgroundColor: 'var(--sakay-orange)',
             color: '#FFFFFF',
@@ -373,12 +374,12 @@ export const AnnouncementManagementPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Announcement Title & Message</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Target Audience</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>TODA / Jurisdiction</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Created By & Date</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '11px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Announcement Title & Message</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Target Audience</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>TODA / Jurisdiction</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Created By & Date</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -393,15 +394,15 @@ export const AnnouncementManagementPage: React.FC = () => {
                       '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                     }}
                   >
-                    <TableCell sx={{ py: 2.2, px: 3, maxWidth: 360 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: '11.6px', color: 'var(--mac-text-primary)' }}>
+                    <TableCell sx={{ py: 2.2, px: 2.4, maxWidth: 360 }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
                         {ann.title}
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: '10px',
+                          fontSize: FONT.caption,
                           color: 'var(--mac-text-muted)',
-                          mt: '4px',
+                          mt: '3px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -410,12 +411,12 @@ export const AnnouncementManagementPage: React.FC = () => {
                         {ann.message}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ py: 2.2, px: 3 }}>
+                    <TableCell sx={{ py: 2.2, px: 2.4 }}>
                       <Chip
                         label={ann.target_role === 'All' ? 'All Platform Users' : `${ann.target_role}s`}
                         size="small"
                         sx={{
-                          fontSize: '9.6px',
+                          fontSize: FONT.caption,
                           fontWeight: 600,
                           backgroundColor: roleBadge.bg,
                           color: roleBadge.color,
@@ -423,21 +424,21 @@ export const AnnouncementManagementPage: React.FC = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontSize: '10.8px', color: 'var(--mac-text-secondary)', py: 2.2, px: 3 }}>
+                    <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 2.2, px: 2.4 }}>
                       {ann.toda_name || 'City-Wide'}
                     </TableCell>
-                    <TableCell sx={{ py: 2.2, px: 3 }}>
+                    <TableCell sx={{ py: 2.2, px: 2.4 }}>
                       <StatusBadge status={ann.is_published ? 'Published' : 'Draft'} />
                     </TableCell>
-                    <TableCell sx={{ py: 2.2, px: 3 }}>
-                      <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-primary)', fontWeight: 500 }}>
+                    <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', fontWeight: 500 }}>
                         {ann.created_by_lgu_admin.split('(')[0]}
                       </Typography>
-                      <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                         {ann.created_at}
                       </Typography>
                     </TableCell>
-                    <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                    <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
                       <ActionButton
                         label="Manage"
                         onClick={(e) => {
@@ -482,13 +483,13 @@ export const AnnouncementManagementPage: React.FC = () => {
         onClose={() => setCreateModalOpen(false)}
         title={editingId ? 'Edit Municipal Announcement' : 'Compose Municipal Announcement'}
         subtitle={editingId ? 'Changes are saved to the same announcement.' : 'Broadcast notices, route advisories, or compliance reminders.'}
-        maxWidth={680}
+        maxWidth={544}
         primaryActionLabel={saving ? 'Saving...' : editingId ? 'Save Changes' : formPublish ? 'Publish Now' : 'Save as Draft'}
         onPrimaryAction={handleSaveSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setCreateModalOpen(false)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             fullWidth
             label="Announcement Headline / Title"
@@ -509,7 +510,7 @@ export const AnnouncementManagementPage: React.FC = () => {
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
           />
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.6 }}>
             <FormControl fullWidth>
               <InputLabel id="target-audience-label">Target Audience</InputLabel>
               <Select
@@ -545,8 +546,8 @@ export const AnnouncementManagementPage: React.FC = () => {
                 </Select>
               </FormControl>
             ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center', backgroundColor: '#F8F9FA', padding: '0 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-                <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', backgroundColor: '#F8F9FA', padding: '0 13px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   Jurisdiction: <strong>City-Wide (All Sectors)</strong>
                 </Typography>
               </Box>
@@ -554,14 +555,14 @@ export const AnnouncementManagementPage: React.FC = () => {
           </Box>
 
           {editingId ? (
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>
+            <Box sx={{ backgroundColor: '#FAFAFC', padding: '11px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 This announcement stays {formPublish ? 'published' : 'unpublished'}. Use Publish / Unpublish in its details window to change that.
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-              <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
+            <Box sx={{ backgroundColor: '#FAFAFC', padding: '13px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 0.8 }}>
                 Publication
               </Typography>
               <RadioGroup
@@ -585,73 +586,74 @@ export const AnnouncementManagementPage: React.FC = () => {
           title={selectedAnn.title}
           subtitle={`Announcement ID: ${selectedAnn.announcement_id} • Target: ${selectedAnn.target_role}`}
           badge={<StatusBadge status={selectedAnn.is_published ? 'Published' : 'Draft'} />}
-          maxWidth={700}
+          maxWidth={560}
         >
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ backgroundColor: '#FAFAFC', padding: '20px', borderRadius: '12px', border: '1px solid var(--mac-border-color)', mb: 3 }}>
-              <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          <Box sx={{ mb: 2.4 }}>
+            <Box sx={{ backgroundColor: '#FAFAFC', padding: '16px', borderRadius: '12px', border: '1px solid var(--mac-border-color)', mb: 2.4 }}>
+              <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                 "{selectedAnn.message}"
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '18px', borderRadius: '12px', mb: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.6, backgroundColor: '#F5F5F7', padding: '14px', borderRadius: '12px', mb: 2.4 }}>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Target Audience</Typography>
-                <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedAnn.target_role}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Target Audience</Typography>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedAnn.target_role}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>TODA Scope</Typography>
-                <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedAnn.toda_name || 'City-Wide'}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>TODA Scope</Typography>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{selectedAnn.toda_name || 'City-Wide'}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Author / Officer</Typography>
-                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_by_lgu_admin}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Author / Officer</Typography>
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_by_lgu_admin}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Created</Typography>
-                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_at}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Created</Typography>
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.created_at}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Published</Typography>
-                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.published_at ?? 'Not published yet'}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Published</Typography>
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.published_at ?? 'Not published yet'}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Unpublished</Typography>
-                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.unpublished_at ?? '\u2014'}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Unpublished</Typography>
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.unpublished_at ?? '\u2014'}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>Last changed</Typography>
-                <Typography sx={{ fontSize: '11.3px', fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.updated_at ?? '\u2014'}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Last changed</Typography>
+                <Typography sx={{ fontSize: FONT.small, fontWeight: 500, color: 'var(--mac-text-primary)' }}>{selectedAnn.updated_at ?? '\u2014'}</Typography>
               </Box>
             </Box>
 
             {/* Actions Bar */}
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: 1.2 }}>
               Publication Controls
             </Typography>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--mac-border-color)', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)', backgroundColor: '#FFFFFF' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                 {selectedAnn.is_published ? <PublishIcon sx={{ color: '#2E7D32' }} /> : <UnpublishedIcon sx={{ color: '#EA580C' }} />}
                 <Box>
-                  <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     {selectedAnn.is_published ? 'Currently Active on Mobile PWAs' : 'Unpublished (Hidden from Users)'}
                   </Typography>
-                  <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                     {selectedAnn.is_published ? 'Commuters and drivers can view this broadcast.' : 'Save changes or publish to make visible.'}
                   </Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 0.8 }}>
                 <Button
                   onClick={() => openEdit(selectedAnn)}
                   variant="outlined"
                   size="small"
                   startIcon={<EditIcon fontSize="small" />}
                   sx={{
-                    height: 34,
-                    fontSize: '10px',
+                    height: CONTROL.height,
+                    '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                    fontSize: FONT.small,
                     textTransform: 'none',
                     fontWeight: 600,
                     borderRadius: '8px',
@@ -669,8 +671,9 @@ export const AnnouncementManagementPage: React.FC = () => {
                   variant="outlined"
                   size="small"
                   sx={{
-                    height: 34,
-                    fontSize: '10px',
+                    height: CONTROL.height,
+                    '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                    fontSize: FONT.small,
                     textTransform: 'none',
                     fontWeight: 600,
                     borderRadius: '8px',
@@ -689,8 +692,9 @@ export const AnnouncementManagementPage: React.FC = () => {
                   size="small"
                   startIcon={<DeleteIcon fontSize="small" />}
                   sx={{
-                    height: 34,
-                    fontSize: '10px',
+                    height: CONTROL.height,
+                    '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                    fontSize: FONT.small,
                     textTransform: 'none',
                     fontWeight: 600,
                     borderRadius: '8px',

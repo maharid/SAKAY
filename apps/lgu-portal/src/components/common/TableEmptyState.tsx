@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, TableRow, TableCell, CircularProgress } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface TableEmptyStateProps {
   colSpan: number;
@@ -26,7 +27,7 @@ export const TableEmptyState: React.FC<TableEmptyStateProps> = ({
         colSpan={colSpan}
         align="center"
         sx={{
-          py: 8,
+          py: 6.4,
           border: 'none',
         }}
       >
@@ -35,7 +36,7 @@ export const TableEmptyState: React.FC<TableEmptyStateProps> = ({
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 1.5,
+            gap: 1.2,
             maxWidth: 420,
             mx: 'auto',
           }}
@@ -52,7 +53,7 @@ export const TableEmptyState: React.FC<TableEmptyStateProps> = ({
               justifyContent: 'center',
               flexShrink: 0,
               '& svg': {
-                fontSize: 26,
+                fontSize: 21,
                 color: 'var(--sakay-orange)',
               },
             }}
@@ -62,7 +63,7 @@ export const TableEmptyState: React.FC<TableEmptyStateProps> = ({
 
           <Typography
             sx={{
-              fontSize: '13px',
+              fontSize: FONT.caption,
               fontWeight: 700,
               color: 'var(--mac-text-primary)',
               textAlign: 'center',
@@ -74,7 +75,7 @@ export const TableEmptyState: React.FC<TableEmptyStateProps> = ({
 
           <Typography
             sx={{
-              fontSize: '11px',
+              fontSize: FONT.caption,
               fontWeight: 400,
               color: 'var(--mac-text-muted)',
               textAlign: 'center',
@@ -94,14 +95,15 @@ export const TableEmptyState: React.FC<TableEmptyStateProps> = ({
                 : <RefreshIcon />
             }
             sx={{
-              mt: 0.5,
+              mt: 0.4,
               height: 36,
-              padding: '0 18px',
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '10px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               color: 'var(--mac-text-secondary)',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 500,
               textTransform: 'none',
               boxShadow: 'var(--mac-shadow-subtle)',

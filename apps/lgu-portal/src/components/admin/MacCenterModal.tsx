@@ -10,6 +10,7 @@ import {
   Button,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface MacCenterModalProps {
   open: boolean;
@@ -44,7 +45,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
   onSecondaryAction,
   secondaryActionColor = 'inherit',
   extraActions,
-  maxWidth = 720,
+  maxWidth = 576,
 }) => {
   return (
     <Dialog
@@ -75,22 +76,22 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
       {/* Modal Header */}
       <DialogTitle
         sx={{
-          padding: '24px 28px 20px',
+          padding: '19px 22px 16px',
           borderBottom: '1px solid var(--mac-border-color)',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
         }}
       >
-        <Box sx={{ pr: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: subtitle ? '4px' : 0 }}>
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+        <Box sx={{ pr: 1.6 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: subtitle ? '3px' : 0 }}>
+            <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               {title}
             </Typography>
             {badge}
           </Box>
           {subtitle && (
-            <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-muted)', fontWeight: 400 }}>
+            <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-muted)', fontWeight: 400 }}>
               {subtitle}
             </Typography>
           )}
@@ -108,12 +109,12 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
             },
           }}
         >
-          <CloseIcon fontSize="small" sx={{ fontSize: '14.4' }} />
+          <CloseIcon fontSize="small" sx={{ fontSize: '14px' }} />
         </IconButton>
       </DialogTitle>
 
       {/* Modal Content */}
-      <DialogContent sx={{ padding: '24px 28px 28px', pt: '24px !important' }}>
+      <DialogContent sx={{ padding: '19px 22px 22px', pt: '19px !important' }}>
         {children}
       </DialogContent>
 
@@ -121,10 +122,10 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
       {(primaryActionLabel || secondaryActionLabel || extraActions) && (
         <DialogActions
           sx={{
-            padding: '18px 28px 24px',
+            padding: '14px 22px 19px',
             borderTop: '1px solid var(--mac-border-color)',
             backgroundColor: '#FAFAFC',
-            gap: 1.5,
+            gap: 1.2,
           }}
         >
           {secondaryActionLabel && (
@@ -132,13 +133,14 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
               variant="outlined"
               onClick={onSecondaryAction || onClose}
               sx={{
-                height: 40,
-                padding: '0 20px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 16px',
                 borderRadius: '8px',
                 border: '1.5px solid',
                 borderColor: secondaryActionColor === 'error' ? '#EF4444' : '#94A3B8',
                 color: secondaryActionColor === 'error' ? '#DC2626' : '#334155',
-                fontSize: '11.6px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 textTransform: 'none',
                 backgroundColor: secondaryActionColor === 'error' ? '#FEF2F2' : '#FFFFFF',
@@ -162,10 +164,11 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
               color={primaryActionColor}
               disabled={primaryActionDisabled}
               sx={{
-                height: 40,
-                padding: '0 22px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 18px',
                 borderRadius: '8px',
-                fontSize: '11.6px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 textTransform: 'none',
                 backgroundColor: primaryActionDisabled

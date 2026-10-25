@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, Dialog } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface LogoutConfirmModalProps {
   open: boolean;
@@ -43,33 +44,34 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            mb: 2,
+            mb: 1.6,
           }}
         >
           <LogoutIcon fontSize="medium" />
         </Box>
 
-        <Typography variant="h6" sx={{ fontSize: '18px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1 }}>
+        <Typography variant="h6" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.8 }}>
           Log out?
         </Typography>
 
-        <Typography sx={{ fontSize: '14px', color: 'var(--mac-text-muted)', lineHeight: 1.4, mb: 3 }}>
+        <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', lineHeight: 1.4, mb: 2.4 }}>
           Are you sure you want to log out of the SAKAY LGU Portal?
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 1.5, width: '100%' }}>
+        <Box sx={{ display: 'flex', gap: 1.2, width: '100%' }}>
           <Button
             fullWidth
             variant="outlined"
             onClick={onClose}
             sx={{
-              height: 42,
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
               borderRadius: '10px',
               borderColor: 'var(--mac-border-color)',
               color: 'var(--mac-text-primary)',
               textTransform: 'none',
               fontWeight: 500,
-              fontSize: '14px',
+              fontSize: FONT.body,
               '&:hover': {
                 backgroundColor: 'var(--mac-canvas-bg)',
                 borderColor: 'var(--mac-border-color)',
@@ -85,13 +87,14 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
             color="error"
             onClick={onConfirm}
             sx={{
-              height: 42,
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
               borderRadius: '10px',
               backgroundColor: '#DC2626',
               color: '#FFFFFF',
               textTransform: 'none',
               fontWeight: 600,
-              fontSize: '14px',
+              fontSize: FONT.body,
               boxShadow: 'none',
               '&:hover': {
                 backgroundColor: '#B91C1C',

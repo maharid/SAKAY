@@ -7,6 +7,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { NotificationItem } from '../../types/admin';
+import { FONT } from '../../styles/density';
 
 interface NotificationPopoverProps {
   open: boolean;
@@ -48,31 +49,31 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
     switch (category) {
       case 'resubmission':
         return {
-          icon: <PublishedWithChangesIcon sx={{ fontSize: 16, color: '#B45309' }} />,
+          icon: <PublishedWithChangesIcon sx={{ fontSize: 13, color: '#B45309' }} />,
           bg: '#FEF3C7',
           border: '#FCD34D',
         };
       case 'endorsement':
         return {
-          icon: <HowToRegIcon sx={{ fontSize: 16, color: '#1D4ED8' }} />,
+          icon: <HowToRegIcon sx={{ fontSize: 13, color: '#1D4ED8' }} />,
           bg: '#DBEAFE',
           border: '#93C5FD',
         };
       case 'toda':
         return {
-          icon: <DomainIcon sx={{ fontSize: 16, color: '#6D28D9' }} />,
+          icon: <DomainIcon sx={{ fontSize: 13, color: '#6D28D9' }} />,
           bg: '#EDE9FE',
           border: '#C4B5FD',
         };
       case 'incident':
         return {
-          icon: <WarningAmberIcon sx={{ fontSize: 16, color: '#DC2626' }} />,
+          icon: <WarningAmberIcon sx={{ fontSize: 13, color: '#DC2626' }} />,
           bg: '#FEE2E2',
           border: '#FCA5A5',
         };
       default:
         return {
-          icon: <NotificationsActiveIcon sx={{ fontSize: 16, color: 'var(--sakay-orange)' }} />,
+          icon: <NotificationsActiveIcon sx={{ fontSize: 13, color: 'var(--sakay-orange)' }} />,
           bg: 'var(--sakay-orange-soft)',
           border: 'var(--sakay-orange-border)',
         };
@@ -107,7 +108,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       {/* Popover Header */}
       <Box
         sx={{
-          padding: '12px 16px',
+          padding: '10px 13px',
           borderBottom: '1px solid var(--mac-border-subtle)',
           display: 'flex',
           alignItems: 'center',
@@ -115,19 +116,19 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
           backgroundColor: '#FAFAFC',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '14px', color: 'var(--mac-text-primary)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>
             Notifications
           </Typography>
           {unreadCount > 0 && (
             <Box
               sx={{
-                fontSize: '11px',
+                fontSize: FONT.caption,
                 fontWeight: 700,
                 color: '#FFFFFF',
                 backgroundColor: 'var(--sakay-orange)',
                 borderRadius: '10px',
-                px: '7px',
+                px: '6px',
                 py: '1px',
               }}
             >
@@ -140,7 +141,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
             size="small"
             onClick={onMarkAllAsRead}
             sx={{
-              fontSize: '12px',
+              fontSize: FONT.small,
               textTransform: 'none',
               color: 'var(--sakay-orange)',
               fontWeight: 600,
@@ -157,12 +158,12 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       {/* Notifications List */}
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '0', maxHeight: 400 }}>
         {notifications.length === 0 ? (
-          <Box sx={{ padding: '36px 16px', textAlign: 'center' }}>
-            <NotificationsActiveIcon sx={{ fontSize: 32, color: 'var(--mac-text-muted)', mb: 1, opacity: 0.4 }} />
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-muted)' }}>
+          <Box sx={{ padding: '29px 13px', textAlign: 'center' }}>
+            <NotificationsActiveIcon sx={{ fontSize: 26, color: 'var(--mac-text-muted)', mb: 0.8, opacity: 0.4 }} />
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)' }}>
               No new notifications
             </Typography>
-            <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>
               All driver and TODA activities are up to date
             </Typography>
           </Box>
@@ -177,13 +178,13 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                   onClose();
                 }}
                 sx={{
-                  padding: '12px 16px',
+                  padding: '10px 13px',
                   borderBottom: '1px solid var(--mac-divider)',
                   backgroundColor: item.unread ? 'rgba(255, 149, 0, 0.06)' : 'transparent',
                   transition: 'var(--mac-transition-fast)',
                   display: 'flex',
                   alignItems: 'flex-start',
-                  gap: 1.5,
+                  gap: 1.2,
                   cursor: 'pointer',
                   '&:hover': {
                     backgroundColor: item.unread ? 'rgba(255, 149, 0, 0.12)' : 'rgba(0, 0, 0, 0.03)',
@@ -214,7 +215,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                     <Typography
                       sx={{
                         fontWeight: item.unread ? 700 : 600,
-                        fontSize: '13px',
+                        fontSize: FONT.caption,
                         color: 'var(--mac-text-primary)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -231,14 +232,14 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                           borderRadius: '50%',
                           backgroundColor: 'var(--sakay-orange)',
                           flexShrink: 0,
-                          ml: 1,
+                          ml: 0.8,
                         }}
                       />
                     )}
                   </Box>
                   <Typography
                     sx={{
-                      fontSize: '12px',
+                      fontSize: FONT.caption,
                       color: 'var(--mac-text-secondary)',
                       lineHeight: 1.4,
                       mb: 0.6,
@@ -251,12 +252,12 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                     {item.description}
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontWeight: 500 }}>
                       {item.time}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'var(--sakay-orange)', fontSize: '11px', fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'var(--sakay-orange)', fontSize: FONT.caption, fontWeight: 600 }}>
                       <span>View</span>
-                      <ChevronRightIcon sx={{ fontSize: 14 }} />
+                      <ChevronRightIcon sx={{ fontSize: 13 }} />
                     </Box>
                   </Box>
                 </Box>

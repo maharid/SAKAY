@@ -3,6 +3,7 @@ import { Box, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ConstructionIcon from '@mui/icons-material/Construction';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { CONTROL, FONT } from '../styles/density';
 
 interface PlaceholderPageProps {
   title: string;
@@ -24,10 +25,10 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, subtitl
         borderRadius: 'var(--mac-radius-lg)',
         border: '1px solid var(--mac-border-color)',
         boxShadow: 'var(--mac-shadow-card)',
-        padding: '40px 24px',
+        padding: '32px 19px',
         textAlign: 'center',
         maxWidth: 700,
-        margin: '20px auto',
+        margin: '16px auto',
       }}
     >
       <Box
@@ -40,17 +41,17 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, subtitl
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--sakay-orange)',
-          mb: 2.5,
+          mb: 2,
         }}
       >
-        <ConstructionIcon sx={{ fontSize: '25.6' }} />
+        <ConstructionIcon sx={{ fontSize: '26px' }} />
       </Box>
 
-      <Typography variant="h4" sx={{ fontWeight: 700, fontSize: '19.3px', color: 'var(--mac-text-primary)', mb: 1 }}>
+      <Typography variant="h4" sx={{ fontWeight: 700, fontSize: '19px', color: 'var(--mac-text-primary)', mb: 0.8 }}>
         {title}
       </Typography>
 
-      <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-secondary)', mb: 3, maxWidth: 460 }}>
+      <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-secondary)', mb: 2.4, maxWidth: 460 }}>
         {subtitle}
       </Typography>
 
@@ -58,11 +59,11 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, subtitl
         sx={{
           backgroundColor: 'var(--mac-warning-bg)',
           color: 'var(--mac-warning-text)',
-          fontSize: '9.6px',
+          fontSize: FONT.caption,
           fontWeight: 600,
-          padding: '6px 16px',
+          padding: '5px 13px',
           borderRadius: '12px',
-          mb: 3,
+          mb: 2.4,
         }}
       >
         Routing & Page Shell Ready for Step 2 Implementation
@@ -72,12 +73,13 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, subtitl
         onClick={() => navigate('/dashboard')}
         startIcon={<ArrowBackIcon fontSize="small" />}
         sx={{
-          height: 38,
-          padding: '0 18px',
+          height: CONTROL.height,
+          '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+          padding: '0 14px',
           borderRadius: '8px',
           backgroundColor: 'var(--sakay-orange)',
           color: '#FFFFFF',
-          fontSize: '10.4px',
+          fontSize: FONT.body,
           fontWeight: 600,
           textTransform: 'none',
           '&:hover': {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Typography, Button, TextField, Box, MenuItem } from '@mui/material';
+import { CONTROL, FONT } from '../../styles/density';
 
 export interface MacConfirmDialogOption {
   value: string;
@@ -61,7 +62,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         paper: {
           sx: {
             borderRadius: 'var(--mac-radius-lg)',
-            maxWidth: 480,
+            maxWidth: 420,
             width: '100%',
             backgroundColor: '#FFFFFF',
             boxShadow: 'var(--mac-shadow-popover)',
@@ -72,9 +73,9 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
     >
       <DialogTitle
         sx={{
-          padding: '20px 24px 16px 24px',
+          padding: '16px 19px 13px 19px',
           borderBottom: '1px solid var(--mac-border-color)',
-          fontSize: '14.4px',
+          fontSize: FONT.cardTitle,
           fontWeight: 600,
           color: 'var(--mac-text-primary)',
           backgroundColor: '#FAFAFC',
@@ -83,14 +84,14 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         {title}
       </DialogTitle>
 
-      <DialogContent sx={{ paddingTop: '28px !important', paddingBottom: '20px !important', paddingLeft: '24px !important', paddingRight: '24px !important' }}>
-        <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? 2 : 0 }}>
+      <DialogContent sx={{ paddingTop: '22px !important', paddingBottom: '16px !important', paddingLeft: '19px !important', paddingRight: '19px !important' }}>
+        <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: requireReason ? 1.6 : 0 }}>
           {message}
         </Typography>
 
         {options && (
-          <Box sx={{ mt: 2 }}>
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
+          <Box sx={{ mt: 1.6 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 0.8 }}>
               {optionLabel} (Required)
             </Typography>
             <TextField
@@ -99,10 +100,10 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
               size="small"
               value={option}
               onChange={(e) => setOption(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '9px', fontSize: '11.3px', backgroundColor: '#FAFAFC' } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '9px', fontSize: FONT.body, backgroundColor: '#FAFAFC' } }}
             >
               {options.map((o) => (
-                <MenuItem key={o.value} value={o.value} sx={{ fontSize: '11.3px', whiteSpace: 'normal' }}>
+                <MenuItem key={o.value} value={o.value} sx={{ fontSize: FONT.body, whiteSpace: 'normal' }}>
                   {o.label}
                 </MenuItem>
               ))}
@@ -111,8 +112,8 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         )}
 
         {requireReason && (
-          <Box sx={{ mt: 2 }}>
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1 }}>
+          <Box sx={{ mt: 1.6 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 0.8 }}>
               Reason for Decision (Required{minReasonLength > 1 ? `, at least ${minReasonLength} characters` : ''})
             </Typography>
             <TextField
@@ -125,7 +126,7 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '9px',
-                  fontSize: '11.3px',
+                  fontSize: FONT.body,
                   backgroundColor: '#FAFAFC',
                   '& fieldset': { borderColor: 'var(--mac-border-color)' },
                   '&:hover fieldset': { borderColor: 'var(--sakay-orange-border)' },
@@ -137,15 +138,16 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: '16px 24px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.5 }}>
+      <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.2 }}>
         <Button
           onClick={onClose}
           sx={{
-            height: 38,
-            padding: '0 18px',
+            height: CONTROL.height,
+            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+            padding: '0 14px',
             borderRadius: '9px',
             textTransform: 'none',
-            fontSize: '11.3px',
+            fontSize: FONT.body,
             fontWeight: 600,
             color: '#334155',
             border: '1.5px solid #94A3B8',
@@ -165,11 +167,12 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
           disabled={(requireReason && reason.trim().length < minReasonLength) || (Boolean(options) && !option)}
           variant="contained"
           sx={{
-            height: 38,
-            padding: '0 20px',
+            height: CONTROL.height,
+            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+            padding: '0 16px',
             borderRadius: '9px',
             textTransform: 'none',
-            fontSize: '11.3px',
+            fontSize: FONT.body,
             fontWeight: 600,
             backgroundColor: confirmVariant === 'danger' ? '#DC2626' : 'var(--sakay-orange)',
             color: '#FFFFFF',

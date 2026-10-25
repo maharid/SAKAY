@@ -4,6 +4,7 @@ import GavelIcon from '@mui/icons-material/Gavel';
 import { CLOSE_PAYMENT_STATUSES, CORRECTION_PAYMENT_STATUSES, closeProblem, correctionProblem } from '@sakay/shared';
 
 import { closeUnfinishedTrip, correctCompletedTrip } from '../../services/adminApiService';
+import { FONT } from '../../styles/density';
 
 interface TripCorrectionSectionProps {
   bookingId: string;
@@ -17,9 +18,9 @@ interface TripCorrectionSectionProps {
 }
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
     <GavelIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-    <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{children}</Typography>
+    <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{children}</Typography>
   </Box>
 );
 
@@ -60,14 +61,14 @@ export const TripCorrectionSection: React.FC<TripCorrectionSectionProps> = ({ bo
   };
 
   return (
-    <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid var(--mac-border-color)' }}>
+    <Box sx={{ mt: 2.4, pt: 2.4, borderTop: '1px solid var(--mac-border-color)' }}>
       <SectionTitle>{closing ? 'Close this trip (Payment Received was never tapped)' : 'Administrative correction'}</SectionTitle>
-      <Typography sx={{ fontSize: '11.6px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 2 }}>
+      <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 1.6 }}>
         {closing
           ? 'Contact the driver and the passenger first, then close the trip as Paid (the cash was received) or Waived (no fare). The reason says who was reached and what they said. Both are told.'
           : 'A completed trip is read-only. This is the one audited way to fix its fare (never above the system\'s fare) or its payment status. The route, the times and the people never change. Both the passenger and the driver are told.'}
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: closing ? '1fr' : '1fr 1fr' }, gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: closing ? '1fr' : '1fr 1fr' }, gap: 1.6, mb: 1.6 }}>
         {!closing && (
           <TextField
             size="small"
@@ -93,10 +94,10 @@ export const TripCorrectionSection: React.FC<TripCorrectionSectionProps> = ({ bo
         label={closing ? 'How the outcome was confirmed (at least 10 characters)' : 'Reason for the correction (at least 10 characters, kept in the audit log)'}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        sx={{ mb: 1.5 }}
+        sx={{ mb: 1.2 }}
       />
-      {problem && reason.length > 0 && <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', mb: 1 }}>{problem}</Typography>}
-      {error && <Alert severity="error" sx={{ borderRadius: '10px', mb: 1.5 }}>{error}</Alert>}
+      {problem && reason.length > 0 && <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 0.8 }}>{problem}</Typography>}
+      {error && <Alert severity="error" sx={{ borderRadius: '10px', mb: 1.2 }}>{error}</Alert>}
       <Button
         variant="contained"
         disabled={Boolean(problem) || busy}

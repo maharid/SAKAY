@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { CONTROL, FONT } from '../../styles/density';
 
 export interface FilterOption {
   label: string;
@@ -49,12 +50,12 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
     <Card
       elevation={0}
       sx={{
-        p: 2,
+        p: 1.6,
         borderRadius: 'var(--mac-radius-lg)',
         border: '1px solid var(--mac-border-color)',
         backgroundColor: '#FFFFFF',
         boxShadow: 'var(--mac-shadow-card)',
-        mb: disableMarginBottom ? 0 : 3.5,
+        mb: disableMarginBottom ? 0 : 2.8,
       }}
     >
       <Box
@@ -63,7 +64,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
           flexDirection: { xs: 'column', md: 'row' },
           alignItems: { xs: 'stretch', md: 'center' },
           justifyContent: 'space-between',
-          gap: 2,
+          gap: 1.6,
         }}
       >
         {/* Left side: Search Field */}
@@ -78,7 +79,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: '14.4' }} />
+                      <SearchIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: '14px' }} />
                     </InputAdornment>
                   ),
                 },
@@ -88,8 +89,9 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '10px',
                   backgroundColor: '#FAFAFC',
-                  fontSize: '11px',
-                  height: 42,
+                  fontSize: FONT.body,
+                  height: CONTROL.height,
+                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
                   border: '1px solid var(--mac-border-color)',
                   transition: 'var(--mac-transition-fast)',
                   '& fieldset': { border: 'none' },
@@ -115,7 +117,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: { xs: 'flex-start', md: 'flex-end' },
-            gap: 1.5,
+            gap: 1.2,
             ml: { md: 'auto' },
           }}
         >
@@ -136,10 +138,11 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 sx={{
                   borderRadius: '10px',
                   backgroundColor: '#FAFAFC',
-                  fontSize: '11px',
+                  fontSize: FONT.body,
                   fontWeight: 500,
                   color: 'var(--mac-text-primary)',
-                  height: 42,
+                  height: CONTROL.height,
+                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
                   border: '1px solid var(--mac-border-color)',
                   '& fieldset': { border: 'none' },
                   '&:hover': {
@@ -154,7 +157,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 }}
               >
                 {filter.options.map((opt) => (
-                   <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '11px' }}>
+                   <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: FONT.body }}>
                     {opt.label}
                   </MenuItem>
                 ))}
@@ -167,15 +170,16 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             <Button
               size="small"
               onClick={onResetFilters}
-              startIcon={<RestartAltIcon fontSize="small" sx={{ fontSize: '14.4' }} />}
+              startIcon={<RestartAltIcon fontSize="small" sx={{ fontSize: '14px' }} />}
               sx={{
-                height: 42,
-                padding: '0 16px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 13px',
                 borderRadius: '10px',
                 border: '1px solid var(--mac-border-color)',
                 backgroundColor: '#FAFAFC',
                 color: 'var(--mac-text-secondary)',
-                fontSize: '11px',
+                fontSize: FONT.small,
                 fontWeight: 500,
                 textTransform: 'none',
                 flexShrink: 0,
@@ -192,7 +196,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
 
           {/* Optional Action Button */}
           {actionButton && (
-            <Box sx={{ flexShrink: 0, ml: 0.5 }}>
+            <Box sx={{ flexShrink: 0, ml: 0.4 }}>
               {actionButton}
             </Box>
           )}

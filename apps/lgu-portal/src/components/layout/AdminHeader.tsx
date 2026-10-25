@@ -12,6 +12,10 @@ import { NotificationItem } from '../../types/admin';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogoutConfirmModal } from '../admin/LogoutConfirmModal';
 import { supabase } from '../../services/supabaseClient';
+import { CONTROL, FONT } from '../../styles/density';
+
+// the header controls are as tall as a button of the compact scale (the TODA portal's header does the same)
+const HEADER_BUTTON_HEIGHT = CONTROL.height;
 
 interface AdminHeaderProps {
   pageTitle?: string;
@@ -299,15 +303,15 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 36px',
+        padding: { xs: '0 16px', md: '0 29px' },
       }}
     >
       {/* Left: Primary Page Title & Subtitle */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
         <Typography
           variant="h1"
           sx={{
-            fontSize: '20px',
+            fontSize: FONT.pageTitle,
             fontWeight: 700,
             color: 'var(--mac-text-primary)',
             letterSpacing: '-0.3px',
@@ -319,7 +323,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         {pageSubtitle && (
           <Typography
             sx={{
-              fontSize: '12px',
+              fontSize: FONT.caption,
               fontWeight: 400,
               color: 'var(--mac-text-muted)',
               lineHeight: 1.3,
@@ -332,16 +336,17 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       </Box>
 
       {/* Right: Global Sticky Header Controls */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, position: 'relative' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
         {/* Notifications Icon Button */}
         <Box sx={{ position: 'relative' }}>
           <IconButton
             size="small"
             onClick={() => setNotifOpen(!notifOpen)}
             sx={{
-              width: 38,
-              height: 38,
-              borderRadius: '10px',
+              width: HEADER_BUTTON_HEIGHT,
+              height: HEADER_BUTTON_HEIGHT,
+              '@media (pointer: coarse)': { width: 40, height: 40 },
+              borderRadius: '8px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               color: 'var(--mac-text-secondary)',
@@ -354,7 +359,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             }}
           >
             <Badge badgeContent={unreadCount} color="error" max={99}>
-              <NotificationsNoneIcon fontSize="small" sx={{ fontSize: 19 }} />
+              <NotificationsNoneIcon fontSize="small" sx={{ fontSize: 16 }} />
             </Badge>
           </IconButton>
           <NotificationPopover
@@ -369,15 +374,16 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         {/* Tulong Action Button */}
         <Button
           onClick={() => navigate('/tulong')}
-          startIcon={<HelpOutlineOutlinedIcon fontSize="small" sx={{ fontSize: 17 }} />}
+          startIcon={<HelpOutlineOutlinedIcon fontSize="small" sx={{ fontSize: 14 }} />}
           sx={{
-            height: 38,
-            padding: '0 16px',
-            borderRadius: '10px',
+            height: HEADER_BUTTON_HEIGHT,
+            '@media (pointer: coarse)': { height: 40 },
+            padding: '0 13px',
+            borderRadius: '8px',
             border: '1px solid var(--mac-border-color)',
             backgroundColor: '#FFFFFF',
             color: 'var(--mac-text-primary)',
-            fontSize: '13.5px',
+            fontSize: FONT.body,
             fontWeight: 500,
             textTransform: 'none',
             boxShadow: 'var(--mac-shadow-subtle)',
@@ -397,14 +403,15 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           <Box
             onClick={(e) => setAccountAnchorEl(e.currentTarget)}
             sx={{
-              height: 38,
-              padding: '0 12px 0 10px',
-              borderRadius: '10px',
+              height: HEADER_BUTTON_HEIGHT,
+              '@media (pointer: coarse)': { height: 40 },
+              padding: '0 10px 0 8px',
+              borderRadius: '8px',
               border: '1px solid var(--mac-border-color)',
               backgroundColor: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
-              gap: 1.2,
+              gap: '8px',
               cursor: 'pointer',
               boxShadow: 'var(--mac-shadow-subtle)',
               transition: 'var(--mac-transition-fast)',
@@ -417,15 +424,15 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           >
             <Box
               sx={{
-                width: 24,
-                height: 24,
+                width: 20,
+                height: 20,
                 borderRadius: '50%',
                 backgroundColor: 'var(--sakay-orange-soft)',
                 color: 'var(--sakay-orange)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '12px',
+                fontSize: FONT.caption,
                 fontWeight: 700,
                 flexShrink: 0,
               }}
@@ -434,7 +441,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             </Box>
             <Typography
               sx={{
-                fontSize: '13.5px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 color: 'var(--mac-text-primary)',
                 lineHeight: 1,
@@ -442,7 +449,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             >
               {adminName}
             </Typography>
-            <KeyboardArrowDownIcon fontSize="small" sx={{ fontSize: 18, color: 'var(--mac-text-muted)', ml: -0.3 }} />
+            <KeyboardArrowDownIcon fontSize="small" sx={{ fontSize: 15, color: 'var(--mac-text-muted)', ml: '-2px' }} />
           </Box>
 
           {/* Account Popover Card */}
@@ -455,31 +462,31 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             slotProps={{
               paper: {
                 sx: {
-                  borderRadius: '14px',
+                  borderRadius: '12px',
                   border: '1px solid var(--mac-border-color)',
                   boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
                   mt: 1,
-                  width: 260,
-                  padding: '16px',
+                  width: 248,
+                  padding: '13px',
                   backgroundColor: '#FFFFFF',
                 },
               },
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
               <Box>
-                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
+                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.25 }}>
                   {adminName}
                 </Typography>
-                <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--sakay-orange)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--sakay-orange)', mt: '2px' }}>
                   LGU Admin
                 </Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', mt: '2px', wordBreak: 'break-all' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px', wordBreak: 'break-all' }}>
                   {adminEmail}
                 </Typography>
               </Box>
 
-              <Box sx={{ borderTop: '1px solid var(--mac-border-color)', pt: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ borderTop: '1px solid var(--mac-border-color)', pt: 1.2, display: 'flex', flexDirection: 'column', gap: 0.8 }}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -493,10 +500,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                     borderColor: 'var(--mac-border-color)',
                     color: 'var(--mac-text-primary)',
                     textTransform: 'none',
-                    fontSize: '13px',
+                    fontSize: FONT.body,
                     fontWeight: 600,
                     justifyContent: 'flex-start',
-                    py: 0.8,
+                    py: 0.6,
                     '&:hover': {
                       backgroundColor: 'var(--sakay-orange-soft)',
                       borderColor: 'var(--sakay-orange-border)',
@@ -519,10 +526,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                   sx={{
                     borderRadius: '8px',
                     textTransform: 'none',
-                    fontSize: '13px',
+                    fontSize: FONT.body,
                     fontWeight: 600,
                     justifyContent: 'flex-start',
-                    py: 0.8,
+                    py: 0.6,
                     color: '#DC2626',
                     '&:hover': {
                       backgroundColor: '#FEF2F2',

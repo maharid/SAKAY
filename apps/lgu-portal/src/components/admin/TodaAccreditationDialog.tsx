@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Box, TextField, Typography } from '@mui/material';
 
 import { MacCenterModal } from './MacCenterModal';
+import { FONT } from '../../styles/density';
 
 interface TodaAccreditationDialogProps {
   open: boolean;
@@ -70,15 +71,15 @@ export const TodaAccreditationDialog: React.FC<TodaAccreditationDialogProps> = (
       onClose={onClose}
       title={mode === 'approve' ? 'Approve TODA Accreditation' : 'Record Accreditation Renewal'}
       subtitle={todaName}
-      maxWidth={560}
+      maxWidth={448}
       primaryActionLabel={busy ? 'Saving...' : mode === 'approve' ? 'Approve & Issue Accreditation' : 'Record Renewal'}
       onPrimaryAction={submit}
       primaryActionDisabled={Boolean(problem) || busy || !hasClearance}
       secondaryActionLabel="Cancel"
       onSecondaryAction={onClose}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.6 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
+        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.6 }}>
           Open the Barangay Clearance in the review window and copy its certificate number and the date it is valid until. They are saved with the accreditation:
           the TODA and its drivers are reminded before that date, and the drivers cannot go Online after it.
         </Typography>

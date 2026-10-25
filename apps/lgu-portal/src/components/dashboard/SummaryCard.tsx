@@ -7,6 +7,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import { SummaryMetric } from '../../types/admin';
+import { FONT } from '../../styles/density';
 
 interface SummaryCardProps {
   metric: SummaryMetric;
@@ -18,15 +19,15 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
   const getIcon = (id: string) => {
     switch (id) {
       case 'accredited-todas':
-        return <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: '17.6' }} />;
+        return <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />;
       case 'active-drivers':
-        return <PersonIcon sx={{ color: '#34A853', fontSize: '17.6' }} />;
+        return <PersonIcon sx={{ color: '#34A853', fontSize: '18px' }} />;
       case 'active-trips':
-        return <DirectionsCarIcon sx={{ color: '#1A73E8', fontSize: '17.6' }} />;
+        return <DirectionsCarIcon sx={{ color: '#1A73E8', fontSize: '18px' }} />;
       case 'todays-bookings':
-        return <ConfirmationNumberIcon sx={{ color: '#9C27B0', fontSize: '17.6' }} />;
+        return <ConfirmationNumberIcon sx={{ color: '#9C27B0', fontSize: '18px' }} />;
       default:
-        return <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: '17.6' }} />;
+        return <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />;
     }
   };
 
@@ -68,7 +69,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
         borderRadius: 'var(--mac-radius-xl)',
         border: '1px solid rgba(15, 23, 42, 0.05)',
         boxShadow: 'var(--mac-shadow-card)',
-        padding: '22px 22px 18px',
+        padding: '18px 18px 14px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -95,7 +96,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
         <Box
           sx={{
             width: 46,
@@ -112,7 +113,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
         </Box>
         <Typography
           sx={{
-            fontSize: '10px',
+            fontSize: FONT.caption,
             fontWeight: 600,
             color: 'var(--mac-text-muted)',
             letterSpacing: '-0.02em',
@@ -140,9 +141,9 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
             sx={{
               backgroundColor: 'var(--mac-success-bg)',
               color: 'var(--mac-success-text)',
-              fontSize: '9px',
+              fontSize: FONT.caption,
               fontWeight: 700,
-              padding: '4px 8px',
+              padding: '3px 6px',
               borderRadius: '999px',
             }}
           >
@@ -151,14 +152,14 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ metric }) => {
         )}
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
-        <Typography sx={{ fontSize: '10px', color: 'var(--mac-text-secondary)' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.4 }}>
+        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)' }}>
           {metric.subtitle}
         </Typography>
         <ChevronRightIcon
           className="chevron-icon"
           sx={{
-            fontSize: '16',
+            fontSize: '16px',
             color: 'var(--mac-text-muted)',
             transition: 'var(--mac-transition-fast)',
           }}

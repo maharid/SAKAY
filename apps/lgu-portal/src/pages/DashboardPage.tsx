@@ -21,6 +21,7 @@ import { RecentIncidentReportsCard } from '../components/dashboard/RecentInciden
 import { RecentTodaApplicationsCard } from '../components/dashboard/RecentTodaApplicationsCard';
 import { fetchDashboardStats, DashboardStats, fetchAdminReviewFlags, resolveAdminReviewFlag, confirmDeliberateOffline, confirmFlaggedViolation, confirmIntegrityFlag, sendConductWarning, fetchFareDisputes, closeUnfinishedTrip, confirmAvailabilityViolation } from '../services/adminApiService';
 import { closeProblem, isAvailabilityFlag } from '@sakay/shared';
+import { CONTROL, FONT } from '../styles/density';
 
 /** The flags a detector raises (Rules 27.1, 27.3 - 27.6): the LGU Administrator confirms them, which records the violation against every account named */
 const INTEGRITY_FLAG_TYPES = ['GPS_SPOOFING_REVIEW', 'RATING_MANIPULATION_REVIEW', 'COLLUSIVE_MATCHING_REVIEW', 'POSSIBLE_REREGISTRATION_REVIEW'];
@@ -310,10 +311,10 @@ export const DashboardPage: React.FC = () => {
   const flaggedTodas = stats?.flaggedTodas || [];
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Welcome Greeting Text Header */}
       <WelcomeHeader />
-      <Box sx={{ mb: 2.5 }}>
+      <Box sx={{ mb: 2 }}>
         <PilotCoverageNote />
       </Box>
 
@@ -321,11 +322,11 @@ export const DashboardPage: React.FC = () => {
       {showTodaAlert && flaggedTodas.length > 0 && (
         <Box
           sx={{
-            mb: 3,
+            mb: 2.4,
             backgroundColor: '#FFF7ED',
             border: '1px solid #FDBA74',
             borderRadius: 'var(--mac-radius-lg)',
-            padding: '18px 24px',
+            padding: '14px 19px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -333,28 +334,29 @@ export const DashboardPage: React.FC = () => {
             position: 'relative',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, pr: 2 }}>
-            <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 26, flexShrink: 0 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 1.6 }}>
+            <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 21, flexShrink: 0 }} />
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#9A3412', mb: '4px' }}>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#9A3412', mb: '3px' }}>
                 TODA Supervisory Review Alert
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#C2410C', lineHeight: 1.4 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: '#C2410C', lineHeight: 1.4 }}>
                 {flaggedTodas.length} accredited TODA(s) ({flaggedTodas.map((t) => t.name).join(', ')}) have accumulated 3 or more confirmed incident reports requiring supervisory review.
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
             <Button
               onClick={() => navigate('/accredited-todas')}
-              endIcon={<ArrowForwardIcon sx={{ fontSize: '16px !important' }} />}
+              endIcon={<ArrowForwardIcon sx={{ fontSize: '13px !important' }} />}
               sx={{
-                height: 38,
-                padding: '0 18px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 14px',
                 borderRadius: '8px',
                 textTransform: 'none',
-                fontSize: '13.5px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 backgroundColor: '#EA580C',
                 color: '#FFFFFF',
@@ -384,39 +386,40 @@ export const DashboardPage: React.FC = () => {
       {showOverdueAlert && kpis.verifications.overdue5Days > 0 && (
         <Box
           sx={{
-            mb: 3.5,
+            mb: 2.8,
             backgroundColor: '#FEF2F2',
             border: '1px solid #FCA5A5',
             borderRadius: 'var(--mac-radius-lg)',
-            padding: '18px 24px',
+            padding: '14px 19px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             boxShadow: 'var(--mac-shadow-subtle)',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, pr: 2 }}>
-            <AccessTimeIcon sx={{ color: '#DC2626', fontSize: 26, flexShrink: 0 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 1.6 }}>
+            <AccessTimeIcon sx={{ color: '#DC2626', fontSize: 21, flexShrink: 0 }} />
             <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#991B1B', mb: '4px' }}>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#991B1B', mb: '3px' }}>
                 Overdue Verifications Alert
               </Typography>
-              <Typography sx={{ fontSize: '13.5px', color: '#B91C1C', lineHeight: 1.4 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: '#B91C1C', lineHeight: 1.4 }}>
                 {kpis.verifications.overdue5Days} verification request(s) pending beyond 5 calendar days require immediate review.
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
             <Button
               onClick={() => navigate('/toda-applications')}
-              endIcon={<ArrowForwardIcon sx={{ fontSize: '16px !important' }} />}
+              endIcon={<ArrowForwardIcon sx={{ fontSize: '13px !important' }} />}
               sx={{
-                height: 38,
-                padding: '0 18px',
+                height: CONTROL.height,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                padding: '0 14px',
                 borderRadius: '8px',
                 textTransform: 'none',
-                fontSize: '13.5px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 backgroundColor: '#DC2626',
                 color: '#FFFFFF',
@@ -445,9 +448,9 @@ export const DashboardPage: React.FC = () => {
       {disputeCount.waiting > 0 && (
         <Box
           role="status"
-          sx={{ mb: 3.5, p: '14px 18px', borderRadius: 'var(--mac-radius-lg)', border: '1px solid #FDBA74', backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}
+          sx={{ mb: 2.8, p: '11px 14px', borderRadius: 'var(--mac-radius-lg)', border: '1px solid #FDBA74', backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.6, flexWrap: 'wrap' }}
         >
-          <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#9A3412' }}>
+          <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: '#9A3412' }}>
             {disputeCount.waiting} fare dispute{disputeCount.waiting === 1 ? '' : 's'} waiting for an administrator
             {disputeCount.overdue > 0 ? ' (' + disputeCount.overdue + ' overdue)' : ''}
           </Typography>
@@ -461,7 +464,7 @@ export const DashboardPage: React.FC = () => {
       {adminFlags.some(isOpenFlag) && (
         <Card
           sx={{
-            mb: 3.5,
+            mb: 2.8,
             borderRadius: 'var(--mac-radius-lg)',
             border: '1px solid #CBD5E1',
             backgroundColor: '#F8FAFC',
@@ -471,7 +474,7 @@ export const DashboardPage: React.FC = () => {
         >
           <Box
             sx={{
-              p: '16px 20px',
+              p: '13px 16px',
               backgroundColor: '#EDE9FE',
               borderBottom: '1px solid #DDD6FE',
               display: 'flex',
@@ -479,18 +482,18 @@ export const DashboardPage: React.FC = () => {
               justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <FlagIcon sx={{ color: '#6D28D9', fontSize: 22 }} />
-              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#4C1D95' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+              <FlagIcon sx={{ color: '#6D28D9', fontSize: 18 }} />
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: '#4C1D95' }}>
                 Administrative Review Flags ({adminFlags.filter(isOpenFlag).length} Pending Action)
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '12px', color: '#6D28D9', fontWeight: 500 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: '#6D28D9', fontWeight: 500 }}>
               Items that need an administrator's decision
             </Typography>
           </Box>
-          <CardContent sx={{ p: '16px 20px !important' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <CardContent sx={{ p: '13px 16px !important' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
               {adminFlags
                 .filter(isOpenFlag)
                 .slice(0, 12)
@@ -498,7 +501,7 @@ export const DashboardPage: React.FC = () => {
                   <Box
                     key={flag.flag_id}
                     sx={{
-                      p: 1.5,
+                      p: 1.2,
                       borderRadius: '8px',
                       backgroundColor: '#FFFFFF',
                       border: '1px solid #E2E8F0',
@@ -506,16 +509,16 @@ export const DashboardPage: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       flexWrap: 'wrap',
-                      gap: 1.5,
+                      gap: 1.2,
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                       <Chip
                         label={flag.flag_type}
                         size="small"
                         sx={{
                           fontWeight: 700,
-                          fontSize: '11px',
+                          fontSize: FONT.caption,
                           backgroundColor:
                             flag.flag_type === 'ROSTER_MISMATCH'
                               ? '#FEE2E2'
@@ -530,10 +533,10 @@ export const DashboardPage: React.FC = () => {
                               : '#EA580C',
                         }}
                       />
-                      <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                         {flag.subject_type}: <span style={{ fontFamily: 'monospace' }}>{flag.subject_id}</span>
                       </Typography>
-                      <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                         {new Date(flag.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </Typography>
                     </Box>
@@ -548,7 +551,7 @@ export const DashboardPage: React.FC = () => {
                       sx={{
                         backgroundColor: '#6D28D9',
                         '&:hover': { backgroundColor: '#5B21B6' },
-                        fontSize: '12px',
+                        fontSize: FONT.small,
                         textTransform: 'none',
                         fontWeight: 600,
                         height: 30,
@@ -568,8 +571,8 @@ export const DashboardPage: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(6, 1fr)' },
-          gap: 2.5,
-          mb: 4,
+          gap: 2,
+          mb: 3.2,
         }}
       >
         {/* Passengers */}
@@ -585,17 +588,17 @@ export const DashboardPage: React.FC = () => {
             '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
           }}
         >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Passengers
               </Typography>
-              <PeopleIcon sx={{ color: 'var(--sakay-orange)', fontSize: 20 }} />
+              <PeopleIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
             </Box>
-            <Typography sx={{ fontSize: '25px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
               {isLoading ? <CircularProgress size={20} /> : kpis.passengers.total.toLocaleString()}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.passengers.active} Active</span> • {kpis.passengers.inactive} Inactive
             </Typography>
           </CardContent>
@@ -614,17 +617,17 @@ export const DashboardPage: React.FC = () => {
             '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
           }}
         >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Drivers
               </Typography>
-              <DirectionsCarIcon sx={{ color: 'var(--sakay-orange)', fontSize: 20 }} />
+              <DirectionsCarIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
             </Box>
-            <Typography sx={{ fontSize: '25px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
               {isLoading ? <CircularProgress size={20} /> : kpis.drivers.total.toLocaleString()}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.drivers.active} Verified</span> • {kpis.drivers.inactive} Other
             </Typography>
           </CardContent>
@@ -643,17 +646,17 @@ export const DashboardPage: React.FC = () => {
             '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
           }}
         >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Accredited TODAs
               </Typography>
-              <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: 20 }} />
+              <AccountBalanceIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
             </Box>
-            <Typography sx={{ fontSize: '25px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
               {isLoading ? <CircularProgress size={20} /> : kpis.todas.total.toLocaleString()}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               <span style={{ fontWeight: 600, color: '#1565C0' }}>{kpis.todas.total} Active</span> • {kpis.todas.pendingReview} Pending
             </Typography>
           </CardContent>
@@ -672,17 +675,17 @@ export const DashboardPage: React.FC = () => {
             '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
           }}
         >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Completed Trips
               </Typography>
-              <RouteIcon sx={{ color: 'var(--sakay-orange)', fontSize: 20 }} />
+              <RouteIcon sx={{ color: 'var(--sakay-orange)', fontSize: 16 }} />
             </Box>
-            <Typography sx={{ fontSize: '25px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
               {isLoading ? <CircularProgress size={20} /> : kpis.trips.total.toLocaleString()}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.trips.ongoing} In Transit</span> • <span style={{ fontWeight: 600, color: '#D93025' }}>{kpis.trips.cancelled} Cancelled</span> • {kpis.trips.allBookings} Total
             </Typography>
           </CardContent>
@@ -701,17 +704,17 @@ export const DashboardPage: React.FC = () => {
             '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
           }}
         >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Pending Verifications
               </Typography>
-              <AccessTimeIcon sx={{ color: '#EA580C', fontSize: 20 }} />
+              <AccessTimeIcon sx={{ color: '#EA580C', fontSize: 16 }} />
             </Box>
-            <Typography sx={{ fontSize: '25px', fontWeight: 700, color: '#EA580C', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#EA580C', mb: 0.4 }}>
               {isLoading ? <CircularProgress size={20} /> : kpis.verifications.pending.toLocaleString()}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               {kpis.todas.pendingReview} TODA • {kpis.verifications.pending - kpis.todas.pendingReview} Drivers
             </Typography>
           </CardContent>
@@ -730,17 +733,17 @@ export const DashboardPage: React.FC = () => {
             '&:hover': { transform: 'translateY(-2px)', borderColor: 'var(--sakay-orange)' },
           }}
         >
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Open Incidents
               </Typography>
-              <ReportProblemIcon sx={{ color: '#D93025', fontSize: 20 }} />
+              <ReportProblemIcon sx={{ color: '#D93025', fontSize: 16 }} />
             </Box>
-            <Typography sx={{ fontSize: '25px', fontWeight: 700, color: '#D93025', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#D93025', mb: 0.4 }}>
               {isLoading ? <CircularProgress size={20} /> : kpis.incidents.open.toLocaleString()}
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               <span style={{ fontWeight: 600, color: '#1E8E3E' }}>{kpis.incidents.resolved} Resolved</span> • {kpis.incidents.total} Total Complaints
             </Typography>
           </CardContent>
@@ -752,8 +755,8 @@ export const DashboardPage: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' },
-          gap: 3.5,
-          mb: 3.5,
+          gap: 2.8,
+          mb: 2.8,
         }}
       >
         <BookingTrendCard />
@@ -765,7 +768,7 @@ export const DashboardPage: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' },
-          gap: 3.5,
+          gap: 2.8,
         }}
       >
         <LiveTripsMapCard ongoingTripsCount={kpis.trips.ongoing} />
@@ -775,24 +778,24 @@ export const DashboardPage: React.FC = () => {
 
       {/* Flag Resolution Dialog */}
       <Dialog open={flagDialogOpen} onClose={() => setFlagDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: FONT.heading }}>
           Resolve Administrative Flag ({selectedFlag?.flag_type})
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', mb: 2 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', mb: 1.6 }}>
             Provide resolution notes for {selectedFlag?.subject_type} {selectedFlag?.subject_id} ({selectedFlag?.source_rule}).
           </Typography>
           {describeFlagDetails(selectedFlag).length > 0 && (
-            <Box sx={{ mb: 2, p: 1.5, borderRadius: '8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+            <Box sx={{ mb: 1.6, p: 1.2, borderRadius: '8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               {describeFlagDetails(selectedFlag).map((line, i) => (
-                <Typography key={i} sx={{ fontSize: '12.5px', color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
+                <Typography key={i} sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>
                   {line}
                 </Typography>
               ))}
             </Box>
           )}
           {flagError && (
-            <Typography sx={{ fontSize: '12.5px', color: '#B91C1C', mb: 1.5 }}>{flagError}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: '#B91C1C', mb: 1.2 }}>{flagError}</Typography>
           )}
           <TextField
             autoFocus
@@ -805,7 +808,7 @@ export const DashboardPage: React.FC = () => {
             placeholder="e.g. Verified with manual certificate, franchise validated, or inspection completed..."
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 1.6 }}>
           <Button onClick={() => { setFlagDialogOpen(false); setFlagError(null); }} sx={{ textTransform: 'none' }}>
             Cancel
           </Button>

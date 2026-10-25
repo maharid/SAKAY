@@ -19,8 +19,8 @@ export const AnalyticsFilterBar: React.FC<AnalyticsFilterBarProps> = ({ filter, 
   const set = (patch: Partial<AnalyticsFilter>) => onChange({ ...filter, ...patch });
 
   return (
-    <Box sx={{ mb: 3 }}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+    <Box sx={{ mb: 2.4 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.2 }}>
         <TextField size="small" type="date" label="From (Manila)" value={filter.from} onChange={(e) => set({ from: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} sx={{ width: 180 }} />
         <TextField size="small" type="date" label="To (Manila)" value={filter.to} onChange={(e) => set({ to: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} sx={{ width: 180 }} />
         <TextField select size="small" label="Participating TODA" value={filter.todaId} onChange={(e) => set({ todaId: e.target.value })} sx={{ width: 240 }}>
@@ -39,7 +39,7 @@ export const AnalyticsFilterBar: React.FC<AnalyticsFilterBarProps> = ({ filter, 
           Clear filters
         </Button>
       </Box>
-      {problem && <Alert severity="warning" sx={{ mt: 1.5 }}>{problem}</Alert>}
+      {problem && <Alert severity="warning" sx={{ mt: 1.2 }}>{problem}</Alert>}
     </Box>
   );
 };

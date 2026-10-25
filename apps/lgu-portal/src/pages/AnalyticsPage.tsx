@@ -37,6 +37,7 @@ import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable
 import { PilotCoverageNote } from '../components/admin/PilotCoverageNote';
 import { useOperationalReports } from '../hooks/useOperationalReports';
 import { supabase } from '../services/supabaseClient';
+import { FONT } from '../styles/density';
 
 /**
  * ============================================================================
@@ -81,13 +82,13 @@ interface MetricCardProps {
 
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, caption, color, icon }) => (
   <Card sx={cardSx}>
-    <CardContent sx={{ p: '20px 22px !important' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+    <CardContent sx={{ p: '16px 18px !important' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.8 }}>
         {icon}
-        <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{title}</Typography>
+        <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>{title}</Typography>
       </Box>
-      <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color, mb: 0.5 }}>{value}</Typography>
-      <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>{caption}</Typography>
+      <Typography sx={{ fontSize: '22px', fontWeight: 700, color, mb: 0.4 }}>{value}</Typography>
+      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{caption}</Typography>
     </CardContent>
   </Card>
 );
@@ -100,8 +101,8 @@ interface OutcomeBarProps {
 }
 
 const OutcomeBar: React.FC<OutcomeBarProps> = ({ label, count, total, color }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-    <Typography sx={{ width: 130, fontSize: '10.8px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{label}</Typography>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
+    <Typography sx={{ width: 130, fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-secondary)' }}>{label}</Typography>
     <Box sx={{ flex: 1 }}>
       <LinearProgress
         variant="determinate"
@@ -109,16 +110,16 @@ const OutcomeBar: React.FC<OutcomeBarProps> = ({ label, count, total, color }) =
         sx={{ height: 10, borderRadius: 5, backgroundColor: '#F0F0F2', '& .MuiLinearProgress-bar': { backgroundColor: color, borderRadius: 5 } }}
       />
     </Box>
-    <Typography sx={{ width: 90, fontSize: '10.8px', fontWeight: 700, textAlign: 'right', color: 'var(--mac-text-primary)' }}>
+    <Typography sx={{ width: 90, fontSize: FONT.caption, fontWeight: 700, textAlign: 'right', color: 'var(--mac-text-primary)' }}>
       {count} ({total > 0 ? Math.round((count / total) * 100) : 0}%)
     </Typography>
   </Box>
 );
 
 const SectionTitle: React.FC<{ children: React.ReactNode; icon?: React.ReactNode }> = ({ children, icon }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1.6 }}>
     {icon}
-    <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{children}</Typography>
+    <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>{children}</Typography>
   </Box>
 );
 
@@ -213,12 +214,12 @@ export const AnalyticsPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Header Toolbar */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1.6 }}>
         <Box sx={{ maxWidth: 900 }}>
-          <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Transportation Operations Analytics</Typography>
-          <Box sx={{ mt: '3px' }}>
+          <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>Transportation Operations Analytics</Typography>
+          <Box sx={{ mt: '2px' }}>
             <PilotCoverageNote />
           </Box>
         </Box>
@@ -233,10 +234,10 @@ export const AnalyticsPage: React.FC = () => {
         </Button>
       </Box>
 
-      {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
+      {loadError && <Alert severity="error" sx={{ mb: 1.6 }}>{loadError}</Alert>}
 
       {isLoading && !data ? (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
+        <Box sx={{ textAlign: 'center', py: 6.4 }}>
           <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
         </Box>
       ) : (
@@ -244,20 +245,20 @@ export const AnalyticsPage: React.FC = () => {
           <>
             {/* 2. Filters and the period of the trend charts */}
             <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={data.todaOptions} barangayOptions={data.barangayOptions} />
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-              <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-secondary)' }}>View trends by</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.6, mb: 2.4 }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-secondary)' }}>View trends by</Typography>
               <ToggleButtonGroup size="small" exclusive value={period} onChange={(_, v: VolumePeriod | null) => v && setPeriod(v)}>
-                <ToggleButton value="day" sx={{ textTransform: 'none', px: 2 }}>Day</ToggleButton>
-                <ToggleButton value="week" sx={{ textTransform: 'none', px: 2 }}>Week</ToggleButton>
-                <ToggleButton value="month" sx={{ textTransform: 'none', px: 2 }}>Month</ToggleButton>
+                <ToggleButton value="day" sx={{ textTransform: 'none', px: 1.6 }}>Day</ToggleButton>
+                <ToggleButton value="week" sx={{ textTransform: 'none', px: 1.6 }}>Week</ToggleButton>
+                <ToggleButton value="month" sx={{ textTransform: 'none', px: 1.6 }}>Month</ToggleButton>
               </ToggleButtonGroup>
-              <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>Showing: {data.filterText}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Showing: {data.filterText}</Typography>
             </Box>
 
             <CoverageGapsPanel gaps={coverageGaps} loading={coverageLoading} audience="lgu_admin" />
 
             {/* 3. Top Analytics Metrics */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' }, gap: 2.5, mb: 3.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' }, gap: 2, mb: 2.8 }}>
               <MetricCard
                 title="Booking Completion Rate"
                 value={service && service.requests > 0 ? `${service.completionRate}%` : '—'}
@@ -307,24 +308,24 @@ export const AnalyticsPage: React.FC = () => {
             </Box>
 
             {/* 4. Booking trend + service utilization */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '3fr 2fr' }, gap: 2.5, mb: 3.5 }}>
-              <Paper elevation={0} sx={{ ...cardSx, p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TimelineIcon sx={{ color: 'var(--sakay-orange)', fontSize: '17.6px' }} />
-                    <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '3fr 2fr' }, gap: 2, mb: 2.8 }}>
+              <Paper elevation={0} sx={{ ...cardSx, p: 2.4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2, flexWrap: 'wrap', gap: 0.8 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                    <TimelineIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />
+                    <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                       Booking Trend ({trend.length} {trend.length === 1 ? PERIOD_WORD[period] : PERIOD_RANGE_TEXT[period]})
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>{trendTotal} booking{trendTotal === 1 ? '' : 's'} in this period</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{trendTotal} booking{trendTotal === 1 ? '' : 's'} in this period</Typography>
                 </Box>
-                <Alert severity={comparison?.direction === 'decline' ? 'warning' : comparison?.direction === 'growth' ? 'success' : 'info'} sx={{ mb: 2, py: 0, '& .MuiAlert-message': { fontSize: '11.3px' } }}>
+                <Alert severity={comparison?.direction === 'decline' ? 'warning' : comparison?.direction === 'growth' ? 'success' : 'info'} sx={{ mb: 1.6, py: 0, '& .MuiAlert-message': { fontSize: FONT.small } }}>
                   {comparisonText()}
                   {comparison?.inProgress ? ` The current ${PERIOD_WORD[period]} (${comparison.inProgress.label}) has ${comparison.inProgress.total} so far and is not compared until it ends.` : ''}
                 </Alert>
                 <Box sx={{ overflowX: 'auto' }}>
                   <Box sx={{ minWidth: trend.length * 36 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: 170, borderBottom: '1px solid var(--mac-border-color)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: 170, borderBottom: '1px solid var(--mac-border-color)' }}>
                       {trend.map((p) => {
                         const other = p.total - p.completed - p.cancelled;
                         const scale = (n: number) => `${(n / trendMax) * 140}px`;
@@ -334,7 +335,7 @@ export const AnalyticsPage: React.FC = () => {
                             title={`${p.label}: ${p.total} booking(s), ${p.completed} completed, ${p.cancelled} cancelled`}
                             sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}
                           >
-                            <Typography sx={{ fontSize: '9.6px', fontWeight: 700, color: 'var(--mac-text-secondary)', mb: '2px' }}>{p.total > 0 ? p.total : ''}</Typography>
+                            <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-secondary)', mb: '2px' }}>{p.total > 0 ? p.total : ''}</Typography>
                             <Box sx={{ width: '100%', maxWidth: 34, display: 'flex', flexDirection: 'column', borderRadius: '4px 4px 0 0', overflow: 'hidden' }}>
                               <Box sx={{ height: scale(other), backgroundColor: '#B0B7C3' }} />
                               <Box sx={{ height: scale(p.cancelled), backgroundColor: '#DC2626' }} />
@@ -344,16 +345,16 @@ export const AnalyticsPage: React.FC = () => {
                         );
                       })}
                     </Box>
-                    <Box sx={{ display: 'flex', gap: '6px', mt: 0.75 }}>
+                    <Box sx={{ display: 'flex', gap: '5px', mt: 0.75 }}>
                       {trend.map((p) => (
-                        <Typography key={p.key} sx={{ flex: 1, minWidth: 0, textAlign: 'center', fontSize: '8.8px', lineHeight: 1.2, color: 'var(--mac-text-muted)', wordBreak: 'break-word' }}>
+                        <Typography key={p.key} sx={{ flex: 1, minWidth: 0, textAlign: 'center', fontSize: FONT.caption, lineHeight: 1.2, color: 'var(--mac-text-muted)', wordBreak: 'break-word' }}>
                           {p.label}
                         </Typography>
                       ))}
                     </Box>
                   </Box>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 2, mt: 1.5, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1.6, mt: 1.2, flexWrap: 'wrap' }}>
                   {[
                     ['#2E7D32', 'Completed'],
                     ['#DC2626', 'Cancelled'],
@@ -361,21 +362,21 @@ export const AnalyticsPage: React.FC = () => {
                   ].map(([color, label]) => (
                     <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                       <Box sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: color }} />
-                      <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>{label}</Typography>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{label}</Typography>
                     </Box>
                   ))}
                 </Box>
               </Paper>
 
-              <Paper elevation={0} sx={{ ...cardSx, p: 3 }}>
-                <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 2 }}>Service Utilization</Typography>
+              <Paper elevation={0} sx={{ ...cardSx, p: 2.4 }}>
+                <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 1.6 }}>Service Utilization</Typography>
                 {service && service.requests > 0 ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
                     <OutcomeBar label="Completed" count={service.completed} total={service.requests} color="#2E7D32" />
                     <OutcomeBar label="Cancelled" count={service.cancelled} total={service.requests} color="#DC2626" />
                     <OutcomeBar label="No driver found" count={service.noDriverFound} total={service.requests} color="#F59E0B" />
                     <OutcomeBar label="In progress / open" count={service.inProgress} total={service.requests} color="#1565C0" />
-                    <Box sx={{ borderTop: '1px solid var(--mac-border-color)', pt: 1.5, mt: 0.5 }}>
+                    <Box sx={{ borderTop: '1px solid var(--mac-border-color)', pt: 1.2, mt: 0.4 }}>
                       <OutcomeBar label="Solo trips" count={service.soloTrips} total={service.requests} color="#6A1B9A" />
                       <Box sx={{ mt: 1.25 }}>
                         <OutcomeBar label="Shared trips" count={service.sharedTrips} total={service.requests} color="#00897B" />
@@ -383,37 +384,37 @@ export const AnalyticsPage: React.FC = () => {
                     </Box>
                   </Box>
                 ) : (
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>No booking requests match the filter.</Typography>
+                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>No booking requests match the filter.</Typography>
                 )}
               </Paper>
             </Box>
 
             {/* 5. Demand by day of the week + peak hours by TODA or barangay */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 3fr' }, gap: 2.5, mb: 3.5 }}>
-              <Paper elevation={0} sx={{ ...cardSx, p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 3fr' }, gap: 2, mb: 2.8 }}>
+              <Paper elevation={0} sx={{ ...cardSx, p: 2.4 }}>
                 <SectionTitle>Demand by Day of the Week</SectionTitle>
                 {data.serviceUtilization.requests > 0 ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
                     {data.weekdayDemand.map((d) => (
                       <Box key={d.day} title={d.averagePerDay === null ? undefined : `${d.averagePerDay} booking(s) on an average ${d.day}, over ${d.occurrences} ${d.day}${d.occurrences === 1 ? '' : 's'}`}>
                         <OutcomeBar label={d.day} count={d.total} total={data.serviceUtilization.requests} color={d.day === 'Saturday' || d.day === 'Sunday' ? '#00897B' : '#FF5500'} />
-                        <Typography sx={{ fontSize: '9px', color: 'var(--mac-text-muted)', ml: '146px' }}>
+                        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', ml: '117px' }}>
                           {d.averagePerDay === null ? '' : `${d.averagePerDay} on an average ${d.day} (${d.occurrences} ${d.day}${d.occurrences === 1 ? '' : 's'} in the period)`}
                         </Typography>
                       </Box>
                     ))}
                   </Box>
                 ) : (
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>No booking requests match the filter.</Typography>
+                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>No booking requests match the filter.</Typography>
                 )}
               </Paper>
 
-              <Paper elevation={0} sx={{ ...cardSx, p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-                  <SectionTitle icon={<SpeedIcon sx={{ color: 'var(--sakay-orange)', fontSize: '17.6px' }} />}>Peak Hours Compared</SectionTitle>
+              <Paper elevation={0} sx={{ ...cardSx, p: 2.4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 0.8, mb: 0.8 }}>
+                  <SectionTitle icon={<SpeedIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />}>Peak Hours Compared</SectionTitle>
                   <ToggleButtonGroup size="small" exclusive value={peakGroup} onChange={(_, v: 'toda' | 'barangay' | null) => v && setPeakGroup(v)}>
-                    <ToggleButton value="toda" sx={{ textTransform: 'none', px: 1.5 }}>By TODA</ToggleButton>
-                    <ToggleButton value="barangay" sx={{ textTransform: 'none', px: 1.5 }}>By barangay</ToggleButton>
+                    <ToggleButton value="toda" sx={{ textTransform: 'none', px: 1.2 }}>By TODA</ToggleButton>
+                    <ToggleButton value="barangay" sx={{ textTransform: 'none', px: 1.2 }}>By barangay</ToggleButton>
                   </ToggleButtonGroup>
                 </Box>
                 <PeakHoursByGroupTable
@@ -424,51 +425,51 @@ export const AnalyticsPage: React.FC = () => {
             </Box>
 
             {/* 6. Registration and accreditation trends */}
-            <Paper elevation={0} sx={{ ...cardSx, p: 3, mb: 3.5 }}>
-              <SectionTitle icon={<PeopleIcon sx={{ color: '#1565C0', fontSize: '17.6px' }} />}>Registration and Accreditation Trends (by {PERIOD_WORD[period]})</SectionTitle>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
+            <Paper elevation={0} sx={{ ...cardSx, p: 2.4, mb: 2.8 }}>
+              <SectionTitle icon={<PeopleIcon sx={{ color: '#1565C0', fontSize: '18px' }} />}>Registration and Accreditation Trends (by {PERIOD_WORD[period]})</SectionTitle>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 2.4 }}>
                 {[
                   { title: 'New passenger accounts', rows: data.passengerRegistrations[period], color: '#C2410C', note: 'Accounts whose phone number was confirmed. Not split by TODA or barangay.' },
                   { title: 'New driver accounts', rows: data.driverRegistrations[period], color: '#1565C0', note: 'Drivers who created an account (any status).' },
                   { title: 'Drivers accredited by the LGU', rows: data.driverAccreditations[period], color: '#2E7D32', note: data.driversAccreditedUndated > 0 ? `${data.driversAccreditedUndated} verified driver${data.driversAccreditedUndated === 1 ? ' has' : 's have'} no accreditation date on record and are not counted here.` : 'The date the LGU Administrator approved the driver.' },
                 ].map((c) => (
                   <Box key={c.title} sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '11.3px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>{c.title}</Typography>
-                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: 1 }}>
+                    <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)' }}>{c.title}</Typography>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: 0.8 }}>
                       {c.rows.reduce((sum, r) => sum + r.count, 0)} in the period · {c.rows[c.rows.length - 1]?.cumulative ?? 0} in total by its end
                     </Typography>
                     <MiniBarChart
                       color={c.color}
                       points={c.rows.map((r) => ({ key: r.key, label: r.label, value: r.count, title: `${r.label}: ${r.count} new (${r.cumulative} in total)` }))}
                     />
-                    <Typography sx={{ fontSize: '9.2px', color: 'var(--mac-text-muted)', mt: 0.75 }}>{c.note}</Typography>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.75 }}>{c.note}</Typography>
                   </Box>
                 ))}
               </Box>
             </Paper>
 
             {/* 7. Demand Hotspot Map */}
-            <Paper elevation={0} sx={{ ...cardSx, overflow: 'hidden', mb: 2.5 }}>
-              <Box sx={{ p: '16px 20px', borderBottom: '1px solid var(--mac-border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <MapIcon sx={{ color: 'var(--sakay-orange)', fontSize: '17.6px' }} />
-                  <Typography sx={{ fontSize: '12.8px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Paper elevation={0} sx={{ ...cardSx, overflow: 'hidden', mb: 2 }}>
+              <Box sx={{ p: '13px 16px', borderBottom: '1px solid var(--mac-border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <MapIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />
+                  <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                     SAKAY Booking Activity Hotspots ({hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} clusters)
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1.2, flexWrap: 'wrap' }}>
                   <ToggleButtonGroup size="small" exclusive value={hotspotKind} onChange={(_, v: HotspotKind | null) => v && setHotspotKind(v)}>
-                    <ToggleButton value="pickup" sx={{ textTransform: 'none', px: 1.5 }}>Pickups</ToggleButton>
-                    <ToggleButton value="dropoff" sx={{ textTransform: 'none', px: 1.5 }}>Drop-offs</ToggleButton>
+                    <ToggleButton value="pickup" sx={{ textTransform: 'none', px: 1.2 }}>Pickups</ToggleButton>
+                    <ToggleButton value="dropoff" sx={{ textTransform: 'none', px: 1.2 }}>Drop-offs</ToggleButton>
                   </ToggleButtonGroup>
                   <ToggleButtonGroup size="small" exclusive value={dayType} onChange={(_, v: DayType | null) => v && setDayType(v)}>
-                    <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.5 }}>All days</ToggleButton>
-                    <ToggleButton value="weekday" sx={{ textTransform: 'none', px: 1.5 }}>Weekdays</ToggleButton>
-                    <ToggleButton value="weekend" sx={{ textTransform: 'none', px: 1.5 }}>Weekends</ToggleButton>
+                    <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.2 }}>All days</ToggleButton>
+                    <ToggleButton value="weekday" sx={{ textTransform: 'none', px: 1.2 }}>Weekdays</ToggleButton>
+                    <ToggleButton value="weekend" sx={{ textTransform: 'none', px: 1.2 }}>Weekends</ToggleButton>
                   </ToggleButtonGroup>
                 </Box>
               </Box>
-              <Typography sx={{ px: '20px', py: 1, fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>
+              <Typography sx={{ px: '16px', py: 0.8, fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 {spots.length > 0
                   ? `Top ${spots.length} areas of about 550 m, from the ${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} coordinates of SAKAY bookings (${dayType === 'all' ? 'all days' : dayType === 'weekday' ? 'Monday to Friday' : 'Saturday and Sunday'}). Larger circles have more bookings.`
                   : `No booking with a ${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} location matches the filter.`}
@@ -477,7 +478,7 @@ export const AnalyticsPage: React.FC = () => {
             </Paper>
 
             {/* 8. Weekday against weekend */}
-            <Paper elevation={0} sx={{ ...cardSx, p: 3 }}>
+            <Paper elevation={0} sx={{ ...cardSx, p: 2.4 }}>
               <SectionTitle>Weekdays Against Weekends</SectionTitle>
               <TableContainer>
                 <Table size="small">

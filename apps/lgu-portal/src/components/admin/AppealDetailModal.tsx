@@ -7,6 +7,7 @@ import { MacCenterModal } from './MacCenterModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { StatusBadge } from '../common/StatusBadge';
 import { decideAppeal, signLguCaseEvidence, voidStrike } from '../../services/adminApiService';
+import { FONT } from '../../styles/density';
 
 const stamp = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
@@ -23,8 +24,8 @@ interface AppealDetailModalProps {
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <Box>
-    <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '3px' }}>{label}</Typography>
-    <Typography component="div" sx={{ fontSize: '12.5px', color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>{children}</Typography>
+    <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', mb: '2px' }}>{label}</Typography>
+    <Typography component="div" sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', lineHeight: 1.5 }}>{children}</Typography>
   </Box>
 );
 
@@ -91,7 +92,7 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
         title={`Strike appeal: ${appeal.subjectName}`}
         subtitle={`${appeal.subjectType === 'passenger' ? 'Passenger' : 'Driver'} · requested ${stamp(appeal.requestedAt)}`}
         badge={<StatusBadge status={appeal.status} />}
-        maxWidth={720}
+        maxWidth={576}
         secondaryActionLabel="Close"
         extraActions={
           pending && COUNTED.has(appeal.strikeStatus) && appeal.assignedRole === 'lgu_admin' ? (
@@ -100,7 +101,7 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
               color="error"
               onClick={() => setVoiding(true)}
               disabled={busy}
-              sx={{ textTransform: 'none', fontSize: '11.6px', fontWeight: 600, mr: 'auto' }}
+              sx={{ textTransform: 'none', fontSize: FONT.body, fontWeight: 600, mr: 'auto' }}
             >
               Void this strike (issued in error)
             </Button>
@@ -111,7 +112,7 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
         primaryActionDisabled={!mine || Boolean(problem) || busy}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.2 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.6 }}>
             <Field label="Strike">{appeal.violation}</Field>
             <Field label="Points">{appeal.pointsActive} active of {appeal.pointsIssued} issued ({appeal.strikeStatus || 'unknown status'})</Field>
             <Field label="Cause given">{APPEAL_CAUSE_LABELS[appeal.causeCode] ?? appeal.causeCode}</Field>
@@ -142,12 +143,12 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
           )}
 
           {mine && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, borderTop: '1px solid var(--mac-border-color)', pt: 2 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>Your decision</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, borderTop: '1px solid var(--mac-border-color)', pt: 1.6 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)' }}>Your decision</Typography>
               <RadioGroup value={outcome ?? ''} onChange={(e) => setOutcome(e.target.value as ExemptionOutcome)}>
-                <FormControlLabel value="FULL" control={<Radio size="small" />} label={<Typography sx={{ fontSize: '12.5px' }}>Full waiver: the strike is removed entirely</Typography>} />
-                <FormControlLabel value="PARTIAL" disabled={!canPartial} control={<Radio size="small" />} label={<Typography sx={{ fontSize: '12.5px' }}>Partial waiver: some of the points are removed{canPartial ? '' : ' (a one-point strike cannot be split)'}</Typography>} />
-                <FormControlLabel value="DENIED" control={<Radio size="small" />} label={<Typography sx={{ fontSize: '12.5px' }}>Denied: the strike stands</Typography>} />
+                <FormControlLabel value="FULL" control={<Radio size="small" />} label={<Typography sx={{ fontSize: FONT.caption }}>Full waiver: the strike is removed entirely</Typography>} />
+                <FormControlLabel value="PARTIAL" disabled={!canPartial} control={<Radio size="small" />} label={<Typography sx={{ fontSize: FONT.caption }}>Partial waiver: some of the points are removed{canPartial ? '' : ' (a one-point strike cannot be split)'}</Typography>} />
+                <FormControlLabel value="DENIED" control={<Radio size="small" />} label={<Typography sx={{ fontSize: FONT.caption }}>Denied: the strike stands</Typography>} />
               </RadioGroup>
               {outcome === 'PARTIAL' && (
                 <TextField select size="small" label="Points to remove" value={points} onChange={(e) => setPoints(Number(e.target.value))} sx={{ maxWidth: 220 }}>
@@ -166,7 +167,7 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
                 fullWidth
               />
               {problem && (outcome !== null || reason.length > 0) && (
-                <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>{problem}</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>{problem}</Typography>
               )}
             </Box>
           )}

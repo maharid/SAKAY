@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
 
+import { FONT } from '../../styles/density';
+
 export interface SakayPhoneInputProps {
   label?: string;
   value: string;
@@ -9,6 +11,8 @@ export interface SakayPhoneInputProps {
   helperText?: string;
   required?: boolean;
   readOnly?: boolean;
+  /** the compact scale of the signed-in portal (a 40px field, 12px text); off by default, so the registration flow keeps its roomier look */
+  compact?: boolean;
 }
 
 export const extract9DigitsAfter9 = (raw: string): string => {
@@ -35,6 +39,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
   helperText = '',
   required = false,
   readOnly = false,
+  compact = false,
 }) => {
   const [focused, setFocused] = useState(false);
   const [digitsAfter9, setDigitsAfter9] = useState(() => extract9DigitsAfter9(value));
@@ -78,13 +83,13 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
       <Box
         sx={{
           width: '100%',
-          minHeight: '62px',
-          height: '62px',
-          borderRadius: '16px',
+          minHeight: compact ? '40px' : '62px',
+          height: compact ? '40px' : '62px',
+          borderRadius: compact ? '10px' : '16px',
           backgroundColor: focused ? '#FFFFFF' : '#F1F3F5',
           border: `1.5px solid ${error ? '#DC2626' : focused ? '#FF6600' : '#E2E8F0'}`,
           boxShadow: focused ? '0 0 0 3px rgba(255, 102, 0, 0.12)' : 'none',
-          px: 2,
+          px: compact ? '12px' : 2,
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
@@ -96,11 +101,11 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
         <Typography
           sx={{
             position: 'absolute',
-            left: '16px',
-            right: '16px',
-            top: '8px',
+            left: compact ? '12px' : '16px',
+            right: compact ? '12px' : '16px',
+            top: compact ? '3px' : '8px',
             transform: 'translateY(0)',
-            fontSize: '9.5px',
+            fontSize: compact ? FONT.caption : '9.5px',
             fontWeight: 700,
             color: error ? '#DC2626' : focused ? '#FF6600' : '#64748B',
             letterSpacing: '0.5px',
@@ -127,8 +132,8 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
             width: '100%',
             display: 'flex',
             alignItems: 'center',
-            pt: '18px',
-            pb: '2px',
+            pt: compact ? '14px' : '18px',
+            pb: compact ? 0 : '2px',
           }}
         >
           <Box
@@ -141,13 +146,13 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
               flexShrink: 0,
             }}
           >
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <Typography sx={{ fontSize: compact ? FONT.body : '15px', fontWeight: 700, color: '#0F172A' }}>
               +63
             </Typography>
             <Box
               sx={{
                 width: '1.5px',
-                height: '18px',
+                height: compact ? '14px' : '18px',
                 backgroundColor: '#CBD5E1',
                 mx: 1.2,
               }}
@@ -167,7 +172,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
               border: 'none',
               outline: 'none',
               background: 'transparent',
-              fontSize: '15px',
+              fontSize: compact ? '12px' : '15px',
               fontWeight: 600,
               color: '#0F172A',
               fontFamily: 'inherit',
@@ -182,7 +187,7 @@ export const SakayPhoneInput: React.FC<SakayPhoneInputProps> = ({
       {helperText && (
         <Typography
           sx={{
-            fontSize: '11.5px',
+            fontSize: compact ? FONT.caption : '11.5px',
             color: error ? '#DC2626' : '#64748B',
             fontWeight: error ? 600 : 400,
             mt: '4px',

@@ -148,6 +148,7 @@ import {
   sendDriverRenewalReminder,
   updateDriverDocumentReview,
 } from '../../services/adminApiService';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface DriverDetailModalProps {
   open: boolean;
@@ -743,7 +744,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         title={driver.name}
         subtitle={`License No: ${driver.licenseNo} • ${driver.todaName}`}
         badge={<StatusBadge status={(driver.verificationStatus && driver.verificationStatus !== 'Verified' ? driver.verificationStatus : driver.accountStatus) as any} />}
-        maxWidth={840}
+        maxWidth={672}
         primaryActionLabel={primaryActionLabel}
         primaryActionColor={primaryActionColor}
         primaryActionDisabled={primaryActionDisabled}
@@ -762,7 +763,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                   right: 4,
                   top: 4,
                   fontWeight: 700,
-                  fontSize: '11px',
+                  fontSize: FONT.caption,
                   backgroundColor: '#DC2626',
                   color: '#FFFFFF',
                   boxShadow: '0 0 0 2px #FFFFFF',
@@ -773,10 +774,11 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 variant={pendingReturnCount > 0 ? 'contained' : 'outlined'}
                 onClick={handleReturnForResubmissionClick}
                 sx={{
-                  height: 40,
-                  padding: '0 20px',
+                  height: CONTROL.height,
+                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                  padding: '0 16px',
                   borderRadius: '8px',
-                  fontSize: '11.6px',
+                  fontSize: FONT.body,
                   fontWeight: 700,
                   textTransform: 'none',
                   ...(pendingReturnCount > 0
@@ -813,8 +815,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       >
         {/* TODA applications (Driver Module 2.1 / Policy 3.1): one row per affiliation, each with its own TODA and LGU stage */}
         {affiliations.length > 0 && (
-          <Box sx={{ mb: 2, p: 2, borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
-            <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 1 }}>
+          <Box sx={{ mb: 1.6, p: 1.6, borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', mb: 0.8 }}>
               TODA Applications ({affiliations.length})
             </Typography>
             {affiliations.map((aff) => {
@@ -836,8 +838,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 1.5,
-                    py: 1,
+                    gap: 1.2,
+                    py: 0.8,
                     px: 1.25,
                     borderRadius: '8px',
                     cursor: waiting ? 'pointer' : 'default',
@@ -846,26 +848,26 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                   }}
                 >
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#0F172A' }}>
                       {aff.todaName}
                       {aff.isActive ? ' • Active' : ''}
                     </Typography>
-                    <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: '#64748B' }}>
                       {[aff.membershipNo && `Member no. ${aff.membershipNo}`, aff.assignedTerminal, aff.barangayServiceArea].filter(Boolean).join(' • ') || 'No membership details'}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {aff.rosterMismatchOpen && (
-                      <Chip size="small" label="Roster mismatch" sx={{ fontWeight: 700, fontSize: '11px', backgroundColor: '#FEF3C7', color: '#92400E' }} />
+                      <Chip size="small" label="Roster mismatch" sx={{ fontWeight: 700, fontSize: FONT.caption, backgroundColor: '#FEF3C7', color: '#92400E' }} />
                     )}
-                    <Chip size="small" label={`TODA: ${aff.todaStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.todaStage) }} />
-                    <Chip size="small" label={`LGU: ${aff.lguStage}`} sx={{ fontWeight: 700, fontSize: '11px', ...chipTone(aff.lguStage) }} />
+                    <Chip size="small" label={`TODA: ${aff.todaStage}`} sx={{ fontWeight: 700, fontSize: FONT.caption, ...chipTone(aff.todaStage) }} />
+                    <Chip size="small" label={`LGU: ${aff.lguStage}`} sx={{ fontWeight: 700, fontSize: FONT.caption, ...chipTone(aff.lguStage) }} />
                     {(aff.todaStage === 'Rejected' || aff.lguStage === 'Rejected') && !driver.isPermanentlyDisqualified && (
                       <Button
                         size="small"
                         variant="outlined"
                         onClick={(e) => { e.stopPropagation(); setReapplyTarget(aff.affiliationId); }}
-                        sx={{ textTransform: 'none', fontWeight: 700, fontSize: '11px', py: 0, minHeight: 24 }}
+                        sx={{ textTransform: 'none', fontWeight: 700, fontSize: FONT.small, py: 0, minHeight: 24 }}
                       >
                         Allow re-application
                       </Button>
@@ -875,15 +877,15 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               );
             })}
             {driver.isPermanentlyDisqualified ? (
-              <Alert severity="error" sx={{ mt: 1.5, borderRadius: '10px' }}>
+              <Alert severity="error" sx={{ mt: 1.2, borderRadius: '10px' }}>
                 Permanently disqualified: this applicant can never be cleared to re-apply.{driver.disqualificationReason ? ` Reason: ${driver.disqualificationReason}` : ''}
               </Alert>
             ) : (
-              <Button size="small" color="error" variant="text" onClick={() => setDisqualifyOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '11.5px', mt: 0.5, px: 0 }}>
+              <Button size="small" color="error" variant="text" onClick={() => setDisqualifyOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.small, mt: 0.4, px: 0 }}>
                 Permanently disqualify this applicant
               </Button>
             )}
-            <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: 1 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: '#64748B', mt: 0.8 }}>
               {awaitingAffiliations.length > 1
                 ? 'Several TODA applications are waiting for the LGU. Click the one the Approve / Reject action applies to.'
                 : awaitingAffiliations.length === 1
@@ -925,8 +927,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 backgroundColor: '#FFFBEB',
                 border: '1.5px solid #F59E0B',
                 borderRadius: '12px',
-                p: '16px 20px',
-                mb: 3,
+                p: '13px 16px',
+                mb: 2.4,
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
@@ -938,19 +940,19 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                       backgroundColor: 'rgba(245, 158, 11, 0.15)',
                       color: '#B45309',
                       fontWeight: 700,
-                      fontSize: '11px',
+                      fontSize: FONT.caption,
                       border: '1px solid rgba(245, 158, 11, 0.4)',
                     }}
                   />
-                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#92400E' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#92400E' }}>
                     Application Returned for Resubmission
                   </Typography>
                 </Box>
               </Box>
 
               {faultyList.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1, flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#78350F' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.8, flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#78350F' }}>
                     Faulty Document(s):
                   </Typography>
                   {faultyList.map((docKey) => (
@@ -962,7 +964,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                         backgroundColor: '#FEF3C7',
                         color: '#92400E',
                         fontWeight: 600,
-                        fontSize: '11px',
+                        fontSize: FONT.caption,
                         border: '1px solid #FDE68A',
                       }}
                     />
@@ -970,10 +972,10 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 </Box>
               )}
 
-              <Typography sx={{ fontSize: '12.5px', color: '#78350F', mt: 0.5, lineHeight: 1.5 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: '#78350F', mt: 0.4, lineHeight: 1.5 }}>
                 <span style={{ fontWeight: 700 }}>Grounds:</span> {displayReason}
               </Typography>
-              <Typography sx={{ fontSize: '12.5px', color: '#78350F', mt: 0.5, lineHeight: 1.5 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: '#78350F', mt: 0.4, lineHeight: 1.5 }}>
                 <span style={{ fontWeight: 700 }}>Reviewer Notes:</span> {displayNotes}
               </Typography>
             </Box>
@@ -1007,8 +1009,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 backgroundColor: '#EFF6FF',
                 border: '1.5px solid #3B82F6',
                 borderRadius: '12px',
-                p: '16px 20px',
-                mb: 3,
+                p: '13px 16px',
+                mb: 2.4,
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
@@ -1020,24 +1022,24 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                       backgroundColor: '#DBEAFE',
                       color: '#1D4ED8',
                       fontWeight: 700,
-                      fontSize: '11px',
+                      fontSize: FONT.caption,
                       border: '1px solid #93C5FD',
                     }}
                   />
-                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#1E40AF' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#1E40AF' }}>
                     Updated Documents Awaiting LGU Re-inspection
                   </Typography>
                 </Box>
                 {driver.resubmittedAt && (
-                  <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: '#64748B', fontWeight: 500 }}>
                     Resubmitted: {new Date(driver.resubmittedAt).toLocaleDateString()} {new Date(driver.resubmittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                 )}
               </Box>
 
               {faultyList.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1, flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#1E3A8A' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.8, flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#1E3A8A' }}>
                     Corrected Document(s):
                   </Typography>
                   {faultyList.map((docKey) => (
@@ -1049,7 +1051,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                         backgroundColor: '#BFDBFE',
                         color: '#1E40AF',
                         fontWeight: 600,
-                        fontSize: '11px',
+                        fontSize: FONT.caption,
                         border: '1px solid #93C5FD',
                       }}
                     />
@@ -1057,7 +1059,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 </Box>
               )}
 
-              <Typography sx={{ fontSize: '12.5px', color: '#1E3A8A', lineHeight: 1.5 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: '#1E3A8A', lineHeight: 1.5 }}>
                 Driver <strong>{driver.name}</strong> has submitted corrected documents following the previous return. Please inspect the updated document(s) below to proceed with Stage 2 verification approval.
               </Typography>
             </Box>
@@ -1071,20 +1073,20 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             backgroundColor: '#FAFAFC',
-            padding: '18px 24px',
+            padding: '14px 19px',
             borderRadius: '12px',
             border: '1px solid var(--mac-border-color)',
-            mb: 4,
+            mb: 3.2,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Avatar
               sx={{
                 width: 56,
                 height: 56,
                 backgroundColor: 'var(--sakay-orange)',
                 color: '#FFFFFF',
-                fontSize: '17.6px',
+                fontSize: '18px',
                 fontWeight: 700,
                 boxShadow: 'var(--mac-shadow-subtle)',
               }}
@@ -1092,10 +1094,10 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               {driver.name.charAt(0)}
             </Avatar>
             <Box>
-              <Typography sx={{ fontSize: '15.3px', fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
+              <Typography sx={{ fontSize: FONT.sectionTitle, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
                 {driver.name}
               </Typography>
-              <Typography sx={{ fontSize: '12.8px', color: 'var(--mac-text-muted)', mt: '4px' }}>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mt: '3px' }}>
                 Affiliated with <span style={{ fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.todaName}</span>
               </Typography>
             </Box>
@@ -1106,19 +1108,19 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               {driver.ratingCount > 0 ? (
                 <>
                   <Rating value={driver.rating} readOnly precision={0.1} size="small" emptyIcon={<StarIcon fontSize="inherit" />} />
-                  <Typography sx={{ fontSize: '13.6px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                     {driver.rating} / 5 ({driver.ratingCount} {driver.ratingCount === 1 ? 'rating' : 'ratings'})
                   </Typography>
                 </>
               ) : (
-                <Typography sx={{ fontSize: '13.6px', fontWeight: 700, color: 'var(--mac-text-muted)' }}>
+                <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-muted)' }}>
                   Not Yet Rated
                 </Typography>
               )}
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.4 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: driver.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6' }} />
-              <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: driver.onlineStatus === 'Online' ? '#1E8E3E' : 'var(--mac-text-muted)' }}>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: driver.onlineStatus === 'Online' ? '#1E8E3E' : 'var(--mac-text-muted)' }}>
                 Session: {driver.onlineStatus}
               </Typography>
             </Box>
@@ -1126,67 +1128,67 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         </Box>
 
         {/* Section 1: Strike System & Policy Compliance */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
               <FlashOnIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                 Policy Strikes & Disciplinary Status
               </Typography>
             </Box>
             <Chip
-              icon={<ShieldIcon style={{ fontSize: '11.3', color: strikeLevel.color }} />}
+              icon={<ShieldIcon style={{ fontSize: '12px', color: strikeLevel.color }} />}
               label={strikeLevel.label}
               size="small"
               sx={{
                 backgroundColor: strikeLevel.bg,
                 color: strikeLevel.color,
                 fontWeight: 700,
-                fontSize: '13.6px',
+                fontSize: FONT.cardTitle,
                 height: 26,
                 border: `1px solid ${strikeLevel.border}`,
               }}
             />
           </Box>
 
-          <Box sx={{ backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px', mb: 2 }}>
+          <Box sx={{ backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px', mb: 1.6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                 Active Strikes: <span style={{ color: activeStrikes > 0 ? '#DC2626' : '#1E8E3E', fontWeight: 700 }}>{activeStrikes} Strike(s)</span>
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 0.8 }}>
                 <ActionButton
                   label="Booking offers"
                   showArrow={false}
                   onClick={openDeclineHistory}
-                  sx={{ height: 32, fontSize: '12px' }}
+                  sx={{ height: 32, fontSize: FONT.caption }}
                 />
                 <ActionButton
                   label="+ Record Violation / Strike"
                   showArrow={false}
                   onClick={() => setStrikeDialogOpen(true)}
-                  sx={{ height: 32, fontSize: '12px' }}
+                  sx={{ height: 32, fontSize: FONT.caption }}
                 />
               </Box>
             </Box>
 
             {strikeData.history.length > 0 && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 1.6 }}>
                 {strikeData.history.slice(0, 8).map((item) => (
                   <Box
                     key={item.id}
-                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, backgroundColor: '#FFFFFF', padding: '10px 14px', borderRadius: '9px', border: '1px solid var(--mac-border-color)' }}
+                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.6, backgroundColor: '#FFFFFF', padding: '8px 11px', borderRadius: '9px', border: '1px solid var(--mac-border-color)' }}
                   >
                     <Box>
-                      <Typography sx={{ fontSize: '11.3px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                         +{item.strikesApplied} • {item.reason}
                       </Typography>
-                      <Typography sx={{ fontSize: '10.4px', color: 'var(--mac-text-muted)' }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                         {item.date} • {item.issuedBy}
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                      <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: '#C25E00' }}>{item.status}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#C25E00' }}>{item.status}</Typography>
                       {item.voidable && (
                         <VoidStrikeButton
                           strikeId={item.id}
@@ -1207,151 +1209,151 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         </Box>
 
         {/* Section 2: Personal Information */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <PersonIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               1. Personal Details
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Full Name</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.name}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Full Name</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.name}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Contact Phone</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.phone}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Contact Phone</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.phone}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Residential Barangay</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.barangay}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Residential Barangay</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.barangay}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Account Status</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Account Status</Typography>
               <StatusBadge status={driver.accountStatus as any} />
             </Box>
           </Box>
         </Box>
 
         {/* Section 3: TODA Affiliation */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <AccountBalanceIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               2. TODA Affiliation & Endorsement
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Affiliated TODA</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.todaName}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Affiliated TODA</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.todaName}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>TODA Stage 1 Endorsement</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Stage 1 Endorsement</Typography>
               <StatusBadge status={driver.todaVerificationStatus as any} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>TODA Membership No.</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Membership No.</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                 {driver.affiliations?.find((a) => a.isActive)?.membershipNo ?? driver.affiliations?.find((a) => a.membershipNo)?.membershipNo ?? 'Not recorded'}
               </Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Assigned Corridor</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.barangay}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Assigned Corridor</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.barangay}</Typography>
             </Box>
           </Box>
         </Box>
 
         {/* Section 4: Vehicle & License Credentials */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <DirectionsCarIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               3. Vehicle Credentials & MTOP Franchise (City Ord. No. 118)
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Professional Driver's License</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.licenseNo}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Professional Driver's License</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.licenseNo}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>License Expiry</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{dateText(driver.licenseExpiry)}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>License Expiry</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{dateText(driver.licenseExpiry)}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>MTOP Franchise No.</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopNo || 'Not recorded'}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>MTOP Franchise No.</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopNo || 'Not recorded'}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>MTOP Expiry</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{dateText(driver.mtopExpiry)}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>MTOP Expiry</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{dateText(driver.mtopExpiry)}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Tricycle Vehicle Plate</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.vehiclePlate || 'Not recorded'}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Tricycle Vehicle Plate</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.vehiclePlate || 'Not recorded'}</Typography>
             </Box>
             <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
-              <Typography sx={{ fontSize: '13.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Registered MTOP Operator</Typography>
-              <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopOperatorName || 'Not recorded'}</Typography>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Registered MTOP Operator</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.mtopOperatorName || 'Not recorded'}</Typography>
             </Box>
           </Box>
 
-          <Box sx={{ mt: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAFAFC', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
-            <Typography sx={{ fontSize: '12.8px', color: 'var(--mac-text-secondary)' }}>
+          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAFAFC', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+            <Typography sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)' }}>
               Send License & Franchise renewal advisory to driver.
             </Typography>
             <ActionButton
               label={reminderSent ? 'Alert Sent ✓' : 'Send Renewal Alert'}
               showArrow={false}
               onClick={handleSendReminder}
-              sx={{ height: 34, fontSize: '12.4px' }}
+              sx={{ height: 34, fontSize: FONT.body }}
             />
           </Box>
         </Box>
 
         {/* Section 4B: Pending Document Renewal Review (Rule 24.2) */}
         {(driver.renewalStatus === 'Pending LGU Verification' || Boolean(driver.pendingLicenseExpiry || driver.pendingMtopExpiry)) && (
-          <Box sx={{ mb: 4, backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '12px', padding: '20px' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <VerifiedUserIcon sx={{ color: '#D97706', fontSize: 20 }} />
-                <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase' }}>
+          <Box sx={{ mb: 3.2, backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '12px', padding: '16px' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                <VerifiedUserIcon sx={{ color: '#D97706', fontSize: 16 }} />
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#92400E', textTransform: 'uppercase' }}>
                   Pending Document Renewal Application
                 </Typography>
               </Box>
-              <Chip label="Pending LGU Verification" size="small" sx={{ backgroundColor: '#FEF3C7', color: '#92400E', fontWeight: 600, fontSize: '11px' }} />
+              <Chip label="Pending LGU Verification" size="small" sx={{ backgroundColor: '#FEF3C7', color: '#92400E', fontWeight: 600, fontSize: FONT.caption }} />
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.6, mb: 2 }}>
               {driver.pendingLicenseExpiry && (
-                <Box sx={{ backgroundColor: '#FFFFFF', p: 1.5, borderRadius: '8px', border: '1px solid #FDE68A' }}>
-                  <Typography sx={{ fontSize: '11px', color: '#92400E', fontWeight: 600 }}>Proposed License Expiry</Typography>
-                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#1F2937' }}>{dateText(driver.pendingLicenseExpiry)}</Typography>
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Current: {dateText(driver.licenseExpiry)}</Typography>
+                <Box sx={{ backgroundColor: '#FFFFFF', p: 1.2, borderRadius: '8px', border: '1px solid #FDE68A' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: '#92400E', fontWeight: 600 }}>Proposed License Expiry</Typography>
+                  <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: '#1F2937' }}>{dateText(driver.pendingLicenseExpiry)}</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Current: {dateText(driver.licenseExpiry)}</Typography>
                 </Box>
               )}
               {driver.pendingMtopExpiry && (
-                <Box sx={{ backgroundColor: '#FFFFFF', p: 1.5, borderRadius: '8px', border: '1px solid #FDE68A' }}>
-                  <Typography sx={{ fontSize: '11px', color: '#92400E', fontWeight: 600 }}>Proposed MTOP Expiry</Typography>
-                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#1F2937' }}>{dateText(driver.pendingMtopExpiry)}</Typography>
-                  <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)' }}>Current: {dateText(driver.mtopExpiry)}</Typography>
+                <Box sx={{ backgroundColor: '#FFFFFF', p: 1.2, borderRadius: '8px', border: '1px solid #FDE68A' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: '#92400E', fontWeight: 600 }}>Proposed MTOP Expiry</Typography>
+                  <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: '#1F2937' }}>{dateText(driver.pendingMtopExpiry)}</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Current: {dateText(driver.mtopExpiry)}</Typography>
                 </Box>
               )}
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end' }}>
+            <Box sx={{ display: 'flex', gap: 1.2, justifyContent: 'flex-end' }}>
               <Button
                 variant="outlined"
                 color="error"
                 size="small"
                 onClick={() => setRenewalRejectDialogOpen(true)}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '12px' }}
+                sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.small }}
               >
                 Reject Renewal
               </Button>
@@ -1359,7 +1361,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 variant="contained"
                 size="small"
                 onClick={() => setRenewalApproveDialogOpen(true)}
-                sx={{ backgroundColor: '#D97706', '&:hover': { backgroundColor: '#B45309' }, textTransform: 'none', fontWeight: 600, fontSize: '12px' }}
+                sx={{ backgroundColor: '#D97706', '&:hover': { backgroundColor: '#B45309' }, textTransform: 'none', fontWeight: 600, fontSize: FONT.small }}
               >
                 Approve & Update Expiry
               </Button>
@@ -1369,21 +1371,21 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
         {/* Section 5: Verification Credentials */}
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
               <VerifiedUserIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: '12.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                 4. Verification Documents ({docList.length})
               </Typography>
             </Box>
             {!isVerified && !allDocumentsVerified && !hasResubmissionIssues && (
-              <Typography sx={{ fontSize: '11px', color: '#D97706', fontWeight: 600 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: '#D97706', fontWeight: 600 }}>
                 * Inspect and verify all 4 documents to enable Stage 2 Approval
               </Typography>
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
             {docList.map((doc, idx) => {
               const docType = getDocumentType(doc);
               const isStagedForReturn = returnIssues.some((i) => i.documentType === docType) || doc.status === 'Resubmission Required';
@@ -1407,58 +1409,58 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '14px 18px',
+                    padding: '11px 14px',
                     borderRadius: '10px',
                     border: '1px solid',
                     borderColor: isDocVerified ? '#BBF7D0' : isDocResubmit ? '#FCD34D' : isDocRecentlyResubmitted ? '#93C5FD' : 'var(--mac-border-color)',
                     backgroundColor: isDocVerified ? '#F0FDF4' : isDocResubmit ? '#FFFBEB' : isDocRecentlyResubmitted ? '#EFF6FF' : '#FFFFFF',
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
                     {isDocVerified ? (
-                      <CheckCircleIcon sx={{ color: '#16A34A', fontSize: 20 }} />
+                      <CheckCircleIcon sx={{ color: '#16A34A', fontSize: 16 }} />
                     ) : isDocResubmit ? (
-                      <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 20 }} />
+                      <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 16 }} />
                     ) : isDocRecentlyResubmitted ? (
-                      <AssignmentReturnIcon sx={{ color: '#2563EB', fontSize: 20 }} />
+                      <AssignmentReturnIcon sx={{ color: '#2563EB', fontSize: 16 }} />
                     ) : (
-                      <VerifiedUserIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
+                      <VerifiedUserIcon sx={{ color: '#94A3B8', fontSize: 16 }} />
                     )}
                     <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography sx={{ fontSize: '13.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                           {doc.name}
                         </Typography>
                         {isDocVerified && (
                           <Chip
                             label="Verified"
                             size="small"
-                            sx={{ backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: '10px', height: 20 }}
+                            sx={{ backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
                           />
                         )}
                         {isDocResubmit && (
                           <Chip
                             label="Resubmission Required"
                             size="small"
-                            sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: '10px', height: 20 }}
+                            sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
                           />
                         )}
                         {isDocRecentlyResubmitted && (
                           <Chip
                             label="Resubmitted (Awaiting Review)"
                             size="small"
-                            sx={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: '10px', height: 20, border: '1px solid #93C5FD' }}
+                            sx={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: FONT.caption, height: 20, border: '1px solid #93C5FD' }}
                           />
                         )}
                         {!isDocVerified && !isDocResubmit && !isDocRecentlyResubmitted && (
                           <Chip
                             label="Pending Inspection"
                             size="small"
-                            sx={{ backgroundColor: '#F1F5F9', color: '#64748B', fontWeight: 600, fontSize: '10px', height: 20 }}
+                            sx={{ backgroundColor: '#F1F5F9', color: '#64748B', fontWeight: 600, fontSize: FONT.caption, height: 20 }}
                           />
                         )}
                       </Box>
-                      <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                         {doc.type}
                       </Typography>
                     </Box>
@@ -1467,7 +1469,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     label="Inspect File"
                     showArrow={false}
                     onClick={() => setSelectedDoc({ doc, index: idx })}
-                    sx={{ height: 34, fontSize: '12.4px' }}
+                    sx={{ height: 34, fontSize: FONT.body }}
                   />
                 </Box>
               );
@@ -1508,7 +1510,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           paper: {
             sx: {
               borderRadius: 'var(--mac-radius-lg)',
-              maxWidth: 580,
+              maxWidth: 464,
               width: '100%',
               backgroundColor: '#FFFFFF',
               boxShadow: 'var(--mac-shadow-popover)',
@@ -1519,9 +1521,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       >
         <DialogTitle
           sx={{
-            padding: '20px 24px 16px 24px',
+            padding: '16px 19px 13px 19px',
             borderBottom: '1px solid var(--mac-border-color)',
-            fontSize: '15px',
+            fontSize: FONT.body,
             fontWeight: 700,
             color: '#92400E',
             backgroundColor: '#FFFBEB',
@@ -1530,16 +1532,16 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             gap: 1.2,
           }}
         >
-          <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 22 }} />
+          <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 18 }} />
           Return Application for Resubmission
         </DialogTitle>
 
-        <DialogContent sx={{ p: '24px !important', maxHeight: '65vh', overflowY: 'auto' }}>
-          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 2.5 }}>
+        <DialogContent sx={{ p: '19px !important', maxHeight: '65vh', overflowY: 'auto' }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 2 }}>
             Review the flagged document issues below before returning the application for <strong>{driver.name}</strong> ({driver.todaName}) under the <strong>Return Flow</strong>. The driver will only be required to correct and re-upload the flagged document(s).
           </Typography>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
             {returnIssues.map((issue, idx) => {
               const doc = docList.find((d) => getDocumentType(d) === issue.documentType);
               const docName = doc?.name || DOCUMENT_TYPE_OPTIONS.find((o) => o.value === issue.documentType)?.label || issue.documentType;
@@ -1548,14 +1550,14 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 <Box
                   key={issue.id || idx}
                   sx={{
-                    p: 2,
+                    p: 1.6,
                     borderRadius: '12px',
                     backgroundColor: '#FAFAFC',
                     border: '1px solid #E2E8F0',
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-                    <Typography sx={{ fontSize: '12px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                       Faulty Document Issue #{idx + 1}
                     </Typography>
                     <Button
@@ -1565,7 +1567,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                       onClick={() => handleEditIssueFromSummary(issue)}
                       sx={{
                         height: 28,
-                        fontSize: '11px',
+                        fontSize: FONT.small,
                         fontWeight: 600,
                         textTransform: 'none',
                         borderColor: '#D97706',
@@ -1584,30 +1586,30 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
 
                   {/* Document Name - Locked text */}
                   <Box sx={{ mb: 1.2 }}>
-                    <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                       Document Name
                     </Typography>
-                    <Typography sx={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mt: '2px' }}>
                       {docName}
                     </Typography>
                   </Box>
 
                   {/* Grounds */}
                   <Box sx={{ mb: 1.2 }}>
-                    <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                       Selected Grounds
                     </Typography>
-                    <Typography sx={{ fontSize: '13px', fontWeight: 500, color: 'var(--mac-text-secondary)', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 500, color: 'var(--mac-text-secondary)', mt: '2px' }}>
                       {issue.grounds}
                     </Typography>
                   </Box>
 
                   {/* Reviewer Notes */}
                   <Box>
-                    <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                       Reviewer Notes / Instructions
                     </Typography>
-                    <Typography sx={{ fontSize: '13px', fontStyle: 'italic', color: '#334155', mt: '2px', backgroundColor: '#FFFFFF', p: '8px 12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontStyle: 'italic', color: '#334155', mt: '2px', backgroundColor: '#FFFFFF', p: '6px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                       "{issue.notes}"
                     </Typography>
                   </Box>
@@ -1617,15 +1619,16 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ padding: '16px 24px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.5 }}>
+        <DialogActions sx={{ padding: '13px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.2 }}>
           <Button
             onClick={() => setReturnSummaryDialogOpen(false)}
             sx={{
-              height: 38,
-              padding: '0 18px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '9px',
               textTransform: 'none',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 600,
               color: '#334155',
               border: '1.5px solid #94A3B8',
@@ -1640,11 +1643,12 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             onClick={handleReturnConfirm}
             variant="contained"
             sx={{
-              height: 38,
-              padding: '0 20px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 16px',
               borderRadius: '9px',
               textTransform: 'none',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 700,
               backgroundColor: '#D97706',
               color: '#FFFFFF',
@@ -1671,7 +1675,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           paper: {
             sx: {
               borderRadius: 'var(--mac-radius-lg)',
-              maxWidth: 500,
+              maxWidth: 400,
               width: '100%',
               backgroundColor: '#FFFFFF',
               boxShadow: 'var(--mac-shadow-popover)',
@@ -1682,9 +1686,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       >
         <DialogTitle
           sx={{
-            padding: '18px 24px 14px',
+            padding: '14px 19px 11px',
             borderBottom: '1px solid var(--mac-border-color)',
-            fontSize: '14.5px',
+            fontSize: FONT.body,
             fontWeight: 700,
             color: '#92400E',
             backgroundColor: '#FFFBEB',
@@ -1693,21 +1697,21 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             gap: 1.2,
           }}
         >
-          <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 20 }} />
+          <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 16 }} />
           Configure Document Resubmission
         </DialogTitle>
 
-        <DialogContent sx={{ p: '20px 24px !important' }}>
+        <DialogContent sx={{ p: '16px 19px !important' }}>
           {configureDocIssue && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
               {/* Document Type - Locked / Non-editable */}
               <Box>
-                <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.5 }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.4 }}>
                   Target Document (Locked)
                 </Typography>
                 <Box
                   sx={{
-                    p: '10px 14px',
+                    p: '8px 11px',
                     borderRadius: '8px',
                     backgroundColor: '#F8FAFC',
                     border: '1.5px solid #CBD5E1',
@@ -1716,16 +1720,16 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     justifyContent: 'space-between',
                   }}
                 >
-                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#0F172A' }}>
                     {configureDocIssue.docName}
                   </Typography>
-                  <Chip label="Selected" size="small" sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: '10px' }} />
+                  <Chip label="Selected" size="small" sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: FONT.caption }} />
                 </Box>
               </Box>
 
               {/* Grounds Dropdown */}
               <Box>
-                <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                   Select Grounds
                 </Typography>
                 <FormControl fullWidth size="small">
@@ -1734,10 +1738,10 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     onChange={(e) =>
                       setConfigureDocIssue((prev) => (prev ? { ...prev, grounds: e.target.value } : null))
                     }
-                    sx={{ borderRadius: '8px', fontSize: '13px', backgroundColor: '#FFFFFF' }}
+                    sx={{ borderRadius: '8px', fontSize: FONT.body, backgroundColor: '#FFFFFF' }}
                   >
                     {(GROUNDS_BY_DOC_TYPE[configureDocIssue.docType] || []).map((ground) => (
-                      <MenuItem key={ground} value={ground} sx={{ fontSize: '12.5px' }}>
+                      <MenuItem key={ground} value={ground} sx={{ fontSize: FONT.body }}>
                         {ground}
                       </MenuItem>
                     ))}
@@ -1761,7 +1765,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                     input: {
                       sx: {
                         borderRadius: '12px',
-                        fontSize: '13px',
+                        fontSize: FONT.body,
                         backgroundColor: '#FFFFFF',
                         '& fieldset': { borderColor: '#E5E5EA' },
                         '&:hover fieldset': { borderColor: '#C7C7CC' },
@@ -1775,15 +1779,16 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           )}
         </DialogContent>
 
-        <DialogActions sx={{ padding: '14px 24px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.5 }}>
+        <DialogActions sx={{ padding: '11px 19px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.2 }}>
           <Button
             onClick={() => setConfigureDocIssue(null)}
             sx={{
               height: 36,
-              padding: '0 16px',
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 13px',
               borderRadius: '8px',
               textTransform: 'none',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 600,
               color: '#334155',
               border: '1.5px solid #94A3B8',
@@ -1800,10 +1805,11 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             variant="contained"
             sx={{
               height: 36,
-              padding: '0 18px',
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '8px',
               textTransform: 'none',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 700,
               backgroundColor: '#D97706',
               color: '#FFFFFF',
@@ -1921,7 +1927,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           paper: {
             sx: {
               borderRadius: 'var(--mac-radius-lg)',
-              maxWidth: 440,
+              maxWidth: 352,
               width: '100%',
               backgroundColor: '#FFFFFF',
               boxShadow: 'var(--mac-shadow-popover)',
@@ -1933,9 +1939,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       >
         <DialogTitle
           sx={{
-            padding: '18px 24px 14px',
+            padding: '14px 19px 11px',
             borderBottom: '1px solid var(--mac-border-color)',
-            fontSize: '15px',
+            fontSize: FONT.body,
             fontWeight: 700,
             color: 'var(--mac-text-primary)',
             backgroundColor: '#FAFAFC',
@@ -1944,23 +1950,24 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             gap: 1.2,
           }}
         >
-          <InfoOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 22 }} />
+          <InfoOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
           No Documents Selected for Resubmission
         </DialogTitle>
-        <DialogContent sx={{ p: '20px 24px !important' }}>
-          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
+        <DialogContent sx={{ p: '16px 19px !important' }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
             There are currently no documents requested for resubmission. Please inspect a file from the <strong>Verification Documents</strong> list above and select <strong>Request Resubmission</strong> if corrections are required.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ padding: '12px 24px 18px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC' }}>
+        <DialogActions sx={{ padding: '10px 19px 14px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC' }}>
           <Button
             variant="contained"
             onClick={() => setNoDocForReturnDialogOpen(false)}
             sx={{
               height: 36,
-              padding: '0 20px',
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 16px',
               borderRadius: '8px',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 600,
               textTransform: 'none',
               backgroundColor: 'var(--sakay-orange)',
@@ -1981,7 +1988,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           paper: {
             sx: {
               borderRadius: 'var(--mac-radius-lg)',
-              maxWidth: 480,
+              maxWidth: 384,
               width: '100%',
               backgroundColor: '#FFFFFF',
               boxShadow: 'var(--mac-shadow-popover)',
@@ -1993,9 +2000,9 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       >
         <DialogTitle
           sx={{
-            padding: '18px 24px 14px',
+            padding: '14px 19px 11px',
             borderBottom: '1px solid var(--mac-border-color)',
-            fontSize: '15px',
+            fontSize: FONT.body,
             fontWeight: 700,
             color: '#92400E',
             backgroundColor: '#FFFBEB',
@@ -2004,18 +2011,18 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             gap: 1.2,
           }}
         >
-          <WarningAmberIcon sx={{ color: '#D97706', fontSize: 22 }} />
+          <WarningAmberIcon sx={{ color: '#D97706', fontSize: 18 }} />
           Unsubmitted Resubmission Requests
         </DialogTitle>
-        <DialogContent sx={{ p: '20px 24px !important' }}>
-          <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-primary)', lineHeight: 1.5, mb: 1 }}>
+        <DialogContent sx={{ p: '16px 19px !important' }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', lineHeight: 1.5, mb: 0.8 }}>
             You have marked <strong>{pendingReturnCount} document{pendingReturnCount === 1 ? '' : 's'}</strong> for resubmission.
           </Typography>
-          <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
             Do you want to check and proceed with returning this application to the driver, or exit without returning?
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ padding: '14px 24px 18px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.5 }}>
+        <DialogActions sx={{ padding: '11px 19px 14px', borderTop: '1px solid var(--mac-border-color)', backgroundColor: '#FAFAFC', gap: 1.2 }}>
           <Button
             variant="outlined"
             onClick={() => {
@@ -2023,10 +2030,11 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               onClose();
             }}
             sx={{
-              height: 38,
-              padding: '0 16px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 13px',
               borderRadius: '8px',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 600,
               textTransform: 'none',
               borderColor: '#94A3B8',
@@ -2043,10 +2051,11 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
               setReturnSummaryDialogOpen(true);
             }}
             sx={{
-              height: 38,
-              padding: '0 20px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 16px',
               borderRadius: '8px',
-              fontSize: '12px',
+              fontSize: FONT.body,
               fontWeight: 700,
               textTransform: 'none',
               backgroundColor: '#D97706',

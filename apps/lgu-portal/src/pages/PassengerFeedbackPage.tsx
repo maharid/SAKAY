@@ -26,6 +26,7 @@ import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { TableEmptyState } from '../components/common/TableEmptyState';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { fetchPassengerFeedback, excludeRating, PassengerFeedbackItem } from '../services/adminApiService';
+import { FONT } from '../styles/density';
 
 /**
  * ============================================================================
@@ -117,79 +118,79 @@ export const PassengerFeedbackPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Summary Cards */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 4,
+          gap: 2,
+          mb: 3.2,
         }}
       >
         <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Overall Commuter Rating
               </Typography>
-              <StarIcon sx={{ color: '#FBBC04', fontSize: '17.6' }} />
+              <StarIcon sx={{ color: '#FBBC04', fontSize: '18px' }} />
             </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>
               {avgRating === null ? 'Not Yet Rated' : `⭐ ${avgRating} / 5.0`}
             </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               From {totalReviews} passenger evaluations
             </Typography>
           </CardContent>
         </Card>
 
         <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 5-Star Commendations
               </Typography>
-              <StarIcon sx={{ color: '#2E7D32', fontSize: '17.6' }} />
+              <StarIcon sx={{ color: '#2E7D32', fontSize: '18px' }} />
             </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#2E7D32', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#2E7D32', mb: 0.4 }}>
               {fiveStarCount}
             </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               Excellent driver reviews
             </Typography>
           </CardContent>
         </Card>
 
         <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Critical Complaints
               </Typography>
-              <WarningAmberIcon sx={{ color: '#DC2626', fontSize: '17.6' }} />
+              <WarningAmberIcon sx={{ color: '#DC2626', fontSize: '18px' }} />
             </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: '#DC2626', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: '#DC2626', mb: 0.4 }}>
               {complaintsCount}
             </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               Low ratings (&le;2 stars) for review
             </Typography>
           </CardContent>
         </Card>
 
         <Card sx={{ borderRadius: 'var(--mac-radius-lg)', border: '1px solid var(--mac-border-color)', boxShadow: 'var(--mac-shadow-card)', backgroundColor: '#FFFFFF' }}>
-          <CardContent sx={{ p: '20px 22px !important' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography sx={{ fontSize: '10px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
+          <CardContent sx={{ p: '16px 18px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase' }}>
                 Total Feedback Records
               </Typography>
-              <FeedbackIcon sx={{ color: 'var(--sakay-orange)', fontSize: '17.6' }} />
+              <FeedbackIcon sx={{ color: 'var(--sakay-orange)', fontSize: '18px' }} />
             </Box>
-            <Typography sx={{ fontSize: '22.4px', fontWeight: 700, color: 'var(--sakay-orange)', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '22px', fontWeight: 700, color: 'var(--sakay-orange)', mb: 0.4 }}>
               {totalReviews}
             </Typography>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
               Total passenger reviews
             </Typography>
           </CardContent>
@@ -224,7 +225,7 @@ export const PassengerFeedbackPage: React.FC = () => {
         }}
       />
 
-      {actionNote && <Alert severity={actionNote.severity} onClose={() => setActionNote(null)} sx={{ mb: 2 }}>{actionNote.text}</Alert>}
+      {actionNote && <Alert severity={actionNote.severity} onClose={() => setActionNote(null)} sx={{ mb: 1.6 }}>{actionNote.text}</Alert>}
 
       {/* 3. Feedback Data Table */}
       <TableContainer
@@ -241,19 +242,19 @@ export const PassengerFeedbackPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 PASSENGER & DATE
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 EVALUATED DRIVER & TODA
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 RATING & CATEGORY
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 PASSENGER FEEDBACK COMMENT
               </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '10.4px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 ACTION
               </TableCell>
             </TableRow>
@@ -261,9 +262,9 @@ export const PassengerFeedbackPage: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6.4 }}>
+                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
+                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
                     Loading passenger feedback...
                   </Typography>
                 </TableCell>
@@ -277,54 +278,54 @@ export const PassengerFeedbackPage: React.FC = () => {
                     '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
                   }}
                 >
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '11.6px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: FONT.body, color: 'var(--mac-text-primary)' }}>
                       {item.passengerName}
                     </Typography>
-                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                       {item.createdAt}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '11.3px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-primary)' }}>
                       {item.driverName}
                     </Typography>
-                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                       {item.todaName}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                       <Rating value={item.ratingValue} readOnly size="small" />
-                      <Typography sx={{ fontSize: '10.4px', fontWeight: 700 }}>
+                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 700 }}>
                         {item.ratingValue}.0
                       </Typography>
                     </Box>
-                    <Box sx={{ mt: '4px' }}>
+                    <Box sx={{ mt: '3px' }}>
                       <Chip
                         label={item.category}
                         size="small"
-                        sx={{ fontSize: '8.8px', fontWeight: 600, height: 22 }}
+                        sx={{ fontSize: FONT.caption, fontWeight: 600, height: 22 }}
                       />
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-primary)', fontStyle: 'italic' }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', fontStyle: 'italic' }}>
                       "{item.comment}"
                     </Typography>
                     {item.isComplaint && (
-                      <Typography sx={{ fontSize: '9.3px', color: '#DC2626', fontWeight: 700, mt: '4px' }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: '#DC2626', fontWeight: 700, mt: '3px' }}>
                         ⚠️ Flagged for Triage Officer Attention
                       </Typography>
                     )}
                     {item.isExcluded && (
-                      <Typography sx={{ fontSize: '9.3px', color: '#92400E', fontWeight: 700, mt: '4px' }}>
+                      <Typography sx={{ fontSize: FONT.caption, color: '#92400E', fontWeight: 700, mt: '3px' }}>
                         Excluded from the Average Rating
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
-                    <Button size="small" variant="outlined" onClick={() => setExcludeTarget(item)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: '10px' }}>
+                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
+                    <Button size="small" variant="outlined" onClick={() => setExcludeTarget(item)} sx={{ textTransform: 'none', fontWeight: 600, fontSize: FONT.small }}>
                       {item.isExcluded ? 'Count again' : 'Exclude'}
                     </Button>
                   </TableCell>

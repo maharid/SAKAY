@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, ButtonProps } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color'> {
   label: string;
@@ -19,12 +20,13 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   return (
     <Button
       onClick={onClick}
-      endIcon={showArrow ? <ArrowForwardIcon className="action-arrow" sx={{ fontSize: '12.8', transition: 'transform 0.15s ease' }} /> : undefined}
+      endIcon={showArrow ? <ArrowForwardIcon className="action-arrow" sx={{ fontSize: '13px', transition: 'transform 0.15s ease' }} /> : undefined}
       sx={{
         height: 36,
-        padding: '0 16px',
+        '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+        padding: '0 13px',
         borderRadius: '9px',
-        fontSize: '10.8px',
+        fontSize: FONT.body,
         fontWeight: 500,
         textTransform: 'none',
         backgroundColor: active ? 'var(--sakay-orange-soft)' : '#FFFFFF',

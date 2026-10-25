@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box } from '@mui/material';
+import { FONT } from '../../styles/density';
 
 interface MacTooltipProps {
   title: string;
@@ -29,9 +30,9 @@ export const MacTooltip: React.FC<MacTooltipProps> = ({ title, children, disable
             transform: 'translateY(-50%)',
             backgroundColor: 'rgba(28, 28, 30, 0.92)',
             color: '#FFFFFF',
-            fontSize: '9.6px',
+            fontSize: FONT.caption,
             fontWeight: 500,
-            padding: '6px 10px',
+            padding: '5px 8px',
             borderRadius: '8px',
             boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
             whiteSpace: 'nowrap',

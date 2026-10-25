@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Box } from '@mui/material';
+import { ThemeProvider } from '@mui/material/styles';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
+import { FONT, SHELL } from '../../styles/density';
+import { createDensityTheme } from '../../styles/densityTheme';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -9,7 +12,7 @@ interface AdminLayoutProps {
   pageSubtitle?: string;
 }
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle, pageSubtitle }) => {
+const AdminLayoutShell: React.FC<AdminLayoutProps> = ({ children, pageTitle, pageSubtitle }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
@@ -20,6 +23,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle, p
         height: '100vh',
         overflow: 'hidden',
         backgroundColor: '#FFF8F2',
+        // text that sets no size of its own reads at the normal size of the compact scale (the page default is a roomier 14px)
+        fontSize: FONT.body,
       }}
     >
       <AdminSidebar
@@ -46,7 +51,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle, p
             flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
-            padding: { xs: '16px', md: '22px', lg: '24px' },
+            padding: SHELL.pagePadding,
             backgroundColor: '#FFF8F2',
           }}
         >
@@ -57,3 +62,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle, p
   );
 };
 
+// Everything in the signed-in layout (header, sidebar, the page, and the popups and dialogs they open) is drawn at the compact density of styles/density.ts, the same
+// as the TODA portal; the sign-in page and the registration flow are outside this layout and keep their own sizes.
+export const AdminLayout: React.FC<AdminLayoutProps> = (props) => (
+  <ThemeProvider theme={createDensityTheme}>
+    <AdminLayoutShell {...props} />
+  </ThemeProvider>
+);

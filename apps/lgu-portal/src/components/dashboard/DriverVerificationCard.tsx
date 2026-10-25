@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button } from '@mui/material';
 import BadgeIcon from '@mui/icons-material/Badge';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface SegmentData {
   label: string;
@@ -71,20 +72,20 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
         borderRadius: 'var(--mac-radius-lg)',
         border: '1px solid var(--mac-border-color)',
         boxShadow: 'var(--mac-shadow-card)',
-        padding: '26px 28px',
+        padding: '21px 22px',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
       }}
     >
       {/* Header Block */}
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 1.6 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
               Driver Verification Status
             </Typography>
-            <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
               Live verification status of registered drivers.
             </Typography>
           </Box>
@@ -93,12 +94,13 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
             onClick={() => navigate('/drivers')}
             size="small"
             sx={{
-              height: 38,
-              padding: '0 18px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '9px',
               backgroundColor: '#FFFFFF',
               color: 'var(--mac-text-primary)',
-              fontSize: '14px',
+              fontSize: FONT.small,
               fontWeight: 500,
               textTransform: 'none',
               border: '1px solid var(--mac-border-color)',
@@ -118,7 +120,7 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
       </Box>
 
       {total > 0 ? (
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1, gap: 3, pt: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1, gap: 2.4, pt: 0.8 }}>
           <Box
             sx={{
               position: 'relative',
@@ -177,7 +179,7 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
             >
               <Typography
                 sx={{
-                  fontSize: '26px',
+                  fontSize: '21px',
                   fontWeight: 700,
                   color: hoveredSegment ? hoveredSegment.color : 'var(--mac-text-primary)',
                   lineHeight: 1,
@@ -186,13 +188,13 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
               >
                 {hoveredSegment ? hoveredSegment.count : total}
               </Typography>
-              <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', fontWeight: 500, mt: '3px' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontWeight: 500, mt: '2px' }}>
                 {hoveredSegment ? hoveredSegment.label : 'Total Drivers'}
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.8 }}>
             {segments.map((seg) => {
               const isHovered = hoveredSegment?.label === seg.label;
 
@@ -205,7 +207,7 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '6px 10px',
+                    padding: '5px 8px',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     backgroundColor: isHovered ? 'var(--mac-canvas-bg)' : 'transparent',
@@ -227,7 +229,7 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
                     />
                     <Typography
                       sx={{
-                        fontSize: '13.5px',
+                        fontSize: FONT.caption,
                         color: isHovered ? 'var(--mac-text-primary)' : 'var(--mac-text-secondary)',
                         fontWeight: isHovered ? 600 : 500,
                       }}
@@ -237,7 +239,7 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
                   </Box>
                   <Typography
                     sx={{
-                      fontSize: '13.5px',
+                      fontSize: FONT.caption,
                       fontWeight: isHovered ? 700 : 600,
                       color: isHovered ? seg.color : 'var(--mac-text-primary)',
                     }}
@@ -259,8 +261,8 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
             alignItems: 'center',
             justifyContent: 'center',
             flexGrow: 1,
-            py: 5,
-            gap: 1.5,
+            py: 4,
+            gap: 1.2,
           }}
         >
           <Box
@@ -277,10 +279,10 @@ export const DriverVerificationCard: React.FC<DriverVerificationCardProps> = ({ 
           >
             <BadgeIcon fontSize="medium" />
           </Box>
-          <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
             No driver verification requests yet.
           </Typography>
-          <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 320 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 320 }}>
             Driver verification activity will appear here once accredited TODAs begin registering drivers.
           </Typography>
         </Box>

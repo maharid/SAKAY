@@ -2,7 +2,7 @@
 
 :root {
   /* Layout Dimensions */
-  --mac-header-height: 72px;
+  --mac-header-height: 70px;
 
   /* Base surfaces */
   --mac-canvas-bg: #FFF8F2;

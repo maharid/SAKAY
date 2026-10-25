@@ -28,6 +28,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabaseClient';
 import { SakayPhoneInput } from '../components/common/SakayPhoneInput';
+import { CONTROL, FONT } from '../styles/density';
 
 // Helper HSV <-> HEX Conversion Utilities
 function hexToHsv(hexStr: string): { h: number; s: number; v: number } {
@@ -104,7 +105,7 @@ const accountInputStyles = {
   '& .MuiOutlinedInput-root': {
     borderRadius: '12px',
     backgroundColor: '#FFFFFF',
-    fontSize: '13px',
+    fontSize: FONT.caption,
     '& fieldset': {
       borderColor: '#E5E5EA',
     },
@@ -119,7 +120,7 @@ const accountInputStyles = {
     },
   },
   '& .MuiInputLabel-root': {
-    fontSize: '13px',
+    fontSize: FONT.caption,
     color: '#86868B',
     backgroundColor: '#FFFFFF',
     px: 0.6,
@@ -229,10 +230,10 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
         borderRadius: '16px',
         border: '1px solid var(--mac-border-color)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-        padding: '16px',
+        padding: '13px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
+        gap: 1.6,
         userSelect: 'none',
       }}
     >
@@ -276,7 +277,7 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
       </Box>
 
       {/* 2. Controls Row: Eyedropper + Hue Slider Bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
         {/* Eyedropper Button */}
         <IconButton
           size="small"
@@ -292,7 +293,7 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
             '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
           }}
         >
-          <ColorizeIcon fontSize="small" sx={{ fontSize: 18 }} />
+          <ColorizeIcon fontSize="small" sx={{ fontSize: 14 }} />
         </IconButton>
 
         {/* Hue Rainbow Slider Bar */}
@@ -339,15 +340,15 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
       </Box>
 
       {/* 3. HEX Format Input (Strictly HEX Only, No Alpha) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
         <Box
           sx={{
-            px: 1.5,
+            px: 1.2,
             py: 0.8,
             borderRadius: '8px',
             backgroundColor: '#F5F5F7',
             border: '1px solid var(--mac-border-color)',
-            fontSize: '12px',
+            fontSize: FONT.caption,
             fontWeight: 700,
             color: 'var(--mac-text-secondary)',
           }}
@@ -384,9 +385,10 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
               width: '100%',
               '& .MuiOutlinedInput-root': {
                 height: 36,
+                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
                 borderRadius: '9px',
                 pl: 4.2,
-                fontSize: '13px',
+                fontSize: FONT.body,
                 fontFamily: 'monospace',
                 fontWeight: 600,
               },
@@ -396,17 +398,17 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
       </Box>
 
       {/* 4. Saved Swatches Row */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, pt: 0.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, pt: 0.4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
             Saved Swatches
           </Typography>
           <Button
             size="small"
-            startIcon={<AddIcon fontSize="small" sx={{ fontSize: 14 }} />}
+            startIcon={<AddIcon fontSize="small" sx={{ fontSize: 13 }} />}
             onClick={handleAddSavedSwatch}
             sx={{
-              fontSize: '11.5px',
+              fontSize: FONT.small,
               fontWeight: 600,
               textTransform: 'none',
               color: 'var(--mac-text-secondary)',
@@ -419,7 +421,7 @@ const EmbeddedColorPicker: React.FC<EmbeddedColorPickerProps> = ({ color, onChan
           </Button>
         </Box>
 
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
           {savedSwatches.map((hex) => {
             const isSelected = currentColorHex.toUpperCase() === hex.toUpperCase();
             return (
@@ -649,11 +651,11 @@ export const AccountManagementPage: React.FC = () => {
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <Box sx={{ maxWidth: 1600, mx: 'auto', pb: 6, position: 'relative' }}>
+    <Box sx={{ maxWidth: 1600, mx: 'auto', pb: 4.8, position: 'relative' }}>
       {/* 1. Account Profile Header Card - FULL WIDTH */}
       <Card
         sx={{
-          mb: 4,
+          mb: 3.2,
           borderRadius: 'var(--mac-radius-lg)',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-card)',
@@ -661,14 +663,14 @@ export const AccountManagementPage: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        <CardContent sx={{ p: 3.5, display: 'flex', alignItems: 'center', gap: 3.5 }}>
+        <CardContent sx={{ p: 2.8, display: 'flex', alignItems: 'center', gap: 2.8 }}>
           <Avatar
             sx={{
               width: 76,
               height: 76,
               bgcolor: 'var(--sakay-orange-soft)',
               color: 'var(--sakay-orange)',
-              fontSize: '30px',
+              fontSize: '24px',
               fontWeight: 700,
               border: '2px solid var(--sakay-orange)',
               boxShadow: 'none',
@@ -679,19 +681,19 @@ export const AccountManagementPage: React.FC = () => {
           </Avatar>
 
           <Box sx={{ flexGrow: 1 }}>
-            <Typography sx={{ fontSize: '21px', fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2, mb: 0.5 }}>
+            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2, mb: 0.4 }}>
               {displayName}
             </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2.5, mt: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'var(--mac-text-secondary)' }}>
-                <BadgeIcon fontSize="small" sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--sakay-orange)' }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.8 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, color: 'var(--mac-text-secondary)' }}>
+                <BadgeIcon fontSize="small" sx={{ color: 'var(--sakay-orange)', fontSize: 14 }} />
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--sakay-orange)' }}>
                   LGU Administrator
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'var(--mac-text-secondary)' }}>
-                <EmailIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: 17 }} />
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-primary)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, color: 'var(--mac-text-secondary)' }}>
+                <EmailIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: 14 }} />
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
                   {displayEmail}
                 </Typography>
               </Box>
@@ -701,10 +703,10 @@ export const AccountManagementPage: React.FC = () => {
       </Card>
 
       {/* 2. Main Content Grid - FULL WIDTH 2-COLUMN */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.8 }}>
         
         {/* Left Column: Profile Details & Credentials */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.8 }}>
           
           {/* Administrator Profile Name Update */}
           <Card
@@ -715,21 +717,21 @@ export const AccountManagementPage: React.FC = () => {
               backgroundColor: '#FFFFFF',
             }}
           >
-            <CardContent sx={{ p: 3.5 }}>
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                  <PersonOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 21 }} />
-                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <CardContent sx={{ p: 2.8 }}>
+              <Box sx={{ mb: 2.4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
+                  <PersonOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                     Administrator Name
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   Update the official City Administrator display name.
                 </Typography>
               </Box>
 
               {nameMsg && (
-                <Alert severity={nameMsg.type} sx={{ mb: 2.5, borderRadius: '10px', fontSize: '12.5px' }}>
+                <Alert severity={nameMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
                   {nameMsg.text}
                 </Alert>
               )}
@@ -742,7 +744,7 @@ export const AccountManagementPage: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={isUpdatingName}
-                  sx={{ mb: 2.5, ...accountInputStyles }}
+                  sx={{ mb: 2, ...accountInputStyles }}
                 />
                 <Button
                   type="submit"
@@ -750,12 +752,12 @@ export const AccountManagementPage: React.FC = () => {
                   disabled={isUpdatingName || fullName === adminProfile?.full_name}
                   sx={{
                     borderRadius: '10px',
-                    px: 3.5,
+                    px: 2.8,
                     py: 1.1,
                     backgroundColor: 'var(--sakay-orange)',
                     boxShadow: 'none',
                     textTransform: 'none',
-                    fontSize: '13px',
+                    fontSize: FONT.body,
                     fontWeight: 600,
                     '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
                   }}
@@ -773,24 +775,24 @@ export const AccountManagementPage: React.FC = () => {
               border: '1px solid var(--mac-border-color)',
               boxShadow: 'var(--mac-shadow-card)',
               backgroundColor: '#FFFFFF',
-              mb: 3,
+              mb: 2.4,
             }}
           >
-            <CardContent sx={{ p: 3.5 }}>
-              <Box sx={{ mb: 3 }}>
-                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.5 }}>Contact Number</Typography>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+            <CardContent sx={{ p: 2.8 }}>
+              <Box sx={{ mb: 2.4 }}>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)', mb: 0.4 }}>Contact Number</Typography>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   The mobile number of the City Administrator, kept on the administrator record.
                 </Typography>
               </Box>
               {contactMsg && (
-                <Alert severity={contactMsg.type} sx={{ mb: 2.5, borderRadius: '10px', fontSize: '12.5px' }}>
+                <Alert severity={contactMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
                   {contactMsg.text}
                 </Alert>
               )}
               <form onSubmit={handleUpdateContact}>
-                <Box sx={{ mb: 2.5 }}>
-                  <SakayPhoneInput label="Mobile Number" value={contact} onChange={setContact} required />
+                <Box sx={{ mb: 2 }}>
+                  <SakayPhoneInput label="Mobile Number" value={contact} onChange={setContact} required compact />
                 </Box>
                 <Button
                   type="submit"
@@ -798,12 +800,12 @@ export const AccountManagementPage: React.FC = () => {
                   disabled={isUpdatingContact || contact === nationalOf(adminProfile?.contact_number)}
                   sx={{
                     borderRadius: '10px',
-                    px: 3.5,
+                    px: 2.8,
                     py: 1.1,
                     backgroundColor: 'var(--sakay-orange)',
                     boxShadow: 'none',
                     textTransform: 'none',
-                    fontSize: '13px',
+                    fontSize: FONT.body,
                     fontWeight: 600,
                     '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
                   }}
@@ -823,21 +825,21 @@ export const AccountManagementPage: React.FC = () => {
               backgroundColor: '#FFFFFF',
             }}
           >
-            <CardContent sx={{ p: 3.5 }}>
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                  <ManageAccountsIcon sx={{ color: 'var(--sakay-orange)', fontSize: 21 }} />
-                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <CardContent sx={{ p: 2.8 }}>
+              <Box sx={{ mb: 2.4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
+                  <ManageAccountsIcon sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                     Change Email Address
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   Update your official municipal email credentials securely.
                 </Typography>
               </Box>
 
               {emailMsg && (
-                <Alert severity={emailMsg.type} sx={{ mb: 2.5, borderRadius: '10px', fontSize: '12.5px' }}>
+                <Alert severity={emailMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
                   {emailMsg.text}
                 </Alert>
               )}
@@ -851,7 +853,7 @@ export const AccountManagementPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isUpdatingEmail}
-                  sx={{ mb: 2.5, ...accountInputStyles }}
+                  sx={{ mb: 2, ...accountInputStyles }}
                 />
                 <Button
                   type="submit"
@@ -859,12 +861,12 @@ export const AccountManagementPage: React.FC = () => {
                   disabled={isUpdatingEmail || email === displayEmail}
                   sx={{
                     borderRadius: '10px',
-                    px: 3.5,
+                    px: 2.8,
                     py: 1.1,
                     backgroundColor: 'var(--sakay-orange)',
                     boxShadow: 'none',
                     textTransform: 'none',
-                    fontSize: '13px',
+                    fontSize: FONT.body,
                     fontWeight: 600,
                     '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
                   }}
@@ -884,21 +886,21 @@ export const AccountManagementPage: React.FC = () => {
               backgroundColor: '#FFFFFF',
             }}
           >
-            <CardContent sx={{ p: 3.5 }}>
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                  <SecurityIcon sx={{ color: 'var(--sakay-orange)', fontSize: 21 }} />
-                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <CardContent sx={{ p: 2.8 }}>
+              <Box sx={{ mb: 2.4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
+                  <SecurityIcon sx={{ color: 'var(--sakay-orange)', fontSize: 17 }} />
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                     Change Password
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   Update your LGU administrator password securely.
                 </Typography>
               </Box>
 
               {passwordMsg && (
-                <Alert severity={passwordMsg.type} sx={{ mb: 2.5, borderRadius: '10px', fontSize: '12.5px' }}>
+                <Alert severity={passwordMsg.type} sx={{ mb: 2, borderRadius: '10px', fontSize: FONT.caption }}>
                   {passwordMsg.text}
                 </Alert>
               )}
@@ -912,7 +914,7 @@ export const AccountManagementPage: React.FC = () => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   disabled={isUpdatingPassword}
-                  sx={{ mb: 2.5, ...accountInputStyles }}
+                  sx={{ mb: 2, ...accountInputStyles }}
                 />
                 <TextField
                   fullWidth
@@ -922,7 +924,7 @@ export const AccountManagementPage: React.FC = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isUpdatingPassword}
-                  sx={{ mb: 2.5, ...accountInputStyles }}
+                  sx={{ mb: 2, ...accountInputStyles }}
                 />
                 <Button
                   type="submit"
@@ -930,12 +932,12 @@ export const AccountManagementPage: React.FC = () => {
                   disabled={isUpdatingPassword || !newPassword || !confirmPassword}
                   sx={{
                     borderRadius: '10px',
-                    px: 3.5,
+                    px: 2.8,
                     py: 1.1,
                     backgroundColor: 'var(--sakay-orange)',
                     boxShadow: 'none',
                     textTransform: 'none',
-                    fontSize: '13px',
+                    fontSize: FONT.body,
                     fontWeight: 600,
                     '&:hover': { backgroundColor: 'var(--sakay-orange-hover)', boxShadow: 'none' },
                   }}
@@ -957,24 +959,24 @@ export const AccountManagementPage: React.FC = () => {
             height: 'fit-content',
           }}
         >
-          <CardContent sx={{ p: 3.5 }}>
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                <PaletteIcon sx={{ color: selectedColor, fontSize: 21 }} />
-                <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+          <CardContent sx={{ p: 2.8 }}>
+            <Box sx={{ mb: 2.4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 0.4 }}>
+                <PaletteIcon sx={{ color: selectedColor, fontSize: 17 }} />
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
                   System Appearance
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 Customize the primary accent color used throughout the SAKAY LGU Portal.
               </Typography>
             </Box>
 
             {/* Predefined System Presets Grid */}
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1.2 }}>
               System Accent Presets
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5, mb: 3.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.2, mb: 2.8 }}>
               {PRESET_SWATCHES.map((swatch) => {
                 const isSelected = selectedColor.toUpperCase() === swatch.hex.toUpperCase();
                 return (
@@ -985,7 +987,7 @@ export const AccountManagementPage: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1.2,
-                      padding: '10px 12px',
+                      padding: '8px 10px',
                       borderRadius: '10px',
                       border: isSelected ? `2px solid ${swatch.hex}` : '1px solid var(--mac-border-color)',
                       backgroundColor: isSelected ? 'rgba(0,0,0,0.02)' : '#FFFFFF',
@@ -1011,7 +1013,7 @@ export const AccountManagementPage: React.FC = () => {
                     >
                       {isSelected && <CheckIcon sx={{ color: '#FFFFFF', fontSize: 13 }} />}
                     </Box>
-                    <Typography sx={{ fontSize: '12.5px', fontWeight: isSelected ? 700 : 500, color: 'var(--mac-text-primary)' }}>
+                    <Typography sx={{ fontSize: FONT.caption, fontWeight: isSelected ? 700 : 500, color: 'var(--mac-text-primary)' }}>
                       {swatch.name}
                     </Typography>
                   </Box>
@@ -1020,11 +1022,11 @@ export const AccountManagementPage: React.FC = () => {
             </Box>
 
             {/* Custom Embedded Inline 2D Color Picker */}
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1.5 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: 1.2 }}>
               Custom HEX Color Picker
             </Typography>
             
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 2.4 }}>
               <EmbeddedColorPicker
                 color={selectedColor}
                 onChange={(newHex) => setSelectedColor(newHex)}
@@ -1034,21 +1036,21 @@ export const AccountManagementPage: React.FC = () => {
             {/* Live Visual Preview Card */}
             <Box
               sx={{
-                padding: '16px 20px',
+                padding: '13px 16px',
                 borderRadius: '12px',
                 border: '1px solid var(--mac-border-color)',
                 backgroundColor: '#FAFAFC',
-                mb: 3,
+                mb: 2.4,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
               <Box>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   Theme Preview
                 </Typography>
-                <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                   Current active accent color: {selectedColor.toUpperCase()}
                 </Typography>
               </Box>
@@ -1060,7 +1062,7 @@ export const AccountManagementPage: React.FC = () => {
                   color: '#FFFFFF',
                   borderRadius: '8px',
                   textTransform: 'none',
-                  fontSize: '12.5px',
+                  fontSize: FONT.small,
                   fontWeight: 600,
                   boxShadow: 'none',
                   '&:hover': { backgroundColor: selectedColor, boxShadow: 'none' },
@@ -1081,7 +1083,7 @@ export const AccountManagementPage: React.FC = () => {
                 backgroundColor: selectedColor,
                 boxShadow: 'none',
                 textTransform: 'none',
-                fontSize: '13.5px',
+                fontSize: FONT.body,
                 fontWeight: 600,
                 '&:hover': { backgroundColor: selectedColor, boxShadow: 'none' },
               }}
@@ -1118,15 +1120,15 @@ export const AccountManagementPage: React.FC = () => {
             minWidth: 320,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.8, gap: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <CheckCircleOutlinedIcon sx={{ color: '#027A48', fontSize: 21 }} />
-              <Typography sx={{ color: '#027A48', fontSize: '13px', fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.8, gap: 1.2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+              <CheckCircleOutlinedIcon sx={{ color: '#027A48', fontSize: 17 }} />
+              <Typography sx={{ color: '#027A48', fontSize: FONT.caption, fontWeight: 600 }}>
                 System theme color updated and saved successfully!
               </Typography>
             </Box>
-            <IconButton size="small" onClick={() => setToastOpen(false)} sx={{ color: '#027A48', p: 0.5 }}>
-              <CloseIcon fontSize="small" sx={{ fontSize: 16 }} />
+            <IconButton size="small" onClick={() => setToastOpen(false)} sx={{ color: '#027A48', p: 0.4 }}>
+              <CloseIcon fontSize="small" sx={{ fontSize: 13 }} />
             </IconButton>
           </Box>
 

@@ -4,6 +4,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import { FONT } from '../../styles/density';
 
 export interface SakayToastProps {
   open: boolean;
@@ -184,7 +185,7 @@ export const SakayToast: React.FC<SakayToastProps> = ({
             aria-label="close"
             onClick={onClose}
             sx={{
-              p: 0.5,
+              p: 0.4,
               color: getTextColor(),
               backgroundColor: isBrandInfo || isWarning ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.2)',
               borderRadius: '50%',
@@ -193,21 +194,21 @@ export const SakayToast: React.FC<SakayToastProps> = ({
               },
             }}
           >
-            <CloseIcon sx={{ fontSize: 18 }} />
+            <CloseIcon sx={{ fontSize: 14 }} />
           </IconButton>
         }
         sx={{
           width: '100%',
           borderRadius: '14px',
           fontFamily: 'Poppins, sans-serif',
-          fontSize: '13px',
+          fontSize: FONT.caption,
           fontWeight: 600,
           backgroundColor: `${getBackgroundColor()} !important`,
           color: `${getTextColor()} !important`,
           boxShadow: isBrandInfo ? '0 6px 20px rgba(255, 102, 0, 0.3)' : '0 6px 20px rgba(15, 23, 42, 0.2)',
           position: 'relative',
           overflow: 'hidden',
-          pr: 1,
+          pr: 0.8,
           alignItems: 'center',
           border: isBrandInfo || isWarning ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.25)',
           '& .MuiAlert-icon': {
@@ -215,7 +216,7 @@ export const SakayToast: React.FC<SakayToastProps> = ({
           },
         }}
       >
-        <Box sx={{ pr: 1 }}>{message}</Box>
+        <Box sx={{ pr: 0.8 }}>{message}</Box>
 
         {/* Synchronized Progress Timer Bar */}
         {hasTimer && (

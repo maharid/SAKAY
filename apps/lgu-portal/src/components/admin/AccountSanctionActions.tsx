@@ -4,6 +4,7 @@ import type { AppealSubjectType } from '@sakay/shared';
 
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { closeAccountPermanently, voidStrike } from '../../services/adminApiService';
+import { FONT } from '../../styles/density';
 
 /** What the screen shows afterwards (a toast or snackbar) and then reloads the account from the database. */
 export type SanctionResult = (message: string, severity: 'success' | 'error') => void | Promise<void>;
@@ -34,7 +35,7 @@ export const VoidStrikeButton: React.FC<VoidStrikeButtonProps> = ({ strikeId, on
         color="error"
         variant="text"
         onClick={() => setOpen(true)}
-        sx={{ textTransform: 'none', fontSize: '10.4px', fontWeight: 600, minWidth: 0, px: 1, flexShrink: 0 }}
+        sx={{ textTransform: 'none', fontSize: FONT.small, fontWeight: 600, minWidth: 0, px: 0.8, flexShrink: 0 }}
       >
         Void
       </Button>
@@ -82,7 +83,7 @@ export const CloseAccountButton: React.FC<CloseAccountButtonProps> = ({ subjectT
         variant="text"
         color="error"
         onClick={() => setOpen(true)}
-        sx={{ textTransform: 'none', fontSize: '11.6px', fontWeight: 600, mr: 'auto' }}
+        sx={{ textTransform: 'none', fontSize: FONT.body, fontWeight: 600, mr: 'auto' }}
       >
         Close account permanently
       </Button>

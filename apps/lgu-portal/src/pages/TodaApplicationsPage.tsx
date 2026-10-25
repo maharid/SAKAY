@@ -41,6 +41,7 @@ import {
   rejectTodaApplication,
   recordAdminAuditAction,
 } from '../services/adminApiService';
+import { FONT } from '../styles/density';
 
 const formatDisplayDate = (dateStr?: string | null): string => {
   if (!dateStr) return 'N/A';
@@ -208,14 +209,14 @@ export const TodaApplicationsPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
       {/* 1. Summary Header Panels */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 3.5,
+          gap: 2,
+          mb: 2.8,
         }}
       >
         <Box
@@ -224,16 +225,16 @@ export const TodaApplicationsPage: React.FC = () => {
             borderRadius: 'var(--mac-radius-lg)',
             border: '1px solid var(--mac-border-color)',
             boxShadow: 'var(--mac-shadow-card)',
-            padding: '24px',
+            padding: '19px',
           }}
         >
-          <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Pending Applications
           </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 1 }}>
+          <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--mac-text-primary)', mt: 0.8 }}>
             {isLoading ? <CircularProgress size={24} sx={{ color: 'var(--sakay-orange)' }} /> : pendingCount}
           </Typography>
-          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>
             Awaiting initial LGU review
           </Typography>
         </Box>
@@ -244,16 +245,16 @@ export const TodaApplicationsPage: React.FC = () => {
             borderRadius: 'var(--mac-radius-lg)',
             border: '1px solid var(--mac-border-color)',
             boxShadow: 'var(--mac-shadow-card)',
-            padding: '24px',
+            padding: '19px',
           }}
         >
-          <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Under Review
           </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#1565C0', mt: 1 }}>
+          <Typography sx={{ fontSize: '19px', fontWeight: 700, color: '#1565C0', mt: 0.8 }}>
             {isLoading ? <CircularProgress size={24} sx={{ color: '#1565C0' }} /> : underReviewCount}
           </Typography>
-          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>
             Background and document verification
           </Typography>
         </Box>
@@ -264,16 +265,16 @@ export const TodaApplicationsPage: React.FC = () => {
             borderRadius: 'var(--mac-radius-lg)',
             border: '1px solid var(--mac-border-color)',
             boxShadow: 'var(--mac-shadow-card)',
-            padding: '24px',
+            padding: '19px',
           }}
         >
-          <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Accredited TODAs
           </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#1E8E3E', mt: 1 }}>
+          <Typography sx={{ fontSize: '19px', fontWeight: 700, color: '#1E8E3E', mt: 0.8 }}>
             {isLoading ? <CircularProgress size={24} sx={{ color: '#1E8E3E' }} /> : approvedCount}
           </Typography>
-          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>
             Approved and operational
           </Typography>
         </Box>
@@ -284,16 +285,16 @@ export const TodaApplicationsPage: React.FC = () => {
             borderRadius: 'var(--mac-radius-lg)',
             border: '1px solid var(--mac-border-color)',
             boxShadow: 'var(--mac-shadow-card)',
-            padding: '24px',
+            padding: '19px',
           }}
         >
-          <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Needs Correction
           </Typography>
-          <Typography sx={{ fontSize: '24px', fontWeight: 700, color: 'var(--sakay-orange)', mt: 1 }}>
+          <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--sakay-orange)', mt: 0.8 }}>
             {isLoading ? <CircularProgress size={24} sx={{ color: 'var(--sakay-orange)' }} /> : declinedCount}
           </Typography>
-          <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: 0.5 }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: 0.4 }}>
             Returned for missing documents
           </Typography>
         </Box>
@@ -342,19 +343,19 @@ export const TodaApplicationsPage: React.FC = () => {
         <Table>
           <TableHead sx={{ backgroundColor: '#FAFAFC' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 TODA Name & Acronym
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 Representative
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 Date Submitted
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 Status
               </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, fontSize: '13px', color: 'var(--mac-text-muted)', py: 2, px: 3 }}>
+              <TableCell align="right" sx={{ fontWeight: 600, fontSize: FONT.small, color: 'var(--mac-text-muted)', py: 1.6, px: 2.4 }}>
                 Actions
               </TableCell>
             </TableRow>
@@ -362,9 +363,9 @@ export const TodaApplicationsPage: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.5 }} />
-                  <Typography sx={{ fontSize: '11.3px', color: 'var(--mac-text-muted)' }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 6.4 }}>
+                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)', mb: 1.2 }} />
+                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)' }}>
                     Loading TODA applications...
                   </Typography>
                 </TableCell>
@@ -379,41 +380,41 @@ export const TodaApplicationsPage: React.FC = () => {
                   }}
                 >
                   {/* TODA Name & Acronym only */}
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--mac-text-primary)' }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: FONT.caption, color: 'var(--mac-text-primary)' }}>
                         {app.name}
                       </Typography>
                       {app.acronym && (
                         <Chip
                           label={app.acronym}
                           size="small"
-                          sx={{ fontSize: '12px', fontWeight: 600, backgroundColor: 'rgba(255, 102, 0, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
+                          sx={{ fontSize: FONT.caption, fontWeight: 600, backgroundColor: 'rgba(255, 102, 0, 0.1)', color: 'var(--sakay-orange)', height: 22 }}
                         />
                       )}
                       {app.isOverdue5Days && (
                         <Chip
                           label="Overdue >5 Days"
                           size="small"
-                          sx={{ fontSize: '9px', fontWeight: 600, backgroundColor: '#FEE2E2', color: '#DC2626', height: 22 }}
+                          sx={{ fontSize: FONT.caption, fontWeight: 600, backgroundColor: '#FEE2E2', color: '#DC2626', height: 22 }}
                         />
                       )}
                     </Box>
                   </TableCell>
 
-                  <TableCell sx={{ fontSize: '12px', color: 'var(--mac-text-primary)', py: 2.2, px: 3 }}>
+                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', py: 2.2, px: 2.4 }}>
                     {app.representative}
                   </TableCell>
 
-                  <TableCell sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)', py: 2.2, px: 3 }}>
+                  <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-secondary)', py: 2.2, px: 2.4 }}>
                     {app.submittedDate}
                   </TableCell>
 
-                  <TableCell sx={{ py: 2.2, px: 3 }}>
+                  <TableCell sx={{ py: 2.2, px: 2.4 }}>
                     <StatusBadge status={app.status} />
                   </TableCell>
 
-                  <TableCell align="right" sx={{ py: 2.2, px: 3 }}>
+                  <TableCell align="right" sx={{ py: 2.2, px: 2.4 }}>
                     <ActionButton
                       label="Review"
                       onClick={(e) => {
@@ -449,7 +450,7 @@ export const TodaApplicationsPage: React.FC = () => {
           title="TODA Accreditation Application Review"
           subtitle={`Submitted association records and compliance files for ${selectedApp.name}`}
           badge={<StatusBadge status={selectedApp.status} />}
-          maxWidth={820}
+          maxWidth={656}
           primaryActionLabel={selectedApp.status === 'Approved' ? undefined : 'Approve & Issue Accreditation'}
           onPrimaryAction={selectedApp.status === 'Approved' ? undefined : () => setApproveDialogOpen(true)}
           secondaryActionLabel={selectedApp.status === 'Approved' ? 'Close' : 'Decline Application'}
@@ -457,78 +458,78 @@ export const TodaApplicationsPage: React.FC = () => {
           secondaryActionColor={selectedApp.status === 'Approved' ? undefined : 'error'}
         >
           {/* Section 1: Organization Information (Matches TODA Registration Layout) */}
-          <Box sx={{ mb: 3.5 }}>
-            <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 2, letterSpacing: '0.5px' }}>
+          <Box sx={{ mb: 2.8 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 1.6, letterSpacing: '0.5px' }}>
               1. Organization Information
             </Typography>
             <Box
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                gap: 2.5,
+                gap: 2,
                 backgroundColor: '#F8FAFC',
-                padding: '20px',
+                padding: '16px',
                 borderRadius: '12px',
                 border: '1px solid var(--mac-border-color)',
               }}
             >
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Official Association / TODA Name</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Official Association / TODA Name</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.name}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>TODA Acronym</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Acronym</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.acronym || 'N/A'}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Operating Barangay</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Operating Barangay</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.barangay}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Date Established</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Date Established</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {formatDisplayDate(selectedApp.dateEstablished)}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Registration Number</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Registration Number</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.registrationNumber || 'N/A'}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Contact Number</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Contact Number</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.phone || 'N/A'}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Email Address</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Email Address</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.email || 'N/A'}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Service Coverage Area</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Service Coverage Area</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.serviceCoverageArea || selectedApp.barangay || 'N/A'}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Terminal Location</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Terminal Location</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.terminalLocation || 'Calapan City Terminal'}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '4px' }}>Terminal Coordinates</Typography>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Terminal Coordinates</Typography>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                   {selectedApp.terminalLatitude && selectedApp.terminalLongitude
                     ? `${selectedApp.terminalLatitude}, ${selectedApp.terminalLongitude}`
                     : 'None specified'}
@@ -539,61 +540,61 @@ export const TodaApplicationsPage: React.FC = () => {
 
           {/* Section 2: Executive Officers */}
           {selectedApp.officers && (
-            <Box sx={{ mb: 3.5 }}>
-              <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 2, letterSpacing: '0.5px' }}>
+            <Box sx={{ mb: 2.8 }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 1.6, letterSpacing: '0.5px' }}>
                 2. Executive Officers
               </Typography>
               <Box
                 sx={{
                   display: 'grid',
                   gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                  gap: 2,
+                  gap: 1.6,
                   backgroundColor: '#F8FAFC',
-                  padding: '18px 20px',
+                  padding: '14px 16px',
                   borderRadius: '12px',
                   border: '1px solid var(--mac-border-color)',
                 }}
               >
                 <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '3px' }}>President</Typography>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '2px' }}>President</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     {selectedApp.officers.president || 'N/A'}
                   </Typography>
                   {selectedApp.officers.presidentContact && (
-                    <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                       {selectedApp.officers.presidentContact}
                     </Typography>
                   )}
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '3px' }}>Vice President</Typography>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '2px' }}>Vice President</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     {selectedApp.officers.vicePresident || 'N/A'}
                   </Typography>
                   {selectedApp.officers.vicePresidentContact && (
-                    <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                       {selectedApp.officers.vicePresidentContact}
                     </Typography>
                   )}
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '3px' }}>Secretary</Typography>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '2px' }}>Secretary</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     {selectedApp.officers.secretary || 'N/A'}
                   </Typography>
                   {selectedApp.officers.secretaryContact && (
-                    <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                       {selectedApp.officers.secretaryContact}
                     </Typography>
                   )}
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mb: '3px' }}>Treasurer</Typography>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '2px' }}>Treasurer</Typography>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     {selectedApp.officers.treasurer || 'N/A'}
                   </Typography>
                   {selectedApp.officers.treasurerContact && (
-                    <Typography sx={{ fontSize: '11.5px', color: 'var(--mac-text-muted)' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                       {selectedApp.officers.treasurerContact}
                     </Typography>
                   )}
@@ -603,12 +604,12 @@ export const TodaApplicationsPage: React.FC = () => {
           )}
 
           {/* Section 3: Required Documents with Per-File Return for Correction */}
-          <Box sx={{ mb: 3.5 }}>
-            <Typography sx={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 2, letterSpacing: '0.5px' }}>
+          <Box sx={{ mb: 2.8 }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--sakay-orange)', textTransform: 'uppercase', mb: 1.6, letterSpacing: '0.5px' }}>
               3. Required Documents ({selectedApp.documents.length})
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6 }}>
               {selectedApp.documents.map((doc, idx) => {
                 const isRoster = doc.name.toLowerCase().includes('roster') || doc.type.toLowerCase().includes('spreadsheet') || doc.type.toLowerCase().includes('csv') || doc.type.toLowerCase().includes('excel');
                 const isPdf = doc.type.toLowerCase().includes('pdf');
@@ -621,34 +622,34 @@ export const TodaApplicationsPage: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       flexWrap: 'wrap',
-                      gap: 2,
-                      padding: '16px 20px',
+                      gap: 1.6,
+                      padding: '13px 16px',
                       borderRadius: '12px',
                       border: '1px solid var(--mac-border-color)',
                       backgroundColor: '#FFFFFF',
                       boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
                       {isRoster ? (
-                        <TableChartOutlinedIcon sx={{ color: '#16A34A', fontSize: 28 }} />
+                        <TableChartOutlinedIcon sx={{ color: '#16A34A', fontSize: 22 }} />
                       ) : isPdf ? (
-                        <PictureAsPdfOutlinedIcon sx={{ color: '#DC2626', fontSize: 28 }} />
+                        <PictureAsPdfOutlinedIcon sx={{ color: '#DC2626', fontSize: 22 }} />
                       ) : (
-                        <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 28 }} />
+                        <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 22 }} />
                       )}
                       <Box>
-                        <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
+                        <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
                           {doc.name}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+                        <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                           {doc.type} • Uploaded {doc.date}
                         </Typography>
                       </Box>
                     </Box>
 
                     {/* Actions per file container */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                       <Button
                         size="small"
                         variant="outlined"
@@ -657,7 +658,7 @@ export const TodaApplicationsPage: React.FC = () => {
                         sx={{
                           height: 32,
                           px: 1.75,
-                          fontSize: '12px',
+                          fontSize: FONT.small,
                           fontWeight: 600,
                           textTransform: 'none',
                           color: 'var(--sakay-orange)',
@@ -684,7 +685,7 @@ export const TodaApplicationsPage: React.FC = () => {
                         sx={{
                           height: 32,
                           px: 1.75,
-                          fontSize: '12px',
+                          fontSize: FONT.small,
                           fontWeight: 600,
                           textTransform: 'none',
                           color: '#DC2626',
@@ -704,7 +705,7 @@ export const TodaApplicationsPage: React.FC = () => {
                 );
               })}
               {selectedApp.hasBarangayClearance !== false && (
-                <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-secondary)' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)' }}>
                   Barangay Clearance valid until, as stated by the TODA: <b>{selectedApp.declaredClearanceValidUntil ?? 'not stated'}</b>
                   {selectedApp.clearanceSubmittedAt ? ` (clearance sent ${new Date(selectedApp.clearanceSubmittedAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })})` : ''}. Read the date on the document yourself before approving.
                 </Typography>
@@ -735,30 +736,30 @@ export const TodaApplicationsPage: React.FC = () => {
 
           {/* Resubmission Reason Notice if already logged */}
           {selectedApp.resubmissionReason && (
-            <Box sx={{ mb: 3, backgroundColor: '#FFF7ED', border: '1px solid #FDBA74', padding: '16px 20px', borderRadius: '12px' }}>
-              <Typography sx={{ fontSize: '11.5px', fontWeight: 600, color: '#EA580C', mb: '4px' }}>
+            <Box sx={{ mb: 2.4, backgroundColor: '#FFF7ED', border: '1px solid #FDBA74', padding: '13px 16px', borderRadius: '12px' }}>
+              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#EA580C', mb: '3px' }}>
                 Correction / Resubmission Notice Logged:
               </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#9A3412' }}>{selectedApp.resubmissionReason}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: '#9A3412' }}>{selectedApp.resubmissionReason}</Typography>
             </Box>
           )}
 
           {/* Section 4: Automated Clearance Renewal Advisory Banner (Placed at the very bottom) */}
-          <Divider sx={{ my: 2.5, borderColor: 'var(--mac-border-color)' }} />
+          <Divider sx={{ my: 2, borderColor: 'var(--mac-border-color)' }} />
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               backgroundColor: '#F8FAFC',
-              padding: '16px 20px',
+              padding: '13px 16px',
               borderRadius: '12px',
               border: '1px solid var(--mac-border-color)',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <NotificationsActiveIcon sx={{ color: 'var(--sakay-orange)', fontSize: 22 }} />
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-secondary)', fontWeight: 500 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+              <NotificationsActiveIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', fontWeight: 500 }}>
                 Send automated Barangay Clearance renewal advisory to TODA representative.
               </Typography>
             </Box>
@@ -766,7 +767,7 @@ export const TodaApplicationsPage: React.FC = () => {
               label={reminderSent === selectedApp.id ? 'Advisory Sent ✓' : 'Send Advisory'}
               showArrow={false}
               onClick={() => handleSendReminder(selectedApp.id)}
-              sx={{ height: 34, fontSize: '11.5px' }}
+              sx={{ height: 34, fontSize: FONT.caption }}
             />
           </Box>
         </MacCenterModal>

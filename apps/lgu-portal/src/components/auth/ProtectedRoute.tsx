@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import LocalPoliceOutlinedIcon from '@mui/icons-material/LocalPoliceOutlined';
 import { useAuth } from '../../contexts/AuthContext';
+import { FONT } from '../../styles/density';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -25,7 +26,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)',
           color: '#FFFFFF',
-          gap: 2.5,
+          gap: 2,
           fontFamily: "'Poppins', sans-serif",
         }}
       >
@@ -33,22 +34,22 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: 1.5,
+            gap: 1.2,
             backgroundColor: 'rgba(255, 102, 0, 0.15)',
             border: '1px solid rgba(255, 102, 0, 0.3)',
-            padding: '8px 18px',
+            padding: '6px 14px',
             borderRadius: '20px',
           }}
         >
-          <LocalPoliceOutlinedIcon sx={{ color: '#FF6600', fontSize: '16' }} />
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: '#FFD580', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <LocalPoliceOutlinedIcon sx={{ color: '#FF6600', fontSize: '16px' }} />
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#FFD580', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             SAKAY LGU Portal
           </Typography>
         </Box>
 
         <CircularProgress size={36} thickness={4} sx={{ color: '#FF6600' }} />
 
-        <Typography sx={{ fontSize: '11.3px', color: '#94A3B8', fontWeight: 400 }}>
+        <Typography sx={{ fontSize: FONT.small, color: '#94A3B8', fontWeight: 400 }}>
           Verifying administrator credentials...
         </Typography>
       </Box>

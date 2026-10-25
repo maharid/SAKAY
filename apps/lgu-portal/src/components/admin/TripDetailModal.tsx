@@ -13,6 +13,7 @@ import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
 import { TripCorrectionSection } from './TripCorrectionSection';
 import { TripRouteMap } from './TripRouteMap';
+import { FONT } from '../../styles/density';
 
 interface TripDetailModalProps {
   open: boolean;
@@ -47,7 +48,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
       title={`Trip Details — ${trip.id}`}
       subtitle={`Booking ID: ${trip.bookingId} • ${trip.todaName}`}
       badge={<StatusBadge status={trip.status as any} />}
-      maxWidth={780}
+      maxWidth={624}
     >
       {/* Top Status & Telemetry Bar */}
       <Box
@@ -56,13 +57,13 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
           alignItems: 'center',
           justifyContent: 'space-between',
           backgroundColor: '#FAFAFC',
-          padding: '18px 24px',
+          padding: '14px 19px',
           borderRadius: '12px',
           border: '1px solid var(--mac-border-color)',
-          mb: 4,
+          mb: 3.2,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
           <Box
             sx={{
               width: 44,
@@ -78,10 +79,10 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
             <NavigationIcon fontSize="medium" />
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '14.4px', fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
               {trip.status}
             </Typography>
-            <Typography sx={{ fontSize: '10.8px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
               {trip.driverLat !== null && trip.driverLng !== null ? (
                 <>
                   Driver GPS ({trip.driverLat.toFixed(5)}, {trip.driverLng.toFixed(5)}) at{' '}
@@ -99,117 +100,117 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
             label={trip.tripType}
             size="small"
             sx={{
-              fontSize: '10px',
+              fontSize: FONT.caption,
               fontWeight: 700,
               backgroundColor: trip.tripType === 'Shared Trip' ? 'rgba(156, 39, 176, 0.12)' : 'rgba(52, 168, 83, 0.12)',
               color: trip.tripType === 'Shared Trip' ? '#9C27B0' : '#1E8E3E',
               height: 26,
             }}
           />
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--sakay-orange)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--sakay-orange)' }}>
             {trip.actualDistanceKm !== null ? `Recorded distance: ${km(trip.actualDistanceKm)}` : trip.estimatedDistanceKm !== null ? `Quoted distance: ${km(trip.estimatedDistanceKm)}` : 'Distance not recorded yet'}
           </Typography>
         </Box>
       </Box>
 
       {/* Section 1: Passenger Information */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+      <Box sx={{ mb: 3.2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
           <PersonIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Passenger Booking Details
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Passenger Name</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerName}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Passenger Name</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerName}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Mobile Contact</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerPhone}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Mobile Contact</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerPhone}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Declared Passengers</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerCount} Commuter(s)</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Declared Passengers</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.passengerCount} Commuter(s)</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Booking Request Time</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.bookingTime}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Booking Request Time</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.bookingTime}</Typography>
           </Box>
         </Box>
       </Box>
 
       {/* Section 2: Driver & Vehicle Credentials */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+      <Box sx={{ mb: 3.2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
           <DirectionsCarIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Assigned Driver & Tricycle Unit
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Driver Name</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.driverName}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Driver Name</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.driverName}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Driver Contact</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.driverPhone}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Driver Contact</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.driverPhone}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Affiliated TODA</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.todaName}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Affiliated TODA</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.todaName}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Vehicle Plate No.</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 700, color: 'var(--sakay-orange)' }}>{trip.vehiclePlate}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Vehicle Plate No.</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--sakay-orange)' }}>{trip.vehiclePlate}</Typography>
           </Box>
         </Box>
       </Box>
 
       {/* Section 3: Route & Fare Matrix Breakdown */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+      <Box sx={{ mb: 1.6 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
           <RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Route & Fare Matrix Computation
           </Typography>
         </Box>
 
-        <Box sx={{ backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5, mb: 2.5 }}>
+        <Box sx={{ backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 2 }}>
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Pickup Point</Typography>
-              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.pickupArea}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Pickup Point</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.pickupArea}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Destination Point</Typography>
-              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.destinationArea}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Destination Point</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{trip.destinationArea}</Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', padding: '16px 20px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', padding: '13px 16px', borderRadius: '10px', border: '1px solid var(--mac-border-color)' }}>
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '2px' }}>Estimated Cash Fare (confirmed by the passenger)</Typography>
-              <Typography sx={{ fontSize: '19.3px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '2px' }}>Estimated Cash Fare (confirmed by the passenger)</Typography>
+              <Typography sx={{ fontSize: '19px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
                 ₱{Number(trip.estimatedFare).toFixed(2)}
               </Typography>
               {trip.finalFare !== null && trip.finalFare !== undefined && (
                 <>
-                  <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '8px', mb: '2px' }}>Final Fare (computed by the system, binding)</Typography>
-                  <Typography sx={{ fontSize: '19.3px', fontWeight: 700, color: '#1E8E3E' }}>
+                  <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '6px', mb: '2px' }}>Final Fare (computed by the system, binding)</Typography>
+                  <Typography sx={{ fontSize: '19px', fontWeight: 700, color: '#1E8E3E' }}>
                     ₱{Number(trip.finalFare).toFixed(2)}
                   </Typography>
                   {trip.fareBasis === 'unmatched_solo' && (
-                    <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                       Shared booking with no matched passenger: billed as a Solo Trip.
                     </Typography>
                   )}
                   {trip.fareDeviation && (
-                    <Typography sx={{ fontSize: '9.6px', color: '#C25E00', mt: '2px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: '#C25E00', mt: '2px' }}>
                       Route deviation recorded: the fare follows the actual distance travelled.
                     </Typography>
                   )}
@@ -219,10 +220,10 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
 
             {trip.sharedTripDetails && (
               <Box sx={{ textAlign: 'right' }}>
-                <Typography sx={{ fontSize: '10px', fontWeight: 600, color: '#9C27B0' }}>
+                <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#9C27B0' }}>
                   Ride-Sharing Allocation Active
                 </Typography>
-                <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mt: '2px' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
                   {trip.sharedTripDetails.sharedSavings}
                 </Typography>
               </Box>
@@ -232,64 +233,64 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
       </Box>
 
       {/* Section 4: what happened and when (Rule 16.2: timestamps, distance and duration are recorded automatically) */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+      <Box sx={{ mb: 3.2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
           <AccessTimeIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-          <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
             Timeline, Distance & Duration
           </Typography>
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2.5, backgroundColor: '#F5F5F7', padding: '20px', borderRadius: '12px' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
           {timeline.map(([label, at]) => (
             <Box key={label}>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>{label}</Typography>
-              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{fmt(at)}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>{label}</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{fmt(at)}</Typography>
             </Box>
           ))}
           {(cancelled || trip.cancelledAt) && (
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Cancelled</Typography>
-              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#B91C1C' }}>{fmt(trip.cancelledAt)}</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Cancelled</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#B91C1C' }}>{fmt(trip.cancelledAt)}</Typography>
             </Box>
           )}
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Quoted road distance</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.estimatedDistanceKm)}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Quoted road distance</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.estimatedDistanceKm)}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Distance recorded by the driver's phone</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.actualDistanceKm)}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Distance recorded by the driver's phone</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{km(trip.actualDistanceKm)}</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Trip duration (start to completion)</Typography>
-            <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>{tripMinutes === null ? '\u2014' : `${tripMinutes} min`}</Typography>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Trip duration (start to completion)</Typography>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{tripMinutes === null ? '\u2014' : `${tripMinutes} min`}</Typography>
           </Box>
           {trip.fareDeviation && (
             <Box>
-              <Typography sx={{ fontSize: '9.6px', color: 'var(--mac-text-muted)', mb: '4px' }}>Route deviation</Typography>
-              <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#C25E00' }}>Recorded: the fare follows the distance travelled</Typography>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mb: '3px' }}>Route deviation</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#C25E00' }}>Recorded: the fare follows the distance travelled</Typography>
             </Box>
           )}
         </Box>
       </Box>
 
       {(cancelled || noDriver) && (
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <NavigationIcon fontSize="small" sx={{ color: '#B91C1C' }} />
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               {noDriver ? 'No Driver Found' : 'Cancellation'}
             </Typography>
           </Box>
-          <Box sx={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', padding: '16px 20px', borderRadius: '12px' }}>
+          <Box sx={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', padding: '13px 16px', borderRadius: '12px' }}>
             {noDriver ? (
-              <Typography sx={{ fontSize: '11.6px', color: '#7F1D1D' }}>Every eligible driver declined, did not answer, or none was available. No strike applies to anyone.</Typography>
+              <Typography sx={{ fontSize: FONT.body, color: '#7F1D1D' }}>Every eligible driver declined, did not answer, or none was available. No strike applies to anyone.</Typography>
             ) : (
               <>
-                <Typography sx={{ fontSize: '11.6px', fontWeight: 600, color: '#7F1D1D' }}>
+                <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: '#7F1D1D' }}>
                   Cancelled by {trip.cancelledBy ?? 'unknown'}{trip.cancelledAt ? ` on ${fmt(trip.cancelledAt)}` : ''}
                 </Typography>
-                <Typography sx={{ fontSize: '11.6px', color: '#7F1D1D', mt: '4px' }}>
+                <Typography sx={{ fontSize: FONT.body, color: '#7F1D1D', mt: '3px' }}>
                   Reason: {trip.cancellationReason ?? 'none was recorded'}
                 </Typography>
               </>
@@ -300,10 +301,10 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({ open, onClose,
 
       {/* Section 5: the route the driver's phone recorded */}
       {trip.driverId && (
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2 }}>
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
             <RouteIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: '10.4px', fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
               Route Recorded by the Driver's Phone
             </Typography>
           </Box>

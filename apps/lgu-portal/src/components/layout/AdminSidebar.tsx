@@ -25,6 +25,10 @@ import appIcon from '@sakay/shared/assets/icons/app-icon.webp';
 import logoTextOrange from '@sakay/shared/assets/images/webp/logo-text-orange.webp';
 import { MacTooltip } from '../common/MacTooltip';
 import { fetchTodaApplications, fetchDrivers, countPendingLguAppeals, countPendingLguSubstitutions } from '../../services/adminApiService';
+import { CONTROL, FONT, SHELL } from '../../styles/density';
+
+// the height of one menu item (the same as the TODA portal's sidebar)
+const ITEM_HEIGHT = 38;
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -131,7 +135,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
     <Box
       component="aside"
       sx={{
-        width: collapsed ? 74 : 275,
+        width: collapsed ? SHELL.sidebarRailWidth : SHELL.sidebarWidth,
         height: '100vh',
         background: 'rgba(255, 255, 255, 0.88)',
         backdropFilter: 'blur(18px)',
@@ -155,9 +159,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
           position: 'absolute',
           top: 'calc(var(--mac-header-height) / 2)',
           transform: 'translateY(-50%)',
-          right: -13,
-          width: 28,
-          height: 28,
+          right: -12,
+          width: 24,
+          height: 24,
           backgroundColor: '#FFFFFF',
           border: '1px solid var(--mac-border-color)',
           boxShadow: 'var(--mac-shadow-subtle)',
@@ -183,7 +187,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          padding: collapsed ? 0 : '0 18px 0 20px',
+          padding: collapsed ? 0 : '0 14px 0 16px',
           borderBottom: '1px solid var(--mac-border-color)',
           overflow: 'hidden',
           transition: 'padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -204,10 +208,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
             src={appIcon}
             alt="SAKAY App Icon"
             sx={{
-              width: 28,
-              height: 28,
-              minWidth: 28,
-              minHeight: 28,
+              width: 22,
+              height: 22,
+              minWidth: 22,
+              minHeight: 22,
               objectFit: 'contain',
               flexShrink: 0,
             }}
@@ -218,11 +222,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
             src={logoTextOrange}
             alt="SAKAY Logo"
             sx={{
-              height: 24,
+              height: 18,
               objectFit: 'contain',
               opacity: collapsed ? 0 : 1,
-              maxWidth: collapsed ? 0 : 180,
-              marginLeft: collapsed ? 0 : '10px',
+              maxWidth: collapsed ? 0 : 144,
+              marginLeft: collapsed ? 0 : '8px',
               overflow: 'hidden',
               transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
             }}
@@ -239,7 +243,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
           display: 'flex',
           flexDirection: 'column',
           alignItems: collapsed ? 'center' : 'stretch',
-          padding: collapsed ? '14px 0' : '16px 14px',
+          padding: collapsed ? '12px 0' : '12px 8px',
           transition: 'padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
@@ -247,7 +251,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
           <Box
             key={group.groupTitle}
             sx={{
-              mb: 2.5,
+              mb: '14px',
               display: 'flex',
               flexDirection: 'column',
               width: '100%',
@@ -257,14 +261,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
             {/* Section Header Title */}
             <Typography
               sx={{
-                fontSize: '12.5px',
+                fontSize: FONT.caption,
                 fontWeight: 700,
                 color: 'var(--mac-text-muted)',
-                letterSpacing: '0.12em',
-                padding: collapsed ? '0' : '6px 10px 8px',
+                letterSpacing: '0.08em',
+                padding: collapsed ? '0' : '4px 10px 6px',
                 textTransform: 'uppercase',
                 opacity: collapsed ? 0 : 1,
-                maxHeight: collapsed ? 0 : 30,
+                maxHeight: collapsed ? 0 : 24,
                 overflow: 'hidden',
                 whiteSpace: 'nowrap',
                 transition: 'opacity 0.18s ease, max-height 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -276,7 +280,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
             {collapsed && groupIdx > 0 && (
               <Box
                 sx={{
-                  width: '28px',
+                  width: '24px',
                   height: '1px',
                   backgroundColor: 'var(--mac-divider)',
                   margin: '6px auto',
@@ -291,7 +295,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
                 flexDirection: 'column',
                 width: '100%',
                 alignItems: collapsed ? 'center' : 'stretch',
-                gap: '5px',
+                gap: '3px',
               }}
             >
               {group.items.map((item) => {
@@ -312,10 +316,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: collapsed ? 'center' : 'space-between',
-                      width: collapsed ? 44 : '100%',
-                      height: collapsed ? 44 : 46,
-                      borderRadius: '12px',
-                      padding: collapsed ? 0 : '0 12px 0 12px',
+                      width: collapsed ? 40 : '100%',
+                      height: ITEM_HEIGHT,
+                      '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+                      '& .MuiSvgIcon-root': { fontSize: 18 },
+                      borderRadius: '10px',
+                      padding: collapsed ? 0 : '0 9px 0 9px',
                       cursor: 'pointer',
                       flexShrink: 0,
                       margin: collapsed ? '0 auto' : 0,
@@ -359,13 +365,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
                       {/* Nav Label Text */}
                       <Typography
                         sx={{
-                          fontSize: '13px',
+                          fontSize: FONT.body,
                           fontWeight: isActive ? 700 : 500,
                           letterSpacing: '-0.01em',
                           whiteSpace: 'nowrap',
                           opacity: collapsed ? 0 : 1,
-                          maxWidth: collapsed ? 0 : 190,
-                          marginLeft: collapsed ? 0 : '10px',
+                          maxWidth: collapsed ? 0 : 150,
+                          marginLeft: collapsed ? 0 : '8px',
                           overflow: 'hidden',
                           transition: 'opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1)',
                         }}
@@ -390,11 +396,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
                               : isActive
                               ? '#FFFFFF'
                               : 'var(--sakay-orange)',
-                          fontSize: item.badgeType === 'green' ? '14px' : '12px',
+                          fontSize: item.badgeType === 'green' ? FONT.cardTitle : FONT.caption,
                           fontWeight: 700,
-                          padding: item.badgeType === 'green' ? '0' : '3px 8px',
+                          padding: item.badgeType === 'green' ? '0' : '1px 6px',
                           borderRadius: '999px',
-                          minWidth: item.badgeType === 'green' ? 'auto' : '26px',
+                          minWidth: item.badgeType === 'green' ? 'auto' : '22px',
                           textAlign: 'center',
                           opacity: 1,
                           maxWidth: 40,

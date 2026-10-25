@@ -8,6 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useNavigate } from 'react-router-dom';
 
 import { StatusBadge } from '../common/StatusBadge';
+import { CONTROL, FONT } from '../../styles/density';
 
 
 interface IncidentItem {
@@ -31,14 +32,14 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
     switch (type) {
       case 'overcharging':
       case 'fare':
-        return <AttachMoneyIcon sx={{ color: '#D93025', fontSize: '14.4' }} />;
+        return <AttachMoneyIcon sx={{ color: '#D93025', fontSize: '14px' }} />;
       case 'misconduct':
       case 'behavior':
-        return <GavelIcon sx={{ color: '#F9AB00', fontSize: '14.4' }} />;
+        return <GavelIcon sx={{ color: '#F9AB00', fontSize: '14px' }} />;
       case 'route':
       case 'safety':
       default:
-        return <ReportProblemIcon sx={{ color: '#D93025', fontSize: '14.4' }} />;
+        return <ReportProblemIcon sx={{ color: '#D93025', fontSize: '14px' }} />;
     }
   };
 
@@ -70,13 +71,13 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
         flexDirection: 'column',
       }}
     >
-      <CardContent sx={{ padding: '26px 28px !important', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+      <CardContent sx={{ padding: '21px 22px !important', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.6 }}>
           <Box>
-            <Typography sx={{ fontSize: '17px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
               Recent Incident Reports
             </Typography>
-            <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
               Passenger complaints requiring LGU officer review.
             </Typography>
           </Box>
@@ -85,12 +86,13 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
             onClick={() => navigate('/incident-reports')}
             size="small"
             sx={{
-              height: 38,
-              padding: '0 18px',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              padding: '0 14px',
               borderRadius: '9px',
               backgroundColor: '#FFFFFF',
               color: 'var(--mac-text-primary)',
-              fontSize: '14px',
+              fontSize: FONT.small,
               fontWeight: 500,
               textTransform: 'none',
               border: '1px solid var(--mac-border-color)',
@@ -109,7 +111,7 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
         </Box>
 
         {reports.length > 0 ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flexGrow: 1, justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, flexGrow: 1, justifyContent: 'center' }}>
             {reports.map((report) => (
               <Box
                 key={report.id}
@@ -118,7 +120,7 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '12px 16px',
+                  padding: '10px 13px',
                   borderRadius: 'var(--mac-radius-md)',
                   border: '1px solid var(--mac-border-color)',
                   backgroundColor: '#FFFFFF',
@@ -136,7 +138,7 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
                   },
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                   <Box
                     sx={{
                       width: 36,
@@ -152,21 +154,21 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
                     {getIncidentIcon(report.iconType)}
                   </Box>
                   <Box>
-                    <Typography sx={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
+                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)', lineHeight: 1.2 }}>
                       {report.category}
                     </Typography>
-                    <Typography sx={{ fontSize: '12.5px', color: 'var(--mac-text-muted)', lineHeight: 1.2, mt: '3px' }}>
+                    <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', lineHeight: 1.2, mt: '2px' }}>
                       {report.timestamp}
                     </Typography>
                   </Box>
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                   <StatusBadge status={report.status as any} />
                   <ChevronRightIcon
                     className="incident-chevron"
                     sx={{
-                      fontSize: '18px',
+                      fontSize: '14px',
                       color: 'var(--mac-text-muted)',
                       opacity: 0.6,
                       transition: 'var(--mac-transition-fast)',
@@ -184,16 +186,16 @@ export const RecentIncidentReportsCard: React.FC<RecentIncidentReportsCardProps>
               alignItems: 'center',
               justifyContent: 'center',
               flexGrow: 1,
-              py: 5,
-              gap: 1.5,
+              py: 4,
+              gap: 1.2,
             }}
           >
-            <CheckCircleIcon sx={{ fontSize: 32, color: '#34A853', opacity: 0.8 }} />
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <CheckCircleIcon sx={{ fontSize: 26, color: '#34A853', opacity: 0.8 }} />
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               No Active Incident Reports
             </Typography>
 
-            <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 300 }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 300 }}>
               There are currently no passenger complaints or incident reports recorded.
             </Typography>
           </Box>

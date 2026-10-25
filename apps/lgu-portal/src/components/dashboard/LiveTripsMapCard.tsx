@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button } from '@mui/material';
 import L from 'leaflet';
+import { CONTROL, FONT } from '../../styles/density';
 
 interface LiveTripsMapCardProps {
   ongoingTripsCount?: number;
@@ -48,7 +49,7 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
         borderRadius: 'var(--mac-radius-lg)',
         border: '1px solid var(--mac-border-color)',
         boxShadow: 'var(--mac-shadow-card)',
-        padding: '26px 28px',
+        padding: '21px 22px',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -57,12 +58,12 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
       }}
     >
       {/* Header & Subtitle Block with exactly 8px gap (1 in MUI = 8px) */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 2.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 0.8, mb: 2 }}>
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: '17px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: FONT.cardTitle, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
             Live Trips & Fleet Map
           </Typography>
-          <Typography sx={{ fontSize: '13.5px', color: 'var(--mac-text-muted)', mt: '3px' }}>
+          <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
             Real-time transportation operations in Calapan City.
           </Typography>
         </Box>
@@ -71,12 +72,13 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
           onClick={() => navigate('/live-trips')}
           size="small"
           sx={{
-            height: 38,
-            padding: '0 18px',
+            height: CONTROL.height,
+            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+            padding: '0 14px',
             borderRadius: '9px',
             backgroundColor: '#FFFFFF',
             color: 'var(--mac-text-primary)',
-            fontSize: '14px',
+            fontSize: FONT.small,
             fontWeight: 500,
             textTransform: 'none',
             border: '1px solid var(--mac-border-color)',
@@ -120,11 +122,11 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
             left: 12,
             backgroundColor: '#FFFFFF',
             borderRadius: '16px',
-            padding: '5px 14px',
+            padding: '4px 11px',
             boxShadow: 'var(--mac-shadow-popover)',
             display: 'flex',
             alignItems: 'center',
-            gap: 1,
+            gap: 0.8,
             zIndex: 400,
             border: '1px solid var(--mac-border-color)',
           }}
@@ -137,7 +139,7 @@ export const LiveTripsMapCard: React.FC<LiveTripsMapCardProps> = ({ ongoingTrips
               backgroundColor: ongoingTripsCount > 0 ? '#34A853' : '#9CA3AF',
             }}
           />
-          <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+          <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
             {ongoingTripsCount > 0 ? `Active Trips (${ongoingTripsCount})` : 'No Active Trips'}
           </Typography>
         </Box>

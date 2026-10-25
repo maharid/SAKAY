@@ -32,6 +32,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { parseDriverRoster, DriverRosterRow } from '../../utils/rosterParser';
 import { refreshStorageUrl, signedStorageUrlFromAny } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
+import { FONT } from '../../styles/density';
 
 interface DocumentReviewModalProps {
   open: boolean;
@@ -204,7 +205,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
       {/* Header */}
       <DialogTitle
         sx={{
-          p: '16px 20px',
+          p: '13px 16px',
           borderBottom: '1px solid var(--mac-border-color)',
           display: 'flex',
           alignItems: 'center',
@@ -212,42 +213,42 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
           backgroundColor: '#FAFAFC',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
           {isSpreadsheet ? (
-            <TableChartOutlinedIcon sx={{ color: '#16A34A', fontSize: 24 }} />
+            <TableChartOutlinedIcon sx={{ color: '#16A34A', fontSize: 19 }} />
           ) : isPdf ? (
-            <PictureAsPdfOutlinedIcon sx={{ color: '#DC2626', fontSize: 24 }} />
+            <PictureAsPdfOutlinedIcon sx={{ color: '#DC2626', fontSize: 19 }} />
           ) : isImage ? (
-            <ImageOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 24 }} />
+            <ImageOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 19 }} />
           ) : (
-            <InsertDriveFileOutlinedIcon sx={{ color: '#64748B', fontSize: 24 }} />
+            <InsertDriveFileOutlinedIcon sx={{ color: '#64748B', fontSize: 19 }} />
           )}
 
           <Box>
-            <Typography sx={{ fontSize: '15px', fontWeight: 700, color: 'var(--mac-text-primary)' }}>
+            <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
               {fileName || documentTitle}
             </Typography>
             {fileName && fileName !== documentTitle && (
-              <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontWeight: 500 }}>
                 {documentTitle}
               </Typography>
             )}
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
           {effectiveUrl && (
             <Button
               size="small"
               variant="text"
-              startIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+              startIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
               onClick={() => window.open(effectiveUrl, '_blank', 'noopener,noreferrer')}
               sx={{
                 textTransform: 'none',
                 color: 'var(--sakay-orange)',
-                fontSize: '12.5px',
+                fontSize: FONT.small,
                 fontWeight: 600,
-                px: 1,
+                px: 0.8,
               }}
             >
               Open in New Window
@@ -261,28 +262,28 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
       </DialogTitle>
 
       {/* Content */}
-      <DialogContent sx={{ p: 2.5, flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC' }}>
+      <DialogContent sx={{ p: 2, flex: 1, overflowY: 'auto', backgroundColor: '#F8FAFC' }}>
         {/* SPREADSHEET TABLE PREVIEW */}
         {isSpreadsheet && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5, mb: 0.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.6, pt: 0.8 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.2, mb: 0.4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                 <Box
                   sx={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 0.75,
-                    px: 1.5,
-                    py: 0.5,
+                    px: 1.2,
+                    py: 0.4,
                     borderRadius: '8px',
                     backgroundColor: 'var(--sakay-orange-soft)',
                     border: '1px solid var(--sakay-orange-border)',
                   }}
                 >
-                  <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
                     Number of Drivers:
                   </Typography>
-                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--sakay-orange)' }}>
+                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: 'var(--sakay-orange)' }}>
                     {tableData.length}
                   </Typography>
                 </Box>
@@ -297,11 +298,11 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchIcon sx={{ color: '#94A3B8', fontSize: 18 }} />
+                        <SearchIcon sx={{ color: '#94A3B8', fontSize: 14 }} />
                       </InputAdornment>
                     ),
                     sx: {
-                      fontSize: '12.5px',
+                      fontSize: FONT.body,
                       backgroundColor: '#FFFFFF',
                       borderRadius: '8px',
                       width: { xs: '100%', sm: 260 },
@@ -312,9 +313,9 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
             </Box>
 
             {loading ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6.4, gap: 1.2 }}>
                 <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', fontWeight: 500 }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', fontWeight: 500 }}>
                   Parsing spreadsheet data...
                 </Typography>
               </Box>
@@ -323,8 +324,8 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                 {error}
               </Alert>
             ) : tableData.length === 0 ? (
-              <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
-                <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+              <Paper variant="outlined" sx={{ p: 3.2, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
+                <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                   No data rows could be extracted from this spreadsheet.
                 </Typography>
               </Paper>
@@ -347,7 +348,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                         sx={{
                           width: '70px',
                           fontWeight: 700,
-                          fontSize: '12.5px',
+                          fontSize: FONT.small,
                           backgroundColor: '#F1F5F9',
                           color: 'var(--mac-text-primary)',
                           borderBottom: '2px solid #E2E8F0',
@@ -358,7 +359,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                       <TableCell
                         sx={{
                           fontWeight: 700,
-                          fontSize: '12.5px',
+                          fontSize: FONT.small,
                           backgroundColor: '#F1F5F9',
                           color: 'var(--mac-text-primary)',
                           borderBottom: '2px solid #E2E8F0',
@@ -369,7 +370,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                       <TableCell
                         sx={{
                           fontWeight: 700,
-                          fontSize: '12.5px',
+                          fontSize: FONT.small,
                           backgroundColor: '#F1F5F9',
                           color: 'var(--mac-text-primary)',
                           borderBottom: '2px solid #E2E8F0',
@@ -389,18 +390,18 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                           '&:last-child td': { borderBottom: 0 },
                         }}
                       >
-                        <TableCell sx={{ fontSize: '12.5px', color: '#64748B', fontWeight: 600 }}>
+                        <TableCell sx={{ fontSize: FONT.body, color: '#64748B', fontWeight: 600 }}>
                           {row.no}
                         </TableCell>
-                        <TableCell sx={{ fontSize: '12.5px', color: 'var(--mac-text-primary)', fontWeight: 600 }}>
+                        <TableCell sx={{ fontSize: FONT.body, color: 'var(--mac-text-primary)', fontWeight: 600 }}>
                           {row.name}
                         </TableCell>
-                        <TableCell sx={{ fontSize: '12.5px', color: '#334155', fontWeight: 500 }}>
+                        <TableCell sx={{ fontSize: FONT.body, color: '#334155', fontWeight: 500 }}>
                           <Chip
                             label={row.franchiseNumber}
                             size="small"
                             sx={{
-                              fontSize: '11.5px',
+                              fontSize: FONT.caption,
                               fontWeight: 600,
                               height: 22,
                               backgroundColor: 'var(--sakay-orange-soft)',
@@ -427,7 +428,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#FFFFFF',
-                p: 2,
+                p: 1.6,
                 borderRadius: '12px',
                 border: '1px solid var(--mac-border-color)',
                 minHeight: 350,
@@ -447,8 +448,8 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
               />
             </Box>
           ) : (
-            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+            <Paper variant="outlined" sx={{ p: 3.2, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 No preview available for this image.
               </Typography>
             </Paper>
@@ -478,8 +479,8 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
               />
             </Box>
           ) : (
-            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
-              <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)' }}>
+            <Paper variant="outlined" sx={{ p: 3.2, textAlign: 'center', borderRadius: '10px', backgroundColor: '#FFFFFF' }}>
+              <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
                 No PDF file URL found to display.
               </Typography>
             </Paper>
@@ -490,7 +491,7 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
       {/* Actions */}
       <DialogActions
         sx={{
-          p: '12px 20px',
+          p: '10px 16px',
           borderTop: '1px solid var(--mac-border-color)',
           backgroundColor: '#FAFAFC',
           display: 'flex',
@@ -507,11 +508,11 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               size="small"
-              startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+              startIcon={<DownloadIcon sx={{ fontSize: 13 }} />}
               sx={{
                 textTransform: 'none',
                 color: 'var(--mac-text-secondary)',
-                fontSize: '12.5px',
+                fontSize: FONT.small,
                 fontWeight: 600,
               }}
             >
@@ -527,9 +528,9 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({
             textTransform: 'none',
             backgroundColor: 'var(--sakay-orange)',
             fontWeight: 600,
-            fontSize: '13px',
+            fontSize: FONT.body,
             borderRadius: '8px',
-            px: 2.5,
+            px: 2,
             '&:hover': {
               backgroundColor: '#E05A00',
             },

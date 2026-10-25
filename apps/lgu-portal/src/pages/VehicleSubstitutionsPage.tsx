@@ -4,6 +4,7 @@ import { VehicleSubstitutionsPanel, asSubstitutionClient, decideVehicleSubstitut
 import type { VehicleSubstitution } from '@sakay/shared';
 
 import { supabase } from '../services/supabaseClient';
+import { FONT } from '../styles/density';
 
 /**
  * ============================================================================
@@ -34,14 +35,14 @@ export const VehicleSubstitutionsPage: React.FC = () => {
   }, []);
 
   return (
-    <Box sx={{ maxWidth: 1100, margin: '0 auto', pb: 6 }}>
+    <Box sx={{ maxWidth: 1100, margin: '0 auto', pb: 4.8 }}>
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4.8 }}>
           <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
         </Box>
       ) : (
         <>
-          {failed && <Alert severity="error" sx={{ mb: 2, borderRadius: '10px' }}>The requests could not be loaded. Please try again.</Alert>}
+          {failed && <Alert severity="error" sx={{ mb: 1.6, borderRadius: '10px' }}>The requests could not be loaded. Please try again.</Alert>}
           <VehicleSubstitutionsPanel
             role="lgu_admin"
             requests={requests}
@@ -58,7 +59,7 @@ export const VehicleSubstitutionsPage: React.FC = () => {
             }}
           />
           {!failed && requests.length === 0 && (
-            <Typography sx={{ fontSize: '13px', color: 'var(--mac-text-muted)', textAlign: 'center' }}>
+            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center' }}>
               No driver has asked to use another vehicle. A request appears here after the driver's TODA Administrator approves it.
             </Typography>
           )}
