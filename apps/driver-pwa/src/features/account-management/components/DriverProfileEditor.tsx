@@ -24,7 +24,7 @@ import SuccessModal from '../../../common/components/SuccessModal';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl } from '@sakay/shared';
+import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl, messageForLanguage } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { fetchDriverProfile, formatPhoneToE164 } from '../../../services/driverApiService';
 
@@ -307,7 +307,7 @@ export const DriverProfileEditor: React.FC = () => {
 
         {error && (
           <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px' }}>
-            {error}
+            {messageForLanguage(error, language)}
           </Alert>
         )}
 

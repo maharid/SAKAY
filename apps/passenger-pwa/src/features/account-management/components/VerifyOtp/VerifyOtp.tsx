@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { NavigateOptions } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -21,6 +22,7 @@ import {
   getPhoneLookupCandidates,
 } from '../../../../services/passengerApiService';
 import { supabase } from '../../../../services/supabaseClient';
+import { OtpVerifiedCelebration } from '@sakay/shared';
 
 const formatDisplayPhone = (raw: string = ''): string => {
   const digits = raw.replace(/\D/g, '');
@@ -70,6 +72,10 @@ export const VerifyOtp: React.FC = () => {
   const [resendCooldown, setResendCooldown] = useState(60);
   const [lockRemaining, setLockRemaining] = useState(0);
   const [resendKey, setResendKey] = useState(0);
+  // Set once, from the server's own "verified" answer: where the screen goes after the celebration. verifiedRef keeps a second tap or a second
+  // automatic submit from verifying (and celebrating) twice.
+  const [verifiedNext, setVerifiedNext] = useState<{ to: string; options: NavigateOptions } | null>(null);
+  const verifiedRef = useRef(false);
   const isLockedOut = lockRemaining > 0;
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -202,7 +208,7 @@ export const VerifyOtp: React.FC = () => {
   // Core verification function
   const executeVerification = useCallback(
     async (enteredCode: string) => {
-      if (enteredCode.length < 6 || loading || isLockedOut) return;
+      if (enteredCode.length < 6 || loading || isLockedOut || verifiedRef.current) return;
 
       setLoading(true);
       setToastError(null);
@@ -251,15 +257,20 @@ export const VerifyOtp: React.FC = () => {
         const isPhoneChange = Boolean(state?.isPhoneChange);
         const returnTo = state?.returnTo || '/profile';
 
+        // The code is verified: celebrate for a moment, then go on to the same next step as before (OtpVerifiedCelebration moves the screen on by itself)
+        verifiedRef.current = true;
         if (isPhoneChange) {
-          navigate(returnTo, { state: { phoneUpdated: true }, replace: true });
+          setVerifiedNext({ to: returnTo, options: { state: { phoneUpdated: true }, replace: true } });
         } else {
           // Signed in and verified: on to the consent screens and then the dashboard. No second login.
-          navigate('/terms-of-service', {
-            state: {
-              phone: e164Phone,
-              passengerName: resolvedName,
-              fromRegistration: true,
+          setVerifiedNext({
+            to: '/terms-of-service',
+            options: {
+              state: {
+                phone: e164Phone,
+                passengerName: resolvedName,
+                fromRegistration: true,
+              },
             },
           });
         }
@@ -406,6 +417,8 @@ export const VerifyOtp: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {verifiedNext && <OtpVerifiedCelebration language={language === 'tl' ? 'tl' : 'en'} onDone={() => navigate(verifiedNext.to, verifiedNext.options)} />}
+
       {/* Toast Feedback for Errors (Incorrect OTP) and Resend Info */}
       <SakayToast
         open={Boolean(toastError)}

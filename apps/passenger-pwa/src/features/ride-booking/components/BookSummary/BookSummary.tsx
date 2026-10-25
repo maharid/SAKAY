@@ -5,7 +5,6 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
 import InfoIcon from "@mui/icons-material/Info";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
@@ -29,6 +28,8 @@ import {
   parseFareError,
   describeFareError,
   type FareQuote,
+  messageForLanguage,
+  RouteTimeline,
 } from "@sakay/shared";
 
 interface LocationState {
@@ -248,7 +249,7 @@ const BookSummary: React.FC = () => {
       {errorMessage && (
         <Box sx={{ paddingX: "20px" }}>
           <Alert severity="error" sx={{ borderRadius: "12px", marginBottom: "16px" }}>
-            {errorMessage}
+            {messageForLanguage(errorMessage, language)}
           </Alert>
         </Box>
       )}
@@ -286,33 +287,12 @@ const BookSummary: React.FC = () => {
               gap: "16px",
             }}
           >
-            {/* Pickup Address */}
-            <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <LocationOnIcon sx={{ color: "#34A853", marginTop: "2px" }} />
-              <Box>
-                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B" }}>
-                  {language === "tl" ? "Mula sa (pickup)" : "Pickup point"}
-                </Typography>
-                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
-                  {pickup?.address}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box sx={{ borderLeft: "2px dashed #CBD5E1", height: "16px", marginLeft: "11px", marginTop: "-12px", marginBottom: "-12px" }} />
-
-            {/* Dropoff Address */}
-            <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <LocationOnIcon sx={{ color: "#EF4444", marginTop: "2px" }} />
-              <Box>
-                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B" }}>
-                  {language === "tl" ? "Pupunta sa (destinasyon)" : "Destination"}
-                </Typography>
-                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
-                  {dropoff?.address}
-                </Typography>
-              </Box>
-            </Box>
+            <RouteTimeline
+              pickup={pickup?.address}
+              destination={dropoff?.address}
+              pickupLabel={language === "tl" ? "Mula sa (pickup)" : "Pickup point"}
+              destinationLabel={language === "tl" ? "Pupunta sa (destinasyon)" : "Destination"}
+            />
           </Paper>
 
           {/* Trip Parameters Info */}

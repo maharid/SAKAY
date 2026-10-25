@@ -28,7 +28,6 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import MapView from '../../../common/components/MapView';
 import SakayToast from '../../../common/components/SakayToast';
 import { DriverForegroundReminder, DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
-import PauseBookingsControl from './PauseBookingsControl';
 import { useDriverOpenBooking } from '../../../hooks/useDriverOpenBooking';
 import { supabase } from '../../../services/supabaseClient';
 import { checkDriverDocumentaryRestriction, fetchAccreditedTodas, submitDriverRenewal, selectActiveDriverAffiliation } from '../../../services/driverApiService';
@@ -48,6 +47,7 @@ import {
   useSafeAreaInsets,
   useStaleSignal,
   formatAverageRating,
+  messageForLanguage,
 } from '@sakay/shared';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
@@ -56,7 +56,7 @@ export const DriverAvailabilityHome: React.FC = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile, liveFix, presence, goOnline, goOffline, pauseBookings, resumeBookings, refreshPresence, enableLocation, locationReauthRequired, locationIssue, sessionMissing } = useDriverSession();
+  const { profile, setProfile, liveFix, presence, goOnline, goOffline, refreshPresence, enableLocation, locationReauthRequired, locationIssue, sessionMissing } = useDriverSession();
   // Rule 29.2: a reopened or reloaded app lands here with no memory of the trip it was on: the DATABASE says whether the driver has an open booking,
   // and the first look of a page load takes him back to it (the card below does the same on demand)
   const { openBooking, resume: resumeOpenBooking } = useDriverOpenBooking(true, true);
@@ -505,8 +505,9 @@ export const DriverAvailabilityHome: React.FC = () => {
   const showDocBanner = !!restrictionInfo?.is_restricted && !accountRestriction?.restricted
     && !(onlyAffiliationIssue && selectableAffiliations.length > 0);
 
-  const displayName = profile.name || 'Drayber';
-  const firstName = displayName.split(' ')[0] || 'Drayber';
+  const nameFallback = language === 'tl' ? 'Drayber' : 'Driver';
+  const displayName = profile.name || nameFallback;
+  const firstName = displayName.split(' ')[0] || nameFallback;
   const initialLetter = firstName.charAt(0) || 'D';
   // Rule 23.1: 0 / missing = Not Yet Rated (the database holds NULL until the first rating); there is no default score
   const ratingNum = typeof profile.rating === 'number' ? profile.rating : 0;
@@ -774,26 +775,6 @@ export const DriverAvailabilityHome: React.FC = () => {
         />
       )}
 
-
-      {/* Pause / resume new bookings (Online only; a booking already accepted is not affected) */}
-      {profile.isOnline && !presence.openBooking && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 'calc(var(--safe-area-top) + 140px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10,
-          }}
-        >
-          <PauseBookingsControl
-            language={language === 'tl' ? 'tl' : 'en'}
-            pausedUntil={presence.pausedUntil}
-            onPause={pauseBookings}
-            onResume={resumeBookings}
-          />
-        </Box>
-      )}
 
       <IconButton
         onClick={handleRecenter}
@@ -1089,7 +1070,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           </Typography>
           {locationError && (
             <Alert severity="warning" sx={{ mt: '12px', fontSize: '12px', borderRadius: '12px', textAlign: 'left' }}>
-              {locationError}
+              {messageForLanguage(locationError, language)}
             </Alert>
           )}
         </Box>
@@ -1178,7 +1159,7 @@ export const DriverAvailabilityHome: React.FC = () => {
           </Typography>
           {renewalMsg && (
             <Alert severity={renewalMsg.includes('Matagumpay') || renewalMsg.includes('successfully') ? 'success' : 'error'} sx={{ mb: 2 }}>
-              {renewalMsg}
+              {messageForLanguage(renewalMsg, language)}
             </Alert>
           )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>

@@ -115,8 +115,8 @@ const ArrivalWaitPanel: React.FC<ArrivalWaitPanelProps> = ({ bookingId, language
       {wait.pausedSeconds > 0 && (
         <Typography sx={{ fontSize: '12px', color: '#78350F', fontWeight: 600 }}>
           {language === 'tl'
-            ? `Na-pause ang oras nang ${wait.pausedSeconds} segundo habang wala ka sa pickup point (Rule 10.2).`
-            : `The timer was paused for ${wait.pausedSeconds} s while you were away from the pickup point (Rule 10.2).`}
+            ? `Na-pause ang oras nang ${wait.pausedSeconds} segundo habang wala ka sa pickup point.`
+            : `The timer was paused for ${wait.pausedSeconds} s while you were away from the pickup point.`}
         </Typography>
       )}
       {over && !wait.canReportNoShow && (

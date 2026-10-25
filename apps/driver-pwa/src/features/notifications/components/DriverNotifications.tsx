@@ -6,7 +6,6 @@ import {
   Button,
   Divider,
   CircularProgress,
-  Alert,
 } from '@mui/material';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
@@ -174,11 +173,7 @@ export const DriverNotifications: React.FC = () => {
     }
   };
 
-  const [showingTranslation, setShowingTranslation] = useState(false);
-  const [translationNotice, setTranslationNotice] = useState<string | null>(null);
-
   if (selectedNotif) {
-    const isAdvisory = selectedNotif.category === 'advisories';
     const time = getRelativeTime(selectedNotif.createdAt, selectedNotif.timeTl, selectedNotif.timeEn, language);
 
     const detailedBodyTl = selectedNotif.id === 'dn2'
@@ -189,48 +184,9 @@ export const DriverNotifications: React.FC = () => {
       ? `Drive safely and keep your driver license and MTOP permit updated.\n\nFrom TODA Administration:\n1. Always wear proper attire and safety equipment.\n2. Ensure your tricycle is clean, safe, and comfortable for passengers.\n3. Follow Calapan City traffic regulations and adhere strictly to authorized fare matrix.`
       : selectedNotif.bodyEn;
 
-    // Preserve original text authored by administrator
-    const originalTitle = selectedNotif.titleTl || selectedNotif.titleEn;
-    const originalBody = detailedBodyTl || detailedBodyEn;
-
-    const translatedTitle = isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn;
-    const translatedBody = isTagalog ? detailedBodyTl : detailedBodyEn;
-
-    const hasDistinctTranslation = Boolean(
-      (selectedNotif.titleEn && selectedNotif.titleTl && selectedNotif.titleEn !== selectedNotif.titleTl) ||
-      (selectedNotif.bodyEn && selectedNotif.bodyTl && selectedNotif.bodyEn !== selectedNotif.bodyTl) ||
-      (selectedNotif.id === 'dn2')
-    );
-
-    const displayTitle = showingTranslation ? translatedTitle : originalTitle;
-    const displayBody = showingTranslation ? translatedBody : originalBody;
-
-    const handleToggleTranslation = () => {
-      setTranslationNotice(null);
-      if (showingTranslation) {
-        setShowingTranslation(false);
-        return;
-      }
-
-      // Check if translation API is configured
-      const apiUrl = (import.meta as any).env?.VITE_TRANSLATION_API_URL;
-      const apiKey = (import.meta as any).env?.VITE_TRANSLATION_API_KEY;
-
-      if (apiUrl || apiKey) {
-        // External service configured
-        setShowingTranslation(true);
-      } else if (hasDistinctTranslation) {
-        // Pre-configured bilingual notice available
-        setShowingTranslation(true);
-      } else {
-        // Service not configured: Report missing dependency clearly without faking translation
-        setTranslationNotice(
-          isTagalog
-            ? 'Hindi pa nakakonekta ang panlabas na serbisyo ng pagsasalin (Translation service is not configured).'
-            : 'External translation service is not configured.'
-        );
-      }
-    };
+    // The notice always shows in the language that is selected; there is no separate translate step.
+    const displayTitle = isTagalog ? selectedNotif.titleTl : selectedNotif.titleEn;
+    const displayBody = isTagalog ? detailedBodyTl : detailedBodyEn;
 
     return (
       <Box
@@ -244,11 +200,7 @@ export const DriverNotifications: React.FC = () => {
       >
         <PageHeader
           title={isTagalog ? 'Detalye ng Abiso' : 'Notice Details'}
-          onBack={() => {
-            setSelectedNotif(null);
-            setShowingTranslation(false);
-            setTranslationNotice(null);
-          }}
+          onBack={() => setSelectedNotif(null)}
         />
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
@@ -278,49 +230,7 @@ export const DriverNotifications: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-
-            {isAdvisory && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleToggleTranslation}
-                sx={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  borderRadius: '10px',
-                  borderColor: '#E2E8F0',
-                  color: '#FF6600',
-                  py: 0.5,
-                  px: 1.25,
-                  minHeight: 34,
-                  '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#FF6600' },
-                }}
-              >
-                {showingTranslation
-                  ? isTagalog
-                    ? 'Ipakita ang orihinal'
-                    : 'Show original'
-                  : isTagalog
-                  ? 'Isalin sa Tagalog'
-                  : 'Translate to English'}
-              </Button>
-            )}
           </Box>
-
-          {translationNotice && (
-            <Alert severity="info" sx={{ mb: 2, borderRadius: '12px', fontSize: '13px' }}>
-              {translationNotice}
-            </Alert>
-          )}
-
-          {showingTranslation && (
-            <Box sx={{ mb: 1.5, display: 'inline-block', px: 1, py: 0.25, borderRadius: '6px', backgroundColor: '#F1F5F9' }}>
-              <Typography sx={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
-                {isTagalog ? 'Pagsasalin sa Tagalog' : 'English Translation'}
-              </Typography>
-            </Box>
-          )}
 
           <Typography
             sx={{

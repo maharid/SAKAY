@@ -15,9 +15,11 @@ import {
   incidentCategoriesFor,
   incidentCategoryClass,
   INCIDENT_EVIDENCE_MAX_BYTES,
-  INCIDENT_EVIDENCE_MAX_FILES, INCIDENT_LOST_ITEM_FILE_DAYS,
+  INCIDENT_EVIDENCE_MAX_FILES,
+  INCIDENT_LOST_ITEM_FILE_DAYS,
   isEmergencyIncident,
   useInFlight,
+  messageForLanguage,
 } from '@sakay/shared';
 
 /** What a driver can report about a trip: the categories that fit a driver, from the one shared list (Rule 19.1; the emergency and serious ones come first) */
@@ -169,8 +171,8 @@ export const DriverIncidentReporting: React.FC = () => {
         {categoryClass === 'SERIOUS' && (
           <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
             {tl
-              ? 'Diretso ito sa LGU Administrator para sa agarang pagsusuri (Rule 19.8). Kung nasa agarang panganib ka, tumawag sa 911 gamit ang telepono mo.'
-              : 'This goes straight to the LGU Administrator for an immediate review (Rule 19.8). If you are in immediate danger, call 911 with your phone.'}
+              ? 'Diretso ito sa LGU Administrator para sa agarang pagsusuri. Kung nasa agarang panganib ka, tumawag sa 911 gamit ang telepono mo.'
+              : 'This goes straight to the LGU Administrator for an immediate review. If you are in immediate danger, call 911 with your phone.'}
           </Alert>
         )}
         {categoryClass === 'EMERGENCY' && (
@@ -271,7 +273,7 @@ export const DriverIncidentReporting: React.FC = () => {
 
         {error && (
           <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: FONT }}>
-            {error}
+            {messageForLanguage(error, language)}
           </Alert>
         )}
         {submitted && (

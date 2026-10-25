@@ -49,7 +49,7 @@ export const INCIDENT_CATEGORIES: readonly IncidentCategory[] = [
   // Rule 27.2 (Batch 12): somebody other than the registered driver at the handlebars - the passenger sees it, the driver cannot report it
   { value: 'Unregistered Person Driving', class: 'SERIOUS', tl: 'Ibang tao ang nagmamaneho (hindi ang rehistradong driver) (diretso sa LGU)', en: 'Someone other than the registered driver is driving (goes straight to the LGU)', by: PASSENGER },
   // after the trip
-  { value: 'Overcharging Attempt', class: 'STANDARD', tl: 'Sobra ang singil, o humingi ng paunang bayad o deposito (Rule 6.4)', en: 'Overcharging, or asked for payment in advance, a deposit or an off-app payment (Rule 6.4)', by: PASSENGER },
+  { value: 'Overcharging Attempt', class: 'STANDARD', tl: 'Sobra ang singil, o humingi ng paunang bayad o deposito', en: 'Overcharging, or asked for payment in advance, a deposit or an off-app payment', by: PASSENGER },
   { value: 'Rude Behavior', class: 'STANDARD', tl: 'Bastos o Hindi Magalang na Pag-uugali', en: 'Rude Behavior', by: BOTH },
   { value: 'Unsafe Driving', class: 'STANDARD', tl: 'Mapanganib na Pagmamaneho', en: 'Unsafe Driving', by: PASSENGER },
   { value: 'Reckless Driving', class: 'STANDARD', tl: 'Kaskaserong Pagpapatakbo', en: 'Reckless Driving', by: PASSENGER },

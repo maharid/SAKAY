@@ -12,13 +12,19 @@ import {
   RadioGroup,
   FormControlLabel,
   Alert,
+  LinearProgress,
 } from '@mui/material';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
+import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
+import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../utils/LanguageContext';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
-import { DISPATCH_DECLINE_REASONS, TYPOGRAPHY_TOKENS, formatDistance, type DispatchDeclineReason, formatPeso } from '@sakay/shared';
+import { DISPATCH_DECLINE_REASONS, DRIVER_OFFER_TIMEOUT_SECONDS, TYPOGRAPHY_TOKENS, formatDistance, type DispatchDeclineReason, formatPeso, messageForLanguage, RouteTimeline } from '@sakay/shared';
 
 // Rule 7.9: the reasons a driver may give for declining. The database accepts exactly these (the drift test checks the list).
 const DECLINE_LABELS: Record<DispatchDeclineReason, { tl: string; en: string }> = {
@@ -51,6 +57,19 @@ const acceptErrorText = (code: string | undefined, fallback: string, language: '
       return fallback;
   }
 };
+
+/** The seconds left turn urgent (red) for the last stretch, so the time pressure is noticed without a second alert. */
+const URGENT_SECONDS = 10;
+
+const Stat: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
+  <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.25, p: '10px 12px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', '& svg': { fontSize: 16 } }}>
+      {icon}
+      <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, fontWeight: 600, color: 'inherit', lineHeight: 1.2 }}>{label}</Typography>
+    </Box>
+    <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, overflowWrap: 'anywhere' }}>{value}</Typography>
+  </Box>
+);
 
 export const DriverIncomingRequestModal: React.FC = () => {
   const { language } = useLanguage();
@@ -124,6 +143,9 @@ export const DriverIncomingRequestModal: React.FC = () => {
   if (!incomingRequest) return null;
 
   const etaMinutes = offerInfo?.etaSeconds != null ? Math.max(1, Math.ceil(offerInfo.etaSeconds / 60)) : null;
+  const urgent = countdown <= URGENT_SECONDS;
+  // The bar is the share of the offer's time that is left (the offer is DRIVER_OFFER_TIMEOUT_SECONDS long; the database's own seconds drive the number)
+  const countdownShare = Math.max(0, Math.min(100, (countdown / DRIVER_OFFER_TIMEOUT_SECONDS) * 100));
 
   return (
     <>
@@ -135,112 +157,165 @@ export const DriverIncomingRequestModal: React.FC = () => {
           paper: {
             sx: {
               borderRadius: '24px',
-              padding: '8px',
+              m: 2,
+              width: 'calc(100% - 32px)',
+              maxHeight: 'calc(100% - 32px)',
               backgroundColor: '#FFFFFF',
               boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+              overflow: 'hidden',
             },
           },
         }}
       >
-        <DialogTitle sx={{ textAlign: 'center', pb: 1, pt: 2 }}>
-          <Chip
-            label={language === 'tl' ? `Bagong Booking Request (${countdown}s)` : `New Booking Request (${countdown}s)`}
-            color="warning"
-            sx={{ fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, height: 'auto', py: 0.5, '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'center' } }}
-          />
-          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.pageTitle, fontWeight: 700, color: '#0F172A', mt: 1 }}>
-            {incomingRequest.is_shared_trip
-              ? (language === 'tl' ? 'Shared Commuter Ride' : 'Shared Commuter Ride')
-              : (language === 'tl' ? 'Solo Trip' : 'Solo Trip')}
-          </Typography>
-          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, color: '#64748B' }}>
-            {language === 'tl' ? 'Pasahero:' : 'Passenger:'} <strong>{incomingRequest.passenger_name}</strong> • {incomingRequest.passenger_count} {language === 'tl' ? 'pasahero' : 'passenger(s)'}
-          </Typography>
-          {offerInfo?.distanceM != null && (
-            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#FF6600', fontWeight: 700, mt: 0.5 }}>
-              {language === 'tl'
-                ? `Pickup: ${formatDistance(offerInfo.distanceM / 1000)} mula sa iyo${etaMinutes ? ` (~${etaMinutes} min)` : ''}`
-                : `Pickup is ${formatDistance(offerInfo.distanceM / 1000)} from you${etaMinutes ? ` (~${etaMinutes} min)` : ''}`}
+        {/* Header: what this is, and the time that is left */}
+        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.5, backgroundColor: '#FFF7ED', borderBottom: '1px solid #FFEDD5' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 800, color: '#9A3412', letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.25 }}>
+              {language === 'tl' ? 'Bagong Booking Request' : 'New Booking Request'}
             </Typography>
-          )}
-        </DialogTitle>
+            <Box
+              role="timer"
+              aria-label={language === 'tl' ? `May ${countdown} segundo pa` : `${countdown} seconds left`}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                flexShrink: 0,
+                px: 1.25,
+                py: 0.5,
+                borderRadius: '999px',
+                backgroundColor: urgent ? '#B91C1C' : '#C75000',
+                color: '#FFFFFF',
+                transition: 'background-color 0.3s ease',
+              }}
+            >
+              <TimerOutlinedIcon aria-hidden sx={{ fontSize: 16 }} />
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 800, color: 'inherit', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{countdown}s</Typography>
+            </Box>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={countdownShare}
+            aria-hidden
+            sx={{
+              mt: 1.25,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: '#FED7AA',
+              '& .MuiLinearProgress-bar': { borderRadius: 3, backgroundColor: urgent ? '#B91C1C' : '#C75000', transition: 'transform 1s linear' },
+            }}
+          />
+        </Box>
 
-        <DialogContent sx={{ py: 1 }}>
+        <DialogContent sx={{ px: 2.5, pt: 2, pb: 1 }}>
           {notice && (
             <Alert severity="warning" sx={{ mb: 1.5, borderRadius: '12px' }} onClose={() => setNotice('')}>
-              {notice}
+              {messageForLanguage(notice, language)}
             </Alert>
           )}
-          <Box sx={{ p: '14px 16px', backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
-              <LocationOnIcon sx={{ color: '#10B981', fontSize: 20 }} />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>
-                  {language === 'tl' ? 'Lokasyon ng pickup' : 'Pickup location'}
-                </Typography>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{incomingRequest.pickup_address}</Typography>
-              </Box>
-            </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-              <LocationOnIcon sx={{ color: '#EF4444', fontSize: 20 }} />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>
-                  {language === 'tl' ? 'Destinasyon' : 'Destination'}
-                </Typography>
-                <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{incomingRequest.dropoff_address}</Typography>
-              </Box>
+          {/* Passenger and the kind of trip */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Box
+              aria-hidden
+              sx={{ width: 44, height: 44, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 800, fontSize: TYPOGRAPHY_TOKENS.fontSize.section }}
+            >
+              {(incomingRequest.passenger_name || '?').trim().charAt(0).toUpperCase()}
             </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.section, fontWeight: 700, color: '#0F172A', lineHeight: 1.25, overflowWrap: 'anywhere' }}>{incomingRequest.passenger_name}</Typography>
+              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B', lineHeight: 1.3 }}>
+                {incomingRequest.passenger_count} {language === 'tl' ? 'pasahero' : incomingRequest.passenger_count === 1 ? 'passenger' : 'passengers'}
+              </Typography>
+            </Box>
+            <Chip
+              size="small"
+              label={incomingRequest.is_shared_trip ? 'Shared Commuter Ride' : 'Solo Trip'}
+              sx={{ flexShrink: 0, maxWidth: '45%', fontWeight: 700, backgroundColor: incomingRequest.is_shared_trip ? '#DBEAFE' : '#F1F5F9', color: incomingRequest.is_shared_trip ? '#1E3A8A' : '#334155', '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'center', py: 0.25 }, height: 'auto' }}
+            />
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 1 }}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
-                {language === 'tl' ? 'Tinatayang Distansya' : 'Estimated Distance'}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.section, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>{incomingRequest.estimated_distance_km}{'\u00A0'}km</Typography>
-            </Box>
-            <Box sx={{ textAlign: 'right' }}>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, color: '#64748B' }}>
-                {language === 'tl' ? 'Pamasahe' : 'Fare'}
-              </Typography>
-              <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 700, color: '#FF6600', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{formatPeso(incomingRequest.estimated_fare)}</Typography>
-            </Box>
+          {/* The fare is what the driver weighs first */}
+          <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 2 }}>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.caption, fontWeight: 700, color: '#64748B' }}>{language === 'tl' ? 'Pamasahe' : 'Fare'}</Typography>
+            <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.display, fontWeight: 800, color: '#C75000', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+              {formatPeso(incomingRequest.estimated_fare)}
+            </Typography>
           </Box>
 
-          {/* Rule 7.3: respond only when it is safe to do so */}
-          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', textAlign: 'center', mt: 1.5 }}>
+          {/* Where from, where to */}
+          <Box sx={{ p: '14px 16px', backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', mb: 1.5 }}>
+            <RouteTimeline
+              pickup={incomingRequest.pickup_address}
+              destination={incomingRequest.dropoff_address}
+              pickupLabel={language === 'tl' ? 'Lokasyon ng pickup' : 'Pickup location'}
+              destinationLabel={language === 'tl' ? 'Destinasyon' : 'Destination'}
+            />
+          </Box>
+
+          {/* Distances: the trip itself and how far the pickup is from the driver (shown only when the offer carries it) */}
+          <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+            <Stat
+              icon={<RouteOutlinedIcon aria-hidden />}
+              label={language === 'tl' ? 'Distansya ng biyahe' : 'Trip distance'}
+              value={`${incomingRequest.estimated_distance_km}\u00A0km`}
+            />
+            {offerInfo?.distanceM != null && (
+              <Stat
+                icon={<NearMeOutlinedIcon aria-hidden />}
+                label={language === 'tl' ? 'Pickup mula sa iyo' : 'Pickup from you'}
+                value={`${formatDistance(offerInfo.distanceM / 1000)}${etaMinutes ? ` (~${etaMinutes} min)` : ''}`}
+              />
+            )}
+          </Box>
+
+          {/* Respond only when it is safe to do so */}
+          <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', textAlign: 'center', lineHeight: 1.4 }}>
             {language === 'tl'
               ? 'Tumugon lamang kapag ligtas. Huwag gamitin ang app habang nagmamaneho.'
               : 'Respond only when it is safe to do so. Do not use the app while driving.'}
           </Typography>
         </DialogContent>
 
-        <DialogActions sx={{ p: '12px 18px 18px', gap: 1.5 }}>
+        <DialogActions sx={{ px: 2.5, pt: 1.5, pb: 2.5, gap: 1.5, alignItems: 'stretch' }}>
           <Button
             variant="outlined"
-            fullWidth
-            color="inherit"
             disabled={accepting}
             onClick={() => setDeclineOpen(true)}
-            sx={{ height: 44, borderRadius: '14px', fontWeight: 700, fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile, color: '#64748B', textTransform: 'none' }}
+            startIcon={<CloseRoundedIcon />}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 52,
+              borderRadius: '14px',
+              borderWidth: 2,
+              borderColor: '#CBD5E1',
+              fontWeight: 700,
+              fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
+              color: '#B91C1C',
+              textTransform: 'none',
+              '&:hover': { borderWidth: 2, borderColor: '#B91C1C', backgroundColor: '#FEF2F2' },
+            }}
           >
             {language === 'tl' ? 'Tanggihan' : 'Decline'}
           </Button>
 
           <Button
             variant="contained"
-            fullWidth
             disabled={accepting}
             onClick={handleAcceptRequest}
+            startIcon={<CheckRoundedIcon />}
             sx={{
-              height: 44,
+              flex: 1.4,
+              minWidth: 0,
+              minHeight: 52,
               borderRadius: '14px',
               backgroundColor: '#1E8E3E',
               color: '#FFFFFF',
               fontWeight: 700,
               fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
               textTransform: 'none',
+              boxShadow: '0 6px 16px rgba(30, 142, 62, 0.35)',
               '&:hover': { backgroundColor: '#137333' },
             }}
           >

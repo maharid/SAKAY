@@ -18,7 +18,6 @@ export interface DriverProfile {
   todaName?: string;
   verificationStage?: string;
   isOnline: boolean;
-  isPaused: boolean;
   currentLat: number;
   currentLng: number;
 }
@@ -76,7 +75,6 @@ export const INITIAL_DRIVER_PROFILE: DriverProfile = {
   selectedTodaId: 'toda-1', // Default CCTODA
   selectedVehicleId: 'VEH-001', // Default 773-MV
   isOnline: false,
-  isPaused: false,
   currentLat: 13.4124, // Calapan City Center
   currentLng: 121.1834,
 };

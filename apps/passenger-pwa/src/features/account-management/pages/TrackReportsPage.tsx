@@ -15,7 +15,7 @@ import PageHeader from "../../../common/components/PageHeader";
 import Alert from "@mui/material/Alert";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { fetchMyIncidentReports, type IncidentReportItem } from "../../../services/incidentService";
-import { activateWithKeyboard } from "@sakay/shared";
+import { activateWithKeyboard, messageForLanguage } from "@sakay/shared";
 
 const TrackReportsPage: React.FC = () => {
   const { language } = useLanguage();
@@ -167,7 +167,7 @@ const TrackReportsPage: React.FC = () => {
         ) : loadError ? (
           <Box sx={{ p: 2.5 }}>
             <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
-              {loadError}
+              {messageForLanguage(loadError, language)}
             </Alert>
           </Box>
         ) : filteredReports.length === 0 ? (

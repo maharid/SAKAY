@@ -5,6 +5,7 @@ import { DRIVER_OFFER_TIMEOUT_SECONDS, getCachedDevicePosition, type DispatchDec
 import type { DriverProfile } from '../mockData/driverMockData';
 import { useDriverPresenceEngine } from '../hooks/useDriverPresenceEngine';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { useLanguage } from '../utils/LanguageContext';
 import { closeOfferAlert, installOfferAlertUnlock, playOfferAlert, startOfferTitleFlash, unlockOfferAlert } from '../utils/offerAlert';
 import type { PresenceOutcome, PresenceView } from '../hooks/useDriverPresenceEngine';
 import type { PresenceEndReason } from '../services/driverPresenceService';
@@ -72,9 +73,6 @@ interface DriverSessionContextType {
   presence: PresenceView;
   goOnline: () => Promise<PresenceOutcome>;
   goOffline: () => Promise<PresenceOutcome>;
-  /** Stop receiving new booking offers for a while (Online only); the pause ends by itself. */
-  pauseBookings: (minutes?: number) => Promise<PresenceOutcome>;
-  resumeBookings: () => Promise<PresenceOutcome>;
   refreshPresence: () => Promise<void>;
   /** Tell the engine the driver granted location in the app's own prompt. */
   enableLocation: () => void;
@@ -128,7 +126,6 @@ function readStoredProfile(): DriverProfile {
         todaName: parsed.todaName || '',
         // Never trusted from storage: the server says whether the driver is Online (see presence below).
         isOnline: false,
-        isPaused: false,
         currentLat: savedLat ?? fallbackLat,
         currentLng: savedLng ?? fallbackLng,
       };
@@ -139,7 +136,7 @@ function readStoredProfile(): DriverProfile {
   return {
     id: '', name: '', phone: '', email: '', licenseNo: '', licenseExpiry: '', avatarUrl: '',
     rating: 5.0, totalTrips: 0, accountStatus: 'Verified', selectedTodaId: '', selectedTodaIds: [], selectedVehicleId: '',
-    vehiclePlate: '', franchiseNumber: '', todaName: '', isOnline: false, isPaused: false,
+    vehiclePlate: '', franchiseNumber: '', todaName: '', isOnline: false,
     currentLat: fallbackLat, currentLng: fallbackLng,
   };
 }
@@ -161,6 +158,10 @@ export const DriverSessionProvider: React.FC<{
   const [countdown, setCountdown] = useState<number>(DRIVER_OFFER_TIMEOUT_SECONDS);
   const [offerInfo, setOfferInfo] = useState<OfferInfo | null>(null);
 
+  const { language } = useLanguage();
+  const languageRef = useRef(language);
+  languageRef.current = language;
+
   const engine = useDriverPresenceEngine(driverId, onSessionSuperseded);
   const { presence, fix } = engine;
   const isOnline = presence.status === 'online';
@@ -180,9 +181,7 @@ export const DriverSessionProvider: React.FC<{
   }, [profile, driverId]);
 
   // "Online" shown anywhere in the app is the server's answer, whatever a screen writes with setProfile.
-  // Paused is the server's answer too (the pause ends by itself, so a time already past counts as not paused).
-  const isPaused = isOnline && !!presence.pausedUntil && Date.parse(presence.pausedUntil) > Date.now();
-  const exposedProfile = useMemo<DriverProfile>(() => ({ ...profile, isOnline, isPaused }), [profile, isOnline, isPaused]);
+  const exposedProfile = useMemo<DriverProfile>(() => ({ ...profile, isOnline }), [profile, isOnline]);
 
   // The engine's single watcher feeds the map position (local state only; the heartbeat is the only publisher).
   useEffect(() => {
@@ -261,18 +260,36 @@ export const DriverSessionProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingRequest, countdown]);
 
-  // Audible alert on a new offer (Rule 7.3), repeated while it is open, with vibration where the phone has it, and the page title flashing.
+  // The attempt id outlives the request when a screen clears only the request (accepting does): an id without a request on screen is stale, and it must
+  // neither keep the alert going nor block the next offer.
   useEffect(() => {
-    if (!currentAttemptId) return;
-    playIncomingAlert();
+    if (incomingRequest || !currentAttemptId) return;
+    setCurrentAttemptId(null);
+    setOfferInfo(null);
+  }, [incomingRequest, currentAttemptId]);
+
+  // Audible alert on a new offer (Rule 7.3), repeated only while that offer is on the driver's screen, with vibration where the phone has it, and the page
+  // title flashing. It starts once per offer (lastAlertedAttemptRef: a re-run of the effect never rings again for the same offer) and stops as soon as the
+  // offer leaves the screen: accepted, declined, ran out or taken back.
+  const alertAttemptId = incomingRequest ? currentAttemptId : null;
+  const lastAlertedAttemptRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!alertAttemptId) {
+      lastAlertedAttemptRef.current = null;
+      return;
+    }
+    if (lastAlertedAttemptRef.current !== alertAttemptId) {
+      lastAlertedAttemptRef.current = alertAttemptId;
+      playIncomingAlert();
+    }
     const repeat = setInterval(playIncomingAlert, OFFER_ALERT_REPEAT_MS);
-    const stopTitleFlash = startOfferTitleFlash('Bagong booking! (New booking!)');
+    const stopTitleFlash = startOfferTitleFlash(languageRef.current === 'tl' ? 'Bagong booking!' : 'New booking!');
     return () => {
       clearInterval(repeat);
       stopTitleFlash();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentAttemptId]);
+  }, [alertAttemptId]);
 
   const offerDriverId = UUID_PATTERN.test(profile.id) ? profile.id : (driverId && UUID_PATTERN.test(driverId) ? driverId : null);
 
@@ -371,8 +388,6 @@ export const DriverSessionProvider: React.FC<{
         presence,
         goOnline,
         goOffline: engine.goOffline,
-        pauseBookings: engine.pauseBookings,
-        resumeBookings: engine.resumeBookings,
         refreshPresence: engine.refresh,
         enableLocation: engine.enableLocation,
         locationReauthRequired: engine.locationReauthRequired,

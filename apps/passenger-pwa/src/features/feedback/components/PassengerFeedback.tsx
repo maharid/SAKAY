@@ -19,6 +19,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
+import { messageForLanguage } from '@sakay/shared';
 
 interface FeedbackItem {
   id: string;
@@ -277,7 +278,7 @@ export const PassengerFeedback: React.FC = () => {
       >
         {submitError && (
           <Alert severity="warning" onClose={() => setSubmitError(null)} sx={{ borderRadius: '14px' }}>
-            {submitError}
+            {messageForLanguage(submitError, language)}
           </Alert>
         )}
 

@@ -169,9 +169,10 @@ export const TripDetailPage: React.FC = () => {
         >
           {/* Status Badge */}
           <Chip
-            label={status === "Completed" ? (language === "tl" ? "Nakumpleto" : "Completed") : status}
+            label={status === "Completed" ? (language === "tl" ? "Nakumpleto" : "Completed") : status === "Cancelled" ? (language === "tl" ? "Kinansela" : "Cancelled") : status}
             sx={{
-              backgroundColor: "#10B981",
+              // green only for a completed trip; a cancelled one is red, anything else neutral (white text keeps 4.5:1 on all three)
+              backgroundColor: status === "Completed" ? "#15803D" : status === "Cancelled" ? "#B91C1C" : "#475569",
               color: "#FFFFFF",
               fontWeight: 700,
               fontSize: "12px",

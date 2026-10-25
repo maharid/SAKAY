@@ -11,7 +11,7 @@ import Alert from "@mui/material/Alert";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import { supabase } from "../../../../services/supabaseClient";
-import { CalamityBanner, SIGNED_URL_TTL, signedStorageUrl, useActiveCalamity, useSafeAreaInsets } from "@sakay/shared";
+import { CalamityBanner, SIGNED_URL_TTL, signedStorageUrl, useActiveCalamity, useSafeAreaInsets, localizeSystemNotification } from "@sakay/shared";
 import MapView from "../../../../common/components/MapView";
 import HomeHeader from "./HomeHeader";
 import HomeBottomSheet from "./HomeBottomSheet";
@@ -356,16 +356,22 @@ const Dashboard: React.FC = () => {
       try {
         readIds = JSON.parse(localStorage.getItem("sakay_read_notifications") || "[]");
       } catch {}
-      const items: NotificationItem[] = data.map((n: { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }) => ({
-        id: "db:" + n.notification_id,
-        titleTl: n.title,
-        titleEn: n.title,
-        bodyTl: n.message,
-        bodyEn: n.message,
-        createdAt: n.sent_at,
-        isRead: readIds.includes("db:" + n.notification_id),
-        category: /TRIP|DRIVER|EARLY|FARE|PAYMENT|ARRIV|WAIT/.test(n.notification_type || "") ? "trips" : "advisories",
-      }));
+      // The database writes some notices with both languages in one text ("Tagalog (English)"): each language gets its own text, so the passenger
+      // reads the selected one only (the same helper the Driver app uses).
+      const items: NotificationItem[] = data.map((n: { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }) => {
+        const tl = localizeSystemNotification(n.title, n.message, "tl", n.notification_type);
+        const en = localizeSystemNotification(n.title, n.message, "en", n.notification_type);
+        return {
+          id: "db:" + n.notification_id,
+          titleTl: tl.title,
+          titleEn: en.title,
+          bodyTl: tl.message,
+          bodyEn: en.message,
+          createdAt: n.sent_at,
+          isRead: readIds.includes("db:" + n.notification_id),
+          category: /TRIP|DRIVER|EARLY|FARE|PAYMENT|ARRIV|WAIT/.test(n.notification_type || "") ? "trips" : "advisories",
+        };
+      });
       setNotifications((prev) => [...prev.filter((p) => !p.id.startsWith("db:")), ...items]);
     };
     void load();

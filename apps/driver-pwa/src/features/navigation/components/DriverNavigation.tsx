@@ -7,18 +7,13 @@ import {
   Button,
   IconButton,
   Avatar,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import NavigationIcon from '@mui/icons-material/Navigation';
 import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
+import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import { DriverCommunicationModal } from '../../communication/components/DriverCommunicationModal';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -26,11 +21,14 @@ import { useDriverSession } from '../../../contexts/DriverSessionContext';
 import SakayToast from '../../../common/components/SakayToast';
 import SharedLegSwitcher from '../../../common/components/SharedLegSwitcher';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
+import BookingCancelledDialog from '../../../common/components/BookingCancelledDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from '../../trip-management/components/EnRouteNotices';
 import { DriverLocationNotice } from '../../../common/components/DriverPresenceNotices';
 import { arrivalZoneHint } from '../../../utils/arrivalHint';
 import {
+  TripDetailsPanel,
+  buildTripDetails,
   calculateDistanceKm,
   formatDistance,
   useInFlight,
@@ -66,7 +64,6 @@ export const DriverNavigation: React.FC = () => {
   );
   // The map: its camera controls, what covers it (so the camera frames what is really visible), and whether the position is still refreshing
   const mapRef = useRef<MapViewHandle>(null);
-  const [cameraMode, setCameraMode] = useState<CameraMode>('auto');
   const driverFixStale = useStaleSignal(liveFix, 30_000);
   const safeArea = useSafeAreaInsets();
   const [bannerRef, banner] = useMeasuredSize<HTMLDivElement>();
@@ -81,7 +78,6 @@ export const DriverNavigation: React.FC = () => {
     [safeArea.top, banner.height, bottomCard.height]
   );
   const [commModalOpen, setCommModalOpen] = useState(false);
-  const [exitGuardOpen, setExitGuardOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Rules 8 / 9: the system's warning to a driver who has not started, and the notice that it gave the booking to another driver
   const clocks = useAssignedBookingClocks(bookingId, true);
@@ -169,11 +165,6 @@ export const DriverNavigation: React.FC = () => {
 
   const handleArrivedAtPickup = () => arriveFlight.run(recordArrivalAtPickup);
 
-  const handleExitToHome = () => {
-    setExitGuardOpen(false);
-    navigate('/driver/home');
-  };
-
   const passengerName = booking?.passenger_name || 'Passenger';
   const passengerPhone = booking?.passenger_phone || '';
   const pickupAddress = booking?.pickup_address || 'JP Rizal St. Central Terminal, Calapan City';
@@ -182,6 +173,19 @@ export const DriverNavigation: React.FC = () => {
   const pickupLng = Number(booking?.pickup_longitude) || 121.1825;
   const pickupDistanceKm = calculateDistanceKm(driverLocation.lat, driverLocation.lng, pickupLat, pickupLng);
   const etaMinutes = Math.max(1, Math.round((pickupDistanceKm / 20) * 60));
+  const tl = language === 'tl';
+  const passengerCount = booking?.passenger_count || 1;
+  // The same facts the passenger's trip panel shows for this trip (pickup, destination, ride type, estimate, who), collapsed until asked for
+  const tripDetails = buildTripDetails({
+    role: 'driver',
+    status: booking?.booking_status,
+    pickupAddress: booking?.pickup_address,
+    dropoffAddress: booking?.dropoff_address,
+    isSharedTrip: booking?.is_shared_trip,
+    passengerCount: booking?.passenger_count,
+    estimatedFare: booking?.estimated_fare,
+    counterpartName: booking?.passenger_name,
+  });
 
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#E3ECEF', display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -191,6 +195,14 @@ export const DriverNavigation: React.FC = () => {
       <SharedLegSwitcher bookingId={bookingId} top={`calc(var(--safe-area-top) + ${banner.height + 24}px)`} />
 
       <BookingGivenAwayDialog open={clocks.bookingGone} language={language} onClose={() => navigate('/driver/home', { replace: true })} />
+      {/* The passenger (or the system) cancelled while the driver was on the way: say who, and the reason when there is one */}
+      <BookingCancelledDialog
+        open={Boolean(clocks.cancellation)}
+        language={language === 'tl' ? 'tl' : 'en'}
+        cancelledBy={clocks.cancellation?.by ?? ''}
+        reason={clocks.cancellation?.reason ?? ''}
+        onClose={() => navigate('/driver/home', { replace: true })}
+      />
 
       {/* 1. Leaflet OpenStreetMap Surface with the driver (tricycle, pointing the way it travels) and the passenger at the pickup */}
       <MapView
@@ -204,15 +216,23 @@ export const DriverNavigation: React.FC = () => {
         insets={mapInsets}
         stageKey="to-pickup"
         closeUpWhileMoving
-        onCameraModeChange={setCameraMode}
       />
 
-      {/* Map controls: where I am, and the whole route to the pickup. Each really moves the camera; dragging the map lets go of either. */}
+      {/* Map controls: the whole route to the pickup (top) and where I am (bottom). Each is an action, not a switch: it moves the camera once and never
+          stays "on"; the bottom one also takes the map back to following the driver, and dragging the map lets go of either. */}
       <MapControlStack bottom={bottomCard.height + 16} label={language === 'tl' ? 'Mga kontrol ng mapa' : 'Map controls'}>
+        <MapControlButton
+          icon="route"
+          label={language === 'tl' ? 'Ipakita ang buong ruta' : 'Show the whole route'}
+          onClick={() => {
+            if (!mapRef.current?.fitRoute()) {
+              setToastMessage(language === 'tl' ? 'Wala pang ruta na maipapakita.' : 'There is no route to show yet.');
+            }
+          }}
+        />
         <MapControlButton
           icon="my-location"
           label={language === 'tl' ? 'I-center sa aking lokasyon' : 'Center on my location'}
-          pressed={cameraMode === 'driver'}
           unavailableReason={!liveFix ? (language === 'tl' ? 'Hinihintay pa ang GPS. Ipinapakita ang huling alam na lokasyon.' : 'Waiting for GPS. Showing your last known location.') : undefined}
           onClick={() => {
             if (!mapRef.current?.centerOnDriver()) {
@@ -220,70 +240,55 @@ export const DriverNavigation: React.FC = () => {
             }
           }}
         />
-        <MapControlButton
-          icon="route"
-          label={language === 'tl' ? 'Ipakita ang buong ruta' : 'Show the whole route'}
-          pressed={cameraMode === 'route'}
-          onClick={() => {
-            if (!mapRef.current?.fitRoute()) {
-              setToastMessage(language === 'tl' ? 'Wala pang ruta na maipapakita.' : 'There is no route to show yet.');
-            }
-          }}
-        />
       </MapControlStack>
 
-      {/* 2. Top Floating Banner: where the driver is heading. (The road route is drawn on the map; there are no spoken or turn-by-turn directions.) */}
+      {/* 2. Top banner: where the driver is heading and how far it is. One compact row (the road route is drawn on the map; there are no spoken or
+          turn-by-turn directions). The way out of the screen is the phone's own back, as everywhere else in the app. */}
       <Paper
         ref={bannerRef}
         elevation={6}
         sx={{
           position: 'absolute',
           top: 'calc(var(--safe-area-top) + 12px)',
-          left: 16,
-          right: 16,
+          left: 12,
+          right: 12,
           backgroundColor: 'rgba(15, 23, 42, 0.96)',
           backdropFilter: 'blur(8px)',
           color: '#FFFFFF',
-          borderRadius: '20px',
-          padding: '14px 16px',
-          boxShadow: '0 12px 32px rgba(15, 23, 42, 0.25)',
+          borderRadius: '18px',
+          px: 1.5,
+          py: 1.25,
+          boxShadow: '0 10px 28px rgba(15, 23, 42, 0.25)',
           zIndex: 30,
           display: 'flex',
           alignItems: 'center',
-          gap: 1.5,
+          gap: 1.25,
           border: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
-        <IconButton
-          aria-label={language === "tl" ? "Umalis sa navigation" : "Leave navigation"}
-          onClick={() => setExitGuardOpen(true)}
-          sx={{
-            backgroundColor: 'rgba(255, 255, 255, 0.12)',
-            color: '#FFFFFF',
-            width: 36,
-            height: 36,
-            borderRadius: '10px',
-            flexShrink: 0,
-            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 18 }} />
-        </IconButton>
-
-        <Box sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(255, 102, 0, 0.4)' }}>
-          <NavigationIcon sx={{ fontSize: 22, color: '#FFFFFF', transform: 'rotate(0deg)' }} />
+        <Box aria-hidden sx={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(255, 102, 0, 0.4)' }}>
+          <NavigationIcon sx={{ fontSize: 20, color: '#FFFFFF' }} />
         </Box>
-        <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700, }}>
-            {language === 'tl' ? 'Papunta sa pickup' : 'En route to pickup'}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography component="h1" sx={{ fontSize: '12px', color: '#FDBA74', fontWeight: 700, lineHeight: 1.3 }}>
+            {tl ? 'Papunta sa pickup' : 'En route to pickup'}
           </Typography>
-          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2 }}>
-            {language === 'tl' ? 'Pumunta sa pickup location ng pasahero' : 'Drive towards passenger pickup location'}
+          <Typography
+            title={pickupAddress}
+            sx={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}
+          >
+            {pickupAddress}
           </Typography>
+        </Box>
+        <Box sx={{ pl: 1.25, borderLeft: '1px solid rgba(255, 255, 255, 0.18)', textAlign: 'right', flexShrink: 0 }}>
+          <Typography sx={{ fontSize: '16px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+            {etaMinutes} {tl ? 'min' : 'min'}
+          </Typography>
+          <Typography sx={{ fontSize: '12px', color: '#CBD5E1', lineHeight: 1.3, whiteSpace: 'nowrap' }}>{formatDistance(pickupDistanceKm)}</Typography>
         </Box>
       </Paper>
 
-      {/* 3. Bottom Route Summary Card */}
+      {/* 3. Bottom card: the passenger, the trip details (collapsed until asked for, so the map keeps its room), and the one action for this stage */}
       <Paper
         ref={bottomCardRef}
         elevation={8}
@@ -295,57 +300,45 @@ export const DriverNavigation: React.FC = () => {
           backgroundColor: '#FFFFFF',
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
-          padding: '18px 20px calc(var(--safe-area-bottom) + 20px) 20px',
+          padding: '16px 20px calc(var(--safe-area-bottom) + 16px) 20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 1.5,
+          gap: 1.25,
           zIndex: 20,
           borderTop: '1px solid #E2E8F0',
           boxShadow: '0 -8px 30px rgba(0, 0, 0, 0.08)',
+          // a tall notice never pushes the card over the banner: the card scrolls instead
+          maxHeight: 'calc(100% - var(--safe-area-top) - 120px)',
+          overflowY: 'auto',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            <Avatar sx={{ width: 44, height: 44, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '16px' }}>
               {passengerName.charAt(0)}
             </Avatar>
-            <Box>
-              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>
                 {passengerName}
               </Typography>
-              <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
-                Pickup: {pickupAddress.split(',')[0]}
+              <Typography sx={{ fontSize: '12px', color: '#475569', lineHeight: 1.3 }}>
+                {booking?.is_shared_trip ? 'Shared' : 'Solo'} · {passengerCount} {tl ? 'pasahero' : passengerCount === 1 ? 'passenger' : 'passengers'}
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <IconButton aria-label={language === "tl" ? "Tawagan ang pasahero" : "Call passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#ECFDF5', color: '#10B981', '&:hover': { backgroundColor: '#D1FAE5' } }}>
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            <IconButton aria-label={tl ? 'Tawagan ang pasahero' : 'Call passenger'} onClick={() => setCommModalOpen(true)} sx={{ width: 44, height: 44, backgroundColor: '#E6F4EA', color: '#166534', '&:hover': { backgroundColor: '#D1EBD7' } }}>
               <PhoneIcon fontSize="small" />
             </IconButton>
-            <IconButton aria-label={language === "tl" ? "Magpadala ng mensahe sa pasahero" : "Message passenger"} onClick={() => setCommModalOpen(true)} sx={{ backgroundColor: '#FFF8F0', color: '#FF6600', '&:hover': { backgroundColor: '#FFE8D6' } }}>
+            <IconButton aria-label={tl ? 'Magpadala ng mensahe sa pasahero' : 'Message passenger'} onClick={() => setCommModalOpen(true)} sx={{ width: 44, height: 44, backgroundColor: '#FFF1E6', color: '#FF6600', '&:hover': { backgroundColor: '#FFE6D2' } }}>
               <MessageIcon fontSize="small" />
             </IconButton>
           </Box>
         </Box>
 
-        {/* ETA & Distance */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: '10px 14px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-          <Box>
-            <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>
-              {language === 'tl' ? 'Tinatayang dating (eta)' : 'Estimated arrival (eta)'}
-            </Typography>
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-              {etaMinutes} {language === 'tl' ? 'min' : 'mins'} • {formatDistance(pickupDistanceKm)}
-            </Typography>
-          </Box>
-          <Box sx={{ textAlign: 'right' }}>
-            <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>
-              {language === 'tl' ? 'Pamasahe' : 'Fare'}
-            </Typography>
-            <Typography sx={{ fontSize: '17px', fontWeight: 700, color: '#FF6600' }}>₱{fare.toFixed(2)}</Typography>
-          </Box>
-        </Box>
+        {/* Pickup, destination, ride type and the estimated fare: the same panel the active-trip screen has */}
+        <TripDetailsPanel view={tripDetails} language={language} />
 
         {/* Rule 17.4: the server is not getting this phone's position (no connection, or a position that is not good enough) */}
         <DriverLocationNotice issue={locationIssue} />
@@ -360,7 +353,7 @@ export const DriverNavigation: React.FC = () => {
           disabled={arriveFlight.busy}
           startIcon={<CheckCircleIcon />}
           sx={{
-            height: 50,
+            minHeight: 52,
             borderRadius: '14px',
             '&.Mui-disabled': { backgroundColor: '#FF6600', color: '#FFFFFF', opacity: 0.75 },
             backgroundColor: '#FF6600',
@@ -372,12 +365,12 @@ export const DriverNavigation: React.FC = () => {
           }}
         >
           {arriveFlight.busy
-            ? (language === 'tl' ? 'Itinatala...' : 'Recording...')
-            : (language === 'tl' ? 'Nakarating na sa Pickup' : 'Arrived at Pickup')}
+            ? (tl ? 'Itinatala...' : 'Recording...')
+            : (tl ? 'Nakarating na sa Pickup' : 'Arrived at Pickup')}
         </Button>
         {/* Rule 10.1: the database accepts Arrived only from the pickup, on a clear GPS fix (the radius is the one in the policy config) */}
         <Typography sx={{ fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: 500 }}>
-          {arrivalZoneHint(language === 'tl')}
+          {arrivalZoneHint(tl)}
         </Typography>
       </Paper>
 
@@ -388,68 +381,6 @@ export const DriverNavigation: React.FC = () => {
         passengerName={passengerName}
         passengerPhone={passengerPhone}
       />
-
-      {/* Exit Guard Confirmation Dialog */}
-      <Dialog
-        open={exitGuardOpen}
-        onClose={() => setExitGuardOpen(false)}
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: '20px',
-              padding: '8px',
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-            },
-          },
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', color: '#0F172A', textAlign: 'center' }}>
-          {language === 'tl' ? 'Aktibong Navigasyon' : 'Active Navigation En Route'}
-        </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center', py: 1 }}>
-          <Typography sx={{ fontSize: '14px', color: '#475569', lineHeight: 1.5 }}>
-            {language === 'tl'
-              ? `Kasalukuyan kang papunta sa pickup point ni `
-              : `You are currently en route to the pickup point of `}
-            <strong>{passengerName}</strong>
-            {language === 'tl'
-              ? `. Nais mo bang kanselahin ang navigasyon at bumalik sa Home?`
-              : `. Do you wish to cancel this navigation and return to Home?`}
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => setExitGuardOpen(false)}
-            sx={{
-              height: 46,
-              borderRadius: '12px',
-              backgroundColor: '#FF6600',
-              fontWeight: 700,
-              textTransform: 'none',
-              '&:hover': { backgroundColor: '#E65C00' },
-            }}
-          >
-            {language === 'tl' ? 'Manatili sa Navigasyon' : 'Stay in Navigation'}
-          </Button>
-          <Button
-            fullWidth
-            variant="outlined"
-            color="error"
-            onClick={handleExitToHome}
-            sx={{
-              height: 44,
-              borderRadius: '12px',
-              fontWeight: 700,
-              textTransform: 'none',
-            }}
-          >
-            {language === 'tl' ? 'Kanselahin at Bumalik sa Home' : 'Cancel and Return to Home'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

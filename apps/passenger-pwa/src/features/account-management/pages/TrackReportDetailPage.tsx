@@ -16,6 +16,7 @@ import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { RegisterInput } from "../../../common/components/RegisterInput";
 import { fetchMyIncidentReport, withdrawIncidentReport, incidentEvidenceFiles, type IncidentReportItem } from "../../../services/incidentService";
+import { messageForLanguage } from '@sakay/shared';
 
 export const TrackReportDetailPage: React.FC = () => {
   const { language } = useLanguage();
@@ -337,7 +338,7 @@ export const TrackReportDetailPage: React.FC = () => {
 
           {cancelError && (
             <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
-              {cancelError}
+              {messageForLanguage(cancelError, language)}
             </Alert>
           )}
 

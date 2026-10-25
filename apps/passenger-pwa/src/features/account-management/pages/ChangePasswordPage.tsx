@@ -18,7 +18,7 @@ import PageHeader from '../../../common/components/PageHeader';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
-import { extendTapArea } from '@sakay/shared';
+import { extendTapArea, messageForLanguage } from '@sakay/shared';
 
 const ChangePasswordPage: React.FC = () => {
   const { language } = useLanguage();
@@ -171,13 +171,13 @@ const ChangePasswordPage: React.FC = () => {
 
           {errorMsg && (
             <Alert severity="error" sx={{ borderRadius: '12px' }}>
-              {errorMsg}
+              {messageForLanguage(errorMsg, language)}
             </Alert>
           )}
 
           {successMsg && (
             <Alert severity="success" sx={{ borderRadius: '12px' }}>
-              {successMsg}
+              {messageForLanguage(successMsg, language)}
             </Alert>
           )}
 

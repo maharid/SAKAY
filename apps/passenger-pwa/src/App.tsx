@@ -26,6 +26,7 @@ import ReportDriverPage from "./features/trip-history/pages/ReportDriverPage";
 import TrackReportsPage from "./features/account-management/pages/TrackReportsPage";
 import TrackReportDetailPage from "./features/account-management/pages/TrackReportDetailPage";
 import SettingsPage from "./features/account-management/pages/SettingsPage";
+import AboutPage from "./features/account-management/pages/AboutPage";
 import Dashboard from "./features/ride-booking/components/Dashboard/Dashboard";
 import LocationPermission from "./features/ride-booking/components/LocationPermission/LocationPermission";
 import NewTrip from "./features/ride-booking/components/NewTrip/NewTrip";
@@ -66,6 +67,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<ProfileEditor />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/about" element={<AboutPage />} />
               <Route path="/saved-places" element={<SavedPlacesPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/app-feedback" element={<AppFeedbackPage />} />

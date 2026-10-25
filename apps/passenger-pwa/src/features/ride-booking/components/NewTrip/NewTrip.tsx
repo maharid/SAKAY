@@ -39,6 +39,7 @@ import {
   FARE_SEAT_CAPACITY,
   SharedMatchPanel,
   useSharedMatch,
+  messageForLanguage,
 } from "@sakay/shared";
 
 import MapView from "../../../../common/components/MapView";
@@ -977,7 +978,7 @@ const NewTrip: React.FC = () => {
               {/* Validation Error Alert */}
               {validationError && (
                 <Alert severity="warning" sx={{ borderRadius: "12px", py: 0.5 }}>
-                  {validationError}
+                  {messageForLanguage(validationError, language)}
                 </Alert>
               )}
 

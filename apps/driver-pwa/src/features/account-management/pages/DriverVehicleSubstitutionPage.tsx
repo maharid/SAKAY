@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, TextField, Typography } from '@mui/material';
 import {
+  MIN_SUBSTITUTION_REASON_LENGTH,
   SUBSTITUTION_MAX_DAYS,
   asSubstitutionClient,
   endVehicleSubstitution,
@@ -11,17 +12,35 @@ import {
   substitutionRequestProblem,
   useInFlight,
   withdrawVehicleSubstitution,
+  messageForLanguage,
 } from '@sakay/shared';
 import type { VehicleSubstitution } from '@sakay/shared';
 
 import PageHeader from '../../../common/components/PageHeader';
 import PrimaryButton from '../../../common/components/PrimaryButton';
+import RegisterInput from '../../../common/components/RegisterInput';
 import SakayToast from '../../../common/components/SakayToast';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 
 const manila = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
+
+// The days menu is a MUI select; it takes the look of the app's RegisterInput fields (grey box, white and orange while open) so the form reads as one.
+const DAYS_SELECT_SX = {
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '16px',
+    backgroundColor: '#F1F3F5',
+    minHeight: 62,
+    transition: 'background-color 0.2s, box-shadow 0.2s',
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#E2E8F0', borderWidth: '1.5px' },
+    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#CBD5E1' },
+    '&.Mui-focused': { backgroundColor: '#FFFFFF', boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)' },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#FF6600', borderWidth: '1.5px' },
+    '& .MuiSelect-select': { fontSize: '16px', fontWeight: 600, color: '#0F172A' },
+  },
+  '& .MuiInputLabel-root': { color: '#64748B', '&.Mui-focused': { color: '#FF6600' } },
+} as const;
 
 const STATUS: Record<string, { en: string; tl: string; color: 'warning' | 'success' | 'default' | 'error' }> = {
   'Pending TODA Approval': { en: 'Waiting for your TODA Administrator', tl: 'Naghihintay sa TODA Administrator mo', color: 'warning' },
@@ -50,6 +69,8 @@ const DriverVehicleSubstitutionPage: React.FC = () => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [touched, setTouched] = useState({ plate: false, franchise: false, reason: false });
+  const touch = (field: 'plate' | 'franchise' | 'reason') => setTouched((t) => ({ ...t, [field]: true }));
 
   const load = useCallback(async () => {
     const [list, own] = await Promise.all([
@@ -69,6 +90,17 @@ const DriverVehicleSubstitutionPage: React.FC = () => {
   // while one is active the registered vehicle is not the plate in the driver's record: the check is against the one he registered
   const registered = open?.status === 'Active' ? open.originalPlate : registeredPlate;
   const problem = substitutionRequestProblem({ plate, franchise, reason, days, registeredPlate: registered });
+  // Field messages follow the same rules as substitutionRequestProblem; they show once the field was left, so an untouched form does not open in red.
+  const plateTrimmed = plate.trim().toUpperCase();
+  const plateProblem = !/^[A-Z0-9][A-Z0-9 -]{2,19}$/.test(plateTrimmed)
+    ? tl ? 'Ilagay ang plate number (letra, numero, espasyo o gitling).' : 'Enter the plate number (letters, numbers, space or dash).'
+    : plateTrimmed === (registered ?? '').trim().toUpperCase()
+      ? tl ? 'Ito na ang rehistrado mong sasakyan.' : 'That is already your registered vehicle.'
+      : '';
+  const franchiseProblem = franchise.trim().length < 2 ? (tl ? 'Ilagay ang franchise (MTOP) number.' : 'Enter the franchise (MTOP) number.') : '';
+  const reasonProblem = reason.trim().length < MIN_SUBSTITUTION_REASON_LENGTH
+    ? tl ? `Isulat kung bakit (hindi bababa sa ${MIN_SUBSTITUTION_REASON_LENGTH} titik).` : `Say why (at least ${MIN_SUBSTITUTION_REASON_LENGTH} characters).`
+    : '';
 
   const send = () =>
     flight.run(async () => {
@@ -82,6 +114,7 @@ const DriverVehicleSubstitutionPage: React.FC = () => {
       setPlate('');
       setFranchise('');
       setReason('');
+      setTouched({ plate: false, franchise: false, reason: false });
       setToast(tl ? 'Naipadala ang hiling sa TODA Administrator mo.' : 'Your request was sent to your TODA Administrator.');
       await load();
     });
@@ -127,7 +160,7 @@ const DriverVehicleSubstitutionPage: React.FC = () => {
               </Typography>
             )}
             {open.status === 'Pending LGU Approval' && open.todaNote && <Typography sx={{ fontSize: '12.5px', color: '#475569' }}>TODA: {open.todaNote}</Typography>}
-            {error && <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '12px' }}>{error}</Alert>}
+            {error && <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '12px' }}>{messageForLanguage(error, language)}</Alert>}
             {open.status === 'Active' ? (
               <Button variant="outlined" color="error" disabled={flight.busy} onClick={() => act(() => endVehicleSubstitution(asSubstitutionClient(supabase), open.substitutionId, ''), tl ? 'Naibalik na ang rehistradong sasakyan.' : 'Your registered vehicle is back.')} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', minHeight: 44, alignSelf: 'flex-start' }}>
                 {tl ? 'Ibalik na ang rehistradong sasakyan' : 'Go back to my registered vehicle'}
@@ -141,13 +174,41 @@ const DriverVehicleSubstitutionPage: React.FC = () => {
         ) : (
           <Paper elevation={0} sx={{ p: 2, borderRadius: '16px', border: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{tl ? 'Humiling na gumamit ng ibang sasakyan' : 'Ask to use another vehicle'}</Typography>
-            <TextField size="small" label={tl ? 'Plate number ng sasakyan' : 'Plate number of the vehicle'} value={plate} onChange={(e) => setPlate(e.target.value)} fullWidth />
-            <TextField size="small" label={tl ? 'Franchise (MTOP) number nito' : 'Its franchise (MTOP) number'} value={franchise} onChange={(e) => setFranchise(e.target.value)} fullWidth />
-            <TextField select size="small" label={tl ? 'Ilang araw' : 'For how many days'} value={days} onChange={(e) => setDays(Number(e.target.value))} fullWidth>
+            <RegisterInput
+              label={tl ? 'Plate number' : 'Plate number'}
+              placeholder={tl ? 'Halimbawa: ABC 1234' : 'For example: ABC 1234'}
+              value={plate}
+              onChange={setPlate}
+              onBlur={() => touch('plate')}
+              error={touched.plate && Boolean(plateProblem)}
+              helperText={touched.plate ? plateProblem : ''}
+              autoComplete="off"
+            />
+            <RegisterInput
+              label={tl ? 'Franchise (MTOP) number' : 'Franchise (MTOP) number'}
+              placeholder={tl ? 'MTOP number ng sasakyang iyon' : 'MTOP number of that vehicle'}
+              value={franchise}
+              onChange={setFranchise}
+              onBlur={() => touch('franchise')}
+              error={touched.franchise && Boolean(franchiseProblem)}
+              helperText={touched.franchise ? franchiseProblem : ''}
+              autoComplete="off"
+            />
+            <TextField select size="small" label={tl ? 'Ilang araw' : 'Number of days'} value={days} onChange={(e) => setDays(Number(e.target.value))} fullWidth sx={DAYS_SELECT_SX}>
               {Array.from({ length: SUBSTITUTION_MAX_DAYS }, (_, i) => i + 1).map((n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
             </TextField>
-            <TextField multiline minRows={3} size="small" label={tl ? 'Bakit mo kailangan? (halimbawa: nasira ang tricycle ko)' : 'Why do you need it? (for example: my tricycle broke down)'} value={reason} onChange={(e) => setReason(e.target.value)} fullWidth />
-            {error && <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '12px' }}>{error}</Alert>}
+            <RegisterInput
+              label={tl ? 'Dahilan' : 'Reason'}
+              placeholder={tl ? 'Halimbawa: nasira ang tricycle ko' : 'For example: my tricycle broke down'}
+              value={reason}
+              onChange={setReason}
+              onBlur={() => touch('reason')}
+              error={touched.reason && Boolean(reasonProblem)}
+              helperText={touched.reason ? reasonProblem : ''}
+              multiline
+              rows={3}
+            />
+            {error && <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '12px' }}>{messageForLanguage(error, language)}</Alert>}
             <PrimaryButton fullWidth loading={flight.busy} disabled={Boolean(problem)} onClick={send}>
               {tl ? 'Ipadala ang hiling' : 'Send the request'}
             </PrimaryButton>

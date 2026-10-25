@@ -25,10 +25,83 @@ import { useLanguage } from "../../../utils/LanguageContext";
 import { supabase } from "../../../services/supabaseClient";
 import { activateWithKeyboard } from "@sakay/shared";
 
+// Every icon in Settings is this gray, the selected ones too; the chevrons use it as well.
+const ICON_GRAY = "#64748B";
+// White text on this orange keeps 4.5:1 (on the brand #FF6600 it would be 3:1).
+const SELECTED_BG = "#C75000";
+const FONT = "Poppins, sans-serif";
+
+interface SettingsRowProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  divider?: boolean;
+}
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 1, px: 0.5, fontFamily: FONT }}>{children}</Typography>
+);
+
+const SectionCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Paper elevation={0} sx={{ borderRadius: "16px", backgroundColor: "#FFFFFF", border: "1px solid #F1F5F9", overflow: "hidden" }}>
+    <List disablePadding>{children}</List>
+  </Paper>
+);
+
+const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <Box>
+    <SectionTitle>{title}</SectionTitle>
+    <SectionCard>{children}</SectionCard>
+  </Box>
+);
+
+const SettingsRow: React.FC<SettingsRowProps> = ({ icon, label, onClick, divider = true }) => (
+  <>
+    {divider && <Divider sx={{ borderColor: "#F8FAFC" }} />}
+    <ListItem disablePadding>
+      <ListItemButton onClick={onClick} sx={{ py: 1.5, px: 2 }}>
+        <ListItemIcon sx={{ minWidth: 38, color: ICON_GRAY }}>{icon}</ListItemIcon>
+        <ListItemText primary={<Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: FONT }}>{label}</Typography>} />
+        <ChevronRightIcon sx={{ color: ICON_GRAY, fontSize: 20 }} />
+      </ListItemButton>
+    </ListItem>
+  </>
+);
+
+const LanguageOption: React.FC<{ label: string; selected: boolean; onSelect: () => void }> = ({ label, selected, onSelect }) => (
+  <Box
+    role="radio"
+    tabIndex={0}
+    onKeyDown={activateWithKeyboard}
+    aria-checked={selected}
+    onClick={onSelect}
+    sx={{
+      flex: 1,
+      py: 1,
+      minHeight: 44,
+      borderRadius: "9px",
+      backgroundColor: selected ? SELECTED_BG : "transparent",
+      color: selected ? "#FFFFFF" : "#475569",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+      transition: "background-color 0.2s ease, color 0.2s ease",
+      boxShadow: selected ? "0 2px 8px rgba(199,80,0,0.25)" : "none",
+      "&:hover": { backgroundColor: selected ? "#B04600" : "#E2E8F0" },
+      "&:focus-visible": { outline: "2px solid #0F172A", outlineOffset: 2 },
+    }}
+  >
+    <Typography sx={{ fontSize: "13px", fontWeight: selected ? 700 : 500, color: "inherit", fontFamily: FONT }}>{label}</Typography>
+  </Box>
+);
+
 const SettingsPage: React.FC = () => {
   const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const text = (tl: string, en: string) => (language === "tl" ? tl : en);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -57,10 +130,7 @@ const SettingsPage: React.FC = () => {
         flexDirection: "column",
       }}
     >
-      <PageHeader
-        title={language === "tl" ? "Mga Setting" : "Settings"}
-        onBack={() => navigate("/dashboard")}
-      />
+      <PageHeader title={text("Mga Setting", "Settings")} onBack={() => navigate("/dashboard")} />
 
       <Box
         className="hide-scrollbar"
@@ -74,306 +144,79 @@ const SettingsPage: React.FC = () => {
           gap: 2.5,
         }}
       >
-        {/* Section 1: Account */}
+        <SettingsSection title={text("Account Settings", "Account Settings")}>
+          <SettingsRow
+            divider={false}
+            icon={<PersonOutlinedIcon sx={{ fontSize: 20 }} />}
+            label={text("Impormasyon ng Profile", "Profile Information")}
+            onClick={() => navigate("/profile")}
+          />
+          <SettingsRow
+            icon={<LockOutlinedIcon sx={{ fontSize: 20 }} />}
+            label={text("Palitan ang Password", "Change Password")}
+            onClick={() => navigate("/change-password")}
+          />
+        </SettingsSection>
+
         <Box>
-          <Typography
-            sx={{
-              fontSize: "12px",
-              fontWeight: 700,
-              color: "#64748B",
-              mb: 1,
-              px: 0.5,
-              fontFamily: "Poppins, sans-serif",
-            }}
-          >
-            {language === "tl" ? "Account Settings" : "Account Settings"}
-          </Typography>
+          <SectionTitle>{text("Mga Kagustuhan", "Preferences")}</SectionTitle>
+          <SectionCard>
+            <ListItem sx={{ py: 1.5, px: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+                <ListItemIcon sx={{ minWidth: 38, color: ICON_GRAY }}>
+                  <TranslateIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText primary={<Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: FONT }}>{text("Wika (Language)", "Language")}</Typography>} />
+              </Box>
 
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: "16px",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #F1F5F9",
-              overflow: "hidden",
-            }}
-          >
-            <List disablePadding>
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate("/profile")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
-                    <PersonOutlinedIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Impormasyon ng Profile" : "Profile Information"}
-                      </Typography>
-                    }
-                  />
-                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
-                </ListItemButton>
-              </ListItem>
-              <Divider sx={{ borderColor: "#F8FAFC" }} />
-
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate("/change-password")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
-                    <LockOutlinedIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Palitan ang Password" : "Change Password"}
-                      </Typography>
-                    }
-                  />
-                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
-                </ListItemButton>
-              </ListItem>
-              <Divider sx={{ borderColor: "#F8FAFC" }} />
-
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate("/strikes")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
-                    <GavelIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Mga Strike at Apela" : "Strikes & Appeals"}
-                      </Typography>
-                    }
-                  />
-                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
-                </ListItemButton>
-              </ListItem>
-              <Divider sx={{ borderColor: "#F8FAFC" }} />
-
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate("/fare-disputes")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
-                    <ReceiptLongIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Mga Kaso sa Pamasahe" : "Fare Cases"}
-                      </Typography>
-                    }
-                  />
-                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Paper>
+              <Box
+                role="radiogroup"
+                aria-label={text("Wika (Language)", "Language")}
+                sx={{ width: "100%", display: "flex", backgroundColor: "#F1F5F9", borderRadius: "12px", p: "3px", gap: "4px" }}
+              >
+                <LanguageOption label="Tagalog" selected={language === "tl"} onSelect={() => setLanguage("tl")} />
+                <LanguageOption label="English" selected={language === "en"} onSelect={() => setLanguage("en")} />
+              </Box>
+            </ListItem>
+          </SectionCard>
         </Box>
 
-        {/* Section 2: Preferences */}
-        <Box>
-          <Typography
-            sx={{
-              fontSize: "12px",
-              fontWeight: 700,
-              color: "#64748B",
-              mb: 1,
-              px: 0.5,
-              fontFamily: "Poppins, sans-serif",
-            }}
-          >
-            {language === "tl" ? "Mga Kagustuhan" : "Preferences"}
-          </Typography>
+        <SettingsSection title={text("Mga Kaso at Apela", "Cases & Appeals")}>
+          <SettingsRow
+            divider={false}
+            icon={<GavelIcon sx={{ fontSize: 20 }} />}
+            label={text("Mga Strike at Apela", "Strikes & Appeals")}
+            onClick={() => navigate("/strikes")}
+          />
+          <SettingsRow
+            icon={<ReceiptLongIcon sx={{ fontSize: 20 }} />}
+            label={text("Mga Kaso sa Pamasahe", "Fare Cases")}
+            onClick={() => navigate("/fare-disputes")}
+          />
+        </SettingsSection>
 
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: "16px",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #F1F5F9",
-              overflow: "hidden",
-            }}
-          >
-            <List disablePadding>
-              <ListItem sx={{ py: 1.5, px: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1.5 }}>
-                <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#FF6600" }}>
-                    <TranslateIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Wika (Language)" : "Language"}
-                      </Typography>
-                    }
-                  />
-                </Box>
+        <SettingsSection title={text("Legal at Kebabayan", "Legal & Privacy")}>
+          <SettingsRow
+            divider={false}
+            icon={<GavelIcon sx={{ fontSize: 20 }} />}
+            label={text("Kasunduan sa Serbisyo (Terms of Service)", "Terms of Service")}
+            onClick={() => navigate("/terms")}
+          />
+          <SettingsRow
+            icon={<SecurityIcon sx={{ fontSize: 20 }} />}
+            label={text("Patakaran sa Privacy (Privacy Policy)", "Privacy Policy")}
+            onClick={() => navigate("/privacy")}
+          />
+        </SettingsSection>
 
-                {/* Segmented 2-Option Selector */}
-                <Box
-                  sx={{
-                    width: "100%",
-                    display: "flex",
-                    backgroundColor: "#F1F5F9",
-                    borderRadius: "12px",
-                    p: "3px",
-                    gap: "4px",
-                  }}
-                >
-                  <Box
-                    role="radio"
-                    tabIndex={0}
-                    onKeyDown={activateWithKeyboard}
-                    aria-checked={language === "tl"}
-                    onClick={() => setLanguage("tl")}
-                    sx={{
-                      flex: 1,
-                      py: 1,
-                      minHeight: 44,
-                      borderRadius: "9px",
-                      backgroundColor: language === "tl" ? "#FF6600" : "transparent",
-                      color: language === "tl" ? "#1A1A1A" : "#64748B",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 1,
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      boxShadow: language === "tl" ? "0 2px 8px rgba(255,107,0,0.25)" : "none",
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "13px",
-                        fontWeight: language === "tl" ? 700 : 500,
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      Tagalog
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    role="radio"
-                    tabIndex={0}
-                    onKeyDown={activateWithKeyboard}
-                    aria-checked={language === "en"}
-                    onClick={() => setLanguage("en")}
-                    sx={{
-                      flex: 1,
-                      py: 1,
-                      minHeight: 44,
-                      borderRadius: "9px",
-                      backgroundColor: language === "en" ? "#FF6600" : "transparent",
-                      color: language === "en" ? "#1A1A1A" : "#64748B",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 1,
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      boxShadow: language === "en" ? "0 2px 8px rgba(255,107,0,0.25)" : "none",
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "13px",
-                        fontWeight: language === "en" ? 700 : 500,
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      English
-                    </Typography>
-                  </Box>
-                </Box>
-              </ListItem>
-            </List>
-          </Paper>
-        </Box>
-
-        {/* Section 3: Legal & Privacy */}
-        <Box>
-          <Typography
-            sx={{
-              fontSize: "12px",
-              fontWeight: 700,
-              color: "#64748B",
-              mb: 1,
-              px: 0.5,
-              fontFamily: "Poppins, sans-serif",
-            }}
-          >
-            {language === "tl" ? "Legal at Kebabayan" : "Legal & Privacy"}
-          </Typography>
-
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: "16px",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #F1F5F9",
-              overflow: "hidden",
-            }}
-          >
-            <List disablePadding>
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate("/terms")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#64748B" }}>
-                    <GavelIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Kasunduan sa Serbisyo (Terms of Service)" : "Terms of Service"}
-                      </Typography>
-                    }
-                  />
-                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
-                </ListItemButton>
-              </ListItem>
-              <Divider sx={{ borderColor: "#F8FAFC" }} />
-
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => navigate("/privacy")} sx={{ py: 1.5, px: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 38, color: "#64748B" }}>
-                    <SecurityIcon sx={{ fontSize: 20 }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                        {language === "tl" ? "Patakaran sa Privacy (Privacy Policy)" : "Privacy Policy"}
-                      </Typography>
-                    }
-                  />
-                  <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20 }} />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Paper>
-        </Box>
-
-        {/* Section 4: About */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            borderRadius: "16px",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #F1F5F9",
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-          }}
-        >
-          <InfoOutlinedIcon sx={{ color: "#FF6600", fontSize: 22 }} />
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-              SAKAY Passenger PWA v1.2.0
-            </Typography>
-            <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              Calapan City Localized Tricycle Logistics & Ride Platform
-            </Typography>
-          </Box>
-        </Paper>
+        <SettingsSection title={text("Tungkol", "About")}>
+          <SettingsRow
+            divider={false}
+            icon={<InfoOutlinedIcon sx={{ fontSize: 20 }} />}
+            label={text("Tungkol sa SAKAY", "About SAKAY")}
+            onClick={() => navigate("/about")}
+          />
+        </SettingsSection>
 
         {/* Logout Button */}
         <Button
@@ -390,12 +233,12 @@ const SettingsPage: React.FC = () => {
             fontSize: "14px",
             fontWeight: 700,
             textTransform: "none",
-            fontFamily: "Poppins, sans-serif",
+            fontFamily: FONT,
             mt: 1,
             "&:hover": { borderColor: "#DC2626", backgroundColor: "#FEF2F2" },
           }}
         >
-          {language === "tl" ? "Mag-log Out" : "Log Out"}
+          {text("Mag-log Out", "Log Out")}
         </Button>
       </Box>
     </Box>

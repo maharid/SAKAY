@@ -116,17 +116,20 @@ export interface AssignedBookingClocks {
   stallWarnedAt: string | null;
   /** The booking is no longer this driver's: the system cancelled it on his behalf and gave it to another driver (Rules 8.3, 8.4, 9.3) */
   bookingGone: boolean;
+  /** The booking was cancelled (by the passenger, or by the system) while the driver was on the way: who, and the reason exactly as saved (may be empty) */
+  cancellation: { by: string; reason: string } | null;
 }
 
 /** Reads the clock marks of the driver's booking. Null when it could not be read (a network error is not "the booking is gone"). */
 export const getAssignedBookingClocks = async (bookingId: string): Promise<AssignedBookingClocks | null> => {
-  const { data, error } = await supabase.from('booking').select('booking_status, stall_warned_at').eq('booking_id', bookingId).maybeSingle();
+  const { data, error } = await supabase.from('booking').select('booking_status, stall_warned_at, cancelled_by, cancellation_reason').eq('booking_id', bookingId).maybeSingle();
   reportNetworkOutcome(error);
   if (error) return null;
   // Once the booking is given to another driver this driver can no longer read it at all (or it is back in the search).
-  if (!data) return { stallWarnedAt: null, bookingGone: true };
+  if (!data) return { stallWarnedAt: null, bookingGone: true, cancellation: null };
   const back = data.booking_status === 'Pending' || data.booking_status === 'Searching Driver' || data.booking_status === 'No Driver Found';
-  return { stallWarnedAt: (data.stall_warned_at as string | null) ?? null, bookingGone: back };
+  const cancellation = data.booking_status === 'Cancelled' ? { by: String(data.cancelled_by ?? ''), reason: String(data.cancellation_reason ?? '') } : null;
+  return { stallWarnedAt: (data.stall_warned_at as string | null) ?? null, bookingGone: back, cancellation };
 };
 
 export interface TripConnectivity {

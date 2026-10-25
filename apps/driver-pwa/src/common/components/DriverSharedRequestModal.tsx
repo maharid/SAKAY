@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 
-import { fetchMySharedRequest, respondSharedRequest, type SharedRequestView, TYPOGRAPHY_TOKENS, formatDistance, monotonicNow } from '@sakay/shared';
+import { fetchMySharedRequest, respondSharedRequest, type SharedRequestView, TYPOGRAPHY_TOKENS, formatDistance, monotonicNow, messageForLanguage, RouteTimeline } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 import { useDriverSession } from '../../contexts/DriverSessionContext';
 import { useLanguage } from '../../utils/LanguageContext';
@@ -149,24 +148,16 @@ export const DriverSharedRequestModal: React.FC = () => {
           <DialogContent sx={{ py: 1 }}>
             {notice && (
               <Alert severity="warning" sx={{ mb: 1.5, borderRadius: '12px' }} onClose={() => setNotice('')}>
-                {notice}
+                {messageForLanguage(notice, language)}
               </Alert>
             )}
             <Box sx={{ p: '14px 16px', backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', mb: 1.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
-                <LocationOnIcon sx={{ color: '#10B981', fontSize: 20 }} />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>{tl ? 'Lokasyon ng pickup' : 'Pickup location'}</Typography>
-                  <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{request.pickupAddress}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                <LocationOnIcon sx={{ color: '#EF4444', fontSize: 20 }} />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', fontWeight: 700 }}>{tl ? 'Destinasyon' : 'Destination'}</Typography>
-                  <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.bodyMobile, fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{request.dropoffAddress}</Typography>
-                </Box>
-              </Box>
+              <RouteTimeline
+                pickup={request.pickupAddress}
+                destination={request.dropoffAddress}
+                pickupLabel={tl ? 'Lokasyon ng pickup' : 'Pickup location'}
+                destinationLabel={tl ? 'Destinasyon' : 'Destination'}
+              />
             </Box>
             <Typography sx={{ fontSize: TYPOGRAPHY_TOKENS.fontSize.micro, color: '#64748B', textAlign: 'center' }}>
               {tl

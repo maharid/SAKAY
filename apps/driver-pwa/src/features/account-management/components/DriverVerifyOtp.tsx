@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { NavigateOptions } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -15,6 +16,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { sendDriverOtp, verifyDriverOtp, formatPhoneToE164, getPhoneLookupCandidates } from '../../../services/driverApiService';
 import { supabase } from '../../../services/supabaseClient';
+import { OtpVerifiedCelebration } from '@sakay/shared';
 
 const formatDisplayPhone = (raw: string = ''): string => {
   const digits = raw.replace(/\D/g, '');
@@ -49,6 +51,10 @@ export const DriverVerifyOtp: React.FC = () => {
   const [toastInfo, setToastInfo] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(60);
   const [resendKey, setResendKey] = useState(0);
+  // Set once, from the server's own "verified" answer: where the screen goes after the celebration. verifiedRef keeps a second tap or a second
+  // automatic submit from verifying (and celebrating) twice.
+  const [verifiedNext, setVerifiedNext] = useState<{ to: string; options: NavigateOptions } | null>(null);
+  const verifiedRef = useRef(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const hasAutoApprovedRef = useRef(false);
@@ -92,7 +98,7 @@ export const DriverVerifyOtp: React.FC = () => {
   // Core verification function
   const executeVerification = useCallback(
     async (enteredCode: string) => {
-      if (enteredCode.length < 6 || loading) return;
+      if (enteredCode.length < 6 || loading || verifiedRef.current) return;
 
       setLoading(true);
       setToastError(null);
@@ -118,16 +124,21 @@ export const DriverVerifyOtp: React.FC = () => {
         } catch {}
 
         setLoading(false);
+        // The code is verified: celebrate for a moment, then go on to the same next step as before (OtpVerifiedCelebration moves the screen on by itself)
+        verifiedRef.current = true;
         if (isPhoneChange) {
-          navigate(returnTo, { replace: true, state: { phoneUpdated: true } });
+          setVerifiedNext({ to: returnTo, options: { replace: true, state: { phoneUpdated: true } } });
           return;
         }
-        navigate('/driver/terms-of-service', {
-          replace: true,
-          state: {
-            driverName: state?.driverName || 'Bagong Drayber',
-            phone: e164Phone,
-            fromRegistration: true,
+        setVerifiedNext({
+          to: '/driver/terms-of-service',
+          options: {
+            replace: true,
+            state: {
+              driverName: state?.driverName || (language === 'tl' ? 'Bagong Drayber' : 'New Driver'),
+              phone: e164Phone,
+              fromRegistration: true,
+            },
           },
         });
       } catch {
@@ -275,6 +286,8 @@ export const DriverVerifyOtp: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {verifiedNext && <OtpVerifiedCelebration language={language === 'tl' ? 'tl' : 'en'} onDone={() => navigate(verifiedNext.to, verifiedNext.options)} />}
+
       {/* Toast Feedback for Errors (Incorrect OTP) and Resend Info */}
       <SakayToast
         open={Boolean(toastError)}

@@ -27,8 +27,10 @@ import {
   incidentCategoriesFor,
   incidentCategoryClass,
   INCIDENT_EVIDENCE_MAX_BYTES,
-  INCIDENT_EVIDENCE_MAX_FILES, INCIDENT_LOST_ITEM_FILE_DAYS,
+  INCIDENT_EVIDENCE_MAX_FILES,
+  INCIDENT_LOST_ITEM_FILE_DAYS,
   isEmergencyIncident,
+  messageForLanguage,
 } from '@sakay/shared';
 
 /** The floating-label select used by this form (same look as RegisterInput). */
@@ -264,8 +266,8 @@ export const IncidentReporting: React.FC = () => {
         {categoryClass === 'SERIOUS' && (
           <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
             {language === 'tl'
-              ? 'Diretso ito sa LGU Administrator para sa agarang pagsusuri (Rule 19.8). Kung nasa agarang panganib ka ngayon, tumawag sa 911 gamit ang telepono mo; kung nasa biyahe ka, gamitin ang "Urgent Safety Report" sa screen ng biyahe.'
-              : 'This goes straight to the LGU Administrator for an immediate review (Rule 19.8). If you are in danger now, call 911 with your phone; during a trip, use "Urgent Safety Report" on the trip screen.'}
+              ? 'Diretso ito sa LGU Administrator para sa agarang pagsusuri. Kung nasa agarang panganib ka ngayon, tumawag sa 911 gamit ang telepono mo; kung nasa biyahe ka, gamitin ang "Urgent Safety Report" sa screen ng biyahe.'
+              : 'This goes straight to the LGU Administrator for an immediate review. If you are in danger now, call 911 with your phone; during a trip, use "Urgent Safety Report" on the trip screen.'}
           </Alert>
         )}
         {categoryClass === 'EMERGENCY' && (
@@ -371,7 +373,7 @@ export const IncidentReporting: React.FC = () => {
         </Paper>
         {error && (
           <Alert severity="error" sx={{ borderRadius: '12px', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
-            {error}
+            {messageForLanguage(error, language)}
           </Alert>
         )}
       </Box>

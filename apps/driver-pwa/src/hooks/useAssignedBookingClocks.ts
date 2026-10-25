@@ -4,7 +4,7 @@ import { getAssignedBookingClocks, type AssignedBookingClocks } from '../service
 
 const POLL_MS = 3000;
 
-const NO_MARKS: AssignedBookingClocks = { stallWarnedAt: null, bookingGone: false };
+const NO_MARKS: AssignedBookingClocks = { stallWarnedAt: null, bookingGone: false, cancellation: null };
 
 /**
  * Watches the system's marks on the driver's accepted booking: the "you have not started" warning, and whether the booking was taken from
@@ -22,7 +22,16 @@ export const useAssignedBookingClocks = (bookingId: string, active: boolean): As
     let stopped = false;
     const read = async () => {
       const answer = await getAssignedBookingClocks(bookingId);
-      if (!stopped && answer) setMarks((prev) => (prev.stallWarnedAt === answer.stallWarnedAt && prev.bookingGone === answer.bookingGone ? prev : answer));
+      if (!stopped && answer) {
+        setMarks((prev) =>
+          prev.stallWarnedAt === answer.stallWarnedAt &&
+          prev.bookingGone === answer.bookingGone &&
+          prev.cancellation?.by === answer.cancellation?.by &&
+          prev.cancellation?.reason === answer.cancellation?.reason
+            ? prev
+            : answer
+        );
+      }
     };
     read();
     const timer = setInterval(read, POLL_MS);

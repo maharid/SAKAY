@@ -55,6 +55,7 @@ import {
   reportNetworkOutcome,
   reportNetworkResult,
   resolveHeading,
+  localizeCancellationReason,
 } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
@@ -163,6 +164,10 @@ export const TripMonitoring: React.FC = () => {
   // Bidirectional Driver Cancelled Alert State
   const [driverCancelledAlertOpen, setDriverCancelledAlertOpen] = useState(false);
   const [driverCancelReason, setDriverCancelReason] = useState<string>('');
+  // who cancelled it, as saved ('driver', 'system'): the notice names the driver only when it was the driver
+  const [cancelledByDriver, setCancelledByDriver] = useState(false);
+  // the reason as saved, shown in the language that is selected (nothing when none was saved)
+  const shownCancelReason = localizeCancellationReason(driverCancelReason, language === 'tl' ? 'tl' : 'en');
   // The booking was cancelled because the passenger did not board in time (Rule 10.4), not because the driver gave it up
   const [noShowCancelled, setNoShowCancelled] = useState(false);
   const [extendingWait, setExtendingWait] = useState(false);
@@ -350,12 +355,41 @@ export const TripMonitoring: React.FC = () => {
     setDriverPhotoUrl('');
     setDriverRating(null);
     setBooking((prev) => (prev ? { ...prev, driver_id: undefined, driver_name: '', driver_phone: '', franchise_no: '', vehicle_plate: '', toda_name: '' } : prev));
-    setToastMessage(
-      language === 'tl'
-        ? 'Hindi nakapagpatuloy ang iyong drayber. Naghahanap kami ng ibang drayber.'
-        : 'Your driver was unable to proceed. We\'re finding you another driver.'
-    );
-  }, [language]);
+    // Who gave the booking up, and why, is in the booking's cancellation record (the booking row itself is back in the search and carries no reason).
+    // A reason is shown only when the record has one; if it cannot be read the notice still says what happened.
+    const bookingId = activeBookingId;
+    void (async () => {
+      let byDriver = false;
+      let reason = '';
+      try {
+        const { data } = await supabase
+          .from('cancellation_record')
+          .select('cancelled_by, reason')
+          .eq('booking_id', bookingId)
+          .order('cancelled_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const record = data as { cancelled_by?: string | null; reason?: string | null } | null;
+        byDriver = record?.cancelled_by === 'driver';
+        if (byDriver) reason = localizeCancellationReason(record?.reason, language === 'tl' ? 'tl' : 'en');
+      } catch {
+        // the notice below is the plain one
+      }
+      if (byDriver) {
+        setToastMessage(
+          language === 'tl'
+            ? `Kinansela ng drayber mo ang booking.${reason ? ` Dahilan: ${reason}.` : ''} Naghahanap kami ng ibang drayber.`
+            : `Your driver cancelled the booking.${reason ? ` Reason: ${reason}.` : ''} We're finding you another driver.`
+        );
+      } else {
+        setToastMessage(
+          language === 'tl'
+            ? 'Hindi nakapagpatuloy ang iyong drayber. Naghahanap kami ng ibang drayber.'
+            : 'Your driver was unable to proceed. We\'re finding you another driver.'
+        );
+      }
+    })();
+  }, [language, activeBookingId]);
 
   // Listen to Supabase Realtime for updates and broadcast for driver GPS
   useEffect(() => {
@@ -385,7 +419,8 @@ export const TripMonitoring: React.FC = () => {
           if (d.booking_status === 'Cancelled' && d.cancelled_by && d.cancelled_by !== 'passenger') {
             const noShow = d.cancellation_reason === 'PASSENGER_NO_SHOW';
             setNoShowCancelled(noShow);
-            setDriverCancelReason(noShow ? '' : d.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking ng sistema' : 'The booking was cancelled by the system'));
+            setCancelledByDriver(d.cancelled_by === 'driver');
+            setDriverCancelReason(noShow ? '' : d.cancellation_reason ?? '');
             setDriverCancelledAlertOpen(true);
           }
           handleBackToSearch(d);
@@ -446,7 +481,8 @@ export const TripMonitoring: React.FC = () => {
             if (row.booking_status === 'Cancelled' && row.cancelled_by && row.cancelled_by !== 'passenger') {
               const noShow = row.cancellation_reason === 'PASSENGER_NO_SHOW';
               setNoShowCancelled(noShow);
-              setDriverCancelReason(noShow ? '' : row.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking ng sistema' : 'The booking was cancelled by the system'));
+              setCancelledByDriver(row.cancelled_by === 'driver');
+              setDriverCancelReason(noShow ? '' : row.cancellation_reason ?? '');
               setDriverCancelledAlertOpen(true);
             }
             handleBackToSearch(row);
@@ -941,8 +977,9 @@ export const TripMonitoring: React.FC = () => {
           flexDirection: 'column',
           zIndex: 20,
           width: '100%',
-          maxHeight: 'calc(100% - 176px)',
-          '@media (max-height: 640px)': { maxHeight: 'calc(100% - 140px)' },
+          // the sheet's body scrolls and its action stays pinned, so the map keeps at least a third of the screen even when the sheet is full
+          maxHeight: 'min(calc(100% - 176px), 66%)',
+          '@media (max-height: 640px)': { maxHeight: 'min(calc(100% - 140px), 70%)' },
           boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
           pt: 2.5,
@@ -1323,14 +1360,18 @@ export const TripMonitoring: React.FC = () => {
               ? language === 'tl'
                 ? 'Hindi ka sumakay sa loob ng oras ng paghihintay, kaya nakansela ang booking at 2 strike ang naitala. Maaari kang mag-book muli.'
                 : 'You did not board within the waiting time, so the booking was cancelled as a no-show and 2 strikes were recorded. You can book again.'
+              : cancelledByDriver
+              ? language === 'tl'
+                ? 'Kinansela ng drayber ang booking.'
+                : 'Your driver has cancelled the booking.'
               : language === 'tl'
-              ? 'Kinansela ang booking.'
+              ? 'Nakansela ang booking.'
               : 'The booking has been cancelled.'}
           </Typography>
-          {driverCancelReason && (
+          {shownCancelReason && (
             <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
-              <Typography sx={{ fontSize: '13px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
-                {language === 'tl' ? 'Rason:' : 'Reason:'} "{driverCancelReason}"
+              <Typography sx={{ fontSize: '13px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif', overflowWrap: 'anywhere' }}>
+                {language === 'tl' ? 'Dahilan:' : 'Reason:'} &ldquo;{shownCancelReason}&rdquo;
               </Typography>
             </Box>
           )}

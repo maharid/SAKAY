@@ -17,6 +17,7 @@ import { EvidencePicker } from './EvidencePicker';
 import { useInFlight } from '../hooks/useInFlight';
 import { FARE_STATEMENT_MAX, fareStatementProblem } from '../utils/caseEvidence';
 import type { CaseEvidenceFile, OwnFareDispute } from '../utils/caseEvidence';
+import { messageForLanguage } from '../utils/notificationLocalization';
 
 export interface OwnFareDisputesViewProps {
   language: 'tl' | 'en';
@@ -35,9 +36,9 @@ export interface OwnFareDisputesViewProps {
 }
 
 const KIND: Record<string, { en: string; tl: string }> = {
-  FARE_DISCREPANCY: { en: 'The fare was reported as different from the app (Rule 18.4)', tl: 'Iniulat na iba ang pamasahe sa app (Rule 18.4)' },
-  SAFETY_REVIEW: { en: 'Review of an early end for safety (Rule 13.5)', tl: 'Pagsusuri ng maagang pagtatapos para sa kaligtasan (Rule 13.5)' },
-  NON_PAYMENT: { en: 'The driver reported that the fare was not paid (Rule 18.6)', tl: 'Iniulat ng drayber na hindi nabayaran ang pamasahe (Rule 18.6)' },
+  FARE_DISCREPANCY: { en: 'The fare was reported as different from the app', tl: 'Iniulat na iba ang pamasahe sa app' },
+  SAFETY_REVIEW: { en: 'Review of an early end for safety', tl: 'Pagsusuri ng maagang pagtatapos para sa kaligtasan' },
+  NON_PAYMENT: { en: 'The driver reported that the fare was not paid', tl: 'Iniulat ng drayber na hindi nabayaran ang pamasahe' },
 };
 
 const OUTCOME: Record<string, { en: string; tl: string }> = {
@@ -177,7 +178,7 @@ export const OwnFareDisputesView: React.FC<OwnFareDisputesViewProps> = ({ langua
             fullWidth
           />
           <EvidencePicker language={language} files={files} onChange={setFiles} disabled={flight.busy} />
-          {formError && <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px' }}>{formError}</Alert>}
+          {formError && <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px' }}>{messageForLanguage(formError, language)}</Alert>}
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button onClick={close} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 700 }}>{tl ? 'Kanselahin' : 'Cancel'}</Button>

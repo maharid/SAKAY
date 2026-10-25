@@ -3,8 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { compareFaces, FaceMatchResult } from '../../../services/faceMatchingService';
 import { getCachedLicenseData, LicenseExtractedData } from '../../../services/driverOnboardingCache';
 import DriverProgressLoader from './DriverProgressLoader';
+import { useLanguage } from '../../../utils/LanguageContext';
 
 export const DriverFaceLoading: React.FC = () => {
+  const { language } = useLanguage();
+  const say = (tl: string, en: string) => (language === 'tl' ? tl : en);
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as {
@@ -19,7 +22,7 @@ export const DriverFaceLoading: React.FC = () => {
   const cachedLicense = getCachedLicenseData();
   const licensePhoto = state?.extracted?.frontPhoto || cachedLicense?.frontPhoto || '';
 
-  const [statusText, setStatusText] = useState('Inihahanda ang larawan...');
+  const [statusText, setStatusText] = useState(say('Inihahanda ang larawan...', 'Preparing the photo...'));
   const [displayedPct, setDisplayedPct] = useState(0);
 
   const targetPctRef = useRef(0);
@@ -71,11 +74,11 @@ export const DriverFaceLoading: React.FC = () => {
 
       try {
         targetPctRef.current = 50;
-        setStatusText('Inaanalisa ang mga feature ng mukha...');
+        setStatusText(say('Inaanalisa ang mga feature ng mukha...', 'Analyzing face features...'));
         await new Promise((res) => setTimeout(res, 300));
 
         targetPctRef.current = 80;
-        setStatusText('Ikinukumpara sa larawan sa lisensya...');
+        setStatusText(say('Ikinukumpara sa larawan sa lisensya...', 'Comparing with the license photo...'));
 
         const result: FaceMatchResult = await compareFaces(selfieToProcess, licensePhoto);
 

@@ -10,7 +10,37 @@ export interface LocalizedNotificationResult {
   isSystemGenerated: boolean;
 }
 
+// "(Rule 8.3)", "(Rules 12.1 / 12.2)" and "Rule 8.3:" point into the policy documents; the person reading a message does not need them.
+const RULE_NUMBERS = String.raw`\d+(?:\.\d+)*(?:\s*(?:\/|,|&|and|at|-)\s*(?:(?:Rules?|Patakaran)\s+)?\d+(?:\.\d+)*)*`;
+const RULE_IN_PARENTHESES = new RegExp(String.raw`\s*[(\[]\s*(?:Rules?|Patakaran)\s+${RULE_NUMBERS}\s*[)\]]`, 'gi');
+const RULE_AT_START = new RegExp(String.raw`^\s*(?:Rules?|Patakaran)\s+${RULE_NUMBERS}\s*[:\-\u2013]\s*`, 'i');
+
+/** The text without its references to numbered rules ("(Rule 8.3)"); the sentence is left as it was otherwise. */
+export function stripRuleReferences(text: string): string {
+  return (text ?? '').replace(RULE_IN_PARENTHESES, '').replace(RULE_AT_START, '');
+}
+
+/**
+ * A message from the server or from a service, ready to show in ONE language: an "ERR_SOMETHING:" label is dropped, references to numbered rules are
+ * removed, and a "Tagalog (English)" text keeps only the part in the selected language. Anything else is shown as it is.
+ */
+export function messageForLanguage(raw: string | null | undefined, language: 'tl' | 'en'): string {
+  const text = (raw ?? '').replace(/^ERR_[A-Z0-9_]+:\s*/, '').trim();
+  return cleanBilingualText(stripRuleReferences(text), language).trim();
+}
+
+/** The notification as the person should read it in `language` (system-made texts are translated; internal rule references are removed). */
 export function localizeSystemNotification(
+  rawTitle: string,
+  rawMessage: string,
+  language: 'tl' | 'en',
+  notificationType?: string
+): LocalizedNotificationResult {
+  const result = localizeSystemNotificationBase(rawTitle, rawMessage, language, notificationType);
+  return { ...result, title: stripRuleReferences(result.title), message: stripRuleReferences(result.message) };
+}
+
+function localizeSystemNotificationBase(
   rawTitle: string,
   rawMessage: string,
   language: 'tl' | 'en',
@@ -340,8 +370,10 @@ export function cleanBilingualText(raw: string, language: 'tl' | 'en'): string {
   const part2Tl = countMatches(part2, TAGALOG_REGEX);
   const part2En = countMatches(part2, ENGLISH_REGEX);
 
-  // If part2 has no language keywords and is short, might be a date or metadata e.g. (12 days)
-  if (part2Tl === 0 && part2En === 0 && part2.length < 25) {
+  // If part2 has no language keywords and is short, might be a date or metadata e.g. (12 days). A short sentence ("Choose a reason.") is a translation.
+  const alphaWords = part2.split(/\s+/).filter((w) => /[A-Za-z]{2,}/.test(w)).length;
+  const sentenceLike = alphaWords >= 3 || (alphaWords >= 2 && /[.!?]$/.test(part2));
+  if (part2Tl === 0 && part2En === 0 && part2.length < 25 && !sentenceLike) {
     return trimmed;
   }
 

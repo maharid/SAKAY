@@ -217,11 +217,14 @@ export const DriverFeedbackModal: React.FC<DriverFeedbackModalProps> = ({
               textAlign: 'center',
             }}
           >
+            {/* The passenger's avatar is the same SAKAY orange everywhere in the Driver app (the active trip, the trip details). Green belongs to the
+                success state of this dialog (the confirmation tick, the submit button), not to a person. */}
             <Avatar
               sx={{
                 width: 54,
                 height: 54,
-                backgroundColor: '#10B981',
+                backgroundColor: '#FF6600',
+                color: '#FFFFFF',
                 fontWeight: 700,
                 fontSize: '20px',
                 margin: '0 auto 8px auto',

@@ -20,6 +20,7 @@ import { useInFlight } from '../hooks/useInFlight';
 import { EvidencePicker } from './EvidencePicker';
 import { canAppealStrike, newestAppealByStrike } from '../utils/strikeAppeals';
 import type { AppealResult, AppealRow, StrikeHistory, StrikeRow } from '../utils/strikeAppeals';
+import { messageForLanguage } from '../utils/notificationLocalization';
 
 export interface StrikesAppealsViewProps {
   language: 'tl' | 'en';
@@ -222,7 +223,7 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
           <EvidencePicker language={language} files={files} onChange={setFiles} disabled={flight.busy} />
           {formError && (
             <Alert severity="warning" sx={{ borderRadius: '12px', fontSize: '12px' }}>
-              {formError}
+              {messageForLanguage(formError, language)}
             </Alert>
           )}
         </DialogContent>

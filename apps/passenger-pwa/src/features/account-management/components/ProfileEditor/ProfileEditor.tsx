@@ -15,7 +15,7 @@ import PageHeader from "../../../../common/components/PageHeader";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { supabase } from "../../../../services/supabaseClient";
-import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl } from "@sakay/shared";
+import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl, messageForLanguage } from "@sakay/shared";
 
 export const ProfileEditor: React.FC = () => {
   const { language, t } = useLanguage();
@@ -325,7 +325,7 @@ export const ProfileEditor: React.FC = () => {
 
         {error && (
           <Alert severity="error" sx={{ borderRadius: "12px", fontSize: "12px", fontFamily: "Poppins, sans-serif" }}>
-            {error}
+            {messageForLanguage(error, language)}
           </Alert>
         )}
 

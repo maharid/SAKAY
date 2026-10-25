@@ -273,7 +273,6 @@ export async function fetchDriverProfile(_driverId?: string) {
       accountStatus: data.account_status,
       // The column holds 'Offline' | 'Available' | 'Busy' (never 'Online' / 'Paused'); the live value comes from the presence engine.
       isOnline: data.availability_status === 'Available' || data.availability_status === 'Busy',
-      isPaused: false,
       verificationStage: data.account_status === 'Verified' ? 'Stage 2 Approved' : 'Stage 1 TODA Review',
       currentLat: data.current_latitude ? Number(data.current_latitude) : 13.4117,
       currentLng: data.current_longitude ? Number(data.current_longitude) : 121.1803,
@@ -496,7 +495,7 @@ export async function sendDriverOtp(phone: string): Promise<{ success: boolean; 
     return { success: false, error: data.error || 'Failed to send OTP SMS.' };
   } catch (backendErr) {
     console.warn('[driverApiService] Backend server not reachable or timed out:', backendErr);
-    return { success: false, error: 'Hindi maabot ang SMS server. Pakisubukang muli.' };
+    return { success: false, error: getLocalizedError('Hindi maabot ang SMS server. Pakisubukang muli.', 'The SMS server could not be reached. Please try again.') };
   }
 }
 
@@ -1150,7 +1149,10 @@ export async function saveDriverLicenseVerification(
     console.error('[DRIVER LICENSE SAVE] saveDriverLicenseVerification exception:', err);
     return {
       success: false,
-      error: 'Nagkaroon ng hindi inaasahang problema sa koneksyon habang isina-save ang iyong impormasyon. Pakisubukang muli.',
+      error: getLocalizedError(
+        'Nagkaroon ng hindi inaasahang problema sa koneksyon habang isina-save ang iyong impormasyon. Pakisubukang muli.',
+        'An unexpected connection problem occurred while saving your information. Please try again.'
+      ),
     };
   }
 }

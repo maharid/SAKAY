@@ -115,7 +115,6 @@ export const DriverStatusMonitor: React.FC = () => {
             todaName: todaInfo ? `${todaNameStr} (${todaAcronymStr})` : '',
             rating: 5.0,
             isOnline: false,
-            isPaused: false,
             accountStatus: driverData.account_status,
             verificationStage: driverData.account_status === 'Verified' ? 'Stage 2 Approved' : 'Stage 1 TODA Review',
           })

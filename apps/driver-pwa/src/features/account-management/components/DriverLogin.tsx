@@ -188,7 +188,6 @@ export const DriverLogin: React.FC = () => {
           rating: rating,
           totalTrips: 0,
           isOnline: false,
-          isPaused: false,
           accountStatus: driverData.account_status,
           verificationStage: driverData.account_status === 'Verified' ? 'Stage 2 Approved' : 'Stage 1 TODA Review',
         })

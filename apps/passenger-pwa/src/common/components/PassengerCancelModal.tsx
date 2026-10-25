@@ -7,7 +7,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useLanguage } from "../../utils/LanguageContext";
-import { PASSENGER_CANCEL_GRACE_SECONDS, activateWithKeyboard } from "@sakay/shared";
+import { PASSENGER_CANCEL_GRACE_SECONDS, PASSENGER_CANCEL_OPTIONS, activateWithKeyboard } from "@sakay/shared";
 
 export interface PassengerCancelModalProps {
   open: boolean;
@@ -18,40 +18,6 @@ export interface PassengerCancelModalProps {
   /** Where the booking is, so the reminder tells the truth about the strike (Rules 12.1 / 12.2): still searching, driver accepted (on the way), driver arrived */
   phase?: "searching" | "accepted" | "arrived";
 }
-
-interface CancelOption {
-  id: string;
-  tl: string;
-  en: string;
-}
-
-const CANCEL_OPTIONS: CancelOption[] = [
-  {
-    id: "driver_delayed",
-    tl: "Matagal dumating ang driver",
-    en: "Driver is taking too long",
-  },
-  {
-    id: "no_longer_needed",
-    tl: "Hindi ko na kailangan ang biyahe",
-    en: "I no longer need the ride",
-  },
-  {
-    id: "wrong_location",
-    tl: "Nagkamali ako ng pickup o destination",
-    en: "Wrong pickup or destination",
-  },
-  {
-    id: "found_another_ride",
-    tl: "May ibang nasakyan na ako",
-    en: "Found another ride",
-  },
-  {
-    id: "other",
-    tl: "Iba pa",
-    en: "Other reason",
-  },
-];
 
 /**
  * What cancelling costs, in the words of Rules 12.1 / 12.2: nothing before a driver accepts, nothing within the grace minute after the acceptance while the driver
@@ -92,7 +58,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
   if (!open) return null;
 
   const handleConfirm = async () => {
-    const selected = CANCEL_OPTIONS.find((opt) => opt.id === selectedOptionId);
+    const selected = PASSENGER_CANCEL_OPTIONS.find((opt) => opt.id === selectedOptionId);
     const reasonText = selected
       ? effectiveLanguage === "tl"
         ? selected.tl
@@ -186,7 +152,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
 
         {/* Radio Options List */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {CANCEL_OPTIONS.map((option) => {
+          {PASSENGER_CANCEL_OPTIONS.map((option) => {
             const isSelected = selectedOptionId === option.id;
             const label = effectiveLanguage === "tl" ? option.tl : option.en;
 

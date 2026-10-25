@@ -41,7 +41,8 @@ export const MapControlButton: React.FC<MapControlButtonProps> = ({ label, icon,
         border: pressed ? '2px solid #FB923C' : '2px solid transparent',
         boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)',
         transition: 'background-color 0.15s ease, border-color 0.15s ease',
-        '&:hover': { backgroundColor: pressed ? '#FFEDD5' : '#F8FAFC' },
+        // hover only where a pointer really hovers: after a tap on a phone the button must not stay looking selected
+        '@media (hover: hover)': { '&:hover': { backgroundColor: pressed ? '#FFEDD5' : '#F8FAFC' } },
         '&:active': { transform: 'scale(0.96)' },
       }}
     >

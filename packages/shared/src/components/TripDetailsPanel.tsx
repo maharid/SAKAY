@@ -8,6 +8,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
 
 import { RIDE_SHARING_CUTOFF_PERCENT } from '../config/policyConfig';
+import RouteTimeline from './RouteTimeline';
 import type { BookingPhase, TripDetailsView } from '../utils/tripDetails';
 
 interface TripDetailsPanelProps {
@@ -173,12 +174,18 @@ const TripDetailsPanel: React.FC<TripDetailsPanelProps> = ({ view, language, def
           '&.Mui-focusVisible': { outline: `3px solid ${ORANGE_TEXT}`, outlineOffset: '-3px' },
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography sx={{ fontSize: '14px', fontWeight: 700, color: INK, lineHeight: 1.3 }}>{t.title}</Typography>
           <Typography sx={{ fontSize: '12px', fontWeight: 500, color: MUTED, lineHeight: 1.3 }}>
             {view.rideType === 'Shared' ? t.shared : t.solo}
             {view.passengerCount > 1 ? ` · ${t.passengers(view.passengerCount)}` : ''}
           </Typography>
+          {/* Collapsed, the panel still says where the trip goes (opened, the route below says it in full) */}
+          {!expanded && view.destination && (
+            <Typography noWrap sx={{ fontSize: '12px', fontWeight: 600, color: INK, lineHeight: 1.4, mt: 0.25 }}>
+              {t.destination}: {view.destination}
+            </Typography>
+          )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
           {view.fare && (
@@ -201,23 +208,8 @@ const TripDetailsPanel: React.FC<TripDetailsPanelProps> = ({ view, language, def
           aria-labelledby={headerId}
           sx={{ px: variant === 'card' ? 2 : 0, pb: 1.75, pt: 0.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}
         >
-          {/* The route: both ends in full, wrapped (long place names must not push the screen sideways) */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {[
-              { label: t.pickup, value: view.pickup, color: '#16A34A' },
-              { label: t.destination, value: view.destination, color: '#DC2626' },
-            ].map((end) => (
-              <Box key={end.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
-                <Box aria-hidden sx={{ mt: '5px', width: 12, height: 12, borderRadius: '50%', border: `3px solid ${end.color}`, flexShrink: 0 }} />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: MUTED, lineHeight: 1.3 }}>{end.label}</Typography>
-                  <Typography sx={{ fontSize: '14px', fontWeight: 600, color: INK, lineHeight: 1.4, overflowWrap: 'anywhere' }}>
-                    {end.value ?? t.notAvailable}
-                  </Typography>
-                </Box>
-              </Box>
-            ))}
-          </Box>
+          {/* The route: both ends in full, drawn as on the trip details screen */}
+          <RouteTimeline pickup={view.pickup} destination={view.destination} pickupLabel={t.pickup} destinationLabel={t.destination} missingText={t.notAvailable} />
 
           <Box component="dl" sx={{ m: 0, display: 'flex', flexDirection: 'column', gap: 1, borderTop: '1px solid #E2E8F0', pt: 1.5 }}>
             <Row label={t.status}>{t.phases[view.phase]}</Row>

@@ -17,13 +17,13 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
-import CancelIcon from '@mui/icons-material/Cancel';
 import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
 import PersonIcon from '@mui/icons-material/Person';
 import PlaceIcon from '@mui/icons-material/Place';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
-import MapView, { type MapViewHandle, type CameraMode } from '../../../common/components/MapView';
+import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { useDriverSession } from '../../../contexts/DriverSessionContext';
@@ -58,6 +58,7 @@ import SakayToast from '../../../common/components/SakayToast';
 import SharedLegSwitcher from '../../../common/components/SharedLegSwitcher';
 import PassengerCountReportDialog from '../../../common/components/PassengerCountReportDialog';
 import BookingGivenAwayDialog from '../../../common/components/BookingGivenAwayDialog';
+import BookingCancelledDialog from '../../../common/components/BookingCancelledDialog';
 import { useAssignedBookingClocks } from '../../../hooks/useAssignedBookingClocks';
 import EnRouteNotices from './EnRouteNotices';
 import ReconfirmTripDialog from './ReconfirmTripDialog';
@@ -86,6 +87,7 @@ export const DriverActiveTrip: React.FC = () => {
   // Bidirectional Passenger Cancelled Alert State
   const [passengerCancelledAlertOpen, setPassengerCancelledAlertOpen] = useState(false);
   const [passengerCancelReason, setPassengerCancelReason] = useState<string>('');
+  const [passengerCancelledBy, setPassengerCancelledBy] = useState<string>('');
 
   // The rating prompt that follows the driver's Payment Received (Rule 18.3), and the dialog of an early stop (Rules 13.7 / 29.3)
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -127,7 +129,6 @@ export const DriverActiveTrip: React.FC = () => {
   );
   // The map: its camera controls, what covers it (so the camera frames what is really visible), and whether the position is still refreshing
   const mapRef = useRef<MapViewHandle>(null);
-  const [cameraMode, setCameraMode] = useState<CameraMode>('auto');
   const driverFixStale = useStaleSignal(liveFix, 30_000);
   const safeArea = useSafeAreaInsets();
   const [topPanelRef, topPanel] = useMeasuredSize<HTMLDivElement>();
@@ -191,7 +192,8 @@ export const DriverActiveTrip: React.FC = () => {
           setCurrentFare(fare);
 
           if (data.booking_status === 'Cancelled' && data.cancelled_by === 'passenger') {
-            setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ng pasahero ang booking' : 'Passenger cancelled the booking'));
+            setPassengerCancelReason(data.cancellation_reason ?? '');
+            setPassengerCancelledBy(data.cancelled_by ?? '');
             setPassengerCancelledAlertOpen(true);
           }
         }
@@ -239,7 +241,8 @@ export const DriverActiveTrip: React.FC = () => {
           if (data.actual_fare !== null && data.actual_fare !== undefined) setCurrentFare(Number(data.actual_fare));
           setBooking((prev: any) => (prev && prev.booking_status !== 'Arrived at Destination' ? { ...prev, booking_status: 'Arrived at Destination' } : prev));
         } else if (data.booking_status === 'Cancelled' && data.cancelled_by !== 'driver') {
-          setPassengerCancelReason(data.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking' : 'The booking was cancelled'));
+          setPassengerCancelReason(data.cancellation_reason ?? '');
+          setPassengerCancelledBy(data.cancelled_by ?? '');
           setPassengerCancelledAlertOpen(true);
         } else if (data.booking_status === 'Pending') {
           // The booking went back to the search (it is no longer ours): leave the trip screen.
@@ -272,7 +275,8 @@ export const DriverActiveTrip: React.FC = () => {
             setBooking((prev: any) => (prev ? { ...prev, booking_status: 'Completed' } : prev));
             showCompleted();
           } else if (row.booking_status === 'Cancelled' && row.cancelled_by !== 'driver') {
-            setPassengerCancelReason(row.cancellation_reason || (language === 'tl' ? 'Kinansela ang booking' : 'The booking was cancelled'));
+            setPassengerCancelReason(row.cancellation_reason ?? '');
+            setPassengerCancelledBy(row.cancelled_by ?? '');
             setPassengerCancelledAlertOpen(true);
           }
         }
@@ -554,30 +558,28 @@ export const DriverActiveTrip: React.FC = () => {
         insets={mapInsets}
         stageKey={booking?.booking_status ?? 'loading'}
         closeUpWhileMoving
-        onCameraModeChange={setCameraMode}
       />
 
-      {/* Map controls: where I am, and the whole trip. Each really moves the camera; dragging the map lets go of either. They sit just above
-          the action panel, and the passenger panel above is kept clear of them. */}
+      {/* Map controls: the whole trip (top) and where I am (bottom). Each is an action, not a switch: it moves the camera once and never stays "on";
+          the bottom one also takes the map back to following the driver, and dragging the map lets go of either. They sit just above the action panel,
+          and the passenger panel above is kept clear of them. */}
       <MapControlStack bottom={bottomPanel.height + 16} label={tl ? 'Mga kontrol ng mapa' : 'Map controls'}>
         <MapControlButton
-          icon="my-location"
-          label={tl ? 'I-center sa aking lokasyon' : 'Center on my location'}
-          pressed={cameraMode === 'driver'}
-          unavailableReason={!liveFix ? (tl ? 'Hinihintay pa ang GPS. Ipinapakita ang huling alam na lokasyon.' : 'Waiting for GPS. Showing your last known location.') : undefined}
+          icon="route"
+          label={tl ? 'Ipakita ang buong ruta' : 'Show the whole route'}
           onClick={() => {
-            if (!mapRef.current?.centerOnDriver()) {
-              setToastMessage(tl ? 'Wala pang nakuhang lokasyon mo. Tiyaking naka-on ang Location.' : 'Your location is not available yet. Make sure Location is turned on.');
+            if (!mapRef.current?.fitRoute()) {
+              setToastMessage(tl ? 'Wala pang ruta na maipapakita.' : 'There is no route to show yet.');
             }
           }}
         />
         <MapControlButton
-          icon="route"
-          label={tl ? 'Ipakita ang buong ruta' : 'Show the whole route'}
-          pressed={cameraMode === 'route'}
+          icon="my-location"
+          label={tl ? 'I-center sa aking lokasyon' : 'Center on my location'}
+          unavailableReason={!liveFix ? (tl ? 'Hinihintay pa ang GPS. Ipinapakita ang huling alam na lokasyon.' : 'Waiting for GPS. Showing your last known location.') : undefined}
           onClick={() => {
-            if (!mapRef.current?.fitRoute()) {
-              setToastMessage(tl ? 'Wala pang ruta na maipapakita.' : 'There is no route to show yet.');
+            if (!mapRef.current?.centerOnDriver()) {
+              setToastMessage(tl ? 'Wala pang nakuhang lokasyon mo. Tiyaking naka-on ang Location.' : 'Your location is not available yet. Make sure Location is turned on.');
             }
           }}
         />
@@ -672,7 +674,11 @@ export const DriverActiveTrip: React.FC = () => {
         {/* Where to: the pickup until the passenger boards, the destination after (the address is always in view, at every stage) */}
         {targetAddress && (
           <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <PlaceIcon aria-hidden sx={{ fontSize: 20, mt: '2px', color: isPreTrip ? '#FF6600' : '#B91C1C', flexShrink: 0 }} />
+            {isPreTrip ? (
+              <RadioButtonUncheckedIcon aria-hidden sx={{ fontSize: 18, mt: '3px', mx: '1px', color: '#FF6600', flexShrink: 0 }} />
+            ) : (
+              <PlaceIcon aria-hidden sx={{ fontSize: 20, mt: '2px', color: '#FF6600', flexShrink: 0 }} />
+            )}
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
                 {isPreTrip ? 'Pickup' : tl ? 'Destinasyon' : 'Destination'}
@@ -927,64 +933,17 @@ export const DriverActiveTrip: React.FC = () => {
         onAnswered={connectivity.refresh}
       />
 
-      {/* Bidirectional Passenger Cancellation Realtime Notification Modal */}
-      <Dialog
+      {/* The booking was cancelled while it was ours: who cancelled and, when there is one, the reason */}
+      <BookingCancelledDialog
         open={passengerCancelledAlertOpen}
+        language={language === 'tl' ? 'tl' : 'en'}
+        cancelledBy={passengerCancelledBy}
+        reason={passengerCancelReason}
         onClose={() => {
           setPassengerCancelledAlertOpen(false);
           navigate('/driver/home', { replace: true });
         }}
-        slotProps={{
-          paper: {
-            sx: { borderRadius: '24px', p: 1.5, backgroundColor: '#FFFFFF', maxWidth: '380px', width: '90%' },
-          },
-        }}
-      >
-        <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 1 }}>
-          <CancelIcon sx={{ fontSize: 48, color: '#EF4444', mb: 1 }} />
-          <Typography sx={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl' ? 'Kanselado ang Biyahe' : 'Trip Cancelled'}
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
-          <Typography sx={{ fontSize: '14px', color: '#475569', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
-            {language === 'tl'
-              ? 'Kinansela ng pasahero ang booking.'
-              : 'The passenger has cancelled the booking.'}
-          </Typography>
-          {passengerCancelReason && (
-            <Box sx={{ mt: 1.5, p: '10px 14px', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px' }}>
-              <Typography sx={{ fontSize: '13px', color: '#B91C1C', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
-                {language === 'tl' ? 'Rason:' : 'Reason:'} "{passengerCancelReason}"
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => {
-              setPassengerCancelledAlertOpen(false);
-              navigate('/driver/home', { replace: true });
-            }}
-            sx={{
-              height: 46,
-              borderRadius: '14px',
-              backgroundColor: '#FF6600',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: '14px',
-              textTransform: 'none',
-              fontFamily: 'Poppins, sans-serif',
-              boxShadow: '0 4px 14px rgba(255, 102, 0, 0.25)',
-              '&:hover': { backgroundColor: '#E65C00' },
-            }}
-          >
-            {language === 'tl' ? 'OK (Bumalik sa Home)' : 'OK (Return Home)'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      />
 
       {/* Exit Guard Confirmation Dialog */}
       <Dialog

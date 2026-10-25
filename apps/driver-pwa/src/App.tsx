@@ -44,6 +44,7 @@ import { DriverSupportPage } from './features/account-management/pages/DriverSup
 import DriverStrikesPage from './features/account-management/pages/DriverStrikesPage';
 import DriverFareDisputesPage from './features/account-management/pages/DriverFareDisputesPage';
 import DriverVehicleSubstitutionPage from './features/account-management/pages/DriverVehicleSubstitutionPage';
+import DriverAboutPage from './features/account-management/pages/DriverAboutPage';
 import { DriverIncidentReporting } from './features/incident-reporting/components/DriverIncidentReporting';
 import { DriverAppFeedbackPage } from './features/account-management/pages/DriverAppFeedbackPage';
 import { DriverAvailabilityHome } from './features/availability/components/DriverAvailabilityHome';
@@ -155,6 +156,7 @@ export const App: React.FC = () => {
             <Route path="/driver/strikes" element={<DriverStrikesPage />} />
             <Route path="/driver/fare-disputes" element={<DriverFareDisputesPage />} />
             <Route path="/driver/vehicle-substitution" element={<DriverVehicleSubstitutionPage />} />
+            <Route path="/driver/about" element={<DriverAboutPage />} />
             <Route path="/support" element={<DriverSupportPage />} />
             <Route path="/driver/report-incident" element={<DriverIncidentReporting />} />
             <Route path="/driver/rate-app" element={<DriverAppFeedbackPage />} />

@@ -6,7 +6,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { DRIVER_CANCEL_REASONS, type DriverCancelReason, activateWithKeyboard } from "@sakay/shared";
+import { DRIVER_CANCEL_LABELS, DRIVER_CANCEL_REASONS, type DriverCancelReason, activateWithKeyboard } from "@sakay/shared";
 import { useLanguage } from "../../utils/LanguageContext";
 
 export interface DriverCancelModalProps {
@@ -18,21 +18,8 @@ export interface DriverCancelModalProps {
   loading?: boolean;
 }
 
-const CANCEL_LABELS: Record<DriverCancelReason, { tl: string; en: string }> = {
-  vehicle_breakdown: { tl: "Nasiraan ng sasakyan", en: "Vehicle breakdown / technical issue" },
-  personal_emergency: { tl: "Dahilang pangkagipitan", en: "Personal emergency" },
-  passenger_unreachable: { tl: "Hindi maabot ang pasahero", en: "Passenger unreachable" },
-  wrong_pickup_location: { tl: "Mali o hindi maabot ang pickup", en: "Wrong or unreachable pickup location" },
-  safety_concern: { tl: "Alalahanin sa kaligtasan", en: "Safety concern" },
-  road_closure_or_traffic: { tl: "Sarado ang daan / sakuna (bagyo, baha)", en: "Road closed / calamity (typhoon, flood)" },
-  accident: { tl: "Aksidente", en: "Accident" },
-  unsafe_or_illegal_request: { tl: "Hiniling ng pasahero ang mapanganib o ilegal", en: "Passenger asked for something unsafe or illegal" },
-  prohibited_item: { tl: "Bawal o sobrang laking bagahe", en: "Prohibited or oversized baggage" },
-  other: { tl: "Iba pa", en: "Other reason" },
-};
-
 // The choices are exactly the reasons the database accepts (the drift test checks the list).
-const DRIVER_CANCEL_OPTIONS = DRIVER_CANCEL_REASONS.map((id) => ({ id, ...CANCEL_LABELS[id] }));
+const DRIVER_CANCEL_OPTIONS = DRIVER_CANCEL_REASONS.map((id) => ({ id, ...DRIVER_CANCEL_LABELS[id] }));
 
 /**
  * DriverCancelModal - Aesthetic cancel booking modal for Driver PWA
