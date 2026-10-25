@@ -1,17 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useInFlight } from '../hooks/useInFlight';
-import { closeProblem } from '../utils/tripCorrections';
-import { isAvailabilityFlag } from '../utils/availabilityReports';
-import { INCIDENT_LOST_ITEM_UNCLAIMED_DAYS, SAFE_REASON_FLAG_COUNT, SAFE_REASON_FLAG_WINDOW_DAYS } from '../config/policyConfig';
+import { flagSummary, manilaShort, shortFlagTitle } from '../utils/reviewFlagText';
+import { ReviewFlagDialog } from './ReviewFlagDialog';
 
 /** A review flag as the database holds it (admin_review_flag) */
 export interface ReviewFlagRow {
@@ -48,163 +44,129 @@ export interface ReviewFlagsPanelProps {
   showWhenEmpty?: boolean;
 }
 
-const TITLES: Record<string, string> = {
-  DRIVER_SAFE_REASON_REVIEW: 'A driver cancelled or stopped for a reason that is not struck (verify it)',
-  DRIVER_SAFE_REASON_PATTERN: `A driver used such reasons ${SAFE_REASON_FLAG_COUNT} times in ${SAFE_REASON_FLAG_WINDOW_DAYS} days`,
-  DRIVER_EARLY_STOP_REVIEW: 'A driver ended a trip before the destination',
-  DRIVER_DETENTION_TODA_REVIEW: 'A driver was detained or arrested during a trip: the TODA review',
-  DRIVER_DETENTION_LGU_REVIEW: 'A driver was detained or arrested during a trip: the LGU review',
-  DRIVER_INCAPACITATED_REVIEW: 'A driver became ill during a trip',
-  LOST_ITEM_UNCLAIMED_REVIEW: `A lost-item report has had no response for ${INCIDENT_LOST_ITEM_UNCLAIMED_DAYS} days`,
-  DRIVER_CHANGE_REFUSAL_PATTERN: 'Repeated complaints that a driver refused to give change',
-  DRIVER_INACTIVITY_REVIEW: 'A driver was put Offline for inactivity several times in 30 days: review, no strike',
-  DRIVER_REPEATED_CANCELLATIONS: 'A driver cancelled several accepted bookings',
-  DRIVER_SHARED_REQUEST_DECLINES: 'A driver declined several Shared Trip requests',
-  PAYMENT_STUCK_RECONCILIATION: 'A trip is waiting at the destination for the payment (PI-15)',
-  DRIVER_REPEATED_DECLINES: 'A driver declined several booking offers while Online: weigh the reasons before anything is confirmed',
-  DRIVER_QUEUE_CONFLICT_REPORT: 'A driver was reported queued at the terminal while Available in the app',
-  DRIVER_AVAILABILITY_VIOLATION_REPORT: 'A driver was reported accepting a booking while carrying other passengers',
-  TRIP_MANUAL_RECONCILIATION: 'A trip has been silent for 30 minutes',
-  DRIVER_LOW_RATING_REVIEW: 'A driver\'s average rating is under 3.00 after at least 20 completed trips: review, counselling or retraining',
-};
-
-const manila = (iso: unknown): string => {
-  const ms = typeof iso === 'string' ? Date.parse(iso) : NaN;
-  return Number.isFinite(ms) ? new Date(ms).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
-};
-
-interface SafeEvent {
-  booking_id: string;
-  reason: string;
-  at: string;
-}
-
 /**
  * The review flags waiting for the driver's TODA Administrator (Rules 13.7, 15.1 - 15.5, 29.13, 29.14, 29.19, 29.20, 29.22; decision PI-11B): nothing is struck automatically; the administrator
  * verifies the event and either closes the flag or, if the reason was misused, confirms the strike (the engine records it under the administrator's name, with the reason).
- * The LGU dashboard lists the same flags for the LGU Administrator.
+ * The list shows one short line per flag (what, who, when, one figure); "See Details" opens the window with everything the flag holds and the review itself.
  */
 export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ flags, driverNames = {}, onResolve, onConfirm, onCloseTrip, onConfirmAvailability, onViewDeclineHistory, showWhenEmpty = false }) => {
   const flight = useInFlight();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [note, setNote] = useState('');
-  const [eventBooking, setEventBooking] = useState('');
+  // the flag whose window is mounted (it stays mounted until the window has finished closing, so the focus goes back to the button that opened it) and whether it is open
+  const [shown, setShown] = useState<ReviewFlagRow | null>(null);
+  const [open, setOpen] = useState(false);
+  // the button that opened the window: the focus goes back to it when the window has closed (a flag that was resolved has no button any more)
+  const opener = useRef<HTMLElement | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   if (flags.length === 0 && !showWhenEmpty) return null;
 
+  const driverOf = (f: ReviewFlagRow): string => driverNames[f.subject_id] ?? (f.subject_type === 'driver' ? 'Driver' : f.subject_type);
+  const openFlag = shown ? flags.find((f) => f.flag_id === shown.flag_id) ?? shown : null;
+
+  // An action that was refused keeps the window open with the reason inside it; one that worked closes it and says so above the list
   const run = (task: () => Promise<string | null>, ok: string) =>
-    flight.run(async () => {
+    void flight.run(async () => {
       const problem = await task();
       if (problem) {
-        setMessage({ severity: 'error', text: problem });
+        setDialogError(problem);
         return;
       }
       setMessage({ severity: 'success', text: ok });
-      setOpenId(null);
-      setNote('');
-      setEventBooking('');
+      setDialogError(null);
+      setOpen(false);
     });
+
+  const closeDialog = () => {
+    setOpen(false);
+    setDialogError(null);
+  };
 
   return (
     <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: '16px', border: '1px solid #E2E8F0' }}>
-      <Typography sx={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', mb: 0.5 }}>Review flags ({flags.length})</Typography>
-      <Typography sx={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5, mb: 1.5 }}>
-        Events the system recorded without striking anybody. Verify each one; if a reason was misused you can confirm the strike it was meant to avoid. Nothing here is decided by the system.
+      <Typography component="h2" sx={{ fontWeight: 700, fontSize: '15px', color: '#1d1d1f', mb: '2px' }}>Review flags ({flags.length})</Typography>
+      <Typography sx={{ fontSize: '12px', color: '#4d4d52', lineHeight: 1.5, mb: 1.5 }}>
+        Events recorded without a strike. Open each one to verify it.
       </Typography>
       {message && <Alert severity={message.severity} sx={{ mb: 1.5 }} onClose={() => setMessage(null)}>{message.text}</Alert>}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {flags.map((f) => {
-          const d = (f.details ?? {}) as Record<string, unknown>;
-          const events = Array.isArray(d.events) ? (d.events as SafeEvent[]) : [];
-          const driver = driverNames[f.subject_id] ?? (f.subject_type === 'driver' ? 'Driver' : f.subject_type);
-          const confirmable = f.flag_type === 'DRIVER_SAFE_REASON_REVIEW' || (f.flag_type === 'DRIVER_EARLY_STOP_REVIEW' && d.valid_reason === false) || f.flag_type === 'DRIVER_SHARED_REQUEST_DECLINES' || f.flag_type === 'DRIVER_REPEATED_DECLINES';
-          const needsEvent = f.flag_type === 'DRIVER_SAFE_REASON_REVIEW';
-          const bookingForConfirm = needsEvent ? eventBooking : typeof d.booking_id === 'string' ? d.booking_id : null;
+          const summary = flagSummary((f.details ?? {}) as Record<string, unknown>);
+          const label = shortFlagTitle(f.flag_type);
           return (
-            <Box key={f.flag_id} sx={{ p: 1.5, borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Chip size="small" label={f.flag_type.replace(/_/g, ' ')} sx={{ fontWeight: 700, fontSize: '10.5px' }} />
-                <Typography sx={{ fontSize: '12px', color: '#64748B' }}>{driver} · {f.source_rule} · {manila(f.created_at)}</Typography>
-              </Box>
-              <Typography sx={{ fontSize: '13.5px', fontWeight: 600, color: '#0F172A', mt: 0.5 }}>{TITLES[f.flag_type] ?? f.flag_type}</Typography>
-              {typeof d.description === 'string' && isAvailabilityFlag(f.flag_type) && (
-                <Typography sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.5, mt: 0.25 }}>
-                  {typeof d.reported_by === 'string' ? `Reported by ${d.reported_by.replace('_', ' ')}: ` : ''}"{d.description}"
-                </Typography>
-              )}
-              {typeof d.note === 'string' && <Typography sx={{ fontSize: '12.5px', color: '#475569', lineHeight: 1.5, mt: 0.25 }}>{d.note}</Typography>}
-              {events.length > 0 && (
-                <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5, fontSize: '12.5px', color: '#334155' }}>
-                  {events.map((e, i) => (
-                    <li key={`${e.booking_id}-${i}`}>
-                      {manila(e.at)}: {String(e.reason).replace(/_/g, ' ')} (trip {String(e.booking_id).slice(0, 8).toUpperCase()})
-                    </li>
-                  ))}
-                </Box>
-              )}
-              {typeof d.declines_in_window === 'number' && (
-                <Typography sx={{ fontSize: '12.5px', color: '#334155' }}>
-                  {d.declines_in_window} declines in {String(d.window_hours)} hours
-                  {d.reasons && typeof d.reasons === 'object' ? ': ' + Object.entries(d.reasons as Record<string, number>).map(([k, n]) => `${k.replace(/_/g, ' ')} ${n}`).join(', ') : ''}.
-                </Typography>
-              )}
-              {typeof d.events_in_window === 'number' && <Typography sx={{ fontSize: '12.5px', color: '#334155' }}>{d.events_in_window} events in {String(d.window_days)} days.</Typography>}
-              <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button size="small" variant="outlined" onClick={() => { setOpenId(openId === f.flag_id ? null : f.flag_id); setMessage(null); }} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                  {openId === f.flag_id ? 'Close' : 'Review'}
-                </Button>
-                {onViewDeclineHistory && f.flag_type === 'DRIVER_REPEATED_DECLINES' && (
-                  <Button size="small" variant="text" onClick={() => onViewDeclineHistory(f.subject_id, driver)} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                    View the booking offers of this driver
-                  </Button>
-                )}
-              </Box>
-              {openId === f.flag_id && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1.25 }}>
-                  {needsEvent && (
-                    <TextField select size="small" fullWidth label="The event to confirm a strike for (only if the reason was misused)" value={eventBooking} onChange={(e) => setEventBooking(e.target.value)}>
-                      <MenuItem value="">No strike: choose an event only to confirm one</MenuItem>
-                      {events.map((e, i) => (
-                        <MenuItem key={`${e.booking_id}-${i}`} value={e.booking_id}>{manila(e.at)}: {String(e.reason).replace(/_/g, ' ')} (trip {String(e.booking_id).slice(0, 8).toUpperCase()})</MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                  <TextField size="small" multiline rows={2} fullWidth label="What you found (at least 10 characters)" value={note} onChange={(e) => setNote(e.target.value)} />
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Button size="small" variant="contained" disabled={flight.busy || note.trim().length < 10} onClick={() => void run(() => onResolve(f.flag_id, 'Resolved', note.trim()), 'The flag was resolved.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
-                      Verified: no violation
-                    </Button>
-                    <Button size="small" variant="outlined" disabled={flight.busy || note.trim().length < 10} onClick={() => void run(() => onResolve(f.flag_id, 'Dismissed', note.trim()), 'The flag was dismissed.')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                      Dismiss
-                    </Button>
-                    {onCloseTrip && f.flag_type === 'PAYMENT_STUCK_RECONCILIATION' && typeof d.booking_id === 'string' && (
-                      <>
-                        <Button size="small" variant="contained" color="success" disabled={flight.busy || closeProblem('Paid', note) !== null} onClick={() => void run(() => onCloseTrip(String(d.booking_id), 'Paid', note.trim()), 'The trip was closed as Paid.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
-                          Close the trip: Paid
-                        </Button>
-                        <Button size="small" variant="outlined" color="success" disabled={flight.busy || closeProblem('Waived', note) !== null} onClick={() => void run(() => onCloseTrip(String(d.booking_id), 'Waived', note.trim()), 'The trip was closed as Waived.')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                          Close the trip: Waived
-                        </Button>
-                      </>
-                    )}
-                    {onConfirmAvailability && isAvailabilityFlag(f.flag_type) && (
-                      <Button size="small" variant="contained" color="error" disabled={flight.busy || note.trim().length < 10} onClick={() => void run(() => onConfirmAvailability(f.flag_id, note.trim()), 'The violation was confirmed and the strike recorded.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
-                        Confirmed: record the strike
-                      </Button>
-                    )}
-                    {confirmable && (
-                      <Button size="small" variant="contained" color="error" disabled={flight.busy || note.trim().length < 10 || (needsEvent && !eventBooking)} onClick={() => void run(() => onConfirm(f.flag_id, bookingForConfirm, note.trim()), 'The strike was confirmed.')} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
-                        Reason misused: confirm the strike
-                      </Button>
-                    )}
+            <Box
+              component="li"
+              key={f.flag_id}
+              sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', gap: '10px 16px', p: '12px 14px', borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF' }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px' }}>
+                  <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#1d1d1f', lineHeight: 1.35 }}>{label}</Typography>
+                  <Box component="span" sx={{ fontSize: '11px', fontWeight: 600, color: '#4d4d52', backgroundColor: '#F1F5F9', borderRadius: '999px', px: '8px', py: '1px', lineHeight: 1.6, whiteSpace: 'nowrap' }}>
+                    {f.status}
                   </Box>
                 </Box>
-              )}
+                <Typography sx={{ fontSize: '12px', color: '#4d4d52', mt: '2px', overflowWrap: 'anywhere' }}>
+                  {driverOf(f)} · {manilaShort(f.created_at)}
+                  {summary ? ` · ${summary}` : ''}
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                onClick={(e) => {
+                  opener.current = e.currentTarget;
+                  setShown(f);
+                  setOpen(true);
+                  setDialogError(null);
+                  setMessage(null);
+                }}
+                aria-label={`See details: ${label}, ${driverOf(f)}`}
+                sx={{
+                  flexShrink: 0,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  minHeight: 36,
+                  px: '16px',
+                  borderRadius: '8px',
+                  color: '#1d1d1f',
+                  borderColor: 'rgba(15, 23, 42, 0.12)',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: 'none',
+                  '@media (pointer: coarse)': { minHeight: 44 },
+                  '&:hover': { backgroundColor: 'var(--sakay-orange-soft, #FFF1E6)', borderColor: 'var(--sakay-orange-border, #F5B98C)' },
+                  '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '2px' },
+                }}
+              >
+                See Details
+              </Button>
             </Box>
           );
         })}
       </Box>
+
+      {openFlag && (
+        <ReviewFlagDialog
+          key={openFlag.flag_id}
+          open={open}
+          onExited={() => {
+            setShown(null);
+            if (opener.current?.isConnected) opener.current.focus();
+            opener.current = null;
+          }}
+          flag={openFlag}
+          driver={driverOf(openFlag)}
+          busy={flight.busy}
+          error={dialogError}
+          run={run}
+          onClose={closeDialog}
+          onResolve={onResolve}
+          onConfirm={onConfirm}
+          onCloseTrip={onCloseTrip}
+          onConfirmAvailability={onConfirmAvailability}
+          onViewDeclineHistory={onViewDeclineHistory}
+        />
+      )}
     </Paper>
   );
 };

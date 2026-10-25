@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
@@ -15,6 +15,8 @@ import { fetchAllBookings, BookingRecordItem, fetchTripsNeedingReconciliation, r
 import { FareDisputesPanel, SafetyEndTripPanel, TripReconciliationPanel } from '@sakay/shared';
 import type { FareDisputeRow } from '@sakay/shared';
 import type { ReconciliationTrip } from '@sakay/shared';
+import { hasRoutablePlaces, roadBetween } from '../utils/tripRoutes';
+import type { LatLng } from '../utils/tripRoutes';
 import { FONT } from '../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
@@ -56,6 +58,9 @@ export const LiveTripsPage: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const framedRef = useRef(false);
+  // counts the roads that have just arrived (or failed), so the map is drawn again with them
+  const [routeTick, setRouteTick] = useState(0);
+  const redrawRoutes = useCallback(() => setRouteTick((n) => n + 1), []);
 
   const loadTrips = async () => {
     setIsLoading(true);
@@ -200,15 +205,20 @@ export const LiveTripsPage: React.FC = () => {
 
       marker.on('click', () => setSelectedTrip(trip));
 
-      // Route line: pickup, where the driver is now, destination
-      L.polyline(
-        [
-          [trip.startLat, trip.startLng],
-          [lat, lng],
-          [trip.destLat, trip.destLng],
-        ],
-        { color: markerBg, weight: 4, opacity: 0.8, dashArray: isOngoing ? undefined : '6, 6' }
-      ).addTo(map);
+      // Route line: the road from the pickup to the destination (asked for once per trip, utils/tripRoutes.ts). While the road is still loading nothing is drawn; if no
+      // road could be had, a thin dotted grey straight line says so, so it is never taken for the road.
+      const from: LatLng = [trip.startLat, trip.startLng];
+      const to: LatLng = [trip.destLat, trip.destLng];
+      if (hasRoutablePlaces(from, to)) {
+        const road = roadBetween(from, to, redrawRoutes);
+        if (road.state === 'road') {
+          L.polyline(road.points, { color: markerBg, weight: 4, opacity: 0.8, dashArray: isOngoing ? undefined : '6, 6' }).addTo(map);
+        } else if (road.state === 'unavailable') {
+          L.polyline([from, to], { color: '#94A3B8', weight: 2, opacity: 0.9, dashArray: '2, 6' })
+            .bindTooltip('Straight line between the pickup and the destination: the road route could not be loaded', { sticky: true })
+            .addTo(map);
+        }
+      }
       bounds.push([lat, lng]);
     });
 
@@ -217,7 +227,7 @@ export const LiveTripsPage: React.FC = () => {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
       framedRef.current = true;
     }
-  }, [activeTrips]);
+  }, [activeTrips, routeTick, redrawRoutes]);
 
   // Rules 29.20 - 29.22: the live trips with a driver on them (a booking still searching has nothing to end)
   const safetyTrips = bookings
