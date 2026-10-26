@@ -15,13 +15,15 @@ interface FareConfirmationCardProps {
   secondsLeft: number | null;
   expired: boolean;
   ordinance: string | null;
+  /** the sheet is closed: the fare and what to do about it; the basis of the fare and the cash note come with the open sheet */
+  compact?: boolean;
 }
 
 /**
  * Rules 16.6 / 18.1 / 18.2: the final fare, shown identically to the driver, and what the passenger has to do about it - one prompt, one timer. The fare is the
  * database's (nobody can edit it); Confirm Fare and Report Fare Discrepancy are the two buttons at the bottom of the screen.
  */
-const FareConfirmationCard: React.FC<FareConfirmationCardProps> = ({ language, state, fallbackFare, secondsLeft, expired, ordinance }) => {
+const FareConfirmationCard: React.FC<FareConfirmationCardProps> = ({ language, state, fallbackFare, secondsLeft, expired, ordinance, compact = false }) => {
   const tl = language === 'tl';
   const fare = state?.actualFare ?? fallbackFare;
   const answered = Boolean(state?.confirmFareAt);
@@ -43,13 +45,14 @@ const FareConfirmationCard: React.FC<FareConfirmationCardProps> = ({ language, s
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-      <Box sx={{ p: 2, borderRadius: '16px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+      <Box sx={{ p: compact ? '8px 14px' : 2, borderRadius: '16px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: compact ? 'left' : 'center', ...(compact ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 } : {}) }}>
         <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}>
           {early ? (tl ? 'Pamasahe (tinapos nang maaga)' : 'Fare (trip ended early)') : tl ? 'Opisyal na pamasahe' : 'Official tariff fare'}
         </Typography>
-        <Typography data-testid="final-fare" sx={{ fontSize: '30px', fontWeight: 700, lineHeight: 1.2, color: '#FF6600', my: 0.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        <Typography data-testid="final-fare" sx={{ fontSize: compact ? '26px' : '30px', fontWeight: 700, lineHeight: 1.2, color: '#FF6600', my: compact ? 0 : 0.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           {formatPeso(fare)}
         </Typography>
+        {!compact && (
         <Typography sx={{ fontSize: '12px', lineHeight: 1.4, color: '#64748B' }}>
           {early
             ? early.kind === 'SAFETY'
@@ -71,7 +74,8 @@ const FareConfirmationCard: React.FC<FareConfirmationCardProps> = ({ language, s
             ? 'Batay sa opisyal na taripa ng Lungsod ng Calapan'
             : 'Based on the official Calapan City tariff'}
         </Typography>
-        {early?.reason && (
+        )}
+        {!compact && early?.reason && (
           <Typography sx={{ fontSize: '11px', color: '#94A3B8', mt: 0.5 }}>{earlyEndReasonLabel(early.reason, tl ? 'tl' : 'en')}</Typography>
         )}
       </Box>
@@ -104,11 +108,11 @@ const FareConfirmationCard: React.FC<FareConfirmationCardProps> = ({ language, s
             expired ? 'red' : 'amber',
             <>
               <TimerIcon aria-hidden sx={{ fontSize: 20, flexShrink: 0, color: expired ? '#B91C1C' : '#B45309' }} />
-              <Box>
+              <Box sx={compact && !expired ? { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 } : { flex: 1, minWidth: 0 }}>
                 <Typography sx={{ fontSize: '13px', lineHeight: 1.45, fontWeight: 600 }}>
                   {tl ? 'Suriin ang pamasahe, ibigay ang bayad sa drayber, saka pindutin ang Confirm Fare.' : 'Check the fare, pay the driver in cash, then tap Confirm Fare.'}
                 </Typography>
-                <Typography role="timer" aria-live="off" sx={{ fontSize: expired ? '14px' : '22px', fontWeight: 700, lineHeight: 1.2, mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
+                <Typography role="timer" aria-live="off" sx={{ fontSize: expired ? '14px' : '22px', fontWeight: 700, lineHeight: 1.2, mt: compact && !expired ? 0 : 0.5, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                   {expired || secondsLeft === 0
                     ? tl ? 'Tapos na ang oras: maaari nang tapusin ng drayber ang biyahe.' : 'Time is up: the driver can finish the trip now. You can still confirm or report.'
                     : secondsLeft !== null
@@ -119,11 +123,13 @@ const FareConfirmationCard: React.FC<FareConfirmationCardProps> = ({ language, s
             </>
           )}
 
-      <Typography sx={{ fontSize: '11px', lineHeight: 1.4, color: '#94A3B8', textAlign: 'center' }}>
+      {!compact && (
+      <Typography sx={{ fontSize: '12px', lineHeight: 1.4, color: '#64748B', textAlign: 'center' }}>
         {tl
           ? 'Pera lamang (cash) ang bayad. Ang peke o pinaghihinalaang pekeng pera ay sabihin sa TODA Administrator at, kung kailangan, sa pulisya.'
           : 'Cash only. Counterfeit money is not handled by the app: tell the TODA Administrator and, if needed, the police.'}
       </Typography>
+      )}
     </Box>
   );
 };

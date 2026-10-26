@@ -626,6 +626,8 @@ export const DriverActiveTrip: React.FC = () => {
       {/* 3. The bottom card: who, what cannot wait, the action for this stage; the trip details open on demand (handle: tap, drag or arrow keys) */}
       <CollapsibleSheet
         sheetRef={bottomPanelRef}
+        // room above the card for the banner and the two map controls (they are never covered)
+        maxHeight={`calc(100% - var(--safe-area-top) - ${banner.height + 136}px)`}
         expanded={sheetExpanded}
         onExpandedChange={setSheetExpanded}
         expandLabel={tl ? 'Ipakita ang detalye ng biyahe' : 'Show trip details'}
@@ -774,6 +776,7 @@ export const DriverActiveTrip: React.FC = () => {
               onPaymentReceived={handlePaymentReceived}
               onReportNonPayment={handleReportNonPayment}
               onAddDisputeNote={handleDisputeNote}
+              compact={!sheetExpanded}
             />
           ) : booking.booking_status === 'Trip Ongoing' ? (
             /* The trip is on: End Trip is there from the start and opens at the destination gate (90 %, the database checks the same figure) or when the passenger asks to end the trip early */

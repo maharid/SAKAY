@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
-import { earlyEndReasonLabel, formatCountdown, formatPeso, type TripEndState } from '@sakay/shared';
+import { DESTRUCTIVE_BUTTON_SX, earlyEndReasonLabel, formatCountdown, formatPeso, type TripEndState } from '@sakay/shared';
 
 interface PaymentReceivedPanelProps {
   language: string;
@@ -17,6 +17,8 @@ interface PaymentReceivedPanelProps {
   onReportNonPayment: (note: string) => void;
   /** Rule 18.4: the driver's side of a fare dispute */
   onAddDisputeNote: (disputeId: string, text: string) => Promise<string | null>;
+  /** the sheet is closed: the fare, where the passenger is in the payment, and the buttons; the notes of the rules come with the open sheet */
+  compact?: boolean;
 }
 
 const FONT = 'Poppins, sans-serif';
@@ -28,7 +30,7 @@ const TEXT_MIN = 10;
  * ("Paid - fare unconfirmed", no strike for anybody).
  */
 const PaymentReceivedPanel: React.FC<PaymentReceivedPanelProps> = ({
-  language, state, fallbackFare, secondsLeft, expired, busy, onPaymentReceived, onReportNonPayment, onAddDisputeNote,
+  language, state, fallbackFare, secondsLeft, expired, busy, onPaymentReceived, onReportNonPayment, onAddDisputeNote, compact = false,
 }) => {
   const tl = language === 'tl';
   const fare = state?.actualFare ?? fallbackFare;
@@ -60,7 +62,7 @@ const PaymentReceivedPanel: React.FC<PaymentReceivedPanelProps> = ({
 
   return (
     <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-      <Box sx={{ p: '12px 14px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+      <Box sx={{ p: compact ? '8px 14px' : '12px 14px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'center' }}>
         <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#64748B', fontFamily: FONT }}>
           {tl ? 'Kunin ang bayad (cash)' : 'Collect in cash'}
           {early ? (tl ? ' • tinapos nang maaga' : ' • ended early') : ''}
@@ -68,12 +70,14 @@ const PaymentReceivedPanel: React.FC<PaymentReceivedPanelProps> = ({
         <Typography data-testid="fare-to-collect" sx={{ fontSize: '30px', fontWeight: 700, lineHeight: 1.2, color: '#FF6600', fontFamily: FONT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           {formatPeso(fare)}
         </Typography>
-        {early?.reason && <Typography sx={{ fontSize: '11px', color: '#94A3B8', fontFamily: FONT }}>{earlyEndReasonLabel(early.reason, tl ? 'tl' : 'en')}</Typography>}
-        <Typography sx={{ fontSize: '11px', color: '#64748B', fontFamily: FONT, mt: 0.5, lineHeight: 1.4 }}>
+        {early?.reason && <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: FONT }}>{earlyEndReasonLabel(early.reason, tl ? 'tl' : 'en')}</Typography>}
+        {!compact && (
+        <Typography sx={{ fontSize: '12px', color: '#64748B', fontFamily: FONT, mt: 0.5, lineHeight: 1.4 }}>
           {tl
             ? 'Ang pamasahe sa screen lamang ang singilin, at cash lamang. Ang paghingi ng higit o ng ibang paraan ng bayad ay Overcharging Attempt.'
             : 'Charge only the fare shown, in cash. Asking for more, or for any other kind of payment, is an Overcharging Attempt.'}
         </Typography>
+        )}
       </Box>
 
       {waiting && (
@@ -127,7 +131,7 @@ const PaymentReceivedPanel: React.FC<PaymentReceivedPanelProps> = ({
         {busy ? <CircularProgress size={24} color="inherit" /> : tl ? 'Natanggap na ang Bayad' : 'Payment Received'}
       </Button>
       {canReportNonPayment && (
-        <Button variant="text" fullWidth disabled={busy} onClick={() => setDialog('nonpayment')} sx={{ minHeight: 44, textTransform: 'none', fontWeight: 600, fontSize: '13px', color: '#B91C1C', fontFamily: FONT }}>
+        <Button variant="outlined" fullWidth disabled={busy} onClick={() => setDialog('nonpayment')} sx={DESTRUCTIVE_BUTTON_SX}>
           {tl ? 'Hindi nagbayad ang pasahero' : 'The passenger did not pay'}
         </Button>
       )}
@@ -136,11 +140,13 @@ const PaymentReceivedPanel: React.FC<PaymentReceivedPanelProps> = ({
           {tl ? 'Idagdag ang panig ko' : 'Add my side of the story'}
         </Button>
       )}
-      <Typography sx={{ fontSize: '11px', lineHeight: 1.4, color: '#94A3B8', textAlign: 'center', fontFamily: FONT }}>
+      {!compact && (
+      <Typography sx={{ fontSize: '12px', lineHeight: 1.4, color: '#64748B', textAlign: 'center', fontFamily: FONT }}>
         {tl
           ? 'Ang peke o pinaghihinalaang pekeng pera ay hindi pinapasya ng app: iulat ito sa iyong TODA Administrator at, kung kailangan, sa pulisya.'
           : 'Counterfeit money is not decided by the app: report it to your TODA Administrator and, if needed, the police.'}
       </Typography>
+      )}
 
       <Dialog open={dialog !== null} onClose={close} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}>
         <DialogTitle sx={{ fontWeight: 700, fontSize: '17px', color: '#0F172A', fontFamily: FONT }}>

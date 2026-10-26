@@ -130,6 +130,8 @@ export type { RouteTimelineProps } from './components/RouteTimeline';
 export { OtpVerifiedCelebration } from './components/OtpVerifiedCelebration';
 export type { OtpVerifiedCelebrationProps } from './components/OtpVerifiedCelebration';
 export { SAKAY_INPUT_COMPONENTS } from './styles/inputTheme';
+export { SAKAY_BUTTON_COMPONENTS } from './styles/buttonTheme';
+export { DESTRUCTIVE_BUTTON_SX, SECONDARY_BUTTON_SX } from './styles/buttonStyles';
 export { RateAppForm } from './components/RateAppForm';
 export type { RateAppFormProps } from './components/RateAppForm';
 export { CollapsibleSheet } from './components/CollapsibleSheet';

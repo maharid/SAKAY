@@ -5,7 +5,7 @@ import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
 import LinearProgress from "@mui/material/LinearProgress";
 import totoHeadImg from "@sakay/shared/src/assets/icons/toto-head.webp";
-import { TripDetailsPanel, type TripDetailsView } from "@sakay/shared";
+import { SECONDARY_BUTTON_SX, TripDetailsPanel, type TripDetailsView } from "@sakay/shared";
 
 import type { Language } from "../../../../utils/LanguageContext";
 
@@ -221,9 +221,9 @@ const DriverSearchPanel: React.FC<DriverSearchPanelProps> = ({
       {onChangePickup && (
         <Button
           fullWidth
-          variant="text"
+          variant="outlined"
           onClick={onChangePickup}
-          sx={{ minHeight: 44, borderRadius: "14px", textTransform: "none", fontWeight: 600, fontSize: "14px", color: "#334155", fontFamily: FONT, "&:hover": { backgroundColor: "#F1F5F9" } }}
+          sx={SECONDARY_BUTTON_SX}
         >
           {isTagalog ? "Mali ang pickup? Baguhin" : "Wrong pickup? Change it"}
         </Button>

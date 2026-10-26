@@ -295,6 +295,8 @@ export const DriverNavigation: React.FC = () => {
           arrow keys), so the map keeps its room. */}
       <CollapsibleSheet
         sheetRef={bottomCardRef}
+        // room above the card for the banner and the two map controls (they are never covered)
+        maxHeight={`calc(100% - var(--safe-area-top) - ${banner.height + 136}px)`}
         expanded={sheetExpanded}
         onExpandedChange={setSheetExpanded}
         expandLabel={tl ? 'Ipakita ang detalye ng biyahe' : 'Show trip details'}

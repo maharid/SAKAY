@@ -1,5 +1,5 @@
 import { createTheme } from '@mui/material/styles';
-import { SAKAY_INPUT_COMPONENTS } from '@sakay/shared';
+import { SAKAY_BUTTON_COMPONENTS, SAKAY_INPUT_COMPONENTS } from '@sakay/shared';
 
 const theme = createTheme({
   palette: {
@@ -95,6 +95,7 @@ const theme = createTheme({
       },
     },
     ...SAKAY_INPUT_COMPONENTS,
+    ...SAKAY_BUTTON_COMPONENTS,
   },
 });
 

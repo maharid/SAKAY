@@ -139,3 +139,9 @@ select:focus-visible {
     radial-gradient(farthest-side at 50% 100%, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) bottom / 100% 8px no-repeat scroll;
   overscroll-behavior: contain;
 }
+
+/* A button that fills its row keeps its label on one line (the labels are short and the row is the screen wide). Unlike a paragraph, a button is never taller
+   than its text needs: a second line only ever means the label did not fit, which the layout of the screen has to solve (stacking the buttons), not the text. */
+.MuiButton-fullWidth {
+  white-space: nowrap;
+}

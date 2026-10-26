@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button, IconButton } from '@mui/material';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 
-import { UrgentSafetyReportDialog, fileUrgentSafetyReport, useInFlight, type UrgentReportCategory } from '@sakay/shared';
+import { DESTRUCTIVE_BUTTON_SX, UrgentSafetyReportDialog, fileUrgentSafetyReport, useInFlight, type UrgentReportCategory } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 
 interface DriverEmergencyReportProps {
@@ -58,11 +58,11 @@ const DriverEmergencyReport: React.FC<DriverEmergencyReportProps> = ({ bookingId
         </IconButton>
       ) : (
         <Button
-          variant="text"
+          variant="outlined"
           fullWidth
           startIcon={<ReportProblemIcon />}
           onClick={() => setOpen(true)}
-          sx={{ minHeight: 44, textTransform: 'none', fontWeight: 600, fontSize: '13px', color: '#B91C1C', fontFamily: 'Poppins, sans-serif' }}
+          sx={DESTRUCTIVE_BUTTON_SX}
         >
           {label}
         </Button>

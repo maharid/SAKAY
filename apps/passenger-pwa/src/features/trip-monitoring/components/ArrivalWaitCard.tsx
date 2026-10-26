@@ -11,6 +11,8 @@ interface ArrivalWaitCardProps {
   language: string;
   onExtend: () => void;
   extending: boolean;
+  /** the sheet is closed: the timer and the button only; the explanation comes with the open sheet (the warning of a time that is up always shows) */
+  compact?: boolean;
 }
 
 const HIDDEN_FROM_VIEW = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' } as const;
@@ -21,7 +23,7 @@ const HIDDEN_FROM_VIEW = { position: 'absolute', width: 1, height: 1, overflow: 
  * whole seconds that never go up and an `expired` flag that never flips back, so the card cannot flicker between "0:01" and "Time is up".
  * A screen reader hears the time at 60, 30 and 10 seconds and when it ends, not every second.
  */
-const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExtend, extending }) => {
+const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExtend, extending, compact = false }) => {
   const tl = language === 'tl';
   const over = wait.expired;
   const left = wait.remainingSeconds;
@@ -65,6 +67,7 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
           {over ? (tl ? 'Tapos na ang oras' : 'Time is up') : formatCountdown(left)}
         </Typography>
       </Box>
+      {(!compact || over) && (
       <Typography sx={{ fontSize: '13px', color: over ? '#991B1B' : '#78350F', fontWeight: 500, lineHeight: 1.45, mt: 0.5 }}>
         {over
           ? tl
@@ -78,6 +81,7 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
           ? `Sumakay bago matapos ang oras. Maaari kang magdagdag ng ${extraMinutes} minuto nang isang beses.`
           : `Please board before the time runs out. You can add ${extraMinutes} minutes, once.`}
       </Typography>
+      )}
       {!wait.extended && wait.canExtend && !over && (
         <Button
           variant="contained"
@@ -85,8 +89,9 @@ const ArrivalWaitCard: React.FC<ArrivalWaitCardProps> = ({ wait, language, onExt
           disabled={extending}
           onClick={onExtend}
           sx={{
-            mt: 1.25,
+            mt: compact ? 0 : 1.25,
             minHeight: 46,
+            whiteSpace: 'nowrap',
             px: 2,
             borderRadius: '14px',
             backgroundColor: '#FF6600',

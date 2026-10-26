@@ -8,8 +8,6 @@ import {
   createTripShare,
   fetchMyTripShare,
   fileUrgentSafetyReport,
-  revokeTripShare,
-  shareLifetimeText,
   shareMessage,
   shareUrl,
   useInFlight,
@@ -26,6 +24,9 @@ interface TripSafetyActionsProps {
   onEndTripEarly?: () => void;
   onMessage: (text: string) => void;
 }
+
+// On a narrow phone the two buttons share one row only without their icons (the words are what matter); wider, the icons are back
+const NARROW_NO_ICON = { '@media (max-width: 389px)': { '& .MuiButton-startIcon': { display: 'none' } } } as const;
 
 // The token this phone made for the booking, so sharing again sends the SAME link (one live link per trip). Per-phone convenience only; the database holds the truth.
 const tokenKey = (bookingId: string) => `sakay_trip_share_${bookingId}`;
@@ -46,23 +47,22 @@ const saveToken = (bookingId: string, token: string | null) => {
 };
 
 /**
- * Rules 26.1 and 26.2 during an active trip: Share Live Trip (the phone's own sharing - SMS, Messenger or any app - of a link that follows the trip; SAKAY has no in-app emergency
+ * Rules 26.1 and 26.2 during an active trip: Share Live Trip (the phone's own sharing - SMS, Messenger or any app - of a link that follows the trip, which stops working by itself when the trip is over; SAKAY has no in-app emergency
  * calling or messaging) and the Urgent Safety Report (one tap; then End Trip (Early) once the vehicle has safely stopped). The database makes the link and the report; this is the screen.
  */
 const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, language, active, onEndTripEarly, onMessage }) => {
   const tl = language === 'tl';
   const shareFlight = useInFlight();
   const urgentFlight = useInFlight();
-  const [sharing, setSharing] = useState(false);
   const [fallbackText, setFallbackText] = useState<string | null>(null);
   const [urgentOpen, setUrgentOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [sentRouting, setSentRouting] = useState<'TODA' | 'LGU' | null>(null);
   const [urgentError, setUrgentError] = useState<string | null>(null);
 
+  // A link that no longer works (the trip ended, or it ran out) is forgotten, so sharing again makes a new one
   const refreshShare = useCallback(async () => {
     const s = await fetchMyTripShare(supabase, bookingId);
-    setSharing(s.active);
     if (!s.active) saveToken(bookingId, null);
   }, [bookingId]);
 
@@ -81,7 +81,6 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
         return;
       }
       saveToken(bookingId, token);
-      setSharing(true);
       const text = shareMessage(language, { url: shareUrl(window.location.origin, token) });
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
         try {
@@ -97,18 +96,6 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
       } catch {
         setFallbackText(text);                                               // no sharing and no clipboard: show the text to copy, with an SMS link
       }
-    });
-
-  const handleStopSharing = () =>
-    shareFlight.run(async () => {
-      const r = await revokeTripShare(supabase, bookingId);
-      if (!r.ok) {
-        onMessage(r.error ?? (tl ? 'Hindi napatay ang link.' : 'The link could not be switched off.'));
-        return;
-      }
-      saveToken(bookingId, null);
-      setSharing(false);
-      onMessage(tl ? 'Pinatay na ang link. Hindi na ito gumagana.' : 'The link is switched off. It no longer works.');
     });
 
   const handleUrgent = (category: UrgentReportCategory, description: string) =>
@@ -130,7 +117,7 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 1.25 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
       {/* each label stays on ONE line: the buttons share the row by the size of their words, and when they do not fit side by side the second one takes the next row whole */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
         <Button
@@ -138,7 +125,7 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
           disabled={shareFlight.busy}
           onClick={handleShare}
           startIcon={<IosShareIcon />}
-          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap', color: '#0F172A', borderColor: '#CBD5E1', '&:hover': { backgroundColor: '#F8FAFC', borderColor: '#94A3B8' } }}
+          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap', color: '#0F172A', borderColor: '#CBD5E1', ...NARROW_NO_ICON, '&:hover': { backgroundColor: '#F8FAFC', borderColor: '#94A3B8' } }}
         >
           {tl ? 'Ibahagi ang Biyahe' : 'Share Live Trip'}
         </Button>
@@ -146,22 +133,11 @@ const TripSafetyActions: React.FC<TripSafetyActionsProps> = ({ bookingId, langua
           variant="outlined"
           onClick={() => setUrgentOpen(true)}
           startIcon={<ReportProblemIcon />}
-          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap', color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
+          sx={{ minHeight: 44, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontSize: '13px', lineHeight: 1.2, flex: '1 1 auto', px: 1.25, whiteSpace: 'nowrap', color: '#B91C1C', borderColor: '#FCA5A5', ...NARROW_NO_ICON, '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
         >
           {tl ? 'Agarang Ulat sa Kaligtasan' : 'Urgent Safety Report'}
         </Button>
       </Box>
-      {sharing && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography role="status" sx={{ fontSize: '12px', color: '#475569', flex: 1, lineHeight: 1.4 }}>
-            {tl ? 'Naka-on ang pagbabahagi. ' : 'Sharing is on. '}
-            {shareLifetimeText(language)}
-          </Typography>
-          <Button size="small" disabled={shareFlight.busy} onClick={handleStopSharing} sx={{ textTransform: 'none', fontWeight: 700, color: '#B91C1C', minHeight: 44, flexShrink: 0 }}>
-            {tl ? 'Patayin' : 'Switch off'}
-          </Button>
-        </Box>
-      )}
 
       <UrgentSafetyReportDialog
         open={urgentOpen}

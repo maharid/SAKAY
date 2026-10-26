@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -33,6 +33,9 @@ import {
   signedStorageUrl,
   SIGNED_URL_TTL,
   CollapsibleSheet,
+  SECONDARY_BUTTON_SX,
+  useMeasuredSize,
+  useSafeAreaInsets,
   TripDetailsPanel,
   buildTripDetails,
   calculateTripProgressPercent,
@@ -86,13 +89,6 @@ const mapBookingStatus = (rawStatus: string): any => {
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/**
- * What on the map is covered or crowded, in px: the status pill along the top, and the controls column on the right. (The trip sheet is NOT
- * here: it sits below the map in the layout, so opening it shrinks the map itself and the camera re-frames the new visible area.)
- */
-const TRIP_MAP_INSETS = { top: 64, right: 64, bottom: 12, left: 12 };
-
-
 export const TripMonitoring: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -160,8 +156,19 @@ export const TripMonitoring: React.FC = () => {
   const [leaveConfirmModalOpen, setLeaveConfirmModalOpen] = useState(false);
   const [commModalOpen, setCommModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  // The trip card is open at first and changes only when the passenger uses its handle: a trip update never opens or closes it
-  const [sheetExpanded, setSheetExpanded] = useState(true);
+  // The trip card is closed at first (the map keeps its room; the driver, what cannot wait and the action of the stage are in view) and changes only when the
+  // passenger uses its handle: a trip update never opens or closes it
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+
+  // The map fills the whole screen, as on the New Trip screen; the header card, the status pill and the trip card float over it. What covers it is measured, so the
+  // camera frames and centres inside what is really visible, and the map controls sit just above the trip card whether it is open or closed.
+  const safeArea = useSafeAreaInsets();
+  const [headerRef, header] = useMeasuredSize<HTMLDivElement>();
+  const [sheetRef, sheetSize] = useMeasuredSize<HTMLDivElement>();
+  const mapInsets = useMemo(
+    () => ({ top: safeArea.top + 12 + header.height + 56, right: 64, bottom: sheetSize.height + 12, left: 12 }),
+    [safeArea.top, header.height, sheetSize.height]
+  );
 
   // Bidirectional Driver Cancelled Alert State
   const [driverCancelledAlertOpen, setDriverCancelledAlertOpen] = useState(false);
@@ -791,20 +798,50 @@ export const TripMonitoring: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%', height: '100%', backgroundColor: '#F8FAFC', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-      {/* 1. Header Bar matching Settings PageHeader */}
+      {/* 1. The full-screen map, behind everything (the same layout as the New Trip screen) */}
+      <MapView
+        ref={mapRef}
+        pickupLocation={{
+          lat: pickupLat,
+          lng: pickupLng,
+        }}
+        dropoffLocation={
+          isPreTrip
+            ? undefined
+            : {
+                lat: dropoffLat,
+                lng: dropoffLng,
+              }
+        }
+        driverLocation={status !== 'Searching Driver' && driverKnown ? driverPos : null}
+        userLocation={passengerLocation.fix}
+        showUserMarker
+        userStale={passengerLocation.stale}
+        driverStale={driverStale}
+        insets={mapInsets}
+        stageKey={status}
+        searchRadiusMeters={searchRadiusMeters}
+      />
+
+      {/* 2. Header card floating over the map: back (before the trip), the title and the booking number */}
       <Box
+        ref={headerRef}
         sx={{
+          position: 'absolute',
+          top: 'calc(var(--safe-area-top) + 12px)',
+          left: 12,
+          right: 12,
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
-          width: '100%',
-          pt: 'calc(var(--safe-area-top) + 12px)',
-          pb: 1.5,
-          px: 2,
-          backgroundColor: '#FFFFFF',
-          borderBottom: '1px solid #F1F5F9',
-          flexShrink: 0,
-          zIndex: 20,
+          gap: 1,
+          px: 1,
+          py: 0.75,
+          backgroundColor: 'rgba(255, 255, 255, 0.96)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid #E2E8F0',
+          borderRadius: '16px',
+          boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+          zIndex: 30,
         }}
       >
         {!isTripActive ? (
@@ -854,43 +891,6 @@ export const TripMonitoring: React.FC = () => {
 
       </Box>
 
-      {/* 2. Full Surface Map View */}
-      <Box
-        sx={{
-          flex: 1,
-          position: 'relative',
-          backgroundColor: '#E3ECEF',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          width: '100%',
-        }}
-      >
-        <MapView
-          ref={mapRef}
-          pickupLocation={{
-            lat: pickupLat,
-            lng: pickupLng,
-          }}
-          dropoffLocation={
-            isPreTrip
-              ? undefined
-              : {
-                  lat: dropoffLat,
-                  lng: dropoffLng,
-                }
-          }
-          driverLocation={status !== 'Searching Driver' && driverKnown ? driverPos : null}
-          userLocation={passengerLocation.fix}
-          showUserMarker
-          userStale={passengerLocation.stale}
-          driverStale={driverStale}
-          insets={TRIP_MAP_INSETS}
-          stageKey={status}
-          searchRadiusMeters={searchRadiusMeters}
-        />
-
         {/* Status Pill Badge */}
         <Chip
           label={
@@ -912,7 +912,10 @@ export const TripMonitoring: React.FC = () => {
           }
           sx={{
             position: 'absolute',
-            top: 16,
+            top: `calc(var(--safe-area-top) + ${header.height + 20}px)`,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 'calc(100% - 24px)',
             backgroundColor:
               status === 'Searching Driver'
                 ? '#B45309'
@@ -933,13 +936,13 @@ export const TripMonitoring: React.FC = () => {
 
         {/* Rule 17.9: when the driver's last position is more than 10 seconds old the map says when it was taken */}
         {status !== 'Searching Driver' && driverKnown && (
-          <DriverLastUpdated ageSeconds={driverLive.ageSeconds} lastFixAt={driverLive.lastFixAt} language={language} />
+          <DriverLastUpdated ageSeconds={driverLive.ageSeconds} lastFixAt={driverLive.lastFixAt} language={language} bottom={sheetSize.height + 16} />
         )}
 
         {/* The search area itself is drawn on the map (MapView), at the radius the database reports: nothing is drawn here */}
 
         {/* Map controls: the whole trip (top) and where I am (bottom). Each is an action that moves the camera once; dragging the map lets go of either. */}
-        <MapControlStack bottom={16} label={language === 'tl' ? 'Mga kontrol ng mapa' : 'Map controls'}>
+        <MapControlStack bottom={sheetSize.height + 16} label={language === 'tl' ? 'Mga kontrol ng mapa' : 'Map controls'}>
           <MapControlButton
             icon="route"
             label={
@@ -963,12 +966,12 @@ export const TripMonitoring: React.FC = () => {
           />
         </MapControlStack>
 
-      </Box>
-
       {/* 3. Driver & trip (bottom card): who and anything that cannot wait stay in view; the trip details, progress and tricycle open and close with the handle
-          (tap, drag or arrow keys). The card sits below the map and takes its share of the height, so closing it gives the map the room. */}
+          (tap, drag or arrow keys). The card floats over the full-screen map: opening it covers more of the map, closing it shows more of it. */}
       <CollapsibleSheet
-        inFlow
+        sheetRef={sheetRef}
+        // room above the card for the header, the status pill and the two map controls (they are never covered)
+        maxHeight={`calc(100% - var(--safe-area-top) - ${header.height + 180}px)`}
         expanded={sheetExpanded}
         onExpandedChange={setSheetExpanded}
         expandLabel={language === 'tl' ? 'Ipakita ang detalye ng biyahe' : 'Show trip details'}
@@ -988,7 +991,7 @@ export const TripMonitoring: React.FC = () => {
             )}
 
             {status === 'Driver Arrived' && arrivalWait && (
-              <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} />
+              <ArrivalWaitCard wait={arrivalWait} language={language} onExtend={handleExtendWait} extending={extendingWait} compact={!sheetExpanded} />
             )}
 
             {status === 'Arrived at Destination' && (
@@ -999,6 +1002,7 @@ export const TripMonitoring: React.FC = () => {
                 secondsLeft={tripEnd.secondsLeft}
                 expired={tripEnd.expired}
                 ordinance={fareOrdinance}
+                compact={!sheetExpanded}
               />
             )}
 
@@ -1197,7 +1201,7 @@ export const TripMonitoring: React.FC = () => {
                     <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>
                       {say('Naipadala sa drayber ang hiling: hinihintay na tapusin niya ang biyahe.', 'Request sent: waiting for the driver to end the trip.')}
                     </Typography>
-                    <Button variant="text" disabled={earlyFlight.busy} onClick={handleWithdrawEarlyEnd} sx={{ textTransform: 'none', fontWeight: 600, color: '#64748B' }}>
+                    <Button variant="outlined" fullWidth disabled={earlyFlight.busy} onClick={handleWithdrawEarlyEnd} sx={SECONDARY_BUTTON_SX}>
                       {say('Bawiin ang hiling', 'Withdraw the request')}
                     </Button>
                   </Box>
@@ -1280,13 +1284,13 @@ export const TripMonitoring: React.FC = () => {
             {language === 'tl' ? 'Manatili sa Tracking' : 'Stay on Tracking'}
           </Button>
           <Button
-            variant="text"
+            variant="outlined"
             fullWidth
             onClick={() => {
               setLeaveConfirmModalOpen(false);
               navigate('/dashboard');
             }}
-            sx={{ color: '#64748B', fontWeight: 600, textTransform: 'none' }}
+            sx={SECONDARY_BUTTON_SX}
           >
             {language === 'tl' ? 'Pumunta sa Dashboard' : 'Go to Dashboard'}
           </Button>

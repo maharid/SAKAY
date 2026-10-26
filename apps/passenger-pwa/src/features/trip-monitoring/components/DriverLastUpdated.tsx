@@ -9,6 +9,8 @@ interface DriverLastUpdatedProps {
   /** When the database received that position */
   lastFixAt: string | null;
   language: string;
+  /** Distance from the bottom of the screen (px): just above the card that covers the bottom of the map */
+  bottom?: number;
 }
 
 const manilaClock = (iso: string | null): string => {
@@ -27,7 +29,7 @@ const howOld = (seconds: number, tl: boolean): string => {
  * Rule 17.9: whenever the driver's last position is more than 10 seconds old, the map says WHEN it was taken (the time the database received it, in
  * Manila time) and how long ago, so a tricycle that looks still is not mistaken for one that is live. Nothing is drawn while the position is fresh.
  */
-const DriverLastUpdated: React.FC<DriverLastUpdatedProps> = ({ ageSeconds, lastFixAt, language }) => {
+const DriverLastUpdated: React.FC<DriverLastUpdatedProps> = ({ ageSeconds, lastFixAt, language, bottom = 16 }) => {
   if (ageSeconds === null || ageSeconds <= PASSENGER_STALE_LOCATION_INDICATOR_SECONDS) return null;
   const tl = language === 'tl';
   const clock = manilaClock(lastFixAt);
@@ -38,8 +40,9 @@ const DriverLastUpdated: React.FC<DriverLastUpdatedProps> = ({ ageSeconds, lastF
       sx={{
         position: 'absolute',
         left: 12,
-        bottom: 16,
+        bottom,
         zIndex: 10,
+        transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         display: 'flex',
         alignItems: 'center',
         gap: 0.75,
