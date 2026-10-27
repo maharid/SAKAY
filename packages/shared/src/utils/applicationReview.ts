@@ -221,7 +221,7 @@ export const REVIEW_DOCUMENT_LABEL: Record<ReviewDocumentType, string> = {
   license: "Driver's License",
   mtop: 'MTOP',
   tricycle: 'Tricycle photo',
-  selfie: 'Selfie / face photo',
+  selfie: 'Profile photo (selfie)',
 };
 
 export const RETURN_REASON_LABEL: Record<ReturnReasonCode, string> = {

@@ -1093,8 +1093,8 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
           {
             id: 'doc-selfie',
             docType: 'selfie' as const,
-            name: 'Driver Face / Selfie Verification',
-            type: 'Biometric Verification',
+            name: 'Driver Profile Photo (Selfie)',
+            type: 'Profile Photo',
             status: getDocStatus('selfie'),
             url: selfieUrl,
             urls: [selfieUrl].filter(Boolean) as string[],
@@ -1465,7 +1465,7 @@ export async function fetchTodaDrivers(todaId: string): Promise<DriverRecord[]> 
           { name: "Driver's License (Back)", type: 'Identification Proof', status: 'Verified', url: licBackUrl },
           { name: 'MTOP Franchise Permit', type: 'Official LGU Permit', status: 'Verified', url: mtopUrl },
           { name: 'Tricycle Unit Inspection Photo', type: 'Vehicle Compliance Photo', status: 'Verified', url: tricycleUrl },
-          { name: 'Driver Face / Selfie Verification', type: 'Biometric Verification', status: 'Verified', url: selfieUrl },
+          { name: 'Driver Profile Photo (Selfie)', type: 'Profile Photo', status: 'Verified', url: selfieUrl },
         ],
       };
     }));

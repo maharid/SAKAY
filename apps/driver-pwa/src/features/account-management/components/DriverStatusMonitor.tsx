@@ -36,7 +36,7 @@ const DOCUMENT_LABEL_TL: Record<ReviewDocumentType, string> = {
   license: "Driver's License (Lisensya)",
   mtop: 'MTOP / Prangkisa',
   tricycle: 'Larawan ng Tricycle',
-  selfie: 'Selfie / Larawan ng Mukha',
+  selfie: 'Larawan sa Profile',
 };
 
 export const DriverStatusMonitor: React.FC = () => {
@@ -344,7 +344,7 @@ export const DriverStatusMonitor: React.FC = () => {
         license: '/driver/scan-license-front',
         mtop: '/driver/scan-mtop',
         tricycle: '/driver/scan-tricycle',
-        selfie: '/driver/scan-face',
+        selfie: '/driver/profile-picture',
       };
 
       saveResubmissionSession({
@@ -899,8 +899,8 @@ export const DriverStatusMonitor: React.FC = () => {
             >
               {isDocIncomplete
                 ? (isTagalog
-                    ? 'Narehistro na ang iyong account, ngunit kailangan mo pang ipasa ang iyong Lisensya, MTOP Permit, Larawan ng Traysikel, at Selfie upang masuri ng iyong napiling TODA.'
-                    : 'Your account is registered, but you still need to submit your License, MTOP Permit, Tricycle Photo, and Selfie for review by your TODA.')
+                    ? 'Narehistro na ang iyong account, ngunit kailangan mo pang ipasa ang iyong Lisensya, MTOP Permit, Larawan ng Traysikel, at Larawan sa Profile upang masuri ng iyong napiling TODA.'
+                    : 'Your account is registered, but you still need to submit your License, MTOP Permit, Tricycle Photo, and Profile Picture for review by your TODA.')
                 : (isTagalog
                     ? 'Pakihintay habang sinusuri ng TODA at LGU ang iyong mga isinumiteng impormasyon. Hindi mo muna maa-access ang iyong account at mga serbisyo habang nakabinbin pa ang pinal na pag-apruba.'
                     : 'Please wait while TODA and LGU review your submitted details. Account and service access remain restricted while pending final approval.')}

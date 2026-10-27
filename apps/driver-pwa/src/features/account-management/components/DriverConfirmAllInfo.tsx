@@ -17,6 +17,7 @@ import {
   getCachedLicenseData,
   getCachedMtopData,
   getCachedTricycleData,
+  getCachedProfilePicture,
   getResubmissionSession,
   clearResubmissionSession,
   getRegisteredNameParts,
@@ -110,7 +111,10 @@ export const DriverConfirmAllInfo: React.FC = () => {
   const showLicenseSections = resolvedFaultyDocs.includes('license');
   const showMtopSection = resolvedFaultyDocs.includes('mtop');
   const showTricycleSection = resolvedFaultyDocs.includes('tricycle');
-  const showFaceSection = resolvedFaultyDocs.includes('selfie');
+  const showProfilePictureSection = resolvedFaultyDocs.includes('selfie');
+  // The picture is required: nothing is submitted until it has been taken, confirmed and saved
+  const profilePictureSaved = Boolean(getCachedProfilePicture()?.savedAt);
+  const profilePictureMissing = showProfilePictureSection && !profilePictureSaved;
 
   const cachedLicense = getCachedLicenseData();
   const cachedMtop = getCachedMtopData();
@@ -555,18 +559,18 @@ export const DriverConfirmAllInfo: React.FC = () => {
           </Box>
         )}
 
-        {/* SECTION E: Beripikasyon ng Mukha */}
-        {showFaceSection && (
+        {/* SECTION E: Larawan sa Profile */}
+        {showProfilePictureSection && (
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', mb: 1.5 }}>
               <Typography sx={{ flex: 1, minWidth: 0, fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3 }}>
-                {isTagalog ? 'Beripikasyon ng Mukha' : 'Face Verification'}
+                {isTagalog ? 'Larawan sa Profile' : 'Profile Picture'}
               </Typography>
               <Typography
                 role="button"
                 tabIndex={0}
                 onKeyDown={activateWithKeyboard}
-                onClick={() => navigate('/driver/scan-face', { state: { ...state, isEditMode: true, isResubmission, faultyDocuments } })}
+                onClick={() => navigate('/driver/profile-picture', { state: { ...state, isEditMode: true, isResubmission, faultyDocuments } })}
                 sx={{
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
@@ -593,7 +597,10 @@ export const DriverConfirmAllInfo: React.FC = () => {
               </Typography>
             </Box>
 
-            <ReviewFieldRow label={isTagalog ? "Status ng match" : "Match status"} value={isTagalog ? "Magkatugma (Na-verify)" : "Matched (Verified)"} />
+            <ReviewFieldRow
+              label={isTagalog ? "Larawan sa profile" : "Profile picture"}
+              value={profilePictureSaved ? (isTagalog ? "Naka-save" : "Saved") : (isTagalog ? "Hindi pa nakukuha" : "Not taken yet")}
+            />
             <Box sx={{ width: '100%', height: '1px', backgroundColor: '#E2E8F0', mt: 2.25, mb: 1 }} />
           </Box>
         )}
@@ -648,6 +655,14 @@ export const DriverConfirmAllInfo: React.FC = () => {
           flexShrink: 0,
         }}
       >
+        {profilePictureMissing && (
+          <Alert severity="warning" sx={{ mb: 2, borderRadius: '12px' }}>
+            {isTagalog
+              ? 'Kumuha at kumpirmahin muna ang iyong larawan sa profile bago mag-submit.'
+              : 'Please take and confirm your profile picture before submitting.'}
+          </Alert>
+        )}
+
         {submitError && (
           <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>
             {submitError}
@@ -656,7 +671,7 @@ export const DriverConfirmAllInfo: React.FC = () => {
 
         <PrimaryButton
           fullWidth
-          disabled={!confirmed || submitting}
+          disabled={!confirmed || submitting || profilePictureMissing}
           onClick={handleFinalSubmit}
         >
           {submitting

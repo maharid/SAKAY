@@ -77,7 +77,7 @@ export const DriverReviewTricycle: React.FC = () => {
       saveTricycleScanData(tricycleData, targetPhone);
       await saveDriverTricycleVerification(currentPhoto, targetPhone);
 
-      let targetRoute = state?.isEditMode ? '/driver/confirm-all-info' : '/driver/scan-face';
+      let targetRoute = state?.isEditMode ? '/driver/confirm-all-info' : '/driver/profile-picture';
       if ((state as any)?.isResubmission && (state as any)?.faultyDocuments) {
         const next = getNextCorrectionRoute('tricycle', (state as any).faultyDocuments as FaultyDocType[]);
         targetRoute = next.nextRoute;
@@ -90,7 +90,7 @@ export const DriverReviewTricycle: React.FC = () => {
       });
     } catch (err) {
       console.error('[DriverReviewTricycle] Save error:', err);
-      let targetRoute = state?.isEditMode ? '/driver/confirm-all-info' : '/driver/scan-face';
+      let targetRoute = state?.isEditMode ? '/driver/confirm-all-info' : '/driver/profile-picture';
       if ((state as any)?.isResubmission && (state as any)?.faultyDocuments) {
         const next = getNextCorrectionRoute('tricycle', (state as any).faultyDocuments as FaultyDocType[]);
         targetRoute = next.nextRoute;

@@ -967,7 +967,7 @@ const RETURN_DOCUMENT_LABEL: Record<DocumentReturnInput['documentType'], string>
   license: "Driver's License",
   mtop: 'MTOP',
   tricycle: 'Tricycle photo',
-  selfie: 'Selfie / face photo',
+  selfie: 'Profile photo (selfie)',
 };
 
 /**

@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material';
 import appIcon from '@sakay/shared/src/assets/icons/app-icon-toto.webp';
 import { useLanguage } from '../../../utils/LanguageContext';
 
-export type FlowType = 'license' | 'mtop' | 'face';
+export type FlowType = 'license' | 'mtop';
 
 interface DriverProgressLoaderProps {
   progress: number; // 0.0 to 1.0 (or 0 to 100)
@@ -46,14 +46,6 @@ export function getFlowProgressMilestoneText(
     if (pct < 40) return isTagalog ? 'Sinusuri ang MTOP permit...' : 'Analyzing MTOP permit...';
     if (pct < 60) return isTagalog ? 'Binabasa ang impormasyon...' : 'Reading document details...';
     if (pct < 80) return isTagalog ? 'Sinusuri ang mga detalye ng prangkisa...' : 'Verifying franchise details...';
-    return isTagalog ? 'Tinatapos ang pag-verify...' : 'Finalizing verification...';
-  }
-
-  if (flowType === 'face') {
-    if (pct < 20) return isTagalog ? 'Inihahanda ang larawan...' : 'Preparing selfie photo...';
-    if (pct < 40) return isTagalog ? 'Sinusuri ang iyong mukha...' : 'Analyzing facial features...';
-    if (pct < 60) return isTagalog ? 'Tinutukoy ang mga detalye...' : 'Verifying biometric points...';
-    if (pct < 80) return isTagalog ? 'Inihahambing sa lisensya...' : "Matching with driver's license...";
     return isTagalog ? 'Tinatapos ang pag-verify...' : 'Finalizing verification...';
   }
 

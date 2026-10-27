@@ -28,10 +28,7 @@ import { DriverConfirmMtopInfo } from './features/account-management/components/
 import { DriverTricycleInstructions } from './features/account-management/components/DriverTricycleInstructions';
 import { DriverScanTricycle } from './features/account-management/components/DriverScanTricycle';
 import { DriverReviewTricycle } from './features/account-management/components/DriverReviewTricycle';
-import { DriverScanFace } from './features/account-management/components/DriverScanFace';
-import { DriverReviewFace } from './features/account-management/components/DriverReviewFace';
-import { DriverFaceLoading } from './features/account-management/components/DriverFaceLoading';
-import { DriverFaceResult } from './features/account-management/components/DriverFaceResult';
+import { DriverProfilePicture } from './features/account-management/components/DriverProfilePicture';
 import { DriverConfirmAllInfo } from './features/account-management/components/DriverConfirmAllInfo';
 import { DriverRegistrationComplete } from './features/account-management/components/DriverRegistrationComplete';
 import { DriverForgotPassword } from './features/account-management/components/DriverForgotPassword';
@@ -118,14 +115,10 @@ export const App: React.FC = () => {
             <Route path="/driver/scan-tricycle" element={<DriverScanTricycle />} />
             <Route path="/review-tricycle" element={<DriverReviewTricycle />} />
             <Route path="/driver/review-tricycle" element={<DriverReviewTricycle />} />
-            <Route path="/scan-face" element={<DriverScanFace />} />
-            <Route path="/driver/scan-face" element={<DriverScanFace />} />
-            <Route path="/review-face" element={<DriverReviewFace />} />
-            <Route path="/driver/review-face" element={<DriverReviewFace />} />
-            <Route path="/face-loading" element={<DriverFaceLoading />} />
-            <Route path="/driver/face-loading" element={<DriverFaceLoading />} />
-            <Route path="/face-result" element={<DriverFaceResult />} />
-            <Route path="/driver/face-result" element={<DriverFaceResult />} />
+            <Route path="/profile-picture" element={<DriverProfilePicture />} />
+            <Route path="/driver/profile-picture" element={<DriverProfilePicture />} />
+            <Route path="/scan-face" element={<Navigate to="/driver/profile-picture" replace />} />
+            <Route path="/driver/scan-face" element={<Navigate to="/driver/profile-picture" replace />} />
             <Route path="/confirm-all-info" element={<DriverConfirmAllInfo />} />
             <Route path="/driver/confirm-all-info" element={<DriverConfirmAllInfo />} />
             <Route path="/registration-complete" element={<DriverRegistrationComplete />} />

@@ -8,7 +8,7 @@
  * ============================================================================
  */
 
-import { apiPostJson, syncPrivacyAcceptance } from '@sakay/shared';
+import { apiPostJson, ownedObjectPath, syncPrivacyAcceptance } from '@sakay/shared';
 import type { ApplyDriverTodaAffiliationsResponse, DriverTodaApplicationInput } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
@@ -1333,75 +1333,92 @@ export async function saveDriverMtopVerification(
 }
 
 /**
- * Uploads the driver's selfie photo proof to Supabase Storage ('driver-selfies' or fallback)
- * and updates public.driver_verification & public.driver records.
+ * Saves the driver's confirmed live profile picture. Two files are stored, both in the driver's own folder:
+ *   - the profile picture itself (private "profiles" bucket, driver.profile_photo_url): shown on the driver's profile and to the
+ *     passenger of a live trip;
+ *   - a copy for the TODA / LGU application review ("driver-selfies", falling back to "driver-licenses"; driver_verification.face_photo_path),
+ *     which is application paperwork and follows the retention rules of the other documents.
+ * Success is reported only when every upload and update was accepted, so the screen can offer a retry instead of moving on.
+ * `captureId` names this capture's file: saving the same capture again overwrites it instead of leaving a second copy behind.
  */
-export async function saveDriverSelfieVerification(
-  selfieDataUrl: string,
-  phone?: string
-): Promise<{ success: boolean; error?: string; selfieStoragePath?: string }> {
-  console.log('[DRIVER SELFIE SAVE] ========================================');
-  console.log('[DRIVER SELFIE SAVE] Starting selfie verification upload flow');
+export async function saveDriverProfilePicture(
+  photo: Blob,
+  captureId: number
+): Promise<{ success: boolean; error?: string; profilePhotoPath?: string }> {
+  const failure = (tlMsg: string, enMsg: string) => ({ success: false as const, error: getLocalizedError(tlMsg, enMsg) });
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.warn('[DRIVER SELFIE SAVE] Active auth user session missing, skipping remote storage upload.');
-      return { success: true };
+      return failure(
+        'Mag-login muli bago i-save ang iyong larawan sa profile.',
+        'Please sign in again before saving your profile picture.'
+      );
     }
 
     const authUserId = user.id;
+    const contentType = photo.type || 'image/jpeg';
+    const profilePhotoPath = ownedObjectPath(authUserId, `avatar-${captureId}.jpg`);
+    const reviewPhotoPath = `${authUserId}/selfie.jpg`;
 
-    if (selfieDataUrl && selfieDataUrl.startsWith('data:')) {
-      try {
-        const blobInfo = dataUrlToBlob(selfieDataUrl);
-        const selfiePath = `${authUserId}/selfie.jpg`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from('driver-selfies')
-          .upload(selfiePath, blobInfo.blob, {
-            contentType: blobInfo.mimeType,
-            upsert: true,
-          });
-
-        if (uploadErr) {
-          console.warn('[DRIVER SELFIE SAVE] Storage bucket driver-selfies warning, trying driver-licenses fallback:', uploadErr);
-          await supabase.storage
-            .from('driver-licenses')
-            .upload(selfiePath, blobInfo.blob, {
-              contentType: blobInfo.mimeType,
-              upsert: true,
-            });
-        }
-        console.log('[DRIVER SELFIE SAVE] Selfie photo uploaded successfully:', selfiePath);
-
-        // Persist face_photo_path to driver_verification
-        try {
-          const { data: drv } = await supabase
-            .from('driver')
-            .select('driver_id')
-            .eq('auth_user_id', authUserId)
-            .maybeSingle();
-          if (drv?.driver_id) {
-            await supabase
-              .from('driver_verification')
-              .update({ face_photo_path: selfiePath, face_verification_status: 'Passed' })
-              .eq('driver_id', drv.driver_id);
-          }
-        } catch (dbErr) {
-          console.warn('[DRIVER SELFIE SAVE] Non-blocking DB update warning:', dbErr);
-        }
-
-        return { success: true, selfieStoragePath: selfiePath };
-      } catch (storageException) {
-        console.warn('[DRIVER SELFIE SAVE] Storage upload exception:', storageException);
-      }
+    const { error: avatarErr } = await supabase.storage
+      .from('profiles')
+      .upload(profilePhotoPath, photo, { contentType, upsert: true });
+    if (avatarErr) {
+      console.error('[DRIVER PROFILE PICTURE] Profile bucket upload failed:', avatarErr);
+      return failure(
+        'Hindi na-save ang iyong larawan. Pakisubukang muli.',
+        'Your picture could not be saved. Please try again.'
+      );
     }
 
-    return { success: true };
-  } catch (err: any) {
-    console.error('[DRIVER SELFIE SAVE] Exception:', err);
-    return { success: false, error: err.message };
+    let reviewCopySaved = false;
+    for (const bucket of ['driver-selfies', 'driver-licenses']) {
+      const { error: reviewErr } = await supabase.storage
+        .from(bucket)
+        .upload(reviewPhotoPath, photo, { contentType, upsert: true });
+      if (!reviewErr) {
+        reviewCopySaved = true;
+        break;
+      }
+      console.warn(`[DRIVER PROFILE PICTURE] Review copy upload to ${bucket} failed:`, reviewErr);
+    }
+    if (!reviewCopySaved) {
+      return failure(
+        'Hindi na-save ang iyong larawan. Pakisubukang muli.',
+        'Your picture could not be saved. Please try again.'
+      );
+    }
+
+    // A driver row that does not exist yet is created at final submission, which writes both paths then (submitFinalDriverRegistration).
+    const { data: drv, error: drvErr } = await supabase
+      .from('driver')
+      .select('driver_id')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    if (drvErr) throw drvErr;
+
+    if (drv?.driver_id) {
+      const { error: photoErr } = await supabase
+        .from('driver')
+        .update({ profile_photo_url: profilePhotoPath })
+        .eq('driver_id', drv.driver_id);
+      if (photoErr) throw photoErr;
+
+      const { error: reviewPathErr } = await supabase
+        .from('driver_verification')
+        .update({ face_photo_path: reviewPhotoPath })
+        .eq('driver_id', drv.driver_id);
+      if (reviewPathErr) throw reviewPathErr;
+    }
+
+    return { success: true, profilePhotoPath };
+  } catch (err) {
+    console.error('[DRIVER PROFILE PICTURE] Exception:', err);
+    return failure(
+      'Hindi na-save ang iyong larawan. Pakisubukang muli.',
+      'Your picture could not be saved. Please try again.'
+    );
   }
 }
 
@@ -1521,7 +1538,7 @@ export async function submitFinalDriverRegistration(
     const license = cache?.step1_license;
     const mtop = cache?.step2_mtop;
     const tricycle = cache?.step3_tricycle;
-    const face = cache?.step5_face;
+    const profilePicture = cache?.step5_profilePicture;
 
     const frontPath = `${authUserId}/license_front.jpg`;
     const backPath = `${authUserId}/license_back.jpg`;
@@ -1602,6 +1619,7 @@ export async function submitFinalDriverRegistration(
       ...(includes('mtop') && mtop?.authorizedRoute ? { authorized_route: mtop.authorizedRoute } : {}),
       ...(includes('mtop') && mtop?.expirationDate ? { mtop_expiry: parseDateForDb(mtop.expirationDate) } : {}),
       ...(includes('tricycle') && tricyclePath ? { tricycle_photo_path: tricyclePath } : {}),
+      ...(includes('selfie') && profilePicture?.photoPath ? { profile_photo_url: profilePicture.photoPath } : {}),
     };
 
     const { error: primaryDriverErr } = await supabase
@@ -1655,7 +1673,6 @@ export async function submitFinalDriverRegistration(
     }
     if (includes('selfie')) {
       verifPayload.face_photo_path = selfiePath;
-      verifPayload.face_verification_status = face?.faceMatchPassed === false ? 'Flagged' : 'Passed';
       fallbackVerifPayload.face_photo_path = selfiePath;
     }
     if (!isResubmission) {

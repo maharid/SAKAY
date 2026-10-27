@@ -75,6 +75,45 @@ export function captureRawFrame(
 }
 
 /**
+ * Captures the centre square of a live video frame as a JPEG (for profile pictures). The square is the same crop the round viewfinder
+ * shows, so what the driver framed is what gets saved. `mirror` flips the frame left-to-right, matching a mirrored front-camera preview.
+ */
+export function captureSquareFrame(
+  video: HTMLVideoElement,
+  options: { mirror?: boolean; maxSize?: number; quality?: number } = {}
+): Promise<Blob> {
+  const { mirror = false, maxSize = 720, quality = 0.9 } = options;
+  const srcWidth = video.videoWidth;
+  const srcHeight = video.videoHeight;
+
+  if (!srcWidth || !srcHeight) {
+    return Promise.reject(new Error('Camera frame is not ready'));
+  }
+
+  const side = Math.min(srcWidth, srcHeight);
+  const outSize = Math.min(side, maxSize);
+  const canvas = document.createElement('canvas');
+  canvas.width = outSize;
+  canvas.height = outSize;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas context unavailable'));
+
+  if (mirror) {
+    ctx.translate(outSize, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(video, (srcWidth - side) / 2, (srcHeight - side) / 2, side, side, 0, 0, outSize, outSize);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Could not encode the captured frame'))),
+      'image/jpeg',
+      quality
+    );
+  });
+}
+
+/**
  * Detects the document bounding box of a driver's license card within an image.
  * Uses Sobel edge gradient detection and projection profiling.
  * Falls back to centered ISO/IEC 7810 ID-1 card bounding box if detection confidence is low.

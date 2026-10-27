@@ -40,12 +40,11 @@ export interface MtopExtractedData {
   scannedAt: string;
 }
 
-export interface FaceVerificationData {
-  rawSelfie: string;
-  selfiePhotoUrl: string;
-  faceMatchPassed: boolean;
-  faceMatchScore: number;
-  verifiedAt: string;
+/** The confirmed profile picture. Only where it was saved is kept here; the picture itself lives in storage, never in localStorage. */
+export interface ProfilePictureData {
+  /** Storage path of the picture in the "profiles" bucket; empty when only an older review copy exists */
+  photoPath: string;
+  savedAt: string;
 }
 
 export interface TricycleUnitData {
@@ -65,7 +64,7 @@ export interface DriverOnboardingProgress {
   step1_license?: LicenseExtractedData;
   step2_mtop?: MtopExtractedData;
   step3_tricycle?: TricycleUnitData;
-  step5_face?: FaceVerificationData;
+  step5_profilePicture?: ProfilePictureData;
   step3_cr?: {
     crNumber?: string;
     photoUrl?: string;
@@ -196,7 +195,7 @@ export const getCachedMtopData = (): MtopExtractedData | null => {
   return cache?.step2_mtop || null;
 };
 
-export const saveSelfieScanData = (data: FaceVerificationData, phone = ''): void => {
+export const saveProfilePictureData = (data: ProfilePictureData, phone = ''): void => {
   try {
     const existing = getOnboardingCache() || {
       phone,
@@ -204,18 +203,18 @@ export const saveSelfieScanData = (data: FaceVerificationData, phone = ''): void
     };
 
     existing.phone = phone || existing.phone;
-    existing.step5_face = data;
+    existing.step5_profilePicture = data;
     existing.lastUpdated = new Date().toISOString();
 
     localStorage.setItem(CACHE_KEY, JSON.stringify(existing));
   } catch (err) {
-    console.warn('[DriverOnboardingCache] Error saving selfie scan cache:', err);
+    console.warn('[DriverOnboardingCache] Error saving profile picture cache:', err);
   }
 };
 
-export const getCachedSelfieData = (): FaceVerificationData | null => {
+export const getCachedProfilePicture = (): ProfilePictureData | null => {
   const cache = getOnboardingCache();
-  return cache?.step5_face || null;
+  return cache?.step5_profilePicture || null;
 };
 
 export const saveTricycleScanData = (data: TricycleUnitData, phone = ''): void => {
@@ -327,7 +326,15 @@ export function parseRejectionComment(comment?: string, reason?: string): Parsed
     if (lower.includes('license') || lower.includes('lisensya')) detected.push('license');
     if (lower.includes('mtop') || lower.includes('franchise') || lower.includes('prangkisa')) detected.push('mtop');
     if (lower.includes('tricycle') || lower.includes('trike') || lower.includes('sidecar')) detected.push('tricycle');
-    if (lower.includes('selfie') || lower.includes('face') || lower.includes('mukha')) detected.push('selfie');
+    if (
+      lower.includes('selfie') ||
+      lower.includes('face') ||
+      lower.includes('mukha') ||
+      lower.includes('profile photo') ||
+      lower.includes('profile picture')
+    ) {
+      detected.push('selfie');
+    }
 
     if (detected.length > 0) {
       const orderedDetected = ORDERED.filter((d) => detected.includes(d));
@@ -359,7 +366,7 @@ export function getNextCorrectionRoute(
     license: '/driver/scan-license-front',
     mtop: '/driver/scan-mtop',
     tricycle: '/driver/scan-tricycle',
-    selfie: '/driver/scan-face',
+    selfie: '/driver/profile-picture',
   };
 
   for (let i = currentIndex + 1; i < ORDERED.length; i++) {
@@ -433,13 +440,11 @@ export const hydrateOnboardingCacheFromExisting = async (driverId: string, phone
       };
     }
 
-    if (!existing.step5_face && verif?.face_photo_path) {
-      existing.step5_face = {
-        rawSelfie: verif.face_photo_path,
-        selfiePhotoUrl: verif.face_photo_path,
-        faceMatchPassed: true,
-        faceMatchScore: 0.98,
-        verifiedAt: verif.submitted_at || new Date().toISOString(),
+    // a picture already on file counts as set; only a path in the profile bucket is a profile picture path
+    if (!existing.step5_profilePicture && (verif?.face_photo_path || driverData?.profile_photo_url)) {
+      existing.step5_profilePicture = {
+        photoPath: driverData?.profile_photo_url || '',
+        savedAt: verif?.submitted_at || new Date().toISOString(),
       };
     }
 

@@ -59,7 +59,7 @@ const RETURN_DOCUMENTS: { value: ReviewDocumentType; label: string }[] = [
   { value: 'license', label: "Driver's License (front & back)" },
   { value: 'mtop', label: 'MTOP / Franchise Permit' },
   { value: 'tricycle', label: 'Tricycle Unit Photo' },
-  { value: 'selfie', label: 'Selfie / Face Photo' },
+  { value: 'selfie', label: 'Profile Photo (Selfie)' },
 ];
 
 const RETURN_REASONS: { value: ReturnReasonCode; label: string }[] = [
@@ -409,7 +409,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
         { docType: 'license', title: "Driver's License (Back)", description: 'Back of the license: conditions and restrictions', type: 'Identification Proof', url: selectedApplicant.licenseBackUrl },
         { docType: 'mtop', title: 'MTOP Franchise Permit', description: `Franchise number: ${selectedApplicant.franchiseNo} • Calapan City Franchising`, type: 'Municipal Regulatory Permit', url: selectedApplicant.mtopUrl },
         { docType: 'tricycle', title: 'Tricycle Photo', description: `Plate number: ${selectedApplicant.vehiclePlate} • Side view of the tricycle`, type: 'Vehicle Compliance Photo', url: selectedApplicant.tricyclePhotoUrl },
-        { docType: 'selfie', title: 'Face Photo (Selfie)', description: 'Live photo of the driver\'s face, taken in the app', type: 'Biometric Verification', url: selectedApplicant.selfieUrl },
+        { docType: 'selfie', title: 'Profile Photo (Selfie)', description: 'Live photo of the driver\'s face, taken in the app', type: 'Profile Photo', url: selectedApplicant.selfieUrl },
       ]
     : [];
 
