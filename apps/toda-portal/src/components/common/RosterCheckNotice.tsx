@@ -7,13 +7,15 @@ import { formatWhen } from '../../utils/applicantDetails';
 
 interface RosterCheckNoticeProps {
   applicant: DriverApplicant;
+  /** The TODA can still endorse, return or reject this application. Otherwise the "you can still endorse" line would be wrong. */
+  canDecide?: boolean;
 }
 
 const alertSx = { borderRadius: '10px', fontSize: FONT.body } as const;
 
 // The result of the Master Roster check for one application, in words: what was compared, what was found, and why it did or did not count.
 // The database decides (the FRANCHISE number, against entries added before the application); this only explains its answer.
-export const RosterCheckNotice: React.FC<RosterCheckNoticeProps> = ({ applicant }) => {
+export const RosterCheckNotice: React.FC<RosterCheckNoticeProps> = ({ applicant, canDecide = true }) => {
   const check = applicant.rosterCheck;
 
   if (applicant.rosterMatchKnown === false || !check) {
@@ -37,11 +39,16 @@ export const RosterCheckNotice: React.FC<RosterCheckNoticeProps> = ({ applicant 
     );
   }
 
-  const consequence = (
+  const endorsed = applicant.todaStageStatus === 'Endorsed to LGU';
+  const consequence = canDecide ? (
     <Typography component="span" sx={{ display: 'block', fontSize: FONT.small, mt: '4px' }}>
       You can still endorse the application, but it will carry a Roster Mismatch flag for the LGU, which must give a written reason before approving.
     </Typography>
-  );
+  ) : endorsed ? (
+    <Typography component="span" sx={{ display: 'block', fontSize: FONT.small, mt: '4px' }}>
+      This application was already endorsed. The Roster Mismatch flag went to the LGU, which decides it with a written reason.
+    </Typography>
+  ) : null;
 
   if (check.reason === 'entry_added_later') {
     return (

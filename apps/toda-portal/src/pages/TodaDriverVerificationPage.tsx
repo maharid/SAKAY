@@ -540,6 +540,9 @@ export const TodaDriverVerificationPage: React.FC = () => {
                     <StatusPill tone="neutral" label="Roster not checked" />
                   ) : app.onSubmittedRoster ? (
                     <StatusPill tone="success" label="Master Roster Verified" icon={<CheckCircleIcon aria-hidden sx={{ fontSize: 14 }} />} />
+                  ) : app.rosterCheck?.reason === 'entry_added_later' ? (
+                    // the franchise IS on the roster, but the entry came after the application: not a missing member, so not the red mismatch
+                    <StatusPill tone="warning" label="On roster, added after applying" icon={<WarningAmberIcon aria-hidden sx={{ fontSize: 14 }} />} />
                   ) : (
                     <StatusPill tone="danger" label="Roster Mismatch Flag" icon={<WarningAmberIcon aria-hidden sx={{ fontSize: 14 }} />} />
                   )}
@@ -690,7 +693,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
             })()}
 
             {/* Master Roster check: decided by the database, by the franchise number (never by name or plate alone), with the reason */}
-            <RosterCheckNotice applicant={selectedApplicant} />
+            <RosterCheckNotice applicant={selectedApplicant} canDecide={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus)} />
 
             <DetailSection icon={<PersonIcon />} title="Personal details">
               <DetailGrid>
