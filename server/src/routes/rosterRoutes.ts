@@ -85,16 +85,17 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const rows: { toda_id: string; driver_full_name: string; franchise_number: string | null; plate_number: string | null }[] = [];
+  const rows: { toda_id: string; member_name: string; franchise_number: string; plate_number: string | null }[] = [];
   for (const raw of entries as RosterUploadItem[]) {
     const name = text(raw?.driver_full_name, 120);
     const franchise = text(raw?.franchise_number, 40);
     const plate = text(raw?.plate_number, 40);
-    if (!name || franchise === undefined || plate === undefined) {
-      res.status(400).json({ success: false, error: 'Every entry needs a driver_full_name (up to 120 characters); franchise_number and plate_number are optional text (up to 40).' });
+    if (!name || !franchise || plate === undefined) {
+      res.status(400).json({ success: false, error: 'Every entry needs a driver_full_name (up to 120 characters) and a franchise_number (up to 40); plate_number is optional text (up to 40).' });
       return;
     }
-    rows.push({ toda_id: todaId, driver_full_name: name, franchise_number: franchise, plate_number: plate });
+    // the table's column is member_name; the franchise number is what the roster check compares, so it is required
+    rows.push({ toda_id: todaId, member_name: name, franchise_number: franchise, plate_number: plate });
   }
 
   if (!supabase) { res.status(503).json({ success: false, error: 'The roster is temporarily unavailable.' }); return; }

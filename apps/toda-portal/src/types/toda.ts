@@ -101,6 +101,24 @@ export interface ApplicantDocumentReview {
   resubmittedAt?: string | null;
 }
 
+/** Why the Master Roster check came out the way it did (database: get_affiliation_roster_matches). */
+export type RosterReason = 'matched' | 'entry_added_later' | 'plate_only' | 'no_entry' | 'no_franchise';
+
+/** The answer of the Master Roster check for one application, with the roster entry it found (if any). The FRANCHISE number decides. */
+export interface RosterCheck {
+  reason: RosterReason;
+  /** The franchise number the driver submitted (what was compared) */
+  driverFranchise?: string;
+  /** The roster entry that matched, arrived later, or has the same plate number */
+  entryMemberName?: string;
+  entryFranchise?: string;
+  entryPlate?: string;
+  /** From when that entry counts: when it was added, or when its franchise / plate was last changed. ISO timestamp. */
+  entryCountedFrom?: string;
+  /** When the driver applied to this TODA. ISO timestamp. */
+  submittedAt?: string;
+}
+
 export interface DriverApplicant {
   /** True while this application is back in TODA review after the driver replaced the documents it returned. */
   isResubmitted?: boolean;
@@ -127,8 +145,16 @@ export interface DriverApplicant {
   submittedDate: string;
   daysPending: number;
   isOverdue: boolean; // >3 days warning
-  /** On the TODA's master roster by franchise or plate number, as decided by the DATABASE (the same rule as the endorsement). */
+  /** On the TODA's master roster by FRANCHISE number, as decided by the DATABASE (the same rule as the endorsement). */
   onSubmittedRoster: boolean;
+  /** Why: the roster entry found, or why none counts. Absent when the database could not answer. */
+  rosterCheck?: RosterCheck;
+  /** The barangay the driver gave as their home at registration. */
+  residentialBarangay?: string;
+  /** License and MTOP expiry as submitted (YYYY-MM-DD), and the MTOP operator named on the permit. */
+  licenseExpiry?: string;
+  mtopExpiry?: string;
+  mtopOperatorName?: string;
   /** False when the database could not answer (then neither "matched" nor "mismatch" is claimed). */
   rosterMatchKnown?: boolean;
   tricyclePhotoUrl: string;

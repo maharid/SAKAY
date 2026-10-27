@@ -14,6 +14,8 @@ import {
   ApplicantDocumentReview,
   TodaProfile,
   DriverApplicant,
+  RosterCheck,
+  RosterReason,
   TodaDriverMember,
   TodaAnnouncement,
   TodaAuditLog,
@@ -570,6 +572,62 @@ async function fetchAffiliatedDrivers(todaId: string): Promise<any[]> {
     .filter((row: any) => row !== null);
 }
 
+/**
+ * The TODA's registered roster file (the spreadsheet uploaded at registration or replaced in Settings) as bytes, or null when it cannot be
+ * opened. The stored value is a storage path (older rows may hold a storage URL).
+ */
+async function downloadRosterFile(rawUrl: string): Promise<ArrayBuffer | null> {
+  let arrayBuffer: ArrayBuffer | null = null;
+
+  // Clean storage path
+  let storagePath = rawUrl;
+  if (rawUrl.includes('toda-accredited-driver-lists/')) {
+    storagePath = decodeURIComponent(rawUrl.split('toda-accredited-driver-lists/')[1].split('?')[0]);
+  } else if (rawUrl.startsWith('http')) {
+    try {
+      const urlObj = new URL(rawUrl);
+      const parts = urlObj.pathname.split('/');
+      const bucketIndex = parts.indexOf('toda-accredited-driver-lists');
+      if (bucketIndex !== -1 && bucketIndex < parts.length - 1) {
+        storagePath = decodeURIComponent(parts.slice(bucketIndex + 1).join('/'));
+      }
+    } catch {}
+  }
+
+  // Attempt 1: Direct authenticated download via Supabase Storage
+  try {
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from('toda-accredited-driver-lists')
+      .download(storagePath);
+
+    if (!dlErr && blob) {
+      arrayBuffer = await blob.arrayBuffer();
+    }
+  } catch (dlErr) {
+    console.warn('[todaApiService] Storage download attempt 1:', dlErr);
+  }
+
+  // Attempt 2: Signed URL download
+  if (!arrayBuffer) {
+    try {
+      const { data: signedData } = await supabase.storage
+        .from('toda-accredited-driver-lists')
+        .createSignedUrl(storagePath, SIGNED_URL_TTL.document);
+
+      if (signedData?.signedUrl) {
+        const res = await fetch(signedData.signedUrl);
+        if (res.ok) {
+          arrayBuffer = await res.arrayBuffer();
+        }
+      }
+    } catch (signedErr) {
+      console.warn('[todaApiService] Signed URL attempt 2:', signedErr);
+    }
+  }
+
+  return arrayBuffer;
+}
+
 export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMember[]> {
   try {
     const currentTodaId = await getEffectiveTodaId(todaId);
@@ -591,54 +649,7 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
     // 3. If an accredited driver roster file was uploaded, parse and render from the submitted document
     if (todaRecord?.accredited_drivers_url) {
       try {
-        const rawUrl = todaRecord.accredited_drivers_url;
-        let arrayBuffer: ArrayBuffer | null = null;
-
-        // Clean storage path
-        let storagePath = rawUrl;
-        if (rawUrl.includes('toda-accredited-driver-lists/')) {
-          storagePath = decodeURIComponent(rawUrl.split('toda-accredited-driver-lists/')[1].split('?')[0]);
-        } else if (rawUrl.startsWith('http')) {
-          try {
-            const urlObj = new URL(rawUrl);
-            const parts = urlObj.pathname.split('/');
-            const bucketIndex = parts.indexOf('toda-accredited-driver-lists');
-            if (bucketIndex !== -1 && bucketIndex < parts.length - 1) {
-              storagePath = decodeURIComponent(parts.slice(bucketIndex + 1).join('/'));
-            }
-          } catch {}
-        }
-
-        // Attempt 1: Direct authenticated download via Supabase Storage
-        try {
-          const { data: blob, error: dlErr } = await supabase.storage
-            .from('toda-accredited-driver-lists')
-            .download(storagePath);
-
-          if (!dlErr && blob) {
-            arrayBuffer = await blob.arrayBuffer();
-          }
-        } catch (dlErr) {
-          console.warn('[todaApiService] Storage download attempt 1:', dlErr);
-        }
-
-        // Attempt 2: Signed URL download
-        if (!arrayBuffer) {
-          try {
-            const { data: signedData } = await supabase.storage
-              .from('toda-accredited-driver-lists')
-              .createSignedUrl(storagePath, SIGNED_URL_TTL.document);
-
-            if (signedData?.signedUrl) {
-              const res = await fetch(signedData.signedUrl);
-              if (res.ok) {
-                arrayBuffer = await res.arrayBuffer();
-              }
-            }
-          } catch (signedErr) {
-            console.warn('[todaApiService] Signed URL attempt 2:', signedErr);
-          }
-        }
+        const arrayBuffer = await downloadRosterFile(todaRecord.accredited_drivers_url);
 
         if (arrayBuffer) {
           const parsed = await parseDriverRoster(arrayBuffer);
@@ -786,15 +797,28 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
       console.warn('[todaApiService] document reviews unavailable:', reviewErr);
     }
 
-    // The roster match, asked of the database: the SAME function the endorsement uses (franchise or plate number against this TODA's roster
-    // entries made before the application; a name alone never matches), so this screen and the Roster Mismatch flag cannot disagree.
+    // The roster match, asked of the database: the SAME function the endorsement uses (the FRANCHISE number against this TODA's roster entries
+    // made before the application; a name alone never matches, a plate alone does not either), so this screen and the Roster Mismatch flag
+    // cannot disagree. It also says why, and which roster entry it found.
     const rosterMatches = new Map<string, boolean>();
+    const rosterChecks = new Map<string, RosterCheck>();
     try {
       const { data: matchRows, error: matchErr } = await supabase.rpc('get_affiliation_roster_matches', {
         p_affiliation_ids: data.map((aff: any) => aff.affiliation_id),
       });
       if (matchErr) throw matchErr;
-      for (const r of (matchRows || []) as any[]) rosterMatches.set(r.affiliation_id, Boolean(r.roster_matched));
+      for (const r of (matchRows || []) as any[]) {
+        rosterMatches.set(r.affiliation_id, Boolean(r.roster_matched));
+        rosterChecks.set(r.affiliation_id, {
+          reason: r.reason_code as RosterReason,
+          driverFranchise: r.driver_franchise || undefined,
+          entryMemberName: r.entry_member_name || undefined,
+          entryFranchise: r.entry_franchise || undefined,
+          entryPlate: r.entry_plate || undefined,
+          entryCountedFrom: r.entry_counted_from || undefined,
+          submittedAt: r.application_submitted_at || undefined,
+        });
+      }
     } catch (matchErr) {
       console.warn('[todaApiService] roster match unavailable:', matchErr);
     }
@@ -853,12 +877,18 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         documentReviews,
         assignedTerminal: aff.assigned_terminal || undefined,
         barangayServiceArea: aff.barangay_service_area || undefined,
-        submittedDate: aff.submitted_at ? new Date(aff.submitted_at).toLocaleDateString('en-US') : 'Recent',
+        submittedDate: aff.submitted_at ? new Date(aff.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
         daysPending,
         isOverdue: aff.toda_endorsement_status === 'Submitted' && daysPending > 3,
         onSubmittedRoster: rosterMatches.get(aff.affiliation_id) === true,
         rosterMatchKnown: rosterMatches.has(aff.affiliation_id),
-        tricyclePhotoUrl: tricyclePhotoUrl || d.profile_photo_url || '',
+        rosterCheck: rosterChecks.get(aff.affiliation_id),
+        residentialBarangay: d.barangay_service_area || undefined,
+        licenseExpiry: d.license_expiry || verif?.license_expiry || undefined,
+        mtopExpiry: d.mtop_expiry || verif?.mtop_expiry || verif?.franchise_expiry || undefined,
+        mtopOperatorName: verif?.submitted_operator_name || undefined,
+        // the tricycle photo and nothing else: the driver's own profile picture is a different picture and must never stand in for it
+        tricyclePhotoUrl: tricyclePhotoUrl || '',
         licenseFrontUrl,
         licenseBackUrl,
         mtopUrl,
@@ -1451,16 +1481,13 @@ export interface TodaRosterEntry {
   created_at: string;
 }
 
+/**
+ * The entries of this TODA's master roster, as the database holds them. (An earlier version also showed entries that were only saved in
+ * this browser: they looked like roster members but the roster check could never see them, so they are no longer listed.)
+ */
 export async function fetchTodaRosterEntries(todaId?: string): Promise<TodaRosterEntry[]> {
   try {
     const targetTodaId = await getEffectiveTodaId(todaId);
-    let localEntries: TodaRosterEntry[] = [];
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(`sakay_toda_roster_${targetTodaId}`);
-        if (raw) localEntries = JSON.parse(raw);
-      } catch {}
-    }
 
     const { data, error } = await supabase
       .from('toda_roster_entry')
@@ -1473,27 +1500,14 @@ export async function fetchTodaRosterEntries(todaId?: string): Promise<TodaRoste
       try {
         const serverRes = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${targetTodaId}/roster`);
         const json = await serverRes.json();
-        if (json.success && json.data) {
-          const merged = [...json.data];
-          for (const le of localEntries) {
-            if (!merged.some(m => m.franchise_number === le.franchise_number)) {
-              merged.push(le);
-            }
-          }
-          return merged;
-        }
-      } catch {}
-      return localEntries;
+        if (json.success && json.data) return json.data as TodaRosterEntry[];
+      } catch {
+        // the answer below is an empty list: it never claims entries the database did not give
+      }
+      return [];
     }
 
-    const dbEntries = data || [];
-    const merged = [...dbEntries];
-    for (const le of localEntries) {
-      if (!merged.some(m => m.franchise_number === le.franchise_number)) {
-        merged.push(le);
-      }
-    }
-    return merged;
+    return (data || []) as TodaRosterEntry[];
   } catch (err) {
     console.error('[todaApiService] fetchTodaRosterEntries error:', err);
     return [];
@@ -1525,74 +1539,94 @@ export async function addTodaRosterEntry(entry: {
   memberName: string;
   franchiseNumber: string;
   plateNumber: string;
-}) {
+}): Promise<TodaRosterEntry> {
   const targetTodaId = await getEffectiveTodaId(entry.todaId);
-  const newEntry: TodaRosterEntry = {
-    roster_id: 'roster-' + Date.now(),
-    toda_id: targetTodaId,
-    member_name: entry.memberName.trim(),
-    franchise_number: entry.franchiseNumber.trim(),
-    plate_number: entry.plateNumber.trim(),
-    created_at: new Date().toISOString(),
-  };
+  const memberName = entry.memberName.trim();
+  const franchiseNumber = entry.franchiseNumber.trim();
+  const plateNumber = entry.plateNumber.trim();
 
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem(`sakay_toda_roster_${targetTodaId}`);
-      const existing: TodaRosterEntry[] = raw ? JSON.parse(raw) : [];
-      existing.unshift(newEntry);
-      localStorage.setItem(`sakay_toda_roster_${targetTodaId}`, JSON.stringify(existing));
-    } catch {}
+  const { data, error } = await supabase
+    .from('toda_roster_entry')
+    .insert({
+      toda_id: targetTodaId,
+      member_name: memberName,
+      franchise_number: franchiseNumber,
+      plate_number: plateNumber || null,
+    })
+    .select()
+    .single();
+
+  if (!error && data) {
+    await recordTodaAuditAction({
+      actionType: 'TODA_ROSTER_ENTRY_ADDED',
+      targetId: targetTodaId,
+      targetName: memberName,
+      details: `Added new official roster entry for '${memberName}' (Franchise: ${franchiseNumber}${plateNumber ? `, Plate: ${plateNumber}` : ''}).`,
+      category: 'Membership',
+    });
+    return data as TodaRosterEntry;
   }
 
+  console.warn('[todaApiService] Direct Supabase roster insert failed, trying the server:', error?.message);
   try {
-    const { data, error } = await supabase
-      .from('toda_roster_entry')
-      .insert({
-        toda_id: targetTodaId,
-        member_name: entry.memberName.trim(),
-        franchise_number: entry.franchiseNumber.trim(),
-        plate_number: entry.plateNumber.trim(),
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      await recordTodaAuditAction({
-        actionType: 'TODA_ROSTER_ENTRY_ADDED',
-        targetId: targetTodaId,
-        targetName: entry.memberName,
-        details: `Added new official roster entry for '${entry.memberName}' (Franchise: ${entry.franchiseNumber}, Plate: ${entry.plateNumber}).`,
-        category: 'Membership',
-      });
-      return data;
-    }
-    if (error) throw error;
-  } catch (supabaseErr: any) {
-    console.warn('[todaApiService] Direct Supabase roster insert note:', supabaseErr.message || supabaseErr);
-    // 1. Try Express backend endpoint (port 5000)
-    try {
-      const serverRes = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${targetTodaId}/roster`, {
-        method: 'POST',
-        body: JSON.stringify({
-          entries: [
-            {
-              driver_full_name: entry.memberName.trim(),
-              franchise_number: entry.franchiseNumber.trim(),
-              plate_number: entry.plateNumber.trim(),
-            },
-          ],
-        }),
-      });
-      const json = await serverRes.json();
-      if (json.success && json.data?.[0]) {
-        return json.data[0];
-      }
-    } catch {}
-
-    // 2. Return local dev entry
-    return newEntry;
+    const serverRes = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${targetTodaId}/roster`, {
+      method: 'POST',
+      body: JSON.stringify({
+        entries: [{ driver_full_name: memberName, franchise_number: franchiseNumber, plate_number: plateNumber || undefined }],
+      }),
+    });
+    const json = await serverRes.json();
+    if (json.success && json.data?.[0]) return json.data[0] as TodaRosterEntry;
+  } catch {
+    // reported below
   }
+  throw new Error('The roster entry could not be saved. Please try again.');
+}
+
+export interface RosterImportResult {
+  /** Members found in the roster file */
+  rowsInFile: number;
+  added: number;
+  /** Already on the roster (same franchise number) or repeated in the file */
+  skippedDuplicate: number;
+  /** No usable franchise number or name */
+  skippedInvalid: number;
+}
+
+/**
+ * Fills the master roster from the roster file this TODA already submitted (the one used to build the member list): the rows are read
+ * here and handed to the database function import_toda_roster, which adds only the ones with a franchise number the roster does not have
+ * yet. Imported entries are dated when they are imported, like any entry typed in.
+ */
+export async function importTodaRosterFromUploadedFile(todaId?: string): Promise<RosterImportResult> {
+  const targetTodaId = await getEffectiveTodaId(todaId);
+  const { data: toda, error: todaErr } = await supabase
+    .from('toda')
+    .select('accredited_drivers_url')
+    .eq('toda_id', targetTodaId)
+    .maybeSingle();
+  if (todaErr) throw new Error(todaErr.message);
+  if (!toda?.accredited_drivers_url) {
+    throw new Error('Your TODA has no roster file on record. Add the members one by one instead.');
+  }
+
+  const buffer = await downloadRosterFile(toda.accredited_drivers_url);
+  if (!buffer) throw new Error('The roster file could not be opened. Please try again in a moment.');
+
+  const parsed = await parseDriverRoster(buffer);
+  const rows = (parsed?.rows || []).map((row) => ({ member_name: row.name, franchise_number: row.franchiseNumber }));
+  if (rows.length === 0) throw new Error('No members were found in the roster file.');
+
+  const result: RosterImportResult = { rowsInFile: rows.length, added: 0, skippedDuplicate: 0, skippedInvalid: 0 };
+  for (let i = 0; i < rows.length; i += 500) {
+    const { data, error } = await supabase.rpc('import_toda_roster', { p_entries: rows.slice(i, i + 500) });
+    if (error) throw new Error(error.message);
+    if (!data || data.success !== true) throw new Error(String(data?.error || 'The roster could not be imported.'));
+    result.added += Number(data.added) || 0;
+    result.skippedDuplicate += Number(data.skipped_duplicate) || 0;
+    result.skippedInvalid += Number(data.skipped_invalid) || 0;
+  }
+  return result;
 }
 
 // ============================================================================

@@ -22,6 +22,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 import { EvidenceLinks } from '@sakay/shared';
 import { TodaDriverMember, DriverExemptionRequest } from '../types/toda';
@@ -33,7 +34,7 @@ import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { DataTableCard, DataTableMessageRow, CellStack, PersonCell } from '../components/common/DataTable';
 import { FeatureLockedNotice } from '../components/common/FeatureLockedNotice';
-import { primaryButtonSx, rowActionSx } from '../components/common/pageButtons';
+import { primaryButtonSx, rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
 import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
 import type { OperationsStat } from '../components/operations/OperationsStatStrip';
 import { OPS_TEXT } from '../components/operations/operationsTheme';
@@ -46,6 +47,7 @@ import {
   recordTodaAuditAction,
   fetchTodaRosterEntries,
   addTodaRosterEntry,
+  importTodaRosterFromUploadedFile,
   updateTodaRosterEntry,
   fetchTodaProfile,
   fetchTodaExemptionRequests,
@@ -104,6 +106,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
   const [newPlateNumber, setNewPlateNumber] = useState('');
   const [rosterSubmitting, setRosterSubmitting] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
+  const [rosterImporting, setRosterImporting] = useState(false);
 
   // Editing one roster entry (checklist: update member information)
   const [editingEntry, setEditingEntry] = useState<TodaRosterEntry | null>(null);
@@ -183,6 +186,15 @@ export const TodaDriverMembershipPage: React.FC = () => {
       setRosterError('Member name and franchise number are required.');
       return;
     }
+    const normalizedFranchise = normalizeFranchise(newFranchiseNumber);
+    if (!normalizedFranchise) {
+      setRosterError('The franchise number needs letters or numbers.');
+      return;
+    }
+    if (rosterEntries.some((e) => normalizeFranchise(e.franchise_number) === normalizedFranchise)) {
+      setRosterError('A roster entry with that franchise number already exists. Edit that entry instead.');
+      return;
+    }
     const targetId = effectiveTodaId || todaAdminProfile?.toda_id;
     setRosterSubmitting(true);
     setRosterError(null);
@@ -191,7 +203,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
         todaId: targetId,
         memberName: newMemberName.trim(),
         franchiseNumber: newFranchiseNumber.trim(),
-        plateNumber: newPlateNumber.trim() || newFranchiseNumber.trim(),
+        plateNumber: newPlateNumber.trim(),
       });
       setRosterEntries((prev) => [added, ...prev]);
       setRosterAddModalOpen(false);
@@ -205,9 +217,36 @@ export const TodaDriverMembershipPage: React.FC = () => {
     }
   };
 
+  // Brings in the roster file this TODA already submitted; the database adds only franchise numbers the roster does not have yet
+  const handleImportRoster = async () => {
+    const targetId = effectiveTodaId || todaAdminProfile?.toda_id;
+    setRosterImporting(true);
+    try {
+      const result = await importTodaRosterFromUploadedFile(targetId);
+      setRosterEntries(await fetchTodaRosterEntries(targetId));
+      const parts = [
+        result.skippedDuplicate > 0 ? `${result.skippedDuplicate} already on the roster` : '',
+        result.skippedInvalid > 0 ? `${result.skippedInvalid} skipped for a missing franchise number or name` : '',
+      ].filter(Boolean);
+      setToast({
+        message: result.added > 0
+          ? `Imported ${result.added} roster ${result.added === 1 ? 'entry' : 'entries'} from your roster file${parts.length ? ` (${parts.join(', ')})` : ''}.`
+          : `Nothing new to import${parts.length ? `: ${parts.join(', ')}` : ''}.`,
+        severity: 'success',
+      });
+    } catch (err) {
+      setToast({ message: (err as Error).message || 'The roster could not be imported.', severity: 'error' });
+    } finally {
+      setRosterImporting(false);
+    }
+  };
+
   useEffect(() => {
     loadDrivers();
   }, [effectiveTodaId]);
+
+  // the roster is compared by franchise number, ignoring case and punctuation (the same way the database does it)
+  const normalizeFranchise = (value?: string | null) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
   // Filter Logic
   const filteredDrivers = drivers.filter((drv) => {
@@ -588,20 +627,32 @@ export const TodaDriverMembershipPage: React.FC = () => {
                 Master Roster
               </Typography>
               <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px', lineHeight: 1.5, maxWidth: '90ch' }}>
-                The franchise and plate numbers your TODA vouches for. When a driver applies to your TODA, Driver Verification checks the application against this list.
+                The franchise numbers your TODA vouches for. When a driver applies to your TODA, Driver Verification checks the franchise number on the application against this list.
+                An entry counts for applications submitted after it was added.
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => {
-                setRosterError(null);
-                setRosterAddModalOpen(true);
-              }}
-              sx={primaryButtonSx}
-            >
-              Add Roster Member
-            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileIcon sx={{ fontSize: 16 }} />}
+                onClick={handleImportRoster}
+                disabled={rosterImporting}
+                sx={secondaryButtonSx}
+              >
+                {rosterImporting ? 'Importing...' : 'Import from Roster File'}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                onClick={() => {
+                  setRosterError(null);
+                  setRosterAddModalOpen(true);
+                }}
+                sx={primaryButtonSx}
+              >
+                Add Roster Member
+              </Button>
+            </Box>
           </Box>
 
           <DataTableCard label="Master roster" minWidth={760} columns={[{ label: 'Member full name' }, { label: 'Franchise number' }, { label: 'Vehicle plate number' }, { label: 'Date added' }, { label: 'Screening status' }, { label: 'Action', align: 'right' }]}>
@@ -611,11 +662,11 @@ export const TodaDriverMembershipPage: React.FC = () => {
                   colSpan={6}
                   kind="empty"
                   title="No master roster entries yet"
-                  hint='Click "Add Roster Member" to register franchise members.'
+                  hint='Click "Import from Roster File" to bring in the roster you submitted, or "Add Roster Member" to register members one by one.'
                 />
               ) : (
                 rosterEntries.map((entry) => (
-                  <TableRow key={entry.roster_id || `${entry.franchise_number}-${entry.plate_number}`}>
+                  <TableRow key={entry.entry_id || entry.roster_id || `${entry.franchise_number}-${entry.plate_number}`}>
                     <TableCell sx={{ fontWeight: 600 }}>
                       {entry.member_name}
                     </TableCell>
@@ -623,7 +674,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
                       {entry.franchise_number}
                     </TableCell>
                     <TableCell>
-                      {entry.plate_number}
+                      {entry.plate_number || '—'}
                     </TableCell>
                     <TableCell sx={{ color: OPS_TEXT.secondary }}>
                       {entry.created_at ? dateOf(entry.created_at) : 'Registered'}
@@ -819,7 +870,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
         </DialogTitle>
         <DialogContent sx={DIALOG_CONTENT_SX}>
           <Typography sx={DIALOG_INTRO_SX}>
-            Register driver and franchise details in the official TODA master roster. Applications matching this record will be verified automatically.
+            Register a member's franchise number in the official TODA master roster. An application with the same franchise number, submitted after this entry is added, is matched automatically.
           </Typography>
           {rosterError && (
             <Alert severity="error">

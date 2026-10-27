@@ -1,23 +1,25 @@
-// Roster Mismatch (20261010000005): ONE match for the endorsement and the TODA screen, and a required reason when the LGU approves
+// Roster Mismatch (20261010000005, 20261030000003): ONE match for the endorsement and the TODA screen, and a required reason when the LGU approves
 // an applicant who has an open Roster Mismatch flag (written to the flag and to the audit log).
 // Whole migration chain, local emulator only (never Supabase).
 //
 //   BEFORE (chain through 20261010000004): the LGU approves an unmatched applicant with no reason, and the flag just disappears.
 //   AFTER:  approval needs a reason; the screen's function and the endorsement agree on every case.
+//   Since 20261030000003 the FRANCHISE number decides (a plate alone no longer matches) and the screen is told why: reason_code.
 const { setup, ID, attempt, check, summary, asUser } = require('../b4fixtures');
 
 const BEFORE = '20261010000004_reapplication_lgu_only.sql';
 const mk = (n) => ({ AUTH: `22000000-0000-0000-0000-0000000000${n}`, ID: `b2000000-0000-0000-0000-0000000000${n}` });
 const apps = (...ids) => JSON.stringify(ids.map((toda_id) => ({ toda_id })));
 
-// name, franchise, plate as the driver SUBMITTED them
+// name, franchise, plate as the driver SUBMITTED them; `reason` is what the screen is told (reason_code)
 const CASES = [
-  { key: 'franchise', name: 'Juan Franchise', fr: 'F-100', pl: 'XXX 111', expect: true,  why: 'franchise matches a roster entry (written differently: f 100)' },
-  { key: 'plate',     name: 'Pedro Plate',    fr: '',      pl: 'ABC 123', expect: true,  why: 'plate matches a roster entry (written differently: abc-123)' },
-  { key: 'nameonly',  name: 'Maria Roster',   fr: 'F-200', pl: 'DDD 222', expect: false, why: 'ONLY the name is on the roster: name alone never passes (the old screen said "found")' },
-  { key: 'late',      name: 'Late Entry',     fr: 'F-300', pl: 'EEE 333', expect: false, why: 'the roster entry was created AFTER the application was submitted' },
-  { key: 'othertoda', name: 'Other Roster',   fr: 'F-400', pl: 'FFF 444', expect: false, why: "the number is only on ANOTHER TODA's roster" },
-  { key: 'nonumbers', name: 'No Numbers',     fr: '',      pl: '',        expect: false, why: 'no franchise and no plate to compare' },
+  { key: 'franchise',  name: 'Juan Franchise', fr: 'F-100', pl: 'XXX 111', expect: true,  reason: 'matched',           why: 'franchise matches a roster entry (written differently: f 100)' },
+  { key: 'franchise2', name: 'Rosa Franchise', fr: 'f101',  pl: 'QQQ 000', expect: true,  reason: 'matched',           why: 'franchise matches another entry (written differently: F-101)' },
+  { key: 'plate',      name: 'Pedro Plate',    fr: 'F-999', pl: 'ABC 123', expect: false, reason: 'plate_only',        why: 'ONLY the plate is on the roster (abc-123): a plate alone no longer matches' },
+  { key: 'nameonly',   name: 'Maria Roster',   fr: 'F-200', pl: 'DDD 222', expect: false, reason: 'no_entry',          why: 'ONLY the name is on the roster: name alone never passes (the old screen said "found")' },
+  { key: 'late',       name: 'Late Entry',     fr: 'F-300', pl: 'EEE 333', expect: false, reason: 'entry_added_later', why: 'the roster entry was created AFTER the application was submitted' },
+  { key: 'othertoda',  name: 'Other Roster',   fr: 'F-400', pl: 'FFF 444', expect: false, reason: 'no_entry',          why: "the number is only on ANOTHER TODA's roster" },
+  { key: 'nonumbers',  name: 'No Numbers',     fr: '',      pl: '',        expect: false, reason: 'no_franchise',      why: 'no franchise and no plate to compare' },
 ];
 
 async function world(until) {
@@ -39,6 +41,7 @@ async function world(until) {
     -- the roster of TODA1 as it was BEFORE the applications, a month ago
     INSERT INTO public.toda_roster_entry(toda_id, member_name, franchise_number, plate_number, created_at) VALUES
       ('${ID.TODA1}', 'Somebody Else', 'f 100', NULL, now() - interval '30 days'),
+      ('${ID.TODA1}', 'Rosa Member', 'F-101', 'RRR 101', now() - interval '30 days'),
       ('${ID.TODA1}', 'Another Member', NULL, 'abc-123', now() - interval '30 days'),
       ('${ID.TODA1}', 'Maria Roster', 'ZZ-9', 'ZZZ 999', now() - interval '30 days'),
       ('${ID.TODA2}', 'Other Roster', 'F-400', 'FFF 444', now() - interval '30 days');`);
@@ -70,6 +73,20 @@ async function world(until) {
   for (const c of CASES) {
     check(`the screen: ${c.key} -> ${c.expect ? 'on the roster' : 'NOT on the roster'} (${c.why})`, screen[A[c.key]] === c.expect, screen[A[c.key]]);
   }
+
+  console.log('\nM1b the screen is told WHY (reason_code) and which roster entry it found');
+  const detail = Object.fromEntries((await rows(ID.T_AUTH, `SELECT * FROM public.get_affiliation_roster_matches($1::uuid[])`, [Object.values(A)])).map((r) => [r.affiliation_id, r]));
+  for (const c of CASES) {
+    check(`${c.key}: reason_code = ${c.reason}`, detail[A[c.key]].reason_code === c.reason, detail[A[c.key]].reason_code);
+  }
+  check('a match carries the roster entry that counted (its name and its franchise as written there)',
+    detail[A.franchise].entry_member_name === 'Somebody Else' && detail[A.franchise].entry_franchise === 'f 100' && detail[A.franchise].driver_franchise === 'F-100', detail[A.franchise]);
+  check('the entry added later is named, with the moment from which it counts (after the application)',
+    detail[A.late].entry_member_name === 'Late Entry' && new Date(detail[A.late].entry_counted_from) > new Date(detail[A.late].application_submitted_at), detail[A.late]);
+  check('a plate-only hint names the entry that has the plate, under its OWN franchise number (none)',
+    detail[A.plate].entry_member_name === 'Another Member' && detail[A.plate].entry_franchise === null && detail[A.plate].roster_matched === false, detail[A.plate]);
+  check('no entry: nothing is named', detail[A.nameonly].entry_member_name === null && detail[A.nameonly].entry_franchise === null, detail[A.nameonly]);
+  check("another TODA's entry is never shown (othertoda: no entry)", detail[A.othertoda].entry_member_name === null, detail[A.othertoda]);
   for (const c of CASES) {
     const end = await rpc(ID.T_AUTH, 'endorse_driver_affiliation', [A[c.key]]);
     const f = await flag(A[c.key]);
@@ -119,8 +136,8 @@ async function world(until) {
   console.log('\nM4 an applicant who IS on the roster needs no reason, and a reason that is not needed is not recorded');
   const m = await rpc(ID.L_AUTH, 'verify_driver_affiliation', [A.franchise]);
   check('matched applicant: approved without a reason', m.success === true && m.roster_override_recorded === false, m);
-  const m2 = await rpc(ID.L_AUTH, 'verify_driver_affiliation', [A.plate, null, null, null, 'a reason nobody asked for']);
-  const ov2 = await one(`SELECT count(*)::int n FROM audit_log WHERE action_type='DRIVER_ROSTER_MISMATCH_OVERRIDDEN' AND target_id='${A.plate}'`);
+  const m2 = await rpc(ID.L_AUTH, 'verify_driver_affiliation', [A.franchise2, null, null, null, 'a reason nobody asked for']);
+  const ov2 = await one(`SELECT count(*)::int n FROM audit_log WHERE action_type='DRIVER_ROSTER_MISMATCH_OVERRIDDEN' AND target_id='${A.franchise2}'`);
   check('...a reason given anyway is ignored (no override entry)', m2.success === true && ov2.n === 0, { m2, ov2 });
 
   console.log('\nM5 nothing else about approval changed');
