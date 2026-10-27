@@ -17,6 +17,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { refreshStorageUrl } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
@@ -30,6 +32,10 @@ interface DocumentPreviewModalProps {
   documentName: string;
   documentType?: string;
   imageUrl?: string | null;
+  /** A document of several photos (a license: front and back). Shown one at a time with Previous / Next; takes the place of imageUrl. */
+  imageUrls?: string[];
+  /** A short name for each photo of imageUrls ('Front', 'Back') */
+  photoLabels?: string[];
 }
 
 export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
@@ -38,31 +44,38 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   documentName,
   documentType = 'Document',
   imageUrl: sourceUrl,
+  imageUrls,
+  photoLabels,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [imgLoading, setImgLoading] = useState<boolean>(true);
   const [imgError, setImgError] = useState<boolean>(false);
 
-  // A link that was signed when a list loaded may be past its short life (10 minutes): it is signed again when the preview opens.
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // The photos of this document (one, or several for a license). A link that was signed when a list loaded may be past its short life
+  // (10 minutes): they are signed again when the preview opens.
+  const sources: string[] = imageUrls && imageUrls.length > 0 ? imageUrls.filter(Boolean) : sourceUrl ? [sourceUrl] : [];
+  const sourceKey = sources.join('\n');
+  const [allUrls, setAllUrls] = useState<string[]>([]);
+  const [photoIndex, setPhotoIndex] = useState<number>(0);
   const [resolving, setResolving] = useState<boolean>(false);
 
   useEffect(() => {
+    setPhotoIndex(0);
     setZoomLevel(1);
     setImgLoading(true);
     setImgError(false);
-    if (!open || !sourceUrl) {
-      setImageUrl(null);
+    if (!open || sources.length === 0) {
+      setAllUrls([]);
       return;
     }
     let cancelled = false;
     setResolving(true);
-    refreshStorageUrl(supabase, sourceUrl)
-      .then((fresh) => {
-        if (!cancelled) setImageUrl(fresh || sourceUrl);
+    Promise.all(sources.map((u) => refreshStorageUrl(supabase, u)))
+      .then((list) => {
+        if (!cancelled) setAllUrls(list.map((u, i) => u || sources[i]));
       })
       .catch(() => {
-        if (!cancelled) setImageUrl(sourceUrl);
+        if (!cancelled) setAllUrls(sources);
       })
       .finally(() => {
         if (!cancelled) setResolving(false);
@@ -70,7 +83,18 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [open, sourceUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sourceKey]);
+
+  const imageUrl = allUrls[photoIndex] || null;
+  const hasManyPhotos = allUrls.length > 1;
+  const goToPhoto = (next: number) => {
+    if (next < 0 || next >= allUrls.length) return;
+    setPhotoIndex(next);
+    setZoomLevel(1);
+    setImgLoading(true);
+    setImgError(false);
+  };
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));
@@ -81,7 +105,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     const a = document.createElement('a');
     a.href = imageUrl;
     a.target = '_blank';
-    a.download = `${documentName.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
+    a.download = `${documentName.replace(/[^a-zA-Z0-9_-]/g, '_')}${hasManyPhotos ? `_${photoIndex + 1}` : ''}.jpg`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -207,6 +231,47 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 display: imgLoading ? 'none' : 'block',
               }}
             />
+            {hasManyPhotos && (
+              <>
+                <Box
+                  role="status"
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    px: '12px',
+                    py: '4px',
+                    borderRadius: '999px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                    color: '#FFFFFF',
+                    fontSize: FONT.small,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  Photo {photoIndex + 1} of {allUrls.length}
+                  {photoLabels?.[photoIndex] ? ` · ${photoLabels[photoIndex]}` : ''}
+                </Box>
+                <IconButton
+                  onClick={() => goToPhoto(photoIndex - 1)}
+                  disabled={photoIndex === 0}
+                  aria-label={`Previous photo${photoLabels?.[photoIndex - 1] ? `: ${photoLabels[photoIndex - 1]}` : ''}`}
+                  sx={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', backgroundColor: 'rgba(0, 0, 0, 0.55)', '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.75)' }, '&.Mui-disabled': { opacity: 0.3, color: '#FFFFFF' }, ...opsFocusRing }}
+                >
+                  <ChevronLeftIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => goToPhoto(photoIndex + 1)}
+                  disabled={photoIndex === allUrls.length - 1}
+                  aria-label={`Next photo${photoLabels?.[photoIndex + 1] ? `: ${photoLabels[photoIndex + 1]}` : ''}`}
+                  sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', backgroundColor: 'rgba(0, 0, 0, 0.55)', '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.75)' }, '&.Mui-disabled': { opacity: 0.3, color: '#FFFFFF' }, ...opsFocusRing }}
+                >
+                  <ChevronRightIcon />
+                </IconButton>
+              </>
+            )}
           </Box>
         ) : resolving ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>

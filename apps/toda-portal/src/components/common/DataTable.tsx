@@ -142,7 +142,7 @@ export const DataTableMessageRow: React.FC<DataTableMessageRowProps> = ({ colSpa
   </TableRow>
 );
 
-type StatusPillTone = 'success' | 'danger' | 'warning' | 'neutral' | 'violet';
+type StatusPillTone = 'success' | 'danger' | 'warning' | 'neutral' | 'violet' | 'info';
 
 const PILL_COLORS: Record<StatusPillTone, { background: string; color: string }> = {
   success: { background: '#DCFCE7', color: '#166534' },
@@ -150,6 +150,7 @@ const PILL_COLORS: Record<StatusPillTone, { background: string; color: string }>
   warning: { background: '#FEF3C7', color: '#92400E' },
   neutral: { background: '#F1F3F4', color: '#4B5563' },
   violet: { background: '#EDE9FE', color: '#4C1D95' },
+  info: { background: '#DBEAFE', color: '#1D4ED8' },
 };
 
 interface StatusPillProps {

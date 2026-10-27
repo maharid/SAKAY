@@ -21,6 +21,10 @@ import {
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import PersonIcon from '@mui/icons-material/Person';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 import { DriverApplicant } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -46,6 +50,8 @@ import { DataTableCard, DataTableMessageRow, CellStack, PersonCell, StatusPill }
 import { FeatureLockedNotice } from '../components/common/FeatureLockedNotice';
 import { PageNotice } from '../components/common/PageNotice';
 import { ReviewDocumentRow } from '../components/common/ReviewDocumentRow';
+import { DetailSection, DetailGrid, DetailField } from '../components/common/DetailSection';
+import { RosterCheckNotice } from '../components/common/RosterCheckNotice';
 import { dangerButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
 import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
 import type { OperationsStat } from '../components/operations/OperationsStatStrip';
@@ -53,13 +59,14 @@ import { OPS_BORDER, OPS_TEXT } from '../components/operations/operationsTheme';
 import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX } from '@sakay/shared/components/dialogStyles';
 import { FONT, SHELL, SPACE } from '../styles/density';
 import { SakayToast } from '../components/common/SakayToast';
+import { expiryState, formatDocDate, formatWhen, sharesNameWord } from '../utils/applicantDetails';
 
 // ---- Return for correction (Rules 3.6, 3.8): the TODA names the documents and says why. Rejecting (fraud / ineligible) is a different action.
 const RETURN_DOCUMENTS: { value: ReviewDocumentType; label: string }[] = [
-  { value: 'license', label: "Driver's License (front & back)" },
-  { value: 'mtop', label: 'MTOP / Franchise Permit' },
-  { value: 'tricycle', label: 'Tricycle Unit Photo' },
-  { value: 'selfie', label: 'Profile Photo (Selfie)' },
+  { value: 'license', label: "Driver's License (Front & Back)" },
+  { value: 'mtop', label: 'MTOP Franchise Permit' },
+  { value: 'tricycle', label: 'Tricycle Unit Inspection Photo' },
+  { value: 'selfie', label: 'Driver Profile Photo (Selfie)' },
 ];
 
 const RETURN_REASONS: { value: ReturnReasonCode; label: string }[] = [
@@ -83,8 +90,13 @@ const emptyReturnForm = (): ReturnForm => ({
 const reasonLabelOf = (code?: string | null): string => RETURN_REASONS.find((r) => r.value === code)?.label || '';
 const documentLabelOf = (doc: string): string => RETURN_DOCUMENTS.find((d) => d.value === doc)?.label || doc;
 
-const formatWhen = (iso?: string | null): string =>
-  iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }) : '';
+/** An expiry date shown with a pill when it has passed or is close, like the LGU Portal's driver window. */
+const expiryPill = (iso?: string | null): React.ReactNode => {
+  const { state, days } = expiryState(iso);
+  if (state === 'expired') return <StatusPill label="Expired" tone="danger" />;
+  if (state === 'soon') return <StatusPill label={days === 0 ? 'Expires today' : `Expires in ${days} day${days === 1 ? '' : 's'}`} tone="warning" />;
+  return null;
+};
 
 // the look shared by the notices inside the review window
 const reviewAlertSx = { borderRadius: '10px', fontSize: FONT.body } as const;
@@ -119,7 +131,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
   const [previewDocData, setPreviewDocData] = useState<{
     name: string;
     type: string;
-    url?: string | null;
+    urls: string[];
+    labels?: string[];
   } | null>(null);
 
   // Review Checkbox States
@@ -402,14 +415,19 @@ export const TodaDriverVerificationPage: React.FC = () => {
 
   const canEndorse = rosterChecked && photoChecked;
 
-  // the five files an applicant sends, as the review window lists them
-  const reviewDocuments = selectedApplicant
+  // the four documents an applicant sends, listed the way the LGU Portal lists them (the license is one document, front and back)
+  const reviewDocuments: { docType: ReviewDocumentType; title: string; type: string; urls: string[]; labels?: string[] }[] = selectedApplicant
     ? [
-        { docType: 'license', title: "Driver's License (Front)", description: `License number: ${selectedApplicant.licenseNo} • LTO official card`, type: 'Identification Proof', url: selectedApplicant.licenseFrontUrl },
-        { docType: 'license', title: "Driver's License (Back)", description: 'Back of the license: conditions and restrictions', type: 'Identification Proof', url: selectedApplicant.licenseBackUrl },
-        { docType: 'mtop', title: 'MTOP Franchise Permit', description: `Franchise number: ${selectedApplicant.franchiseNo} • Calapan City Franchising`, type: 'Municipal Regulatory Permit', url: selectedApplicant.mtopUrl },
-        { docType: 'tricycle', title: 'Tricycle Photo', description: `Plate number: ${selectedApplicant.vehiclePlate} • Side view of the tricycle`, type: 'Vehicle Compliance Photo', url: selectedApplicant.tricyclePhotoUrl },
-        { docType: 'selfie', title: 'Profile Photo (Selfie)', description: 'Live photo of the driver\'s face, taken in the app', type: 'Profile Photo', url: selectedApplicant.selfieUrl },
+        {
+          docType: 'license',
+          title: "Driver's License (Front & Back)",
+          type: 'Identification Proof',
+          urls: [selectedApplicant.licenseFrontUrl, selectedApplicant.licenseBackUrl].filter((u): u is string => Boolean(u)),
+          labels: ['Front', 'Back'],
+        },
+        { docType: 'mtop', title: 'MTOP Franchise Permit', type: 'Official LGU Permit', urls: selectedApplicant.mtopUrl ? [selectedApplicant.mtopUrl] : [] },
+        { docType: 'tricycle', title: 'Tricycle Unit Inspection Photo', type: 'Vehicle Compliance Photo', urls: selectedApplicant.tricyclePhotoUrl ? [selectedApplicant.tricyclePhotoUrl] : [] },
+        { docType: 'selfie', title: 'Driver Profile Photo (Selfie)', type: 'Profile Photo', urls: selectedApplicant.selfieUrl ? [selectedApplicant.selfieUrl] : [] },
       ]
     : [];
 
@@ -583,7 +601,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
           badge={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <StatusBadge status={selectedApplicant.todaStageStatus} highContrast />
-              {selectedApplicant.isResubmitted && <StatusPill label="Resubmitted" tone="violet" />}
+              {selectedApplicant.isResubmitted && <StatusPill label="Resubmitted" tone="info" />}
             </Box>
           }
           maxWidth={640}
@@ -599,7 +617,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge }}>
             {/* Resubmitted: what changed, and what this review asked for before (so the reviewer can compare) */}
             {selectedApplicant.isResubmitted && (
-              <Alert severity="info" icon={false} sx={{ ...reviewAlertSx, backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE', color: '#4C1D95' }}>
+              <Alert severity="info" icon={false} sx={{ ...reviewAlertSx, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E3A8A' }}>
                 <Typography sx={{ fontWeight: 700, fontSize: FONT.body, mb: '3px' }}>
                   Resubmitted by the driver on {formatWhen(selectedApplicant.resubmittedAt)}
                 </Typography>
@@ -616,7 +634,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
                 {(selectedApplicant.documentReviews || [])
                   .filter((r) => r.state === 'resubmitted')
                   .map((r) => (
-                    <Box key={r.documentType} sx={{ borderTop: '1px solid #DDD6FE', pt: '5px', mt: '5px' }}>
+                    <Box key={r.documentType} sx={{ borderTop: '1px solid #BFDBFE', pt: '5px', mt: '5px' }}>
                       <Typography sx={{ fontSize: FONT.small, fontWeight: 700 }}>
                         {documentLabelOf(r.documentType)} — previous return ({formatWhen(r.returnedAt)}): {reasonLabelOf(r.reasonCode)}
                       </Typography>
@@ -671,37 +689,90 @@ export const TodaDriverVerificationPage: React.FC = () => {
               );
             })()}
 
-            {/* Master Roster check: decided by the database, by franchise or plate number (never by name) */}
-            {selectedApplicant.rosterMatchKnown === false ? (
-              <Alert severity="info" sx={reviewAlertSx}>
-                <strong>Roster check unavailable.</strong> The result of the roster check could not be loaded. Refresh the page before you decide.
-              </Alert>
-            ) : selectedApplicant.onSubmittedRoster ? (
-              <Alert severity="success" sx={reviewAlertSx}>
-                <strong>Found on the Master Roster.</strong> The applicant's franchise number or plate number is on your TODA's Master Roster (added before the application was submitted).
-              </Alert>
-            ) : (
-              <Alert severity="warning" sx={reviewAlertSx}>
-                <strong>Not found on the Master Roster.</strong> No roster entry has the same franchise number or plate number (from before the application was submitted). A name alone is not enough.
-                You can still endorse the application, but it will carry a Roster Mismatch flag for the LGU, which must give a written reason before approving.
-              </Alert>
-            )}
+            {/* Master Roster check: decided by the database, by the franchise number (never by name or plate alone), with the reason */}
+            <RosterCheckNotice applicant={selectedApplicant} />
 
-            <ReviewSection title="Applicant details">
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: '12px 16px', backgroundColor: '#FAFAF8', border: `1px solid ${OPS_BORDER}`, p: '14px 16px', borderRadius: '10px' }}>
-                {[
-                  { label: 'Driver license number', value: selectedApplicant.licenseNo },
-                  { label: 'Vehicle plate number', value: selectedApplicant.vehiclePlate },
-                  { label: 'Chassis number', value: selectedApplicant.chassisNo },
-                  { label: 'Motor number', value: selectedApplicant.motorNo },
-                ].map((field) => (
-                  <Box key={field.label} sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>{field.label}</Typography>
-                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{field.value}</Typography>
-                  </Box>
-                ))}
+            <DetailSection icon={<PersonIcon />} title="Personal details">
+              <DetailGrid>
+                <DetailField label="Full Name" value={selectedApplicant.name} />
+                <DetailField label="Contact Phone" value={selectedApplicant.phone} />
+                <DetailField label="Residential Barangay" value={selectedApplicant.residentialBarangay} />
+                <DetailField label="Date Applied" value={selectedApplicant.submittedDate} />
+              </DetailGrid>
+            </DetailSection>
+
+            <DetailSection icon={<AccountBalanceIcon />} title="TODA membership and endorsement">
+              <DetailGrid>
+                <DetailField label="Applying to" value={todaAdminProfile?.toda?.toda_name || todaAdminProfile?.toda_acronym} />
+                <DetailField label="TODA Stage 1 Endorsement">
+                  <StatusBadge status={selectedApplicant.todaStageStatus} />
+                </DetailField>
+                <DetailField label="TODA Membership No." value={selectedApplicant.membershipNo} />
+                <DetailField label="Assigned Terminal" value={selectedApplicant.assignedTerminal} />
+              </DetailGrid>
+            </DetailSection>
+
+            <DetailSection icon={<DirectionsCarIcon />} title="Vehicle and MTOP franchise (City Ord. No. 118)">
+              <DetailGrid>
+                <DetailField label="Professional Driver's License" value={selectedApplicant.licenseNo} />
+                <DetailField label="License Expiry" value={formatDocDate(selectedApplicant.licenseExpiry)}>
+                  {expiryPill(selectedApplicant.licenseExpiry)}
+                </DetailField>
+                <DetailField label="MTOP Franchise No." value={selectedApplicant.franchiseNo} />
+                <DetailField label="MTOP Expiry" value={formatDocDate(selectedApplicant.mtopExpiry)}>
+                  {expiryPill(selectedApplicant.mtopExpiry)}
+                </DetailField>
+                <DetailField label="Tricycle Vehicle Plate" value={selectedApplicant.vehiclePlate} />
+                <DetailField label="Registered MTOP Operator" value={selectedApplicant.mtopOperatorName} wide />
+              </DetailGrid>
+              {selectedApplicant.mtopOperatorName && !sharesNameWord(selectedApplicant.mtopOperatorName, selectedApplicant.name) && (
+                <Alert severity="info" sx={{ ...reviewAlertSx, mt: '10px' }}>
+                  The operator named on the MTOP permit ({selectedApplicant.mtopOperatorName}) shares no name with the driver ({selectedApplicant.name}).
+                  Check that the driver is allowed to operate this tricycle.
+                </Alert>
+              )}
+            </DetailSection>
+
+            <DetailSection icon={<VerifiedUserIcon />} title={`Verification documents (${reviewDocuments.length})`}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {reviewDocuments.map((doc) => {
+                  const rv = (selectedApplicant.documentReviews || []).find((r) => r.documentType === doc.docType);
+                  const state = !rv || rv.state === 'not_returned' ? null : rv.state;
+                  const badge =
+                    doc.urls.length === 0 ? (
+                      <StatusPill label="No file received" tone="danger" />
+                    ) : state === null ? (
+                      <StatusPill label="Pending Inspection" tone="neutral" />
+                    ) : state === 'resubmitted' ? (
+                      <StatusPill label="Resubmitted (Awaiting Review)" tone="info" />
+                    ) : state === 'returned' ? (
+                      <StatusPill label="Resubmission Required" tone="warning" />
+                    ) : state === 'returned_elsewhere' ? (
+                      <StatusPill label="Flagged in another review" tone="neutral" />
+                    ) : (
+                      <StatusPill label={`Replaced · ${formatWhen(rv?.resubmittedAt)} (another review)`} tone="neutral" />
+                    );
+                  return (
+                    <ReviewDocumentRow
+                      key={doc.docType}
+                      thumbnailUrl={doc.urls[0]}
+                      title={doc.title}
+                      type={doc.type}
+                      badges={badge}
+                      tone={state === 'returned' ? 'returned' : state === 'resubmitted' ? 'resubmitted' : 'neutral'}
+                      onView={() =>
+                        setPreviewDocData({
+                          name: `${doc.title} — ${selectedApplicant.name}`,
+                          type: doc.type,
+                          urls: doc.urls,
+                          labels: doc.labels,
+                        })
+                      }
+                    />
+                  );
+                })}
               </Box>
-            </ReviewSection>
+            </DetailSection>
 
             <ReviewSection title="Screening checklist">
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -741,40 +812,6 @@ export const TodaDriverVerificationPage: React.FC = () => {
                     </Typography>
                   }
                 />
-              </Box>
-            </ReviewSection>
-
-            <ReviewSection title={`Submitted documents and photos (${reviewDocuments.length})`}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {reviewDocuments.map((doc, idx) => {
-                  const rv = (selectedApplicant.documentReviews || []).find((r) => r.documentType === doc.docType);
-                  const badge =
-                    !rv || rv.state === 'not_returned' ? null : rv.state === 'resubmitted' ? (
-                      <StatusPill label={`Resubmitted · ${formatWhen(rv.resubmittedAt)}`} tone="violet" />
-                    ) : rv.state === 'returned' ? (
-                      <StatusPill label="Returned — waiting for driver" tone="warning" />
-                    ) : rv.state === 'returned_elsewhere' ? (
-                      <StatusPill label="Flagged in another review" tone="neutral" />
-                    ) : (
-                      <StatusPill label={`Replaced · ${formatWhen(rv.resubmittedAt)} (another review)`} tone="neutral" />
-                    );
-                  return (
-                    <ReviewDocumentRow
-                      key={idx}
-                      thumbnailUrl={doc.url}
-                      title={doc.title}
-                      description={doc.description}
-                      badges={badge}
-                      onView={() =>
-                        setPreviewDocData({
-                          name: `${doc.title} — ${selectedApplicant.name}`,
-                          type: doc.type,
-                          url: doc.url,
-                        })
-                      }
-                    />
-                  );
-                })}
               </Box>
             </ReviewSection>
           </Box>
@@ -1020,7 +1057,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
           onClose={() => setPreviewDocData(null)}
           documentName={previewDocData.name}
           documentType={previewDocData.type}
-          imageUrl={previewDocData.url}
+          imageUrls={previewDocData.urls}
+          photoLabels={previewDocData.labels}
         />
       )}
 
