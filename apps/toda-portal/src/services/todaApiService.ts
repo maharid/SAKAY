@@ -367,6 +367,8 @@ export async function updateTodaComplianceDocument(
   });
   const r = todaRpcResult(data, error, 'The document could not be submitted. Please try again.');
   announceTodaProfileChanged();
+  // a new roster file feeds the master roster (the members that are new to it)
+  if (category === 'Driver Roster') await autoImportTodaRoster(_todaId);
   return { renewal: Boolean(r.renewal) };
 }
 
@@ -499,6 +501,9 @@ export async function registerToda(payload: {
         console.warn('[todaApiService] The clearance validity date was not saved with the registration:', validityErr);
       }
     }
+
+    // The roster file just submitted becomes the master roster. Not fatal: it is brought in again when the portal opens.
+    await autoImportTodaRoster(registeredTodaId as string);
 
     // 4. Officers and bylaws, added to the new record by its own administrator (a missing optional column is skipped, not fatal)
     const details: Record<string, any> = {
@@ -764,6 +769,8 @@ async function resolveStorageImageUrl(preferredBucket: string, path?: string | n
 export async function fetchDriverApplicants(todaId?: string): Promise<DriverApplicant[]> {
   try {
     const targetTodaId = await getEffectiveTodaId(todaId);
+    // the roster file comes first, so the roster check below sees the members it names
+    await autoImportTodaRoster(targetTodaId);
 
     const { data, error } = await supabase
       .from('driver_toda_affiliation')
@@ -1488,6 +1495,7 @@ export interface TodaRosterEntry {
 export async function fetchTodaRosterEntries(todaId?: string): Promise<TodaRosterEntry[]> {
   try {
     const targetTodaId = await getEffectiveTodaId(todaId);
+    await autoImportTodaRoster(targetTodaId);
 
     const { data, error } = await supabase
       .from('toda_roster_entry')
@@ -1583,6 +1591,32 @@ export async function addTodaRosterEntry(entry: {
   throw new Error('The roster entry could not be saved. Please try again.');
 }
 
+// Roster files already brought into the master roster during this page load (so the portal does it once, not on every screen)
+const rosterFilesSynced = new Set<string>();
+
+/**
+ * Keeps the master roster in step with the roster FILE the TODA submitted, without anyone clicking anything: right after registering, right after
+ * the file is replaced, and once per page load for a TODA that registered before this existed. Add-only (a franchise already on the roster is
+ * left alone) and quiet: when it cannot run, the roster stays as it is and nothing is shown. Returns what it did, or null when it did nothing.
+ */
+export async function autoImportTodaRoster(todaId?: string): Promise<RosterImportResult | null> {
+  try {
+    const targetTodaId = await getEffectiveTodaId(todaId);
+    const { data: toda } = await supabase.from('toda').select('accredited_drivers_url').eq('toda_id', targetTodaId).maybeSingle();
+    const fileUrl: string | null = toda?.accredited_drivers_url || null;
+    if (!fileUrl) return null;
+
+    const key = `${targetTodaId}|${fileUrl}`;
+    if (rosterFilesSynced.has(key)) return null;
+    rosterFilesSynced.add(key);
+
+    return await importTodaRosterFromUploadedFile(targetTodaId, fileUrl);
+  } catch (err) {
+    console.warn('[todaApiService] The roster file was not added to the master roster:', (err as Error)?.message || err);
+    return null;
+  }
+}
+
 export interface RosterImportResult {
   /** Members found in the roster file */
   rowsInFile: number;
@@ -1598,19 +1632,23 @@ export interface RosterImportResult {
  * here and handed to the database function import_toda_roster, which adds only the ones with a franchise number the roster does not have
  * yet. Imported entries are dated when they are imported, like any entry typed in.
  */
-export async function importTodaRosterFromUploadedFile(todaId?: string): Promise<RosterImportResult> {
+export async function importTodaRosterFromUploadedFile(todaId?: string, knownFileUrl?: string | null): Promise<RosterImportResult> {
   const targetTodaId = await getEffectiveTodaId(todaId);
-  const { data: toda, error: todaErr } = await supabase
-    .from('toda')
-    .select('accredited_drivers_url')
-    .eq('toda_id', targetTodaId)
-    .maybeSingle();
-  if (todaErr) throw new Error(todaErr.message);
-  if (!toda?.accredited_drivers_url) {
+  let fileUrl = knownFileUrl || null;
+  if (!fileUrl) {
+    const { data: toda, error: todaErr } = await supabase
+      .from('toda')
+      .select('accredited_drivers_url')
+      .eq('toda_id', targetTodaId)
+      .maybeSingle();
+    if (todaErr) throw new Error(todaErr.message);
+    fileUrl = toda?.accredited_drivers_url || null;
+  }
+  if (!fileUrl) {
     throw new Error('Your TODA has no roster file on record. Add the members one by one instead.');
   }
 
-  const buffer = await downloadRosterFile(toda.accredited_drivers_url);
+  const buffer = await downloadRosterFile(fileUrl);
   if (!buffer) throw new Error('The roster file could not be opened. Please try again in a moment.');
 
   const parsed = await parseDriverRoster(buffer);
