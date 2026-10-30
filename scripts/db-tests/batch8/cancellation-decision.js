@@ -47,11 +47,15 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await clearStrikes(); await reset(null); await s.online('D1', 300);
 
   b = await bookAndAccept('D1', 'P1');
-  await s.driverSets('D1', b.booking_id, 'In Transit'); await s.driverSets('D1', b.booking_id, 'Driver Arrived');
-  await s.cancelAs(P1, b.booking_id);
+  await s.driverSets('D1', b.booking_id, 'In Transit');
+  let onTheWay = await attempt(() => s.cancelAs(P1, b.booking_id));
+  check('P1 (panel comment, D-P1): once the driver is on the way the passenger cannot cancel at all: ERR_DRIVER_ON_THE_WAY', !onTheWay.ok && /ERR_DRIVER_ON_THE_WAY/.test(onTheWay.error), onTheWay);
+  await s.driverSets('D1', b.booking_id, 'Driver Arrived');
+  onTheWay = await attempt(() => s.cancelAs(P1, b.booking_id));
   st = await ledger(ID.P1);
-  check('once the driver has arrived, even inside the first minute: one strike', st.length === 1 && st[0].violation_code === 'PAX_LATE_CANCEL' && st[0].details.arrived_by_gps === true, st);
-  await clearStrikes(); await reset(null); await s.online('D1', 300);
+  check('P1: nor once the driver has arrived, even inside the first minute; the refusal strikes nobody and the booking stays open',
+    !onTheWay.ok && /ERR_DRIVER_ON_THE_WAY/.test(onTheWay.error) && st.length === 0 && (await s.booking(b.booking_id)).booking_status === 'Driver Arrived', { onTheWay, st });
+  await reset(b); await s.online('D1', 300);
 
   b = await bookAndAccept('D1', 'P1');
   await s.moveTo('D1', 10, 10);                         // standing at the pickup, 10 s after accepting, and has NOT tapped Arrived (the status is still "Accepted")

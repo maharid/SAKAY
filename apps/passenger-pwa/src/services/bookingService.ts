@@ -292,9 +292,21 @@ export const getBooking = (bookingId: string): BookingRecord | null => {
  * status (one UPDATE with a WHERE, so there is no read-then-write). A screen that is out of date (a second tab, a booking that has been
  * retried or accepted since) can therefore never cancel a booking that moved on.
  */
-export const cancelBooking = async (bookingId: string, reason?: string, onlyIfStatus?: string): Promise<boolean> => {
+export const cancelBooking = async (bookingId: string, reason?: string, onlyIfStatus?: string): Promise<boolean> =>
+  (await tryCancelBooking(bookingId, reason, onlyIfStatus)).cancelled;
+
+/** The result of a cancel attempt: `onTheWay` means the database refused because the driver is already on the way or has arrived (no passenger cancellation then). */
+export interface CancelAttempt {
+  cancelled: boolean;
+  onTheWay: boolean;
+}
+
+/** The database's code for "the driver is on the way: the passenger can no longer cancel" (migration 20261031000001). */
+export const DRIVER_ON_THE_WAY_CODE = 'ERR_DRIVER_ON_THE_WAY';
+
+export const tryCancelBooking = async (bookingId: string, reason?: string, onlyIfStatus?: string): Promise<CancelAttempt> => {
   // The database is the truth, and it is written FIRST and whether or not this tab has the booking in its own store (a reload, or
-  // another tab, does not). Only when the booking really is cancelled does this return true.
+  // another tab, does not). Only when the booking really is cancelled does this return cancelled: true.
   try {
     const cancelQuery = supabase
       .from('booking')
@@ -307,11 +319,11 @@ export const cancelBooking = async (bookingId: string, reason?: string, onlyIfSt
     const { data, error } = await (onlyIfStatus ? cancelQuery.eq('booking_status', onlyIfStatus) : cancelQuery).select('booking_id');
     if (error || !data || data.length === 0) {
       console.warn('[bookingService] cancelBooking was not saved:', error?.message);
-      return false;
+      return { cancelled: false, onTheWay: Boolean(error?.message?.includes(DRIVER_ON_THE_WAY_CODE)) };
     }
   } catch (err) {
     console.warn('[bookingService] cancelBooking DB error:', err);
-    return false;
+    return { cancelled: false, onTheWay: false };
   }
 
   const store = loadBookings();
@@ -325,7 +337,7 @@ export const cancelBooking = async (bookingId: string, reason?: string, onlyIfSt
     notifyBookingListeners(store[bookingId]);
     persistToHistoryIfTerminal(store[bookingId]);
   }
-  return true;
+  return { cancelled: true, onTheWay: false };
 };
 
 /**

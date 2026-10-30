@@ -24,7 +24,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
-import { getBooking, cancelBooking, updateBookingState } from '../../../services/bookingService';
+import { getBooking, cancelBooking, tryCancelBooking, updateBookingState } from '../../../services/bookingService';
 import type { BookingRecord } from '@sakay/shared';
 import {
   formatShortBookingId,
@@ -719,12 +719,16 @@ export const TripMonitoring: React.FC = () => {
 
   const cancelPassengerBooking = async (reasonText?: string) => {
     const finalReason = reasonText || (language === 'tl' ? 'Kinansela ng pasahero bago ang pickup' : 'Passenger cancelled before pickup');
-    const cancelled = await cancelBooking(activeBookingId, finalReason);
+    const attempt = await tryCancelBooking(activeBookingId, finalReason);
     setCancelModalOpen(false);
-    if (!cancelled) {
+    if (!attempt.cancelled) {
       // Still open in the database: do not pretend it is cancelled (the passenger could not book again)
       setToastMessage(
-        language === 'tl'
+        attempt.onTheWay
+          ? (language === 'tl'
+            ? 'Papunta na ang drayber, kaya hindi na maaaring ikansela ang booking.'
+            : 'Your driver is already on the way, so this booking can no longer be cancelled.')
+          : language === 'tl'
           ? 'Hindi makansela ang booking. Pakisubukang muli.'
           : 'The booking could not be cancelled. Please try again.'
       );
@@ -1217,7 +1221,7 @@ export const TripMonitoring: React.FC = () => {
                   </Button>
                 )
               ) : (
-                /* Before the trip starts the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
+                /* Before the driver is on the way the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
                 <Button
                   variant="outlined"
                   fullWidth
@@ -1226,6 +1230,14 @@ export const TripMonitoring: React.FC = () => {
                 >
                   {language === 'tl' ? 'Ikansel ang Booking' : 'Cancel Booking'}
                 </Button>
+              ) : (status === 'Driver En Route' || status === 'Driver Arrived') && !driverLive.unreachable ? (
+                /* Panel comment: once the driver is on the way (or has arrived) the booking can no longer be cancelled. The database refuses it too (ERR_DRIVER_ON_THE_WAY);
+                   a driver the system has marked Unreachable can still be left, so the button comes back then. */
+                <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center', lineHeight: 1.5, px: 1 }}>
+                  {status === 'Driver Arrived'
+                    ? say('Nasa pickup na ang drayber. Hindi na maaaring ikansela ang booking: lumabas na sa pickup point.', 'Your driver is at the pickup. This booking can no longer be cancelled: please head out to meet them.')
+                    : say('Papunta na ang drayber. Hindi na maaaring ikansela ang booking. May problema? Gamitin ang Urgent Safety Report.', 'Your driver is on the way. This booking can no longer be cancelled. Something wrong? Use the Urgent Safety Report.')}
+                </Typography>
               )}
             </>
           ) : null
@@ -1239,7 +1251,7 @@ export const TripMonitoring: React.FC = () => {
         onConfirmCancel={handleCancelTrip}
         language={language}
         loading={cancelFlight.busy}
-        phase={status === 'Driver Arrived' ? 'arrived' : status === 'Searching Driver' ? 'searching' : 'accepted'}
+        phase={status === 'Searching Driver' ? 'searching' : 'accepted'}
       />
 
       {/* 5. Quick message to the driver (the shared sheet: ready-made messages, one tap to choose, one to send) */}

@@ -151,14 +151,21 @@ const { setup, ID, DRIVERS, attempt, check, summary } = require('../b6fixtures')
   await s.cancelAs(ID.P_AUTH, c.booking_id);
   let st = await s.strikes(ID.P1);
   check('more than a minute after the acceptance: one strike (Rule 12.2)', st.length === 1 && st[0].violation_code === 'PAX_LATE_CANCEL' && st[0].points_active === 1, st);
+  // Panel comment (decision D-P1, migration 20261031000001): once the driver is on the way, or has arrived, the passenger can no longer cancel
   c = await bookAndAccept('D1', 'P1');
+  await driverSets('D1', c.booking_id, 'In Transit');
+  let blocked = await attempt(() => s.cancelAs(ID.P_AUTH, c.booking_id));
+  check('P1: once the driver is on the way ("I am on my way"), the passenger cannot cancel: ERR_DRIVER_ON_THE_WAY', !blocked.ok && /ERR_DRIVER_ON_THE_WAY/.test(blocked.error), blocked);
+  check('P1: the refused cancel changed nothing: still In Transit, no strike', (await s.booking(c.booking_id)).booking_status === 'In Transit' && (await s.strikes(ID.P1)).length === 1);
   await driverSets('D1', c.booking_id, 'Driver Arrived');
-  await s.cancelAs(ID.P_AUTH, c.booking_id);
-  st = await s.strikes(ID.P1);
-  check('once the driver has arrived, even inside the first minute: one strike (Rule 12.2)', st.length === 2, st);
+  blocked = await attempt(() => s.cancelAs(ID.P_AUTH, c.booking_id));
+  check('P1: once the driver has arrived, the passenger cannot cancel either (an absent passenger is a No-Show, Rule 10.4)', !blocked.ok && /ERR_DRIVER_ON_THE_WAY/.test(blocked.error), blocked);
+  await internal(`UPDATE booking SET driver_unreachable_since = clock_timestamp() WHERE booking_id='${c.booking_id}'`);
+  const leaving = await attempt(() => s.cancelAs(ID.P_AUTH, c.booking_id));
+  check('P1: the exception: a driver marked Unreachable (Rule 9.2, D7-6) can be left, and that is not struck', leaving.ok && (await s.strikes(ID.P1)).length === 1, leaving);
   c = await bookAndAccept('D1', 'P1');
   await internal(`UPDATE booking SET booking_status='Cancelled', cancelled_by='system', cancellation_reason='driver stalled' WHERE booking_id='${c.booking_id}'`);
-  check('a cancellation made by the system never strikes the passenger (Rule 12.6)', (await s.strikes(ID.P1)).length === 2);
+  check('a cancellation made by the system never strikes the passenger (Rule 12.6)', (await s.strikes(ID.P1)).length === 1);
   const flags = await q(`SELECT subject_id, assigned_role, source_rule FROM admin_review_flag WHERE flag_type='PASSENGER_BOOKING_ABUSE_REVIEW'`);
   check('four passenger cancellations in a day without a completed trip: ONE review flag for the LGU, raised at the third (Rules 12.7 / 12.9) - and still no automatic strike for it',
     flags.length === 1 && flags[0].subject_id === ID.P1 && flags[0].assigned_role === 'lgu_admin' && (await s.strikes(ID.P1)).every((x) => x.violation_code === 'PAX_LATE_CANCEL'), flags);

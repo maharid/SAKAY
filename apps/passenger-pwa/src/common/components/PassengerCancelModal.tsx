@@ -15,27 +15,23 @@ export interface PassengerCancelModalProps {
   onConfirmCancel: (reasonText: string) => void | Promise<void>;
   language?: "tl" | "en";
   loading?: boolean;
-  /** Where the booking is, so the reminder tells the truth about the strike (Rules 12.1 / 12.2): still searching, driver accepted (on the way), driver arrived */
-  phase?: "searching" | "accepted" | "arrived";
+  /** Where the booking is, so the reminder tells the truth about the strike (Rules 12.1 / 12.2): still searching, driver accepted but not yet on the way (once they are on the way the booking can no longer be cancelled, so there is no later phase) */
+  phase?: "searching" | "accepted";
 }
 
 /**
  * What cancelling costs, in the words of Rules 12.1 / 12.2: nothing before a driver accepts, nothing within the grace minute after the acceptance while the driver
- * has not reached the pickup, one strike after that or once the driver has arrived. (The database decides; this only tells the passenger first.)
+ * has not reached the pickup, one strike after that, and no cancelling at all once the driver is on the way (panel comment, decision D-P1).
+ * (The database decides; this only tells the passenger first.)
  */
-const reminderText = (phase: "searching" | "accepted" | "arrived", language: "tl" | "en"): string => {
+const reminderText = (phase: "searching" | "accepted", language: "tl" | "en"): string => {
   const minutes = Math.max(1, Math.round(PASSENGER_CANCEL_GRACE_SECONDS / 60));
   if (phase === "searching") {
     return language === "tl" ? "Libre ang pagkansela hangga't wala pang drayber na tumatanggap." : "Free to cancel until a driver accepts.";
   }
-  if (phase === "arrived") {
-    return language === "tl"
-      ? "Nakarating na ang drayber sa pickup. Ang pag-cancel ngayon ay may 1 strike."
-      : "Your driver has arrived at the pickup. Cancelling now adds 1 strike.";
-  }
   return language === "tl"
-    ? `Libre ang pagkansela sa loob ng ${minutes} minuto matapos tumanggap ang drayber, hangga't hindi pa siya nakararating sa pickup. Pagkatapos nito, o kapag nakarating na siya, 1 strike ang idadagdag.`
-    : `Free to cancel for ${minutes} minute after your driver accepts, as long as they have not reached the pickup. After that, or once they have arrived, cancelling adds 1 strike.`;
+    ? `Libre ang pagkansela sa loob ng ${minutes} minuto matapos tumanggap ang drayber. Pagkatapos nito, 1 strike ang idadagdag. Kapag papunta na ang drayber, hindi na maaaring ikansela ang booking.`
+    : `Free to cancel for ${minutes} minute after your driver accepts. After that, cancelling adds 1 strike. Once your driver is on the way, the booking can no longer be cancelled.`;
 };
 
 /**
