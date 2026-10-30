@@ -21,6 +21,8 @@ export interface ServiceAreaShape {
   centerLng: number;
   radiusKm: number;
   boundary: GeoBoundary | null;
+  /** The sea (service_area_water, panel comment D-P3): a point inside it is never in the service area, whatever the row says. Absent / null = not known, nothing is left out. */
+  waterExclusion?: GeoBoundary | null;
 }
 
 const EARTH_RADIUS_KM = 6371;
@@ -64,9 +66,10 @@ export const boundaryContainsPoint = (boundary: GeoBoundary, lat: number, lng: n
   return false;
 };
 
-/** Is this point inside the service area? Mirrors service_area_contains(): the cheap distance test first, then the boundary (or, for a circle row, nothing more). */
+/** Is this point inside the service area? Mirrors service_area_contains(): the cheap distance test first, then the boundary (a circle row has none), then the sea is left out. */
 export const serviceAreaContains = (area: ServiceAreaShape, lat: number, lng: number): boolean => {
   if (greatCircleKm(area.centerLat, area.centerLng, lat, lng) > area.radiusKm) return false;
-  if (!area.boundary) return true;
-  return boundaryContainsPoint(area.boundary, lat, lng);
+  if (area.boundary && !boundaryContainsPoint(area.boundary, lat, lng)) return false;
+  if (area.waterExclusion && boundaryContainsPoint(area.waterExclusion, lat, lng)) return false;
+  return true;
 };

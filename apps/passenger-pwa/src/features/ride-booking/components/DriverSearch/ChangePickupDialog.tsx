@@ -13,7 +13,7 @@ import ListItemText from "@mui/material/ListItemText";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
-import { estimatedFareFor, fetchFareQuote, formatPeso } from "@sakay/shared";
+import { PIN_ROAD_SEARCH_MAX_DISTANCE_M, estimatedFareFor, fetchFareQuote, formatPeso, offRoadMessage, snapToRoad } from "@sakay/shared";
 
 import { supabase } from "../../../../services/supabaseClient";
 import { changeBookingPickup, describePickupRefusal } from "../../../../services/dispatchService";
@@ -112,7 +112,8 @@ const ChangePickupDialog: React.FC<ChangePickupDialogProps> = ({
   }, [query, open, place]);
 
   // The route from the new pickup to the destination, then the database's quote for it
-  const prepare = async (chosen: Place) => {
+  const prepare = async (picked: Place) => {
+    let chosen = picked;
     setPlace(chosen);
     setSuggestions([]);
     setMessage("");
@@ -122,6 +123,17 @@ const ChangePickupDialog: React.FC<ChangePickupDialogProps> = ({
       setPrep("error");
       setMessage(outsideServiceAreaMessage(language, "pickup"));
       return;
+    }
+    // Panel comment (D-P3): the new pickup must have a road a tricycle can use near it, and is booked at that road's point
+    const found = await snapToRoad(chosen.lat, chosen.lng, { maxDistanceM: PIN_ROAD_SEARCH_MAX_DISTANCE_M });
+    if (found.status === "off_road") {
+      setPrep("error");
+      setMessage(offRoadMessage(language, found.distanceM));
+      return;
+    }
+    if (found.status === "on_road") {
+      chosen = { ...chosen, lat: found.lat, lng: found.lng };
+      setPlace(chosen);
     }
     setPrep("loading");
     try {

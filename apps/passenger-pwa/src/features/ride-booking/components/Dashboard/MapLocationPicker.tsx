@@ -10,6 +10,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import CircularProgress from "@mui/material/CircularProgress";
 
+import { offRoadMessage, snapToRoad, type RoadSnap } from "@sakay/shared";
 import MapView from "../../../../common/components/MapView";
 import {
   reverseGeocodeCoordinates,
@@ -91,9 +92,12 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
   const [resolving, setResolving] = useState<boolean>(false);
+  // Panel comment (D-P3): the pin must lie on a road. `snap` is the routing service's answer for the point under the pin: on a road (the booked point is the road's),
+  // off every road (a river, the bay, a field: refused) or unknown (the service did not answer: carry on, the database still checks the service area).
+  const [snap, setSnap] = useState<RoadSnap | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reverse-geocode center coordinates when map center updates
+  // When the map settles: find the road under the pin, then the address of the point that will really be booked
   useEffect(() => {
     if (!open) return;
 
@@ -101,37 +105,49 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
 
+    let stale = false;
     setResolving(true);
+    setSnap(null);
     debounceTimerRef.current = setTimeout(async () => {
+      const found = await snapToRoad(centerCoords.lat, centerCoords.lng);
+      if (stale) return;
+      setSnap(found);
+      const target = found.status === "on_road" ? { lat: found.lat, lng: found.lng } : centerCoords;
       try {
-        const address = await reverseGeocodeCoordinates(centerCoords.lat, centerCoords.lng);
-        setResolvedAddress(address);
+        const address = await reverseGeocodeCoordinates(target.lat, target.lng);
+        if (!stale) setResolvedAddress(address);
       } catch (err) {
         console.warn("Map picker reverse geocoding error:", err);
-        setResolvedAddress(
-          language === "tl" ? "Naitalang Lokasyon sa Calapan" : "Recorded Location in Calapan"
-        );
+        if (!stale) {
+          setResolvedAddress(
+            language === "tl" ? "Naitalang Lokasyon sa Calapan" : "Recorded Location in Calapan"
+          );
+        }
       } finally {
-        setResolving(false);
+        if (!stale) setResolving(false);
       }
     }, 400);
 
     return () => {
+      stale = true;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [centerCoords.lat, centerCoords.lng, open, language]);
 
-  const outside = isOutsideServiceArea(serviceArea, centerCoords.lat, centerCoords.lng);
+  // The point that will be booked: the road's own point when the pin is near a road, the pin otherwise
+  const booked = snap?.status === "on_road" ? { lat: snap.lat, lng: snap.lng } : centerCoords;
+  const outside = isOutsideServiceArea(serviceArea, booked.lat, booked.lng);
+  const offRoad = snap?.status === "off_road";
 
   const handleConfirm = () => {
-    if (outside) return;
+    if (outside || offRoad) return;
     const finalAddress =
       resolvedAddress ||
       (language === "tl" ? "Naitalang Lokasyon sa Calapan" : "Recorded Location in Calapan");
     onConfirmLocation({
       address: finalAddress,
-      lat: centerCoords.lat,
-      lng: centerCoords.lng,
+      lat: booked.lat,
+      lng: booked.lng,
     });
     onClose();
   };
@@ -350,11 +366,20 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             </Typography>
           )}
 
+          {offRoad && (
+            <Typography
+              role="alert"
+              sx={{ fontSize: "13px", fontWeight: 600, color: "#B91C1C", backgroundColor: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "12px", p: "8px 12px", fontFamily: "Poppins, sans-serif" }}
+            >
+              {offRoadMessage(language, snap?.distanceM ?? null)}
+            </Typography>
+          )}
+
           {/* Kumpirmahin ang Lokasyon Button */}
           <Button
             fullWidth
             variant="contained"
-            disabled={resolving || outside}
+            disabled={resolving || outside || offRoad}
             onClick={handleConfirm}
             sx={{
               backgroundColor: "#FF6600",

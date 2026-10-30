@@ -3,6 +3,8 @@
 // 20261016000002: the area is the city limits (OpenStreetMap relation 15077332), not a 16 km circle that cut off corners of the city and let in
 //                 the nearer parts of neighbouring municipalities (Baco Poblacion was 10.7 km from the centre).
 // Whole migration chain on the local emulator (never Supabase). Needs Node 22.18+ (it loads the shared .ts geometry directly).
+// this suite tests the sea layer itself: the shared fixtures must leave it in place (see fixtures.js)
+process.env.KEEP_SEA_LAYER = '1';
 const fs = require('fs');
 const path = require('path');
 const { setup, ID, attempt, check, summary, PICKUP } = require('../b6fixtures');
@@ -13,6 +15,7 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
 (async () => {
   const s = await setup();
   const { q, one, as } = s;
+  const writeAs = (uid, sql, args = []) => attempt(() => as(uid, (tx) => tx.query(sql, args)));
   const err = (r) => (r.ok ? 'booking was accepted' : r.error);
   const straightKm = (a, b) => {
     const rad = (d) => (d * Math.PI) / 180;
@@ -28,7 +31,10 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
   };
   const inArea = async (lat, lng) => (await one(`SELECT public.service_area_contains(c, $1::float8, $2::float8) AS r FROM public.service_area_config c WHERE c.is_active`, [lat, lng])).r;
   const CITY_HALL = { lat: 13.4117, lng: 121.1803 };
-  const PORT = { lat: 13.4228, lng: 121.1789 };
+  // a road at the Calapan port (OSRM snaps to it). The earlier point here, 13.4228 / 121.1789, is in the bay: the nearest road is 800 m away. It only counted as "inside"
+  // because the city boundary includes the sea (panel comment D-P3, migration 20261031000003).
+  // For the same reason the 3.3 km trips below go SOUTH of City Hall: 3.3 km north of it is far out in the bay.
+  const PORT = { lat: 13.42834, lng: 121.196528 };
   const PUERTO_GALERA = { lat: 13.5018, lng: 120.9546 };
   const BACO = { lat: 13.3586, lng: 121.0983 };
 
@@ -62,6 +68,26 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
     'Roxas': { lat: 12.5879, lng: 121.5253 }, 'Manila': { lat: 14.5995, lng: 120.9842 } };
   for (const [name, p] of Object.entries(OUTSIDE)) check(`${name} is outside`, (await inArea(p.lat, p.lng)) === false);
 
+  console.log('\nD-P3: the sea is not part of the service area (migration 20261031000003)');
+  const BAY = { 'Calapan Bay off the old port point': { lat: 13.4228, lng: 121.1789 }, 'bay north-east of the port': { lat: 13.47, lng: 121.17 },
+    'open water east of the port': { lat: 13.43, lng: 121.205 }, 'far out in the bay': { lat: 13.45, lng: 121.19 } };
+  for (const [name, p] of Object.entries(BAY)) check(`${name} is outside: the sea is left out`, (await inArea(p.lat, p.lng)) === false);
+  check('the city boundary alone WOULD have let the bay in (that is what the sea layer fixes)',
+    (await one(`SELECT public.geojson_contains_point(c.boundary_geojson, 13.45::float8, 121.19::float8) AS r FROM public.service_area_config c WHERE c.is_active`)).r === true);
+  check('the shore is still inside: City Hall and the road at the port (every barangay point of the fixture is checked above)', (await inArea(CITY_HALL.lat, CITY_HALL.lng)) && (await inArea(PORT.lat, PORT.lng)));
+  let sea = await bookAt(PICKUP, BAY['far out in the bay']);
+  check('a destination in the bay is refused with the destination code', !sea.ok && /ERR_DESTINATION_OUT_OF_SERVICE_AREA/.test(sea.error), err(sea));
+  sea = await bookAt(BAY['far out in the bay'], PICKUP);
+  check('a pickup in the bay is refused with the pickup code', !sea.ok && /ERR_OUT_OF_SERVICE_AREA/.test(sea.error) && !/DESTINATION/.test(sea.error), err(sea));
+  const water = await one(`SELECT * FROM service_area_water`);
+  check('one sea layer, with its source (OpenStreetMap coastline, ODbL) and its margin, a Polygon with holes for the port structures',
+    water.water_id === 1 && water.geojson.type === 'Polygon' && water.geojson.coordinates.length > 5 && /coastline/.test(water.source) && /ODbL/.test(water.source) && water.margin_m === 50, water.source);
+  const touched = [await writeAs(ID.P_AUTH, `SELECT water_id FROM service_area_water`), await writeAs(ID.P_AUTH, `UPDATE service_area_water SET geojson = '{"type":"Polygon","coordinates":[]}'::jsonb`),
+    await writeAs(ID.P_AUTH, `DELETE FROM service_area_water`), await writeAs(ID.P_AUTH, `INSERT INTO service_area_water (water_id, geojson, source, margin_m) VALUES (1, '{"type":"Polygon","coordinates":[]}'::jsonb, 'x', 0)`)];
+  const stillThere = await one(`SELECT count(*)::int AS n, bool_and(jsonb_array_length(geojson -> 'coordinates') > 5) AS intact FROM service_area_water`);
+  check('a signed-in user can read the layer (the apps repeat the test) but cannot change, delete or replace it (no row is affected, and the layer is intact)',
+    touched[0].ok && touched[0].value.rowCount === 1 && touched.slice(1).every((t) => !t.ok || t.value.rowCount === 0) && stillThere.n === 1 && stillThere.intact === true, { touched: touched.map((t) => t.ok ? t.value.rowCount : t.error), stillThere });
+
   console.log('\nBoth ends of a trip are checked, each with its own code');
   let r = await bookAt(CITY_HALL, PORT);
   check('City Hall to the port is accepted', r.ok === true, err(r));
@@ -76,7 +102,7 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
   check('a trip wholly outside is refused on the pickup first', !r.ok && /ERR_OUT_OF_SERVICE_AREA/.test(r.error) && !/DESTINATION/.test(r.error), err(r));
 
   console.log('\nThe database and the apps give the same answer for every point (shared/serviceAreaUtils.ts)');
-  const shape = { centerLat: Number(area.center_latitude), centerLng: Number(area.center_longitude), radiusKm: Number(area.radius_km), boundary: area.boundary_geojson };
+  const shape = { centerLat: Number(area.center_latitude), centerLng: Number(area.center_longitude), radiusKm: Number(area.radius_km), boundary: area.boundary_geojson, waterExclusion: (await one(`SELECT geojson FROM service_area_water`)).geojson };
   const grid = await q(`SELECT g.lat::float8 AS lat, g.lng::float8 AS lng, public.service_area_contains(c, g.lat::float8, g.lng::float8) AS r
                           FROM public.service_area_config c,
                                (SELECT 13.20 + a * 0.004 AS lat, lng.v AS lng FROM generate_series(0, 100) a,
@@ -84,7 +110,7 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
                          WHERE c.is_active`);
   const disagree = grid.filter((p) => serviceAreaContains(shape, p.lat, p.lng) !== p.r);
   const insideCount = grid.filter((p) => p.r).length;
-  check(`${grid.length} points over the city and its surroundings: ${insideCount} inside, ${grid.length - insideCount} outside, and the app and the database never disagree`, disagree.length === 0 && insideCount > 1000 && insideCount < grid.length - 1000, { disagree: disagree.slice(0, 5), insideCount });
+  check(`${grid.length} points over the city and its surroundings: ${insideCount} inside, ${grid.length - insideCount} outside, and the app and the database never disagree`, disagree.length === 0 && insideCount > 800 && insideCount < grid.length - 1000, { disagree: disagree.slice(0, 5), insideCount });
   const circle = { centerLat: 13.4117, centerLng: 121.1803, radiusKm: 16, boundary: null };
   check('the same logic answers for a circle row (a pilot narrowing): inside 1.5 km, outside 1.6 km', serviceAreaContains({ ...circle, radiusKm: 1.5 }, 13.4117 + 1.4 / 111.195, 121.1803) && !serviceAreaContains({ ...circle, radiusKm: 1.5 }, 13.4117 + 1.6 / 111.195, 121.1803));
   const donut = { type: 'Polygon', coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[4, 4], [6, 4], [6, 6], [4, 6], [4, 4]]] };
@@ -101,7 +127,7 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
   console.log('\nA pilot narrowing still works (a circle row has no boundary), and the LGU can come back to the whole city');
   const narrowed = (await as(ID.L_AUTH, (tx) => tx.query(`SELECT public.set_pilot_service_area($1, 1.5) AS r`, [ID.TODA1]))).rows[0].r;
   check('the LGU administrator can narrow the service area to a pilot terminal', narrowed.success === true, narrowed);
-  r = await bookAt(PICKUP, { lat: PICKUP.lat + 0.03, lng: PICKUP.lng });
+  r = await bookAt(PICKUP, { lat: PICKUP.lat - 0.03, lng: PICKUP.lng });
   check('with a 1.5 km pilot area, a trip that ends 3.3 km away (inside the city) is refused at the destination', !r.ok && /ERR_DESTINATION_OUT_OF_SERVICE_AREA/.test(r.error), err(r));
   r = await bookAt(PICKUP, { lat: PICKUP.lat + 0.004, lng: PICKUP.lng });
   check('a short trip inside the pilot area is accepted', r.ok === true, err(r));
@@ -111,7 +137,7 @@ const PLACES = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures',
   check('the LGU administrator switches it back to the whole city', lguBack.success === true, lguBack);
   const act = await q(`SELECT area_name FROM service_area_config WHERE is_active`);
   check('exactly one service area is active again: the city limits', act.length === 1 && act[0].area_name === 'Calapan City (city limits)', act);
-  r = await bookAt(PICKUP, { lat: PICKUP.lat + 0.03, lng: PICKUP.lng });
+  r = await bookAt(PICKUP, { lat: PICKUP.lat - 0.03, lng: PICKUP.lng });
   check('and the 3.3 km trip is accepted again', r.ok === true, err(r));
   r = await bookAt(PICKUP, BACO);
   check('while Baco Poblacion is refused again', !r.ok && /ERR_DESTINATION_OUT_OF_SERVICE_AREA/.test(r.error), err(r));

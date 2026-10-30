@@ -57,9 +57,10 @@ const path = require('path');
   const pol = await q(`SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public' AND roles && ARRAY['anon', 'public']::name[]`);
   check('no policy in public names anon or public', pol.length === 0, pol);
   const trueOnes = (await q(`SELECT tablename || '.' || policyname AS p FROM pg_policies WHERE schemaname = 'public' AND cmd IN ('SELECT','ALL') AND qual = 'true' ORDER BY 1`)).map((r) => r.p);
+  // service_area_water (20261031000003, the sea off the city) is public reference data like service_area_config: the apps read it to refuse a pin in the bay
   // announcements used to be on this list; since 20261030000001 they are read through rls_announcement_visible() (published, and city-wide or the reader's own TODA)
   check('the only policies that let every signed-in user read everything are the reference tables',
-    same(trueOnes, ['service_area_config.service_area_config_select', 'system_policy_config.system_policy_config_select', 'violation_catalog.violation_catalog_select']), trueOnes);
+    same(trueOnes, ['service_area_config.service_area_config_select', 'service_area_water.service_area_water_select', 'system_policy_config.system_policy_config_select', 'violation_catalog.violation_catalog_select']), trueOnes);
   const writeTrue = (await q(`SELECT tablename || '.' || policyname AS p FROM pg_policies WHERE schemaname = 'public' AND cmd IN ('INSERT','UPDATE','DELETE','ALL') AND (with_check = 'true' OR (cmd <> 'INSERT' AND qual = 'true'))`)).map((r) => r.p);
   check('no policy lets every signed-in user write', writeTrue.length === 0, writeTrue);
   const noRls = (await q(`SELECT relname FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r','p') AND NOT relrowsecurity`)).map((r) => r.relname);

@@ -29,6 +29,12 @@ async function seed(db) {
       ('${ID.T_AUTH}','${ID.TODA1}','Toda1 Admin','t1@x.com'),
       ('${ID.T2_AUTH}','${ID.TODA2}','Toda2 Admin','t2@x.com');
   `);
+  // The test world (a pickup at City Hall and a destination 3.3 km NORTH of it, and many hard-coded points like it) was drawn before the sea was left out of the service area
+  // (migration 20261031000003), and that destination is in Calapan Bay. So every suite runs WITHOUT the sea layer, except batch1/service-area-gate.js, which tests the layer
+  // itself and sets KEEP_SEA_LAYER. (Suites that stop at an earlier migration have no such table yet.)
+  if (!process.env.KEEP_SEA_LAYER) {
+    await db.exec(`DO $$ BEGIN IF to_regclass('public.service_area_water') IS NOT NULL THEN DELETE FROM public.service_area_water; END IF; END $$;`);
+  }
 }
 
 module.exports = { ID, seed };

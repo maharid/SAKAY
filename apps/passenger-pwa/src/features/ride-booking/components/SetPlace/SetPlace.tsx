@@ -17,7 +17,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import splashBg from "@sakay/shared/src/assets/images/webp/splash-bg.webp";
-import { TYPOGRAPHY_TOKENS, activateWithKeyboard, extendTapArea } from "@sakay/shared";
+import { PIN_ROAD_SEARCH_MAX_DISTANCE_M, TYPOGRAPHY_TOKENS, activateWithKeyboard, extendTapArea, offRoadMessage, snapToRoad } from "@sakay/shared";
 
 import type { PlaceSuggestion, RecentDestination } from "../../../../services/locationService";
 import {
@@ -129,8 +129,16 @@ const SetPlace: React.FC = () => {
     setDropoffText(temp);
   };
 
-  const handleSelectPlace = (place: { name: string; address?: string; lat: number; lng: number }) => {
-    if (refuseIfOutside(activeTarget === "pickup" ? "pickup" : "destination", place.lat, place.lng)) return;
+  const handleSelectPlace = async (chosen: { name: string; address?: string; lat: number; lng: number }) => {
+    if (refuseIfOutside(activeTarget === "pickup" ? "pickup" : "destination", chosen.lat, chosen.lng)) return;
+    // Panel comment (D-P3): a place must have a road a tricycle can use near it. A search result (a river, the bay, a field) that does not is refused; one that does is
+    // booked at the road's own point, because a tricycle cannot drive into the building. The limit is wider than for a pin: a mall or a market sits back from its road.
+    const found = await snapToRoad(chosen.lat, chosen.lng, { maxDistanceM: PIN_ROAD_SEARCH_MAX_DISTANCE_M });
+    if (found.status === "off_road") {
+      setAreaError(offRoadMessage(language, found.distanceM));
+      return;
+    }
+    const place = found.status === "on_road" ? { ...chosen, lat: found.lat, lng: found.lng } : chosen;
     saveRecentDestination({
       name: place.name,
       address: place.address || place.name,

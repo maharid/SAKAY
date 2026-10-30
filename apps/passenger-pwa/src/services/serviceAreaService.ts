@@ -17,15 +17,19 @@ let cached: Promise<ServiceArea | null> | null = null;
 /** The active service area, read once per app session (a failed read is retried on the next call). */
 export const fetchServiceArea = (): Promise<ServiceArea | null> => {
   if (!cached) {
-    cached = Promise.resolve(
-      supabase
-        .from('service_area_config')
-        .select('area_name, center_latitude, center_longitude, radius_km, boundary_geojson')
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
-    )
-      .then(({ data, error }) => {
+    cached = Promise.all([
+      Promise.resolve(
+        supabase
+          .from('service_area_config')
+          .select('area_name, center_latitude, center_longitude, radius_km, boundary_geojson')
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle()
+      ),
+      // the sea is not part of the service area (D-P3); if this cannot be read the pin is simply not refused for it here: the database still refuses it
+      Promise.resolve(supabase.from('service_area_water').select('geojson').eq('water_id', 1).maybeSingle()).catch(() => ({ data: null, error: true })),
+    ])
+      .then(([{ data, error }, water]) => {
         if (error || !data) {
           cached = null;
           return null;
@@ -36,6 +40,7 @@ export const fetchServiceArea = (): Promise<ServiceArea | null> => {
           centerLng: Number(data.center_longitude),
           radiusKm: Number(data.radius_km),
           boundary: (data.boundary_geojson as GeoBoundary | null) ?? null,
+          waterExclusion: ((water as { data?: { geojson?: GeoBoundary } | null }).data?.geojson as GeoBoundary | undefined) ?? null,
         };
       })
       .catch(() => {

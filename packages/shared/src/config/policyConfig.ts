@@ -200,6 +200,14 @@ export const NO_SHOW_EXTENSION_SECONDS = 120;
  * is ignored, never guessed at [DB no_show_radius_m, zone_max_accuracy_m]
  */
 export const PICKUP_ZONE_RADIUS_METERS = 25;
+/**
+ * Panel comment (decision D-P3): a pin the passenger (or a TODA, for its terminal) places must lie within this many metres of a road, as OpenStreetMap's routing
+ * data know them; the pin is then moved onto that road. Farther away (a river, the bay, a field) the pin is refused. This is the APPS' guard (utils/roadSnap.ts):
+ * the database has no road layer, so there is no database constant to mirror.
+ */
+export const PIN_ROAD_MAX_DISTANCE_M = 30;
+/** The same guard for a place chosen from the SEARCH (a mall, a market or a school sits back from its road, so the limit is wider); the place is then booked at the road's point */
+export const PIN_ROAD_SEARCH_MAX_DISTANCE_M = 150;
 export const PICKUP_ZONE_MAX_ACCURACY_METERS = 30;
 /**
  * Rule 10.2 (D8-X1): the driver may be this many metres beyond the zone, and may be outside it for this many seconds, without pausing the passenger's wait.
