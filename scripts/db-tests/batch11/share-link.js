@@ -11,7 +11,7 @@ const { setup, ID, PAX, DRIVERS, attempt, check, summary, asUser } = require('..
   const create = (who, bookingId, reuse = null) => s.rpcAs(PAX[who].uid, 'public.create_trip_share($1,$2)', [bookingId, reuse]);
   const sha = async (t) => (await one(`SELECT encode(sha256(convert_to('${t}', 'UTF8')), 'hex') AS h`)).h;
 
-  await internal(`UPDATE driver SET plate_number = 'ABC-1234' WHERE driver_id = '${D1}'`);
+  await internal(`UPDATE driver SET plate_number = 'ABC-1234', profile_photo_url = '${DRIVERS.D1.uid}/avatar-1.jpg' WHERE driver_id = '${D1}'`);
   console.log('S1 the passenger of a trip in progress makes the link');
   const t = await s.startTrip('D1', 'P1');
   let r = await create('P2', t.booking_id);
@@ -39,9 +39,19 @@ const { setup, ID, PAX, DRIVERS, attempt, check, summary, asUser } = require('..
     v.found === true && v.state === 'ongoing' && v.ended === false && v.pickup_address === 'A' && v.dropoff_address === 'B' && v.driver_first_name === 'Driver' && v.plate_number === 'ABC-1234'
     && v.driver_position && typeof v.driver_position.lat === 'number' && typeof v.driver_position.age_seconds === 'number' && /progress/.test(v.status_en), v);
   const keys = Object.keys(v).sort().join(',');
-  check('exactly the whitelisted fields', keys === 'driver_first_name,driver_position,dropoff,dropoff_address,ended,expires_at,found,pickup,pickup_address,plate_number,progress_pct,server_now,state,status_en,status_tl', keys);
+  check('exactly the whitelisted fields (D-P2 added the driver\'s phone and whether there is a picture)', keys === 'driver_first_name,driver_has_photo,driver_phone,driver_position,dropoff,dropoff_address,ended,expires_at,found,pickup,pickup_address,plate_number,progress_pct,server_now,state,status_en,status_tl', keys);
   const text = JSON.stringify(v);
-  check('no passenger name, no phone number, no fare, no id of a person or of the booking', !/Pax One|Driver One|\+63|fare|passenger_id|driver_id|booking_id|contact/i.test(text), text);
+  check('no passenger name, no passenger phone number, no driver surname, no fare, no id of a person or of the booking', !/Pax One|Pax Two|Driver One|\+639170000001|\+639170000002|fare|passenger_id|driver_id|booking_id|contact|auth_user/i.test(text), text);
+  check('D-P2: the driver\'s number is there while the trip is on (and only the driver\'s), and there is a picture to ask for', v.driver_phone === '+639180000001' && v.driver_has_photo === true, v);
+  const photoPath = async (tok, role = 'service_role') => (await asUser(db, { uid: null, role }, (tx) => tx.query(`SELECT public.get_shared_trip_photo_path($1) AS p`, [tok]), { commit: true })).rows[0].p;
+  check('D-P2: the server (service role) is told the picture\'s path for a live link', (await photoPath(token)) === `${DRIVERS.D1.uid}/avatar-1.jpg`);
+  check('D-P2: a browser (a visitor, a signed-in user) cannot ask for the path at all', !(await attempt(() => photoPath(token, 'anon'))).ok && !(await attempt(() => photoPath(token, 'authenticated'))).ok);
+  check('D-P2: a bad or unknown token gets no path', (await photoPath('0'.repeat(32))) === null && (await photoPath('not-a-token')) === null && (await photoPath(null)) === null);
+  await internal(`UPDATE driver SET profile_photo_url = '${DRIVERS.D2.uid}/selfie.jpg' WHERE driver_id = '${D1}'`);
+  check('D-P2: a picture path outside the driver\'s own folder is never offered (no pointing the page at somebody else\'s file)', (await photoPath(token)) === null && (await view(token)).driver_has_photo === false);
+  await internal(`UPDATE driver SET profile_photo_url = NULL WHERE driver_id = '${D1}'`);
+  check('D-P2: a driver with no picture: no flag, no path', (await view(token)).driver_has_photo === false && (await photoPath(token)) === null);
+  await internal(`UPDATE driver SET profile_photo_url = '${DRIVERS.D1.uid}/avatar-1.jpg' WHERE driver_id = '${D1}'`);
 
   console.log('\nS3 a guess learns nothing: every bad token gets the same answer');
   const bad = [null, '', 'abc', token.toUpperCase(), token.slice(1), token + '0', '0'.repeat(32), 'f'.repeat(32), "' OR 1=1 --"];
@@ -72,7 +82,7 @@ const { setup, ID, PAX, DRIVERS, attempt, check, summary, asUser } = require('..
   const link2 = await create('P1', t.booking_id);
   await internal(`UPDATE booking SET booking_status = 'Completed', trip_completed_at = clock_timestamp() - interval '10 minutes', payment_status = 'Paid', payment_received_at = clock_timestamp() - interval '10 minutes', fare_unconfirmed = TRUE WHERE booking_id = '${t.booking_id}'`);
   let ended = await view(link2.token);
-  check('10 minutes after the trip ended: still works, shown as ended (the contact sees "the trip has ended"), no vehicle position any more', ended.found === true && ended.state === 'completed' && ended.ended === true && ended.driver_position === null && /ended/.test(ended.status_en), ended);
+  check('10 minutes after the trip ended: still works, shown as ended (the contact sees "the trip has ended"), no vehicle position any more, and (D-P2) no driver phone number or picture any more', ended.found === true && ended.state === 'completed' && ended.ended === true && ended.driver_position === null && ended.driver_phone === null && ended.driver_has_photo === false && (await photoPath(link2.token)) === null && /ended/.test(ended.status_en), ended);
   await internal(`UPDATE booking SET trip_completed_at = clock_timestamp() - interval '16 minutes' WHERE booking_id = '${t.booking_id}'`);
   check('16 minutes after the trip ended: GONE', (await view(link2.token)).found === false);
   r = await create('P1', t.booking_id);

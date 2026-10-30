@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Button, LinearProgress, Typography } from '@mui/material';
+import { Avatar, Box, Button, LinearProgress, Typography } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
+import PhoneIcon from '@mui/icons-material/Phone';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 
 import { RouteTimeline, SHARE_TOKEN_PATTERN, fetchSharedTripView, type SharedTripView as SharedTrip } from '@sakay/shared';
@@ -23,7 +24,9 @@ const TEXT = {
     pickup: 'Pickup',
     destination: 'Destination',
     driver: 'Driver',
-    plate: 'Plate',
+    plate: 'Plate number',
+    phone: 'Driver phone number',
+    call: 'Call',
     progress: (n: number) => `${n}% of the trip`,
     etaPickup: (n: number) => `Reaching the pickup in about ${n} min`,
     etaDestination: (n: number) => `Reaching the destination in about ${n} min`,
@@ -31,7 +34,7 @@ const TEXT = {
     updatedAgo: (m: number) => `Driver location updated ${m} min ago`,
     outdated: 'This location may be out of date.',
     noPosition: 'The driver\'s location is not available yet.',
-    privacy: 'This page refreshes every few seconds. It never shows the passenger\'s name, phone number or fare.',
+    privacy: 'This page refreshes every few seconds. It never shows the passenger\'s name or phone number, or the fare.',
     loading: 'Loading the trip',
     language: 'Language',
   },
@@ -42,7 +45,9 @@ const TEXT = {
     pickup: 'Pickup',
     destination: 'Destinasyon',
     driver: 'Drayber',
-    plate: 'Plaka',
+    plate: 'Numero ng plaka',
+    phone: 'Numero ng telepono ng drayber',
+    call: 'Tawagan',
     progress: (n: number) => `${n}% ng biyahe`,
     etaPickup: (n: number) => `Darating sa pickup sa halos ${n} min`,
     etaDestination: (n: number) => `Darating sa destinasyon sa halos ${n} min`,
@@ -50,7 +55,7 @@ const TEXT = {
     updatedAgo: (m: number) => `Na-update ang lokasyon ng drayber ${m} min na ang nakalipas`,
     outdated: 'Maaaring luma na ang lokasyong ito.',
     noPosition: 'Wala pang lokasyon ng drayber.',
-    privacy: 'Nag-a-update ang pahinang ito bawat ilang segundo. Walang pangalan ng pasahero, numero ng telepono o pamasahe dito.',
+    privacy: 'Nag-a-update ang pahinang ito bawat ilang segundo. Walang pangalan o numero ng telepono ng pasahero, at walang pamasahe dito.',
     loading: 'Kinukuha ang biyahe',
     language: 'Wika',
   },
@@ -238,26 +243,50 @@ const SharedTripView: React.FC = () => {
               )}
             </Box>
 
-            {/* the route */}
-            <Box sx={{ p: 1.75, borderRadius: '16px', border: '1px solid #E2E8F0' }}>
-              <RouteTimeline pickup={trip.pickup_address} destination={trip.dropoff_address} pickupLabel={t.pickup} destinationLabel={t.destination} />
-            </Box>
-
-            {/* the driver: the first name and the plate, exactly what the database sends */}
-            <Box sx={{ p: 1.75, borderRadius: '16px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box aria-hidden sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#FF6600', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 700 }}>
-                  {trip.driver_first_name ? trip.driver_first_name.charAt(0).toUpperCase() : <PersonIcon sx={{ fontSize: 22 }} />}
-                </Box>
+            {/* the driver comes before the route: the person following the trip needs to recognise the tricycle first. Picture, first name, the plate in large type and the number to call, exactly what the database sends (panel comment, D-P2) */}
+            <Box sx={{ p: 1.75, borderRadius: '16px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+                <Avatar
+                  src={trip.driver_has_photo ? `/api/share/${token}/driver-photo` : undefined}
+                  alt={trip.driver_first_name ? `${t.driver} ${trip.driver_first_name}` : t.driver}
+                  sx={{ width: 84, height: 84, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '34px', fontFamily: FONT }}
+                >
+                  {trip.driver_first_name ? trip.driver_first_name.charAt(0).toUpperCase() : <PersonIcon sx={{ fontSize: 44 }} />}
+                </Avatar>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569', fontFamily: FONT, lineHeight: 1.3 }}>{t.driver}</Typography>
-                  <Typography noWrap sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: FONT, lineHeight: 1.3 }}>{trip.driver_first_name || '-'}</Typography>
-                </Box>
-                <Box sx={{ ml: 'auto', textAlign: 'right', flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569', fontFamily: FONT, lineHeight: 1.3 }}>{t.plate}</Typography>
-                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: FONT, lineHeight: 1.3, whiteSpace: 'nowrap' }}>{trip.plate_number || '-'}</Typography>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#475569', fontFamily: FONT, lineHeight: 1.3 }}>{t.driver}</Typography>
+                  <Typography sx={{ fontSize: '24px', fontWeight: 700, color: '#0F172A', fontFamily: FONT, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{trip.driver_first_name || '-'}</Typography>
                 </Box>
               </Box>
+
+              {/* the plate, the way it is read from the road: large, bold, boxed */}
+              <Box>
+                <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#475569', fontFamily: FONT, lineHeight: 1.3, mb: 0.5 }}>{t.plate}</Typography>
+                <Box
+                  aria-label={`${t.plate}: ${trip.plate_number || '-'}`}
+                  sx={{ border: '3px solid #0F172A', borderRadius: '12px', backgroundColor: '#FEF9C3', py: 1, px: 1.5, textAlign: 'center' }}
+                >
+                  <Typography sx={{ fontSize: '36px', fontWeight: 800, color: '#0F172A', fontFamily: FONT, lineHeight: 1.15, letterSpacing: '0.06em', overflowWrap: 'anywhere' }}>
+                    {trip.plate_number || '-'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* the driver's number, while the trip is on: one tap to call */}
+              {!trip.ended && trip.driver_phone && (
+                <Box>
+                  <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#475569', fontFamily: FONT, lineHeight: 1.3, mb: 0.5 }}>{t.phone}</Typography>
+                  <Button
+                    component="a"
+                    href={`tel:${trip.driver_phone}`}
+                    startIcon={<PhoneIcon sx={{ fontSize: '26px !important' }} />}
+                    aria-label={`${t.call} ${trip.driver_phone}`}
+                    sx={{ width: '100%', minHeight: 56, borderRadius: '14px', textTransform: 'none', fontFamily: FONT, fontSize: '22px', fontWeight: 700, color: '#166534', backgroundColor: '#E6F4EA', '&:hover': { backgroundColor: '#D1EBD7' } }}
+                  >
+                    {trip.driver_phone}
+                  </Button>
+                </Box>
+              )}
               {!trip.ended &&
                 (pos ? (
                   <Typography sx={{ fontSize: '12.5px', color: stale ? '#B45309' : '#475569', fontFamily: FONT, lineHeight: 1.45 }}>
@@ -267,6 +296,11 @@ const SharedTripView: React.FC = () => {
                 ) : (
                   <Typography sx={{ fontSize: '12.5px', color: '#64748B', fontFamily: FONT }}>{t.noPosition}</Typography>
                 ))}
+            </Box>
+
+            {/* the route */}
+            <Box sx={{ p: 1.75, borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+              <RouteTimeline pickup={trip.pickup_address} destination={trip.dropoff_address} pickupLabel={t.pickup} destinationLabel={t.destination} />
             </Box>
 
             <Typography sx={{ fontSize: '11.5px', color: '#64748B', lineHeight: 1.5, fontFamily: FONT }}>{t.privacy}</Typography>

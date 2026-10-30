@@ -62,6 +62,10 @@ export interface SharedTripView {
   dropoff: { lat: number | null; lng: number | null };
   driver_first_name: string | null;
   plate_number: string | null;
+  /** Panel comment (D-P2): the driver's mobile number while the trip is on, for the person who received the link to call; null once it has ended */
+  driver_phone: string | null;
+  /** The driver has a profile picture the page may ask for (GET /api/share/:token/driver-photo); the picture itself is not in this answer */
+  driver_has_photo: boolean;
   driver_position: { lat: number; lng: number; age_seconds: number } | null;
   progress_pct: number | null;
   expires_at: string;

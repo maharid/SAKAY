@@ -17,6 +17,7 @@ import auditLogRoutes from './routes/auditLogRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import authRoutes from './routes/authRoutes';
 import passwordResetRoutes from './routes/passwordResetRoutes';
+import { createShareRouter } from './routes/shareRoutes';
 import communicationRoutes from './routes/communicationRoutes';
 import ocrRoutes from './routes/ocrRoutes';
 import schedulerRoutes from './routes/schedulerRoutes';
@@ -42,8 +43,9 @@ export interface AppDeps {
  * Request order matters and is part of the security model:
  *   1. security headers, CORS, request log (method + path only)
  *   2. per-IP rate limit for everything under /api
- *   3. the only routes that need no sign-in: /api/health, /api/scheduler (which has its own secret and fails closed) and /api/password-reset
+ *   3. the only routes that need no sign-in: /api/health, /api/scheduler (which has its own secret and fails closed), /api/password-reset
  *      (a person who forgot the password cannot be signed in: a texted code, limits kept in the database and per-address limits stand in for it)
+ *      and /api/share (the driver's picture on a Share Live Trip page: the link is the credential and the database checks it on every request)
  *   4. DEFAULT DENY: from here on every /api request must carry a valid Supabase access token (a route added later is protected
  *      without anybody remembering to protect it) and is limited per user
  *   5. body parsing (after the sign-in check, so nobody unauthenticated makes the server read a large body); 100 kB, except the
@@ -78,6 +80,8 @@ export function createApp(deps: AppDeps = {}): express.Express {
   app.use('/api/password-reset/request', limiter({ name: 'pw-reset-request', ...LIMITS.passwordResetRequest, message: 'Too many code requests from this connection. Please wait a few minutes.' }));
   app.use('/api/password-reset/confirm', limiter({ name: 'pw-reset-confirm', ...LIMITS.passwordResetConfirm, message: 'Too many attempts from this connection. Please wait a few minutes.' }));
   app.use('/api/password-reset', jsonBody('4kb'), passwordResetRoutes);
+  // The Share Live Trip page has no account: the link is its only credential, checked by the database for every request (see routes/shareRoutes.ts).
+  app.use('/api/share', limiter({ name: 'share-photo', ...LIMITS.sharePhoto, message: 'Too many requests. Please wait a moment.' }), createShareRouter({ supabase: deps.supabase === undefined ? defaultSupabase : deps.supabase }));
 
   // 4
   app.use('/api', auth.requireAuth);

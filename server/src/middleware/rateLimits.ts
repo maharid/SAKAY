@@ -49,6 +49,8 @@ export const LIMITS = {
   // password recovery needs no sign-in, so these count per client address; the real limits (per number: 30 s apart, 5 a day, 5 wrong codes) are in the database
   passwordResetRequest: { windowMs: 10 * MINUTE, limit: 10 },
   passwordResetConfirm: { windowMs: 10 * MINUTE, limit: 20 },
+  // the driver's picture on a Share Live Trip page (no sign-in): one request per page view, so this is far above what a person needs
+  sharePhoto: { windowMs: MINUTE, limit: 60 },
   sms: { windowMs: HOUR, limit: 10 },
   ocr: { windowMs: HOUR, limit: 10 },
   roster: { windowMs: HOUR, limit: 30 },

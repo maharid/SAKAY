@@ -1025,13 +1025,17 @@ export const TripMonitoring: React.FC = () => {
               /* Driver identity */
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-                  <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 48, height: 48, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '20px' }}>
+                  <Avatar src={status !== 'Searching Driver' && driverPhotoUrl ? driverPhotoUrl : undefined} alt={driverName} sx={{ width: 64, height: 64, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '26px' }}>
                     {driverName.charAt(0)}
                   </Avatar>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
                       {status === 'Searching Driver' ? (language === 'tl' ? 'Naghahanap ng Drayber...' : 'Looking for Driver...') : driverName}
                     </Typography>
+                    {/* the number is written out (not only behind the call button) so it can be read to a relative or noted down */}
+                    {status !== 'Searching Driver' && driverPhone && (
+                      <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#166534', lineHeight: 1.3 }}>{driverPhone}</Typography>
+                    )}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                       {driverRating !== null && (
                         <>
@@ -1110,14 +1114,20 @@ export const TripMonitoring: React.FC = () => {
             {status !== 'Searching Driver' && status !== 'No Driver Found' && (franchiseNo !== '-' || plateNo !== '-') && (
               <Box sx={{ p: '12px 16px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
                     {language === 'tl' ? 'Franchise body no.' : 'Franchise body no.'}
                   </Typography>
-                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{franchiseNo}</Typography>
+                  <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{franchiseNo}</Typography>
                 </Box>
+                {/* Panel comment (D-P2): the plate is what the passenger looks for on the road, so it is large and boxed */}
                 <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>{language === 'tl' ? 'Plaka' : 'Plate number'}</Typography>
-                  <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{plateNo}</Typography>
+                  <Typography sx={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>{language === 'tl' ? 'Numero ng plaka' : 'Plate number'}</Typography>
+                  <Typography
+                    aria-label={`${language === 'tl' ? 'Numero ng plaka' : 'Plate number'}: ${plateNo}`}
+                    sx={{ display: 'inline-block', fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.05em', lineHeight: 1.2, border: '3px solid #0F172A', borderRadius: '10px', backgroundColor: '#FEF9C3', px: 1.25, py: 0.25, overflowWrap: 'anywhere' }}
+                  >
+                    {plateNo}
+                  </Typography>
                 </Box>
               </Box>
             )}
@@ -1220,6 +1230,14 @@ export const TripMonitoring: React.FC = () => {
                     {say('Tapusin nang Maaga ang Biyahe', 'End Trip (Early)')}
                   </Button>
                 )
+              ) : (status === 'Driver En Route' || status === 'Driver Arrived') && !driverLive.unreachable ? (
+                /* Panel comment: once the driver is on the way (or has arrived) the booking can no longer be cancelled. The database refuses it too (ERR_DRIVER_ON_THE_WAY);
+                   a driver the system has marked Unreachable can still be left, so the button comes back then. */
+                <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center', lineHeight: 1.5, px: 1 }}>
+                  {status === 'Driver Arrived'
+                    ? say('Nasa pickup na ang drayber. Hindi na maaaring ikansela ang booking: lumabas na sa pickup point.', 'Your driver is at the pickup. This booking can no longer be cancelled: please head out to meet them.')
+                    : say('Papunta na ang drayber. Hindi na maaaring ikansela ang booking. May problema? Gamitin ang Urgent Safety Report.', 'Your driver is on the way. This booking can no longer be cancelled. Something wrong? Use the Urgent Safety Report.')}
+                </Typography>
               ) : (
                 /* Before the driver is on the way the passenger may still cancel: a plain, quiet button that opens the same confirmation (reason and confirm) */
                 <Button
@@ -1230,14 +1248,6 @@ export const TripMonitoring: React.FC = () => {
                 >
                   {language === 'tl' ? 'Ikansel ang Booking' : 'Cancel Booking'}
                 </Button>
-              ) : (status === 'Driver En Route' || status === 'Driver Arrived') && !driverLive.unreachable ? (
-                /* Panel comment: once the driver is on the way (or has arrived) the booking can no longer be cancelled. The database refuses it too (ERR_DRIVER_ON_THE_WAY);
-                   a driver the system has marked Unreachable can still be left, so the button comes back then. */
-                <Typography role="status" sx={{ fontSize: '13px', fontWeight: 600, color: '#475569', textAlign: 'center', lineHeight: 1.5, px: 1 }}>
-                  {status === 'Driver Arrived'
-                    ? say('Nasa pickup na ang drayber. Hindi na maaaring ikansela ang booking: lumabas na sa pickup point.', 'Your driver is at the pickup. This booking can no longer be cancelled: please head out to meet them.')
-                    : say('Papunta na ang drayber. Hindi na maaaring ikansela ang booking. May problema? Gamitin ang Urgent Safety Report.', 'Your driver is on the way. This booking can no longer be cancelled. Something wrong? Use the Urgent Safety Report.')}
-                </Typography>
               )}
             </>
           ) : null
