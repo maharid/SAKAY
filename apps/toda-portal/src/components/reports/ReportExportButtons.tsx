@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Alert, Box, Button } from '@mui/material';
-import { exportReportCsv, exportReportXlsx, printReportPdf } from '@sakay/shared';
+import { exportReportCsv, exportReportPdf, exportReportXlsx } from '@sakay/shared';
 import type { ReportTable, XlsxLike } from '@sakay/shared';
 
+import { useAuth } from '../../contexts/AuthContext';
 import { secondaryButtonSx } from '../common/pageButtons';
 
 export type ExportFormat = 'Excel' | 'CSV' | 'PDF';
@@ -10,16 +11,18 @@ export type ExportFormat = 'Excel' | 'CSV' | 'PDF';
 interface ReportExportButtonsProps {
   /** The report as shown on screen; the three files contain exactly this table. Null while there is nothing to export. */
   table: ReportTable | null;
-  /** Who the PDF says generated it */
+  /** The role the files say exported it, e.g. "Xentro Mall TODA Administrator"; the person's name comes from the signed-in administrator */
   generatedBy: string;
   /** Called after the file was handed over, so the page can write the audit entry */
   onExported: (reportName: string, format: ExportFormat) => void;
 }
 
 /**
- * Checklist B5: every TODA report exports to Excel (.xlsx) and to PDF as well as CSV. The PDF is the browser's print dialog ("Save as PDF"); no PDF library is added.
+ * Checklist B5: every TODA report exports to Excel (.xlsx) and to PDF as well as CSV. Excel and PDF carry a header (what the report covers, when, and who exported it), the summary
+ * above the table and a footer (decision D-P6); the PDF is a real file with the page number on every page.
  */
 export const ReportExportButtons: React.FC<ReportExportButtonsProps> = ({ table, generatedBy, onExported }) => {
+  const { todaAdminProfile } = useAuth();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -28,12 +31,13 @@ export const ReportExportButtons: React.FC<ReportExportButtonsProps> = ({ table,
     setBusy(format);
     setProblem(null);
     try {
+      const meta = { exportedBy: todaAdminProfile?.full_name || 'TODA Administrator', role: generatedBy };
       if (format === 'Excel') {
-        exportReportXlsx((await import('xlsx')) as unknown as XlsxLike, table);
+        exportReportXlsx((await import('xlsx')) as unknown as XlsxLike, table, meta);
       } else if (format === 'CSV') {
         exportReportCsv(table);
-      } else if (!printReportPdf(table, generatedBy)) {
-        throw new Error('The browser blocked the PDF window. Allow pop-ups for this site and try again.');
+      } else {
+        await exportReportPdf(table, meta);
       }
       onExported(table.title, format);
     } catch (err) {

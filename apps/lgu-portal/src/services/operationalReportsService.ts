@@ -26,6 +26,7 @@ import {
   peakHoursByGroup,
   periodsForFilter,
   pickupHotspots,
+  previousWindow,
   registrationTrend,
   serviceUtilization,
   volumeByPeriod,
@@ -83,6 +84,8 @@ export interface TodaRow {
   account_status?: string | null;
   active_driver_count?: number | null;
   registered_tricycle_count?: number | null;
+  /** when the TODA applied (its registration) */
+  created_at?: string | null;
 }
 
 export type IncidentRow = IncidentLike & { incident_id?: string };
@@ -153,6 +156,10 @@ export interface OperationalReportsData {
   filter: AnalyticsFilter;
   /** the filter in words, for the page and the top of every export */
   filterText: string;
+  /** the bookings of the filter itself (decision D-P6: the bars of ONE day, week or month are built from these) */
+  bookings: BookingLike[];
+  /** the bookings of the same filter in the period of the same length just before it (null when the filter has no from / to dates) */
+  previousWindowTotal: number | null;
   peakHourDistribution: PeakHourPoint[];
   barangayDemand: BarangayDemandRow[];
   /** completionRate: percent of the TODA's finished trips that were completed (null while nothing has finished) */
@@ -175,6 +182,8 @@ export interface OperationalReportsData {
   passengerRegistrations: Record<VolumePeriod, RegistrationPoint[]>;
   driverRegistrations: Record<VolumePeriod, RegistrationPoint[]>;
   driverAccreditations: Record<VolumePeriod, RegistrationPoint[]>;
+  /** TODA applications (registrations) in the period, by the day each applied; follows the date range only */
+  todaRegistrations: Record<VolumePeriod, RegistrationPoint[]>;
   /** verified drivers whose accreditation date is not on record (accredited before the dates were kept) */
   driversAccreditedUndated: number;
   passengerUtilization: PassengerUtilization;
@@ -242,6 +251,7 @@ export function buildOperationalReports(source: OperationalSource, filter: Analy
   const dates = <T extends { iso: string | null | undefined }>(rows: T[]) => rows.filter((r) => inDateRange(r.iso, filter.from, filter.to)).map((r) => r.iso);
   const passengerDates = dates(source.passengerRegistrations.map((iso) => ({ iso })));
   const driverDates = dates(driversInScope.map((d) => ({ iso: d.created_at })));
+  const todaDates = dates(todas.map((t) => ({ iso: t.created_at })));
   const accreditedDates = dates(verifiedInScope.map((d) => ({ iso: source.driverAccreditedAt.get(d.driver_id) ?? null })));
   const window = perPeriod((p) => periodsForFilter(p, filter, now));
   const registrations = (isoDates: Array<string | null | undefined>) => perPeriod((p) => registrationTrend(isoDates, p, window[p].count, window[p].end));
@@ -261,6 +271,10 @@ export function buildOperationalReports(source: OperationalSource, filter: Analy
     },
     filter,
     filterText: describeFilter(filter, todaName),
+    bookings,
+    previousWindowTotal: filter.from && filter.to
+      ? filterBookings(source.bookings, { ...filter, from: previousWindow(filter.from, filter.to).from, to: previousWindow(filter.from, filter.to).to }).length
+      : null,
     peakHourDistribution: peakHourDistribution(bookings),
     barangayDemand: barangayDemand(bookings),
     todaPerformance,
@@ -283,6 +297,7 @@ export function buildOperationalReports(source: OperationalSource, filter: Analy
     passengerRegistrations: registrations(passengerDates),
     driverRegistrations: registrations(driverDates),
     driverAccreditations: registrations(accreditedDates),
+    todaRegistrations: registrations(todaDates),
     driversAccreditedUndated: verifiedInScope.filter((d) => !source.driverAccreditedAt.has(d.driver_id)).length,
     passengerUtilization: passengerUtilization(registeredForAverage, bookings),
     cancellations: cancellationSummary(bookings),

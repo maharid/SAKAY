@@ -4,9 +4,10 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import { CoverageGapsPanel, fetchCoverageGaps } from '@sakay/shared';
+import { CoverageGapsPanel, compareWithPrevious, fetchCoverageGaps, scopeSeries } from '@sakay/shared';
 import type { CoverageGaps, Hotspot, VolumePeriod } from '@sakay/shared';
 import { AnalyticsFilterBar } from '../components/admin/AnalyticsFilterBar';
+import { ReportPeriodBar } from '../components/admin/ReportPeriodBar';
 import { MiniBarChart } from '../components/admin/MiniBarChart';
 import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable';
 import { BarChart } from '../components/common/BarChart';
@@ -19,6 +20,7 @@ import type { SegmentedOption } from '../components/common/SegmentedToggle';
 import { StatStrip } from '../components/common/StatStrip';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { useOperationalReports } from '../hooks/useOperationalReports';
+import { useReportPeriod } from '../hooks/useReportPeriod';
 import { supabase } from '../services/supabaseClient';
 import { FONT, SPACE } from '../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
@@ -110,6 +112,8 @@ const splitRowSx = (columns: string, from = 980) => ({
 
 export const AnalyticsPage: React.FC = () => {
   const { data, filter, setFilter, isLoading, loadError, reload } = useOperationalReports();
+  // Decision D-P6: ONE day, week or month (the granularity toggle below is only for a custom range)
+  const reportPeriod = useReportPeriod(filter, setFilter, 'week');
   const [period, setPeriod] = useState<VolumePeriod>('day');
   const [hotspotKind, setHotspotKind] = useState<HotspotKind>('pickup');
   const [dayType, setDayType] = useState<DayType>('all');
@@ -182,16 +186,25 @@ export const AnalyticsPage: React.FC = () => {
   const service = data?.serviceUtilization;
   const drivers = data?.driverUtilizationSummary;
   const pax = data?.passengerUtilization;
-  const trend = data?.volume[period] ?? [];
+  const singleScope = reportPeriod.scope !== 'custom' && reportPeriod.range ? reportPeriod.scope : null;
+  const trend = singleScope && reportPeriod.range && data ? scopeSeries(data.bookings, singleScope, reportPeriod.range.from, reportPeriod.range.to) : data?.volume[period] ?? [];
   const failed = Boolean(loadError);
   const trendTotal = trend.reduce((sum, p) => sum + p.total, 0);
-  const comparison = data?.comparison[period] ?? null;
+  const comparison = singleScope ? null : data?.comparison[period] ?? null;
+  const scopeComparison = singleScope && reportPeriod.range && data && data.previousWindowTotal !== null ? compareWithPrevious(trendTotal, data.previousWindowTotal, reportPeriod.range.from, reportPeriod.range.to) : null;
   const busiest = (data?.peakHourDistribution ?? []).reduce<{ hour: string; count: number } | null>(
     (best, h) => (h.count > 0 && (!best || h.count > best.count) ? h : best),
     null
   );
 
   const comparisonText = (): string => {
+    if (singleScope && reportPeriod.range) {
+      if (!scopeComparison) return 'There is nothing to compare this period with yet.';
+      const sign = scopeComparison.change > 0 ? '+' : '';
+      const verdict = scopeComparison.direction === 'growth' ? 'Growth' : scopeComparison.direction === 'decline' ? 'Decline' : 'No change';
+      const pctText = scopeComparison.changePct === null ? `${scopeComparison.previousLabel} had no bookings` : `${sign}${scopeComparison.changePct}%`;
+      return `${verdict}: ${reportPeriod.range.label} had ${scopeComparison.current} booking${scopeComparison.current === 1 ? '' : 's'} against ${scopeComparison.previous} in ${scopeComparison.previousLabel} (${pctText}).`;
+    }
     if (!comparison) return `Not enough complete ${PERIOD_RANGE_TEXT[period]} yet to compare one ${PERIOD_WORD[period]} with the one before it.`;
     const sign = comparison.change > 0 ? '+' : '';
     const pctText = comparison.changePct === null ? 'the earlier period had no bookings' : `${sign}${comparison.changePct}%`;
@@ -230,10 +243,15 @@ export const AnalyticsPage: React.FC = () => {
         data && (
           <>
             {/* 2. Filters, and the period of the trend charts */}
-            <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={data.todaOptions} barangayOptions={data.barangayOptions} actions={refreshButton} />
+            <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={data.todaOptions} barangayOptions={data.barangayOptions} actions={refreshButton} hideDates={singleScope !== null} />
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 14px', mb: SPACE.gapLarge }}>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>View trends by</Typography>
-              <SegmentedToggle label="View trends by" value={period} options={PERIOD_OPTIONS} onChange={setPeriod} />
+              <ReportPeriodBar period={reportPeriod} />
+              {!singleScope && (
+                <>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>Bars per</Typography>
+                  <SegmentedToggle label="Bars per" value={period} options={PERIOD_OPTIONS} onChange={setPeriod} />
+                </>
+              )}
               <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>Showing: {data.filterText}</Typography>
             </Box>
 
@@ -295,13 +313,13 @@ export const AnalyticsPage: React.FC = () => {
               {/* 4. Booking trend + service utilization */}
               <Box sx={splitRowSx('minmax(0, 3fr) minmax(0, 2fr)')}>
                 <DashboardCard
-                  title={`Booking trend (${trend.length} ${trend.length === 1 ? PERIOD_WORD[period] : PERIOD_RANGE_TEXT[period]})`}
-                  description={`${trendTotal} booking${trendTotal === 1 ? '' : 's'} in this period`}
+                  title={singleScope && reportPeriod.range ? `Booking trend: ${reportPeriod.range.label}` : `Booking trend (${trend.length} ${trend.length === 1 ? PERIOD_WORD[period] : PERIOD_RANGE_TEXT[period]})`}
+                  description={`${trendTotal} booking${trendTotal === 1 ? '' : 's'} ${singleScope === 'day' ? 'on this day, hour by hour' : singleScope ? `in this ${singleScope}, day by day` : 'in this period'}`}
                 >
                   {/* the comparison of the last two periods; not shown when the figures could not be read (it would compare two periods of nothing) */}
                   {!failed && (
                     <Alert
-                      severity={comparison?.direction === 'decline' ? 'warning' : comparison?.direction === 'growth' ? 'success' : 'info'}
+                      severity={(scopeComparison ?? comparison)?.direction === 'decline' ? 'warning' : (scopeComparison ?? comparison)?.direction === 'growth' ? 'success' : 'info'}
                       sx={{ mb: '14px', py: '2px', borderRadius: '10px', '& .MuiAlert-message': { fontSize: FONT.body, lineHeight: 1.5 } }}
                     >
                       {comparisonText()}
@@ -309,7 +327,7 @@ export const AnalyticsPage: React.FC = () => {
                     </Alert>
                   )}
                   <BarChart
-                    ariaLabel={`Bar chart of bookings per ${PERIOD_WORD[period]}`}
+                    ariaLabel={singleScope === 'day' ? 'Bar chart of bookings per hour' : singleScope ? 'Bar chart of bookings per day' : `Bar chart of bookings per ${PERIOD_WORD[period]}`}
                     height={170}
                     empty={<ChartEmpty failed={failed} title="No bookings in this period" hint="Try a wider date range, or clear the filters." minHeight={208} />}
                     points={trend.map((p) => {
@@ -406,46 +424,64 @@ export const AnalyticsPage: React.FC = () => {
                 </DashboardCard>
               </Box>
 
-              {/* 6. Registration and accreditation trends */}
+              {/* 6. Registration and accreditation trends (decision D-P6, panel: "stack bar"): ONE stacked bar per day or period, one colour per kind */}
               <Box sx={{ mb: SPACE.gapLarge }}>
-                <DashboardCard title="Registration and accreditation trends" description={`New accounts and accreditations, by ${PERIOD_WORD[period]}`}>
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1fr)',
-                      gap: '22px',
-                      '@container (min-width: 1200px)': { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' },
-                    }}
-                  >
-                    {[
-                      { title: 'New passenger accounts', emptyTitle: 'No new passenger accounts in this period', rows: data.passengerRegistrations[period], color: '#C2410C', note: 'Accounts whose phone number was confirmed. Not split by TODA or barangay.' },
-                      { title: 'New driver accounts', emptyTitle: 'No new driver accounts in this period', rows: data.driverRegistrations[period], color: '#1565C0', note: 'Drivers who created an account (any status).' },
+                <DashboardCard
+                  title="Registration and accreditation trends"
+                  description={`New passenger accounts, driver accounts and TODA applications, and the drivers the LGU accredited, by ${singleScope ? 'day' : PERIOD_WORD[period]}`}
+                >
+                  {(() => {
+                    const regPeriod: VolumePeriod = singleScope ? 'day' : period;
+                    const series = [
+                      { key: 'passengers', label: 'New passenger accounts', color: '#C2410C', rows: data.passengerRegistrations[regPeriod], note: 'Accounts whose phone number was confirmed. Not split by TODA or barangay.' },
+                      { key: 'drivers', label: 'New driver accounts', color: '#1565C0', rows: data.driverRegistrations[regPeriod], note: 'Drivers who created an account (any status).' },
+                      { key: 'todas', label: 'TODA applications', color: '#7C3AED', rows: data.todaRegistrations[regPeriod], note: 'TODAs that applied for accreditation. Follows the date range only.' },
                       {
-                        title: 'Drivers accredited by the LGU',
-                        emptyTitle: 'No drivers accredited in this period',
-                        rows: data.driverAccreditations[period],
+                        key: 'accredited',
+                        label: 'Drivers accredited by the LGU',
                         color: '#2E7D32',
-                        note:
-                          data.driversAccreditedUndated > 0
-                            ? `${data.driversAccreditedUndated} verified driver${data.driversAccreditedUndated === 1 ? ' has' : 's have'} no accreditation date on record and are not counted here.`
-                            : 'The date the LGU Administrator approved the driver.',
+                        rows: data.driverAccreditations[regPeriod],
+                        note: data.driversAccreditedUndated > 0
+                          ? `${data.driversAccreditedUndated} verified driver${data.driversAccreditedUndated === 1 ? ' has' : 's have'} no accreditation date on record and are not counted here.`
+                          : 'The date the LGU Administrator approved the driver.',
                       },
-                    ].map((c) => (
-                      <Box key={c.title} sx={{ minWidth: 0 }}>
-                        <Typography component="h3" sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary }}>{c.title}</Typography>
-                        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mb: '8px' }}>
-                          {c.rows.reduce((sum, r) => sum + r.count, 0)} in the period · {c.rows[c.rows.length - 1]?.cumulative ?? 0} in total by its end
-                        </Typography>
-                        <MiniBarChart
-                          color={c.color}
-                          label={c.title}
-                          empty={<ChartEmpty failed={failed} title={c.emptyTitle} hint="Try a wider date range, or clear the filters." minHeight={148} />}
-                          points={c.rows.map((r) => ({ key: r.key, label: r.label, value: r.count, lines: [`${r.count} new`, `${r.cumulative} in total`] }))}
+                    ];
+                    const base = series[0].rows;
+                    const grand = series.reduce((sum, c) => sum + c.rows.reduce((n, r) => n + r.count, 0), 0);
+                    return (
+                      <>
+                        <BarChart
+                          ariaLabel="Stacked bar chart of registrations and accreditations per period"
+                          height={190}
+                          empty={<ChartEmpty failed={failed} title="No registrations or accreditations in this period" hint="Try a wider date range, or clear the filters." minHeight={208} />}
+                          points={grand === 0 ? [] : base.map((row, i) => ({
+                            key: row.key,
+                            label: row.label,
+                            segments: series.map((c) => ({ value: c.rows[i]?.count ?? 0, color: c.color })),
+                            tooltipTitle: row.label,
+                            tooltipLines: series.map((c) => `${c.rows[i]?.count ?? 0} ${c.label.toLowerCase()}`),
+                          }))}
                         />
-                        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '8px', lineHeight: 1.5 }}>{c.note}</Typography>
-                      </Box>
-                    ))}
-                  </Box>
+                        <Box sx={{ display: 'flex', gap: '6px 18px', mt: '12px', flexWrap: 'wrap' }}>
+                          {series.map((c) => (
+                            <Box key={c.key} sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Box aria-hidden sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: c.color }} />
+                              <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>
+                                {c.label}: <b>{c.rows.reduce((n, r) => n + r.count, 0)}</b> in the period
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                        <Box sx={{ mt: '8px' }}>
+                          {series.map((c) => (
+                            <Typography key={c.key} sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>
+                              <b>{c.label}.</b> {c.note}
+                            </Typography>
+                          ))}
+                        </Box>
+                      </>
+                    );
+                  })()}
                 </DashboardCard>
               </Box>
 

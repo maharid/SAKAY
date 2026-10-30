@@ -1,4 +1,4 @@
-import type { Hotspot, ReportTable, VolumePeriod } from '@sakay/shared';
+import type { Hotspot, ReportTable, SingleScope, VolumeRow, VolumePeriod } from '@sakay/shared';
 
 import type { OperationalReportsData } from '../services/operationalReportsService';
 
@@ -31,8 +31,15 @@ function bookingsTable(d: OperationalReportsData): ReportTable {
   };
 }
 
-function trendTable(d: OperationalReportsData, period: VolumePeriod): ReportTable {
-  const rows = d.volume[period];
+/** The ONE period the report shows (decision D-P6): its bars and its name, for a day, a week or a month */
+export interface TrendScopeInfo {
+  scope: SingleScope;
+  label: string;
+  rows: VolumeRow[];
+}
+
+function trendTable(d: OperationalReportsData, period: VolumePeriod, scopeInfo?: TrendScopeInfo): ReportTable {
+  const rows = scopeInfo ? scopeInfo.rows : d.volume[period];
   const changes = rows.map((r, i) => {
     const prev = i > 0 ? rows[i - 1] : null;
     if (!prev) return { change: '', pct: '' };
@@ -40,7 +47,7 @@ function trendTable(d: OperationalReportsData, period: VolumePeriod): ReportTabl
     return { change: `${diff > 0 ? '+' : ''}${diff}`, pct: prev.total > 0 ? `${diff > 0 ? '+' : ''}${Math.round((diff / prev.total) * 100)}%` : 'n/a' };
   });
   return {
-    title: `Booking Trend Report (${PERIOD_TITLE[period]})`,
+    title: scopeInfo ? `Booking Trend Report (${scopeInfo.scope === 'day' ? 'Day' : scopeInfo.scope === 'week' ? 'Week' : 'Month'}: ${scopeInfo.label})` : `Booking Trend Report (${PERIOD_TITLE[period]})`,
     notes: notesOf(d),
     headers: ['Period', 'Bookings', 'Change from the period before', 'Change (%)', 'Completed', 'Cancelled', 'No driver found', 'Shared trips', 'Completion rate', 'Gross fares (PHP)', 'Average fare (PHP)'],
     rows: rows.map((r, i) => [r.label, r.total, changes[i].change, changes[i].pct, r.completed, r.cancelled, r.noDriverFound, r.sharedTrips, share(r.completionRate), peso(r.grossFare), peso(r.averageFare)]),
@@ -171,10 +178,48 @@ function incidentsTable(d: OperationalReportsData): ReportTable {
   };
 }
 
-export function reportTableFor(kind: ReportKind, data: OperationalReportsData, period: VolumePeriod): ReportTable {
+/** The headline figures of a report, shown ABOVE its table in the Excel and PDF files (decision D-P6) */
+function summaryFor(kind: ReportKind, d: OperationalReportsData, table: ReportTable): ReportTable['summary'] {
+  const s = d.serviceUtilization;
+  const base: NonNullable<ReportTable['summary']> = [{ label: 'Report covers', value: d.filterText }];
+  const tail: NonNullable<ReportTable['summary']> = [{ label: 'Rows in this report', value: table.rows.length }];
+  switch (kind) {
+    case 'Bookings':
+    case 'Service':
+      return [...base, { label: 'Booking requests', value: s.requests }, { label: 'Completed trips', value: s.completed }, { label: 'Completion rate', value: s.requests > 0 ? `${s.completionRate}%` : 'n/a' },
+              { label: 'Cancelled bookings', value: s.cancelled }, { label: 'Estimated gross fare value (PHP)', value: peso(d.summary.totalRevenue) }];
+    case 'Trend': {
+      const total = table.rows.reduce((n, r) => n + (typeof r[1] === 'number' ? r[1] : 0), 0);
+      return [...base, { label: 'Bookings in the periods shown', value: total }, { label: 'Periods shown', value: table.rows.length }];
+    }
+    case 'Drivers':
+      return [...base, { label: 'Verified drivers in this selection', value: d.driverUtilization.filter((r) => r.status === 'Verified').length }, { label: 'Average completed trips per verified driver', value: d.driverAverage ?? 'n/a' }, ...tail];
+    case 'TODA':
+      return [...base, { label: 'Accredited TODAs in this selection', value: d.todaPerformance.length }, { label: 'Completed trips', value: d.todaPerformance.reduce((n, t) => n + t.totalTrips, 0) }];
+    case 'PeakHours': {
+      const busiest = d.peakHourDistribution.reduce<{ hour: string; count: number } | null>((best, h) => (h.count > 0 && (!best || h.count > best.count) ? h : best), null);
+      return [...base, { label: 'Booking requests', value: s.requests }, { label: 'Busiest hour', value: busiest ? `${busiest.hour} (${busiest.count} bookings)` : 'n/a' }];
+    }
+    case 'Hotspots':
+      return [...base, { label: 'Pickup hotspots listed', value: d.hotspots.length }, { label: 'Drop-off hotspots listed', value: d.dropoffHotspots.length }];
+    case 'Barangay':
+      return [...base, { label: 'Barangays with bookings', value: d.barangayDemand.filter((b) => b.count > 0).length }, { label: 'Booking requests', value: s.requests }];
+    case 'Cancellations':
+      return [...base, { label: 'Cancelled bookings', value: d.cancellations.cancelled }, { label: 'Booking requests', value: s.requests }, ...tail];
+    case 'Incidents':
+      return [...base, { label: 'Incident reports filed', value: d.incidents.total }, { label: 'Still open', value: d.incidents.open }, { label: 'Decided', value: d.incidents.decided }];
+  }
+}
+
+export function reportTableFor(kind: ReportKind, data: OperationalReportsData, period: VolumePeriod, scopeInfo?: TrendScopeInfo): ReportTable {
+  const table = buildReportTable(kind, data, period, scopeInfo);
+  return { ...table, summary: summaryFor(kind, data, table) };
+}
+
+function buildReportTable(kind: ReportKind, data: OperationalReportsData, period: VolumePeriod, scopeInfo?: TrendScopeInfo): ReportTable {
   switch (kind) {
     case 'Bookings': return bookingsTable(data);
-    case 'Trend': return trendTable(data, period);
+    case 'Trend': return trendTable(data, period, scopeInfo);
     case 'Drivers': return driversTable(data);
     case 'TODA': return todaTable(data);
     case 'PeakHours': return peakHoursTable(data);

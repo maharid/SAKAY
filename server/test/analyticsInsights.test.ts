@@ -390,7 +390,9 @@ describe('report export', () => {
     assert.equal(reportXlsxName(table.title, new Date('2026-10-06T00:00:00Z')), 'booking_trend_report_weekly_2026-10-06.xlsx');
   });
 
-  it('writes the title, the notes, a blank row, the headers and the rows into one sheet', () => {
+  const meta = { exportedBy: 'Test Admin', role: 'LGU Administrator', generatedAt: new Date('2026-10-06T00:00:00Z') };
+
+  it('writes the header, the summary, the headers and the rows, and the footer into one sheet (decision D-P6: summary above the table)', () => {
     const written: { aoa?: unknown[][]; sheet?: string; file?: string } = {};
     exportReportXlsx(
       {
@@ -402,9 +404,17 @@ describe('report export', () => {
         writeFile: (_b, name) => { written.file = name; },
       },
       table,
+      meta,
       new Date('2026-10-06T00:00:00Z')
     );
-    assert.deepEqual(written.aoa, [['Booking Trend Report (Weekly)'], ['All dates'], [], ['Week', 'Bookings'], ['Sep 28 - Oct 4', 3], ['Oct 5 - Oct 11', '']]);
+    const aoa = written.aoa ?? [];
+    const head = aoa.findIndex((r) => r[0] === 'Week');
+    assert.deepEqual(aoa[1], ['Booking Trend Report (Weekly)']);
+    assert.deepEqual(aoa[2], ['Covers', 'All dates']);
+    assert.ok(aoa.some((r) => r[0] === 'Exported by' && /Test Admin/.test(String(r[1]))));
+    assert.ok(aoa.findIndex((r) => r[0] === 'SUMMARY') < head, 'the summary comes before the table');
+    assert.deepEqual(aoa.slice(head, head + 3), [['Week', 'Bookings'], ['Sep 28 - Oct 4', 3], ['Oct 5 - Oct 11', '']]);
+    assert.match(String(aoa.at(-2)?.[0]), /Exported by Test Admin/);
     assert.equal(written.sheet, 'Booking Trend Report (Weekly)');
     assert.equal(written.file, 'booking_trend_report_weekly_2026-10-06.xlsx');
   });
@@ -413,7 +423,8 @@ describe('report export', () => {
     let name = '';
     exportReportXlsx(
       { utils: { aoa_to_sheet: () => ({}), book_new: () => ({}), book_append_sheet: (_b, _s, n) => { name = n; } }, writeFile: () => undefined },
-      { ...table, title: 'A very long report title: with [illegal] / characters * in it' }
+      { ...table, title: 'A very long report title: with [illegal] / characters * in it' },
+      meta
     );
     assert.ok(name.length <= 31);
     assert.ok(!/[\\/?*[\]:]/.test(name));

@@ -12,10 +12,11 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import TimelineIcon from '@mui/icons-material/Timeline';
-import { exportReportCsv, exportReportXlsx, printReportPdf } from '@sakay/shared';
+import { compareWithPrevious, exportReportCsv, exportReportPdf, exportReportXlsx, scopeSeries } from '@sakay/shared';
 import type { VolumePeriod, XlsxLike } from '@sakay/shared';
 
 import { AnalyticsFilterBar } from '../components/admin/AnalyticsFilterBar';
+import { ReportPeriodBar } from '../components/admin/ReportPeriodBar';
 import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable';
 import { ReportTableView } from '../components/admin/ReportTableView';
 import { MeterRow } from '../components/common/MeterRow';
@@ -23,7 +24,9 @@ import { PageNotice } from '../components/common/PageNotice';
 import { SegmentedToggle } from '../components/common/SegmentedToggle';
 import type { SegmentedOption } from '../components/common/SegmentedToggle';
 import { StatStrip } from '../components/common/StatStrip';
+import { useAuth } from '../contexts/AuthContext';
 import { useOperationalReports } from '../hooks/useOperationalReports';
+import { useReportPeriod } from '../hooks/useReportPeriod';
 import { recordAdminAuditAction } from '../services/adminApiService';
 import { reportTableFor } from '../utils/reportTables';
 import type { ReportKind } from '../utils/reportTables';
@@ -96,30 +99,39 @@ const PanelHeading: React.FC<{ children: React.ReactNode; first?: boolean }> = (
 
 export const ReportsPage: React.FC = () => {
   const { data: reportsData, filter, setFilter, isLoading, loadError, reload } = useOperationalReports();
+  const { adminProfile } = useAuth();
   const [activeReportTab, setActiveReportTab] = useState<ReportKind>('Bookings');
   const [trendPeriod, setTrendPeriod] = useState<VolumePeriod>('week');
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
-  const table = reportsData ? reportTableFor(activeReportTab, reportsData, trendPeriod) : null;
+  // Decision D-P6: the reports follow ONE day, week or month
+  const reportPeriod = useReportPeriod(filter, setFilter, 'week');
+  const singleScope = reportPeriod.scope !== 'custom' && reportPeriod.range ? reportPeriod.scope : null;
+  const scopeInfo = singleScope && reportPeriod.range && reportsData
+    ? { scope: singleScope, label: reportPeriod.range.label, rows: scopeSeries(reportsData.bookings, singleScope, reportPeriod.range.from, reportPeriod.range.to) }
+    : undefined;
+  const table = reportsData ? reportTableFor(activeReportTab, reportsData, trendPeriod, scopeInfo) : null;
 
   const runExport = async (format: ExportFormat) => {
     if (!table || !reportsData) return;
     setExporting(format);
     setExportNote(null);
     try {
+      // who exported it is in the header and the footer of the Excel and PDF files (decision D-P6)
+      const meta = { exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator, City Transport Office' };
       if (format === 'xlsx') {
-        exportReportXlsx((await import('xlsx')) as unknown as XlsxLike, table);
+        exportReportXlsx((await import('xlsx')) as unknown as XlsxLike, table, meta);
       } else if (format === 'csv') {
         exportReportCsv(table);
-      } else if (!printReportPdf(table, 'LGU Administrator')) {
-        throw new Error('The browser blocked the PDF window. Allow pop-ups for this site and try again.');
+      } else {
+        await exportReportPdf(table, meta);
       }
       // who exported which report, for which filter (the report itself is never changed by this)
       await recordAdminAuditAction({
         actionType: 'REPORT_EXPORTED',
         targetName: table.title,
-        details: `Exported '${table.title}' as ${format === 'xlsx' ? 'Excel' : format === 'csv' ? 'CSV' : 'PDF'} (${table.rows.length} rows). ${reportsData.filterText}.`,
+        details: `Exported '${table.title}' as ${format === 'xlsx' ? 'Excel' : format === 'csv' ? 'CSV' : 'PDF'} (${table.rows.length} rows). ${reportsData.filterText}. Exported by ${adminProfile?.full_name || 'the LGU Administrator'}.`,
         category: 'System',
       });
       setExportNote({ severity: 'success', text: `${table.title}: ${table.rows.length} row${table.rows.length === 1 ? '' : 's'} exported (${reportsData.filterText}).` });
@@ -170,7 +182,12 @@ export const ReportsPage: React.FC = () => {
       )}
 
       {/* 2. Filters: every report follows them */}
-      {reportsData && <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={reportsData.todaOptions} barangayOptions={reportsData.barangayOptions} actions={refreshButton} />}
+      {reportsData && (
+        <Box sx={{ mb: SPACE.gapLarge }}>
+          <ReportPeriodBar period={reportPeriod} />
+        </Box>
+      )}
+      {reportsData && <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={reportsData.todaOptions} barangayOptions={reportsData.barangayOptions} actions={refreshButton} hideDates={singleScope !== null} />}
 
       {/* 3. The key figures */}
       <StatStrip
@@ -236,8 +253,17 @@ export const ReportsPage: React.FC = () => {
 
                 {activeReportTab === 'Trend' && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px 14px', flexWrap: 'wrap', mb: '16px' }}>
-                    <SegmentedToggle label="Trend period" value={trendPeriod} options={TREND_PERIOD_OPTIONS} onChange={setTrendPeriod} />
-                    {(() => {
+                    {!singleScope && <SegmentedToggle label="Trend period" value={trendPeriod} options={TREND_PERIOD_OPTIONS} onChange={setTrendPeriod} />}
+                    {singleScope && scopeInfo && (() => {
+                      const c = reportsData.previousWindowTotal === null ? null : compareWithPrevious(scopeInfo.rows.reduce((n, r) => n + r.total, 0), reportsData.previousWindowTotal, reportPeriod.range!.from, reportPeriod.range!.to);
+                      if (!c) return null;
+                      return (
+                        <Alert severity={c.direction === 'decline' ? 'warning' : c.direction === 'growth' ? 'success' : 'info'} sx={{ py: '2px', borderRadius: '10px', '& .MuiAlert-message': { fontSize: FONT.body, lineHeight: 1.5 } }}>
+                          {c.direction === 'growth' ? 'Growth' : c.direction === 'decline' ? 'Decline' : 'No change'}: {scopeInfo.label} had {c.current} booking{c.current === 1 ? '' : 's'} against {c.previous} in {c.previousLabel}{c.changePct === null ? '' : ` (${c.change > 0 ? '+' : ''}${c.changePct}%)`}.
+                        </Alert>
+                      );
+                    })()}
+                    {!singleScope && (() => {
                       const c = reportsData.comparison[trendPeriod];
                       if (!c) return <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>Fewer than two complete periods: nothing to compare yet.</Typography>;
                       return (

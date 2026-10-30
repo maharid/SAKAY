@@ -14,6 +14,8 @@ interface AnalyticsFilterBarProps {
   barangayOptions: string[];
   /** Buttons that belong with the filters on the right (a Refresh button) */
   actions?: React.ReactNode;
+  /** the dates are set by the report period bar (a day, a week, a month): only the TODA and the barangay are chosen here */
+  hideDates?: boolean;
 }
 
 // The fields share the row: each is at least 150px wide and grows to fill the space, so the bar also works beside an open sidebar
@@ -23,15 +25,15 @@ const FIELD_SX = { flex: '1 1 160px', minWidth: 150, maxWidth: 260 } as const;
  * Checklist A9.22 - A9.24: the date range (Asia/Manila), the participating TODA and the barangay that every analytics figure and every report follows. The
  * filter is applied to the records the page already holds, so changing it is instant; "All" means no limit.
  */
-export const AnalyticsFilterBar: React.FC<AnalyticsFilterBarProps> = ({ filter, onChange, todaOptions, barangayOptions, actions }) => {
+export const AnalyticsFilterBar: React.FC<AnalyticsFilterBarProps> = ({ filter, onChange, todaOptions, barangayOptions, actions, hideDates = false }) => {
   const problem = filterProblem(filter);
   const set = (patch: Partial<AnalyticsFilter>) => onChange({ ...filter, ...patch });
 
   return (
     <Box component="section" aria-label="Filters" sx={{ ...pageCardSx, p: '12px 16px', mb: SPACE.gapLarge }}>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 12px' }}>
-        <DateField label="From (Manila)" value={filter.from} onChange={(from) => set({ from })} sx={FIELD_SX} />
-        <DateField label="To (Manila)" value={filter.to} onChange={(to) => set({ to })} sx={FIELD_SX} />
+        {!hideDates && <DateField label="From (Manila)" value={filter.from} onChange={(from) => set({ from })} sx={FIELD_SX} />}
+        {!hideDates && <DateField label="To (Manila)" value={filter.to} onChange={(to) => set({ to })} sx={FIELD_SX} />}
         <TextField select size="small" label="Participating TODA" value={filter.todaId} onChange={(e) => set({ todaId: e.target.value })} sx={FIELD_SX}>
           <MenuItem value="">All TODAs</MenuItem>
           {todaOptions.map((t) => (
@@ -45,7 +47,7 @@ export const AnalyticsFilterBar: React.FC<AnalyticsFilterBarProps> = ({ filter, 
           ))}
         </TextField>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', ml: { sm: 'auto' } }}>
-          <Button disabled={!isFiltered(filter)} onClick={() => onChange(NO_ANALYTICS_FILTER)} sx={rowActionSx('neutral')}>
+          <Button disabled={hideDates ? !(filter.todaId || filter.barangay) : !isFiltered(filter)} onClick={() => onChange(hideDates ? { ...filter, todaId: '', barangay: '' } : NO_ANALYTICS_FILTER)} sx={rowActionSx('neutral')}>
             Clear filters
           </Button>
           {actions}
