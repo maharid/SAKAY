@@ -98,7 +98,7 @@ export function describeRestriction(restriction: AccountRestriction, language: N
 export function parseRestrictionError(message: string | null | undefined): AccountRestriction | null {
   if (!message) return null;
   if (!message.includes('ERR_ACCOUNT_SUSPENDED') && !message.includes('ERR_ACCOUNT_DEACTIVATED') && !message.includes('ERR_ACCOUNT_SELF_DEACTIVATED')) return null;
-  const kindMatch = message.match(/kind=([A-Z]+)/);
+  const kindMatch = message.match(/kind=([A-Z_]+)/);
   const untilMatch = message.match(/until=([0-9T:\-Z.]+)/);
   const kind = (kindMatch?.[1] as RestrictionKind | undefined) ??
     (message.includes('ERR_ACCOUNT_SELF_DEACTIVATED') ? 'SELF_DEACTIVATED' : message.includes('ERR_ACCOUNT_DEACTIVATED') ? 'DEACTIVATED' : 'SUSPENDED');
@@ -181,7 +181,8 @@ export async function fetchOwnTodaSuspension(client: RpcCapableClient): Promise<
 export function describeTodaSuspension(s: TodaSuspension, language: NoticeLanguage): string {
   const until = formatManilaDateTime(s.until);
   const name = s.todaName || (language === 'tl' ? 'inyong TODA' : 'your TODA');
-  const reason = s.reason || (language === 'tl' ? 'walang naitalang dahilan' : 'no reason recorded');
+  // the sentence below ends with its own full stop: a reason the LGU wrote with one must not show two
+  const reason = (s.reason || '').trim().replace(/[.!?\s]+$/, '') || (language === 'tl' ? 'walang naitalang dahilan' : 'no reason recorded');
   if (language === 'tl') {
     return `Suspendido ng LGU ang ${name}${until ? ` hanggang ${until}` : ''}. Hindi muna kayo makakapag-Online o makakatanggap ng biyahe; matatapos ninyo ang biyaheng natanggap na. Dahilan: ${reason}.`;
   }

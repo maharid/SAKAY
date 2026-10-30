@@ -21,7 +21,7 @@ import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { AccountManagementPage } from '../pages/AccountManagementPage';
 import { AuditLogPage } from '../pages/AuditLogPage';
 import { SettingsPage } from '../pages/SettingsPage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { HelpSupportPage } from '../pages/HelpSupportPage';
 
 export const AdminRoutes: React.FC = () => {
   return (
@@ -247,11 +247,8 @@ export const AdminRoutes: React.FC = () => {
         path="/tulong"
         element={
           <ProtectedRoute>
-            <AdminLayout pageTitle="Help & Support" pageSubtitle="LGU Admin user guides and support documentation">
-              <PlaceholderPage
-                title="Help & Support Center"
-                subtitle="Access official documentation, municipal operational guidelines, and administrator support contacts."
-              />
+            <AdminLayout pageTitle="Help & Support" pageSubtitle="What each page is for, the rules it applies, and who to write to">
+              <HelpSupportPage />
             </AdminLayout>
           </ProtectedRoute>
         }
