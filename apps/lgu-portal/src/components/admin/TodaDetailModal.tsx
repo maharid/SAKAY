@@ -22,9 +22,16 @@ import { DriverDetailModal } from './DriverDetailModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { TodaAccreditationDialog } from './TodaAccreditationDialog';
-import { fetchTodaRosterSummary, fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
+import { fetchTodaRosterSummary, fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, reinstateTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
 import { FONT } from '../../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../../styles/pageTheme';
+
+/** "Nov 3, 2026" in Manila time (a suspension ends at the close of a Manila day) */
+const formatDay = (iso: string): string => new Date(iso).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' });
+/** the first and last day an end date may be picked (YYYY-MM-DD, Manila): tomorrow, and one year from today */
+const manilaDayFromNow = (days: number): string => new Date(Date.now() + days * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+const tomorrowManila = (): string => manilaDayFromNow(1);
+const oneYearManila = (): string => manilaDayFromNow(365);
 
 interface TodaDetailModalProps {
   open: boolean;
@@ -53,6 +60,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
   // the accreditation controls (Rules 2.4, 24.3)
   const [renewOpen, setRenewOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
+  const [reinstateOpen, setReinstateOpen] = useState(false);
   const [accreditationFeedback, setAccreditationFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Real affiliated drivers fetched from database
@@ -170,6 +178,23 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         badge={<StatusBadge status={toda.status as any} />}
         maxWidth={736}
       >
+        {/* A suspended TODA (decision D-P5): its drivers cannot go Online or take trips until the LGU reinstates it or the end date arrives */}
+        {toda.status === 'Suspended' && (
+          <PageNotice
+            tone="danger"
+            title="This TODA is suspended"
+            action={
+              <Button variant="contained" onClick={() => setReinstateOpen(true)} sx={primaryButtonSx}>
+                Reinstate TODA
+              </Button>
+            }
+          >
+            Its drivers are Offline and cannot go Online, be offered a booking or accept one{toda.suspendedUntil ? `, until ${formatDay(toda.suspendedUntil)}` : ', until you reinstate the TODA'}.
+            A driver who was on a trip finished it. <b>Reason:</b> {toda.suspensionReason || 'not recorded'}
+            {toda.suspendedAt ? ` (suspended ${formatDay(toda.suspendedAt)})` : ''}.
+          </PageNotice>
+        )}
+
         {/* Terminal Relocation Request Banner (Rule 2.2): the requested place is on the map below; the LGU decides in its own words (D-P4) */}
         {(toda.terminalRelocationStatus === 'Pending LGU Re-approval' || toda.pendingTerminalLat) && (
           <PageNotice
@@ -235,9 +260,15 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
               <Button variant="contained" onClick={() => setRenewOpen(true)} sx={primaryButtonSx}>
                 Record renewal
               </Button>
-              <Button onClick={() => setSuspendOpen(true)} sx={dangerOutlineButtonSx}>
-                Suspend accreditation
-              </Button>
+              {toda.status === 'Suspended' ? (
+                <Button variant="contained" onClick={() => setReinstateOpen(true)} sx={primaryButtonSx}>
+                  Reinstate TODA
+                </Button>
+              ) : (
+                <Button onClick={() => setSuspendOpen(true)} sx={dangerOutlineButtonSx}>
+                  Suspend TODA
+                </Button>
+              )}
             </Box>
             {toda.renewalSubmittedAt && (
               <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.warning, mt: '12px', backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '8px', p: '8px 12px', lineHeight: 1.5 }}>
@@ -454,21 +485,47 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
       <MacConfirmDialog
         open={suspendOpen}
         onClose={() => setSuspendOpen(false)}
-        title="Suspend this TODA's accreditation?"
-        message={`The TODA administrator of "${toda.name}" and every one of its drivers lose access until the accreditation is approved again.`}
-        confirmLabel="Suspend accreditation"
+        title="Suspend this TODA?"
+        message={`Every driver of "${toda.name}" goes Offline now and cannot go Online or take trips while it is suspended (a driver on a trip finishes it first). Their unanswered offers move to other drivers. The TODA and its drivers read your reason.`}
+        confirmLabel="Suspend TODA"
         confirmVariant="danger"
         requireReason
         minReasonLength={10}
-        reasonPlaceholder="Why is the accreditation suspended after review? (at least 10 characters)"
-        onConfirm={async (reason) => {
+        reasonPlaceholder="Why is the TODA suspended? (at least 10 characters)"
+        dateField={{ label: 'Suspended until', hint: 'Leave empty to suspend until you reinstate the TODA. With a date, it ends by itself at the close of that day.', min: tomorrowManila(), max: oneYearManila() }}
+        onConfirm={async (reason, _option, endDate) => {
           setSuspendOpen(false);
           try {
-            await suspendTodaAccreditation(toda.id, reason ?? '');
+            const done = await suspendTodaAccreditation(toda.id, reason ?? '', endDate || null);
+            setAccreditationFeedback({
+              ok: true,
+              text: `Suspended. ${done.driversSetOffline} driver${done.driversSetOffline === 1 ? '' : 's'} put Offline, ${done.driversFinishingTrip} finishing a trip first, ${done.offersWithdrawn} unanswered offer${done.offersWithdrawn === 1 ? '' : 's'} moved on to other drivers.`,
+            });
             await onChanged?.();
-            onClose();
           } catch (err) {
-            setAccreditationFeedback({ ok: false, text: err instanceof Error ? err.message : 'The accreditation was not suspended.' });
+            setAccreditationFeedback({ ok: false, text: err instanceof Error ? err.message : 'The TODA was not suspended.' });
+          }
+        }}
+      />
+
+      <MacConfirmDialog
+        open={reinstateOpen}
+        onClose={() => setReinstateOpen(false)}
+        title="Reinstate this TODA?"
+        message={`"${toda.name}" is Active again and its drivers can go Online at once. The TODA and its drivers read your reason.`}
+        confirmLabel="Reinstate TODA"
+        confirmVariant="orange"
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder="Why is the suspension lifted? (at least 10 characters)"
+        onConfirm={async (reason) => {
+          setReinstateOpen(false);
+          try {
+            await reinstateTodaAccreditation(toda.id, reason ?? '');
+            setAccreditationFeedback({ ok: true, text: 'The TODA is reinstated. Its drivers were told.' });
+            await onChanged?.();
+          } catch (err) {
+            setAccreditationFeedback({ ok: false, text: err instanceof Error ? err.message : 'The TODA was not reinstated.' });
           }
         }}
       />

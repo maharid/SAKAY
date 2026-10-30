@@ -35,6 +35,8 @@ export const AccreditedTodasPage: React.FC = () => {
     try {
       const data = await fetchAccreditedTodas();
       setTodas(data);
+      // an open detail window shows the new status at once (a suspension or a reinstatement changes it)
+      setSelectedToda((open) => (open ? data.find((t) => t.id === open.id) ?? open : open));
     } catch (err) {
       console.error('[AccreditedTodasPage] Failed to fetch accredited TODAs:', err);
     } finally {

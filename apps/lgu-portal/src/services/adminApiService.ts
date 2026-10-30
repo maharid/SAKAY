@@ -561,15 +561,40 @@ export async function rejectTodaApplication(applicationId: string, reason: strin
 
 export const declineTodaApplication = rejectTodaApplication;
 
-/** Suspends an accredited TODA's participation after the LGU reviewed it (Rule 2.4): its administrator and drivers can no longer operate until it is approved again. */
-export async function suspendTodaAccreditation(todaId: string, reason: string) {
-  const { data: rpcRes, error: rpcErr } = await supabase.rpc('deactivate_toda_accreditation', {
+/** What suspending a TODA did, in numbers (the database counts them in the same transaction) */
+export interface TodaSuspensionResult {
+  driversSetOffline: number;
+  driversFinishingTrip: number;
+  offersWithdrawn: number;
+  driversNotified: number;
+}
+
+/**
+ * Suspends an accredited TODA (decision D-P5, panel: "kapag suspended ang TODA, hindi na dapat makabiyahe ang mga driver nito"). Its drivers go Offline (one on a trip finishes it first),
+ * their unanswered offers move on to other drivers, and they cannot go Online or be offered a booking until the LGU reinstates the TODA or the end date arrives.
+ * `endDate` is a calendar day (YYYY-MM-DD, Asia/Manila): the suspension ends at the close of that day. Without it, it lasts until the LGU reinstates the TODA.
+ */
+export async function suspendTodaAccreditation(todaId: string, reason: string, endDate?: string | null): Promise<TodaSuspensionResult> {
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('suspend_toda', {
     p_toda_id: todaId,
-    p_reason: reason || null,
+    p_reason: reason,
+    p_until: endDate ? `${endDate}T23:59:59+08:00` : null,
   });
   if (rpcErr) throw new Error(rpcErr.message);
-  if (!rpcRes || rpcRes.success !== true) throw new Error(String(rpcRes?.error || 'The accreditation was not suspended.'));
-  return { success: true, reason, data: rpcRes.data };
+  if (!rpcRes || rpcRes.success !== true) throw new Error(String(rpcRes?.error || 'The TODA was not suspended.'));
+  return {
+    driversSetOffline: Number(rpcRes.drivers_set_offline ?? 0),
+    driversFinishingTrip: Number(rpcRes.drivers_finishing_trip ?? 0),
+    offersWithdrawn: Number(rpcRes.offers_withdrawn ?? 0),
+    driversNotified: Number(rpcRes.drivers_notified ?? 0),
+  };
+}
+
+/** Lifts a suspension (decision D-P5). The LGU's reason is required; the TODA and its drivers read it, and its drivers can go Online again at once. */
+export async function reinstateTodaAccreditation(todaId: string, note: string): Promise<void> {
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('reinstate_toda', { p_toda_id: todaId, p_note: note });
+  if (rpcErr) throw new Error(rpcErr.message);
+  if (!rpcRes || rpcRes.success !== true) throw new Error(String(rpcRes?.error || 'The TODA was not reinstated.'));
 }
 
 
@@ -586,9 +611,11 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
 
     if (error || !data) return [];
 
+    // an accredited TODA is Active, or Suspended by the LGU (decision D-P5: it stays in the registry, with the reason, so it can be reinstated)
+    const statusOf = (row: any) => row.toda_status || row.account_status || row.status;
     const activeTodas = data.filter((row: any) => {
-      const st = row.toda_status || row.account_status || row.status;
-      return st === 'Active' || st === 'Approved';
+      const st = statusOf(row);
+      return st === 'Active' || st === 'Approved' || st === 'Suspended';
     });
 
     return Promise.all(activeTodas.map(async (row: any) => ({
@@ -601,7 +628,12 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
       barangay: row.barangay || 'Calapan City',
       serviceZone: row.service_coverage_area || row.barangay || 'Calapan City',
       registeredDrivers: row.registered_tricycle_count || row.active_driver_count || 0,
-      status: 'Active',
+      status: statusOf(row) === 'Suspended' ? 'Suspended' : 'Active',
+      suspensionReason: row.suspension_reason ?? null,
+      suspendedAt: row.suspended_at ?? null,
+      suspendedUntil: row.suspended_until ?? null,
+      reinstatementNote: row.reinstatement_note ?? null,
+      reinstatedAt: row.reinstated_at ?? null,
       accreditationNo: row.registration_number || row.certificate_number || 'N/A',
       accreditedDate: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US') : '',
       expiryDate: row.certificate_expiry ? new Date(row.certificate_expiry).toLocaleDateString('en-US') : '',

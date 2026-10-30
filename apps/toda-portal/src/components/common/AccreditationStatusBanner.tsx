@@ -18,7 +18,7 @@ const manilaDate = (iso: string): string =>
  * to renew). Pending, returned for correction (with the LGU's reason), declined, suspended, expiring soon, expired, or a renewal waiting for the LGU. Nothing for a
  * healthy Active accreditation.
  */
-export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps> = ({ profile }) => {
+const AccreditationAlert: React.FC<AccreditationStatusBannerProps> = ({ profile }) => {
   const navigate = useNavigate();
   if (!profile) return null;
 
@@ -75,7 +75,14 @@ export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps>
         <Box sx={{ mb: 3.5 }}>
           <Alert severity="error" sx={alertSx}>
             {title('Your TODA is suspended', '#991B1B')}
-            {body('The LGU suspended the TODA\'s participation. Contact the City Transport & Franchising Office.', '#7F1D1D')}
+            {body(
+              <>
+                The LGU suspended the TODA{profile.suspendedAt ? ` on ${manilaDate(profile.suspendedAt)}` : ''}. Your drivers are Offline and cannot go Online or take trips
+                {profile.suspendedUntil ? ` until the close of ${manilaDate(profile.suspendedUntil)}` : ' until the LGU reinstates the TODA'}; a driver who was on a trip finished it.{' '}
+                <b>Reason:</b> {profile.suspensionReason || 'No reason was recorded.'} Contact the City Transport &amp; Franchising Office to ask what is needed.
+              </>,
+              '#7F1D1D'
+            )}
           </Alert>
         </Box>
       );
@@ -123,3 +130,25 @@ export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps>
   }
   return null;
 };
+
+/** Active again after a suspension: said for a week, with the LGU's words (decision D-P5); it shows above whatever else the accreditation needs */
+const ReinstatedNotice: React.FC<AccreditationStatusBannerProps> = ({ profile }) => {
+  if (!profile || profile.accreditationStatus !== 'Active' || !profile.reinstatedAt || Date.now() - new Date(profile.reinstatedAt).getTime() >= 7 * 86400000) return null;
+  return (
+    <Box sx={{ mb: 3.5 }}>
+      <Alert severity="success" sx={{ borderRadius: 'var(--mac-radius-lg)', boxShadow: 'var(--mac-shadow-card)', fontSize: FONT.body, '& .MuiAlert-message': { width: '100%' } }}>
+        <Typography sx={{ fontWeight: 600, fontSize: FONT.heading, color: '#14532D', mb: 0.5 }}>Your TODA is active again</Typography>
+        <Typography sx={{ fontSize: FONT.body, color: '#166534' }}>
+          The suspension ended on {manilaDate(profile.reinstatedAt)}. Your drivers can go Online again. <b>The LGU wrote:</b> {profile.reinstatementNote || 'No note was recorded.'}
+        </Typography>
+      </Alert>
+    </Box>
+  );
+};
+
+export const AccreditationStatusBanner: React.FC<AccreditationStatusBannerProps> = ({ profile }) => (
+  <>
+    <ReinstatedNotice profile={profile} />
+    <AccreditationAlert profile={profile} />
+  </>
+);

@@ -37,9 +37,12 @@ import {
   getCurrentDevicePosition,
   getCachedDevicePosition,
   describeRestriction,
+  describeTodaSuspension,
   fetchOwnAccountRestriction,
+  fetchOwnTodaSuspension,
   parseRestrictionError,
   type AccountRestriction,
+  type TodaSuspension,
   activateWithKeyboard,
   CalamityBanner,
   useActiveCalamity,
@@ -121,6 +124,8 @@ export const DriverAvailabilityHome: React.FC = () => {
 
   // Suspension / deactivation decided by the database (Sections 20-22)
   const [accountRestriction, setAccountRestriction] = useState<AccountRestriction | null>(null);
+  // the LGU suspended the TODA this driver works under (decision D-P5): no Online, no trips, until it is reinstated
+  const [todaSuspension, setTodaSuspension] = useState<TodaSuspension | null>(null);
 
   // Documentary Restriction & Renewal State (Rule 24.1 - 24.3)
   const [restrictionInfo, setRestrictionInfo] = useState<{
@@ -223,6 +228,19 @@ export const DriverAvailabilityHome: React.FC = () => {
         console.warn('[DriverAvailabilityHome] Mount position error:', err);
       });
   }, [locationPermissionOpen, setProfile]);
+
+  // Is the TODA suspended? Asked on mount, whenever the driver's presence changes (the database puts the drivers of a suspended TODA Offline) and every minute, so a
+  // reinstatement (or the end date) clears the notice without leaving the screen.
+  useEffect(() => {
+    let alive = true;
+    const ask = () => fetchOwnTodaSuspension(supabase).then((s) => { if (alive && s) setTodaSuspension(s); });
+    ask();
+    const timer = window.setInterval(ask, 60000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [presence.status]);
 
   // Load live Supabase profile on mount
   useEffect(() => {
@@ -365,7 +383,8 @@ export const DriverAvailabilityHome: React.FC = () => {
   // verified affiliation automatically, and the picker below handles the case of several.
   const documentsBlock = !!restrictionInfo?.is_restricted
     && !!(restrictionInfo.license_expired || restrictionInfo.mtop_expired || restrictionInfo.toda_expired);
-  const canGoOnline = isDriverVerifiedInDb && !documentsBlock && !accountRestriction?.restricted
+  const todaSuspended = !!todaSuspension?.suspended;
+  const canGoOnline = isDriverVerifiedInDb && !documentsBlock && !accountRestriction?.restricted && !todaSuspended
     && presence.status !== 'unknown';
 
   // Why Online was refused, in the driver's language. The database gives the reason; the app never guesses.
@@ -386,6 +405,8 @@ export const DriverAvailabilityHome: React.FC = () => {
         return tl ? 'Pumili muna ng aktibong TODA bago mag-Online.' : 'Select your active TODA before going Online.';
       case 'ERR_NO_VERIFIED_AFFILIATION':
         return tl ? 'Wala ka pang beripikadong TODA affiliation.' : 'You do not have a verified TODA affiliation yet.';
+      case 'ERR_TODA_SUSPENDED':
+        return tl ? 'Suspendido ang inyong TODA. Tingnan ang abiso sa itaas.' : 'Your TODA is suspended. See the notice above.';
       case 'ERR_OPEN_BOOKING':
         return tl ? 'Hindi ka maaaring mag-Offline habang may bukas na booking.' : 'You cannot go Offline while a booking is open.';
       case 'ERR_NETWORK':
@@ -408,6 +429,7 @@ export const DriverAvailabilityHome: React.FC = () => {
       const refused = parseRestrictionError(outcome.message);
       if (refused) setAccountRestriction(refused);
       if (outcome.code === 'ERR_LOCATION_DENIED') setReauthDismissed(false);
+      if (outcome.code === 'ERR_TODA_SUSPENDED') fetchOwnTodaSuspension(supabase).then((s) => s && setTodaSuspension(s));
       if (outcome.code === 'ERR_SELECT_AFFILIATION') setTodaModalOpen(true);
       if (outcome.code === 'ERR_DOCUMENT_EXPIRED' && profile.id) {
         checkDriverDocumentaryRestriction(profile.id).then(setRestrictionInfo).catch(() => {});
@@ -502,7 +524,7 @@ export const DriverAvailabilityHome: React.FC = () => {
   // one to choose: that is fixed by the picker (or automatically), not by renewing documents.
   const onlyAffiliationIssue = !!restrictionInfo?.no_active_affiliation
     && !restrictionInfo.license_expired && !restrictionInfo.mtop_expired && !restrictionInfo.toda_expired;
-  const showDocBanner = !!restrictionInfo?.is_restricted && !accountRestriction?.restricted
+  const showDocBanner = !!restrictionInfo?.is_restricted && !accountRestriction?.restricted && !todaSuspended
     && !(onlyAffiliationIssue && selectableAffiliations.length > 0);
 
   const nameFallback = language === 'tl' ? 'Drayber' : 'Driver';
@@ -679,6 +701,43 @@ export const DriverAvailabilityHome: React.FC = () => {
                     : 'The suspension lifts automatically when this period ends.'}
                 </Typography>
               )}
+            </Box>
+          </Box>
+        </Paper>
+      )}
+
+      {/* The TODA is suspended by the LGU (decision D-P5): why, until when, and what the driver can still do */}
+      {todaSuspended && !accountRestriction?.restricted && todaSuspension && (
+        <Paper
+          elevation={3}
+          role="alert"
+          sx={{
+            position: 'absolute',
+            top: 'calc(var(--safe-area-top) + 84px)',
+            left: '16px',
+            right: '16px',
+            backgroundColor: '#FEF2F2',
+            border: '1.5px solid #FCA5A5',
+            borderRadius: '16px',
+            p: 2,
+            zIndex: 25,
+            boxShadow: '0 8px 24px rgba(220, 38, 38, 0.15)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <WarningAmberIcon sx={{ color: '#DC2626', fontSize: 26, mt: 0.2, flexShrink: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ color: '#991B1B', fontWeight: 700, fontSize: '13px', lineHeight: 1.2 }}>
+                {language === 'tl' ? 'Suspendido ang Inyong TODA' : 'Your TODA Is Suspended'}
+              </Typography>
+              <Typography sx={{ color: '#7F1D1D', fontSize: '12px', mt: 0.5, lineHeight: 1.4 }}>
+                {describeTodaSuspension(todaSuspension, language === 'tl' ? 'tl' : 'en')}
+              </Typography>
+              <Typography sx={{ color: '#991B1B', fontSize: '12px', fontStyle: 'italic', mt: 0.5 }}>
+                {todaSuspension.until
+                  ? (language === 'tl' ? 'Kusang mawawala ang suspensyon sa petsang nabanggit.' : 'The suspension lifts by itself on that date.')
+                  : (language === 'tl' ? 'Aalisin ito ng LGU kapag naayos na ang isyu.' : 'The LGU lifts it once the issue is settled.')}
+              </Typography>
             </Box>
           </Box>
         </Paper>

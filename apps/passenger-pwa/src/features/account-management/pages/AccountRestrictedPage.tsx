@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import { StrikesAppealsView, describeRestriction } from "@sakay/shared";
+import { StrikesAppealsView, describeRestriction, formatManilaDateTime, reactivateOwnAccount } from "@sakay/shared";
 import type { AccountRestriction } from "@sakay/shared";
 
 import PageHeader from "../../../common/components/PageHeader";
@@ -20,6 +20,7 @@ import { usePassengerStrikes } from "../hooks/usePassengerStrikes";
  * what the restriction is, her strikes, and the appeal form (the shared view; the request goes to the LGU Administrator, 25.5), and a way to log
  * out. The app shell keeps her on this page, and the database refuses a booking by a restricted account whatever the screen does.
  * An account that was permanently closed has no appeal here and is signed out.
+ * An account the passenger deactivated HERSELF (decision D-P5) has nothing to appeal: this page offers Reactivate, and the app opens as before.
  */
 const AccountRestrictedPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +30,8 @@ const AccountRestrictedPage: React.FC = () => {
   const [restriction, setRestriction] = useState<AccountRestriction | null>(null);
   const [checked, setChecked] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [reactivating, setReactivating] = useState(false);
+  const [reactivateProblem, setReactivateProblem] = useState<string | null>(null);
 
   const logOut = async () => {
     try {
@@ -40,6 +43,25 @@ const AccountRestrictedPage: React.FC = () => {
     sessionStorage.clear();
     navigate("/login", { replace: true });
   };
+
+  const reactivate = async () => {
+    setReactivating(true);
+    setReactivateProblem(null);
+    const result = await reactivateOwnAccount(supabase, "passenger", tl ? "tl" : "en");
+    setReactivating(false);
+    if (!result.ok) {
+      setReactivateProblem(result.message ?? null);
+      return;
+    }
+    if (result.restriction?.restricted) {
+      // a suspension or deactivation the LGU or the system applied is still in force: Reactivate does not lift it
+      setRestriction(result.restriction);
+      return;
+    }
+    navigate("/dashboard", { replace: true });
+  };
+
+  const selfDeactivated = restriction?.kind === "SELF_DEACTIVATED";
 
   useEffect(() => {
     let alive = true;
@@ -66,8 +88,29 @@ const AccountRestrictedPage: React.FC = () => {
   return (
     <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", backgroundColor: "#F8FAFC" }}>
       <SakayToast message={toast} severity="success" onClose={() => setToast(null)} />
-      <PageHeader title={tl ? "Restricted ang Account" : "Account Restricted"} onBack={logOut} />
-      {checked && (
+      <PageHeader title={selfDeactivated ? (tl ? "Na-deactivate ang Account" : "Account Deactivated") : tl ? "Restricted ang Account" : "Account Restricted"} onBack={logOut} />
+      {checked && selfDeactivated && (
+        <Box sx={{ px: 2, pt: 2, display: "flex", flexDirection: "column", gap: 1.5, flexGrow: 1 }}>
+          <Alert severity="info" sx={{ borderRadius: "12px" }}>
+            {describeRestriction(restriction as AccountRestriction, tl ? "tl" : "en")}
+            {restriction?.since ? ` (${tl ? "mula" : "since"} ${formatManilaDateTime(restriction.since)})` : ""}
+          </Alert>
+          <Alert severity="success" sx={{ borderRadius: "12px" }}>
+            {tl
+              ? "Walang nabura. Nandito pa ang inyong profile at kasaysayan ng biyahe. Pagkatapos mag-reactivate, maaari na ulit kayong mag-book."
+              : "Nothing was deleted. Your profile and trip history are still here. After you reactivate, you can book again."}
+          </Alert>
+          {reactivateProblem && (
+            <Alert severity="warning" role="alert" sx={{ borderRadius: "12px" }}>
+              {reactivateProblem}
+            </Alert>
+          )}
+          <PrimaryButton fullWidth onClick={reactivate} disabled={reactivating}>
+            {reactivating ? (tl ? "Isinasagawa..." : "Working...") : tl ? "I-reactivate ang Aking Account" : "Reactivate My Account"}
+          </PrimaryButton>
+        </Box>
+      )}
+      {checked && !selfDeactivated && (
         <Box sx={{ px: 2, pt: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Alert severity="warning" sx={{ borderRadius: "12px" }}>
             {restriction
@@ -83,6 +126,7 @@ const AccountRestrictedPage: React.FC = () => {
           </Alert>
         </Box>
       )}
+      {!selfDeactivated && (
       <StrikesAppealsView
         language={tl ? "tl" : "en"}
         audience="passenger"
@@ -96,6 +140,7 @@ const AccountRestrictedPage: React.FC = () => {
           await strikes.reload();
         }}
       />
+      )}
       <Box sx={{ p: 2, pb: "calc(var(--safe-area-bottom) + 16px)", backgroundColor: "#FFFFFF", borderTop: "1px solid #F1F5F9" }}>
         <PrimaryButton fullWidth onClick={logOut}>
           {tl ? "Mag-log out" : "Log out"}

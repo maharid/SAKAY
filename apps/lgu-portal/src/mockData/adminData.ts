@@ -91,6 +91,13 @@ export interface AccreditedTodaRecord {
   /** why the TODA wants to move (decision D-P4) */
   pendingTerminalReason?: string | null;
   terminalRelocationRequestedAt?: string | null;
+  /** while status is Suspended (decision D-P5): why, since when and until when (ISO; null = until the LGU reinstates) */
+  suspensionReason?: string | null;
+  suspendedAt?: string | null;
+  suspendedUntil?: string | null;
+  /** the LGU's words when it last reinstated the TODA, and when */
+  reinstatementNote?: string | null;
+  reinstatedAt?: string | null;
   documents: {
     name: string;
     type: string;

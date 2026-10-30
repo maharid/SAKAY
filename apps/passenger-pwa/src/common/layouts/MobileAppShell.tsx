@@ -42,7 +42,7 @@ export const MobileAppShell: React.FC<MobileAppShellProps> = ({ children }) => {
         const localToken = localStorage.getItem('sakay_session_token');
         const { data: profile } = await supabase
           .from("passenger")
-          .select("passenger_id, session_id, auth_session_id, account_status")
+          .select("passenger_id, session_id, auth_session_id, account_status, self_deactivated_at")
           .eq("auth_user_id", sess.session.user.id)
           .maybeSingle();
 
@@ -72,7 +72,7 @@ export const MobileAppShell: React.FC<MobileAppShellProps> = ({ children }) => {
         // Rule 22.3: a suspended or deactivated passenger is kept on the one page made for her (her strikes and the appeal). The database refuses a
         // booking by a restricted account whatever the screen does; this only spares her screens that cannot work. (Only an account whose status is
         // not Active is asked, and the database lifts a suspension that has run out when it is asked.)
-        if (profile && (profile.account_status === 'Suspended' || profile.account_status === 'Deactivated') && location.pathname !== '/account-restricted') {
+        if (profile && (profile.account_status === 'Suspended' || profile.account_status === 'Deactivated' || profile.self_deactivated_at) && location.pathname !== '/account-restricted') {
           const restriction = await getOwnAccountRestriction('passenger');
           if (restriction?.restricted) navigate('/account-restricted', { replace: true });
         }

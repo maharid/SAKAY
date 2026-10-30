@@ -22,7 +22,9 @@ interface MacConfirmDialogProps {
   /** Optional required choice shown above the reason (e.g. the violation being recorded). */
   options?: MacConfirmDialogOption[];
   optionLabel?: string;
-  onConfirm: (reason?: string, option?: string) => void;
+  /** Optional date shown after the reason (e.g. when a suspension ends); onConfirm receives it as YYYY-MM-DD, or '' when left empty. */
+  dateField?: { label: string; hint?: string; min?: string; max?: string };
+  onConfirm: (reason?: string, option?: string, date?: string) => void;
 }
 
 export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
@@ -37,15 +39,18 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
   minReasonLength = 1,
   options,
   optionLabel = 'Select an option',
+  dateField,
   onConfirm,
 }) => {
   const [reason, setReason] = useState('');
   const [option, setOption] = useState('');
+  const [date, setDate] = useState('');
 
   const handleConfirm = () => {
-    onConfirm(requireReason ? reason : undefined, options ? option : undefined);
+    onConfirm(requireReason ? reason : undefined, options ? option : undefined, dateField ? date : undefined);
     setReason('');
     setOption('');
+    setDate('');
   };
 
   return (
@@ -135,6 +140,26 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
                 },
               }}
             />
+          </Box>
+        )}
+
+        {dateField && (
+          <Box sx={{ mt: 1.6 }}>
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.primary, mb: 0.8 }}>
+              {dateField.label} (optional)
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              slotProps={{ htmlInput: { min: dateField.min, max: dateField.max } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '9px', fontSize: FONT.body, backgroundColor: '#FAFAFC' } }}
+            />
+            {dateField.hint && (
+              <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: 0.6, lineHeight: 1.4 }}>{dateField.hint}</Typography>
+            )}
           </Box>
         )}
       </DialogContent>

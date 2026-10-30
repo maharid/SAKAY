@@ -19,11 +19,12 @@ import SecurityIcon from "@mui/icons-material/Security";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import LogoutIcon from "@mui/icons-material/Logout";
+import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 
 import PageHeader from "../../../common/components/PageHeader";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { supabase } from "../../../services/supabaseClient";
-import { activateWithKeyboard } from "@sakay/shared";
+import { DeactivateAccountDialog, activateWithKeyboard } from "@sakay/shared";
 
 // Every icon in Settings is this gray, the selected ones too; the chevrons use it as well.
 const ICON_GRAY = "#64748B";
@@ -100,6 +101,7 @@ const SettingsPage: React.FC = () => {
   const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
 
   const text = (tl: string, en: string) => (language === "tl" ? tl : en);
 
@@ -155,6 +157,11 @@ const SettingsPage: React.FC = () => {
             icon={<LockOutlinedIcon sx={{ fontSize: 20 }} />}
             label={text("Palitan ang Password", "Change Password")}
             onClick={() => navigate("/change-password")}
+          />
+          <SettingsRow
+            icon={<PersonOffOutlinedIcon sx={{ fontSize: 20 }} />}
+            label={text("I-deactivate ang Aking Account", "Deactivate My Account")}
+            onClick={() => setDeactivateOpen(true)}
           />
         </SettingsSection>
 
@@ -241,6 +248,16 @@ const SettingsPage: React.FC = () => {
           {text("Mag-log Out", "Log Out")}
         </Button>
       </Box>
+
+      {/* Panel comment 12 (decision D-P5): the passenger pauses their own account; the database refuses while a booking or case is open */}
+      <DeactivateAccountDialog
+        open={deactivateOpen}
+        onClose={() => setDeactivateOpen(false)}
+        role="passenger"
+        language={language === "tl" ? "tl" : "en"}
+        client={supabase}
+        onDeactivated={handleLogout}
+      />
     </Box>
   );
 };

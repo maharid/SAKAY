@@ -74,6 +74,13 @@ export interface TodaProfile {
   resubmissionReason?: string | null;
   /** Why the LGU declined or deactivated the accreditation (only while Deactivated) */
   declineReason?: string | null;
+  /** Why the LGU suspended the TODA, since when and until when (ISO; null = until the LGU reinstates it); only while Suspended (decision D-P5) */
+  suspensionReason?: string | null;
+  suspendedAt?: string | null;
+  suspendedUntil?: string | null;
+  /** What the LGU wrote when it last reinstated the TODA, and when (the banner shows it for a week, so the TODA knows the suspension is over) */
+  reinstatementNote?: string | null;
+  reinstatedAt?: string | null;
   /** The accreditation / Barangay Clearance validity the LGU recorded, readable ('' until the LGU has recorded one) */
   accreditationExpiry: string;
   /** The same date as ISO, for the countdown; null until the LGU has recorded one */

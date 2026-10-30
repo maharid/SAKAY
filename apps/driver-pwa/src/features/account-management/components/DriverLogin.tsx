@@ -4,6 +4,11 @@ import {
   Box,
   Typography,
   IconButton,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Button,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -17,7 +22,7 @@ import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
 import { supabase } from '../../../services/supabaseClient';
-import { describeRestriction, fetchOwnAccountRestriction, activateWithKeyboard, extendTapArea } from '@sakay/shared';
+import { describeRestriction, fetchOwnAccountRestriction, reactivateOwnAccount, activateWithKeyboard, extendTapArea } from '@sakay/shared';
 import { fetchOwnDriverRecord, getPhoneLookupCandidates, rotateDriverSession } from '../../../services/driverApiService';
 
 export const formatMobileNumber = (value: string): string => {
@@ -60,6 +65,9 @@ export const DriverLogin: React.FC = () => {
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  // the driver deactivated their own account (decision D-P5): signing in proved who they are, so they may reactivate it here
+  const [reactivateOffer, setReactivateOffer] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
 
 
 
@@ -153,6 +161,11 @@ export const DriverLogin: React.FC = () => {
       // A suspended or deactivated driver cannot log in (Section 1). The database decides, and
       // lifts a suspension whose period has ended, so the message always carries the real end date.
       const restriction = await fetchOwnAccountRestriction(supabase, 'driver');
+      if (restriction?.restricted && restriction.kind === 'SELF_DEACTIVATED') {
+        setLoading(false);
+        setReactivateOffer(true);
+        return;
+      }
       if (restriction?.restricted) {
         setLoading(false);
         triggerErrorToast(describeRestriction(restriction, language === 'tl' ? 'tl' : 'en'));
@@ -260,6 +273,33 @@ export const DriverLogin: React.FC = () => {
             : 'Unable to connect to the database. Please try again.')
       );
     }
+  };
+
+  const cancelReactivation = async () => {
+    setReactivateOffer(false);
+    await supabase.auth.signOut();
+  };
+
+  const reactivate = async () => {
+    setReactivating(true);
+    const result = await reactivateOwnAccount(supabase, 'driver', language === 'tl' ? 'tl' : 'en');
+    setReactivating(false);
+    if (!result.ok) {
+      setReactivateOffer(false);
+      triggerErrorToast(result.message ?? (language === 'tl' ? 'Hindi naisagawa.' : 'It could not be done.'));
+      await supabase.auth.signOut();
+      return;
+    }
+    if (result.restriction?.restricted) {
+      // a suspension or deactivation the LGU or the system applied is still in force: Reactivate does not lift it
+      setReactivateOffer(false);
+      triggerErrorToast(describeRestriction(result.restriction, language === 'tl' ? 'tl' : 'en'));
+      await supabase.auth.signOut();
+      return;
+    }
+    setReactivateOffer(false);
+    // sign in again from the top, now that nothing restricts the account
+    await handleLogin({ preventDefault: () => undefined } as React.FormEvent);
   };
 
   return (
@@ -470,6 +510,27 @@ export const DriverLogin: React.FC = () => {
           </Typography>
         </Box>
       </Box>
+
+      <Dialog open={reactivateOffer} onClose={reactivating ? undefined : cancelReactivation} fullWidth maxWidth="xs" aria-labelledby="reactivate-title" slotProps={{ paper: { sx: { borderRadius: '16px', m: 2 } } }}>
+        <DialogTitle id="reactivate-title" sx={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '17px' }}>
+          {language === 'tl' ? 'Na-deactivate ang inyong account' : 'Your account is deactivated'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontFamily: 'Poppins, sans-serif', fontSize: '13px', color: '#334155', lineHeight: 1.6 }}>
+            {language === 'tl'
+              ? 'Kayo mismo ang nag-deactivate ng account na ito. Walang nabura: nandito pa ang inyong mga dokumento, kasaysayan ng biyahe at rating. I-reactivate ito para makapag-Online ulit?'
+              : 'You deactivated this account yourself. Nothing was deleted: your documents, trip history and ratings are still here. Reactivate it so you can go Online again?'}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={cancelReactivation} disabled={reactivating} sx={{ textTransform: 'none', fontWeight: 600, color: '#475569', fontFamily: 'Poppins, sans-serif' }}>
+            {language === 'tl' ? 'Huwag muna' : 'Not now'}
+          </Button>
+          <Button onClick={reactivate} disabled={reactivating} variant="contained" sx={{ textTransform: 'none', fontWeight: 700, backgroundColor: '#FF6600', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#E65C00' } }}>
+            {reactivating ? (language === 'tl' ? 'Isinasagawa...' : 'Working...') : language === 'tl' ? 'I-reactivate' : 'Reactivate'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <SuccessModal
         open={success}
