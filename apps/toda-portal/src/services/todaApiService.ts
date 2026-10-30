@@ -23,7 +23,7 @@ import {
   EvidenceFileItem,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, calculateDistanceKm, closeUnfinishedTripArgs, confirmAvailabilityArgs, reportAvailabilityArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, calculateDistanceKm, closeUnfinishedTripArgs, confirmAvailabilityArgs, reportAvailabilityArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, prepareUpload, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   decideIncident as decideIncidentReport,
   escalateIncident as escalateIncidentReport,
@@ -37,7 +37,7 @@ import {
   type LostItemStatus,
   type TripEndResult,
 } from '@sakay/shared';
-import type { AvailabilityKind, RejectionReasonCode } from '@sakay/shared';
+import type { AvailabilityKind, RejectionReasonCode, UploadKind } from '@sakay/shared';
 import { signCaseEvidence } from '@sakay/shared';
 import type { CaseEvidenceFile } from '@sakay/shared';
 import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
@@ -308,10 +308,21 @@ export async function checkAcronymAvailability(acronym: string): Promise<boolean
   }
 }
 
-/** Uploads a file into the SIGNED-IN user's own folder of a private bucket (<auth uid>/<file>) and returns the storage path. */
+/** What each TODA document bucket accepts (the same as the file picker of its screen): a file is checked against this before it is sent (decision D-P7) */
+const UPLOAD_KINDS_BY_BUCKET: Record<string, UploadKind[]> = {
+  'barangay-clearances': ['image', 'pdf'],
+  'toda-accredited-driver-lists': ['spreadsheet', 'csv', 'pdf'],
+  'toda-bylaws': ['image', 'pdf'],
+};
+
+/**
+ * Uploads a file into the SIGNED-IN user's own folder of a private bucket (<auth uid>/<file>) and returns the storage path. The file must really be a kind the bucket accepts (its first
+ * bytes are checked, not just its name), a photo is re-drawn without its metadata, and the name is new every time, so an approved document is never overwritten (migration 20261031000007).
+ */
 async function uploadOwnedFile(authUserId: string, file: File, bucket: string): Promise<string> {
+  const safe = await prepareUpload(file, UPLOAD_KINDS_BY_BUCKET[bucket] ?? ['image', 'pdf']);
   const path = ownedObjectPath(authUserId, `${Date.now()}_${file.name}`);
-  const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: true });
+  const { error } = await supabase.storage.from(bucket).upload(path, safe, { cacheControl: '3600', upsert: false });
   if (error) {
     throw new Error(`The file '${file.name}' could not be uploaded: ${error.message}`);
   }

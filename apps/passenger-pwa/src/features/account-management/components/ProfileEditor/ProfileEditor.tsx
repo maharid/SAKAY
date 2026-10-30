@@ -15,7 +15,7 @@ import PageHeader from "../../../../common/components/PageHeader";
 import { RegisterInput } from "../../../../common/components/RegisterInput";
 import { SakayPhoneInput } from "../../../../common/components/SakayPhoneInput";
 import { supabase } from "../../../../services/supabaseClient";
-import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl, messageForLanguage } from "@sakay/shared";
+import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, prepareUpload, signedStorageUrl, messageForLanguage } from "@sakay/shared";
 
 export const ProfileEditor: React.FC = () => {
   const { language, t } = useLanguage();
@@ -126,9 +126,11 @@ export const ProfileEditor: React.FC = () => {
       const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
       const filePath = ownedObjectPath(user.id, `avatar-${Date.now()}.${fileExt}`);
 
+      // a real photo only, and without the GPS position and camera data a phone puts in it (decision D-P7)
+      const photo = await prepareUpload(file, ["image"], { language: language === "tl" ? "tl" : "en" });
       const { error: uploadErr } = await supabase.storage
         .from("profiles")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, photo, { upsert: true });
 
       if (uploadErr) {
         throw new Error(uploadErr.message);

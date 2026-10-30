@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { executeSlaCascadeRun } from '../services/slaSchedulerService';
 import { createSchedulerGuard } from '../middleware/schedulerSecret';
 import { purgeIdentityImages } from '../services/retentionService';
+import { describeScan, scanUploads } from '../services/uploadScanService';
 
 const router = express.Router();
 
@@ -114,6 +115,41 @@ router.post('/run-retention', enforceSchedulerSecret, async (_req: Request, res:
   } catch (err: any) {
     console.error('[Scheduler] retention run failed:', err?.message ?? err);
     res.status(500).json({ success: false, error: err?.message || 'Retention run failed' });
+  }
+});
+
+/**
+ * POST /api/scheduler/run-upload-scan   (body, all optional: { "sinceHours": 26, "quarantine": true })
+ * Checks the first bytes of the files added or changed recently in the private buckets (decision D-P7): a file that is not one of the kinds its bucket accepts, or whose stored type is not
+ * what its content is, is moved to the bucket's _quarantine/ folder (nothing is deleted). Call it once a day, or every hour, from the external scheduler with the scheduler secret.
+ * Each run that finds something writes one entry to the audit log.
+ */
+router.post('/run-upload-scan', enforceSchedulerSecret, async (req: Request, res: Response) => {
+  if (!supabase) {
+    res.status(503).json({ success: false, error: 'Supabase client is not configured on server.' });
+    return;
+  }
+  try {
+    const body = (req.body ?? {}) as { sinceHours?: unknown; quarantine?: unknown };
+    const sinceHours = typeof body.sinceHours === 'number' && body.sinceHours > 0 && body.sinceHours <= 24 * 31 ? body.sinceHours : undefined;
+    const result = await scanUploads(supabase, { sinceHours, quarantine: body.quarantine !== false });
+    if (result.findings.length > 0 || result.errors.length > 0) {
+      try {
+        await supabase.from('audit_log').insert({
+          action_type: result.findings.length > 0 ? 'UPLOAD_SCAN_FOUND_MISMATCH' : 'UPLOAD_SCAN_ERRORS',
+          target_id: 'SYSTEM_SCHEDULER',
+          actor_role: 'system',
+          details: describeScan(result),
+          performed_at: new Date().toISOString(),
+        });
+      } catch (auditErr) {
+        console.warn('[Scheduler Warning] Upload scan audit write warning:', auditErr);
+      }
+    }
+    res.json({ success: true, timestamp: new Date().toISOString(), checked: result.checked, skipped: result.skipped, found: result.findings, errors: result.errors });
+  } catch (err: any) {
+    console.error('[Scheduler] upload scan failed:', err?.message ?? err);
+    res.status(500).json({ success: false, error: err?.message || 'Upload scan failed' });
   }
 });
 

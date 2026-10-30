@@ -52,7 +52,13 @@ const fakeClient = (answer: unknown, error: unknown = null) => {
   const calls: Call[] = [];
   return { calls, client: { rpc: async (fn: string, args?: Record<string, unknown>) => { calls.push({ fn, args }); return { data: answer, error }; } } };
 };
-const photo = (type: string, size: number) => ({ type, size, name: 'IMG_0001.HEIC' } as unknown as File);
+// a photo as the phone gives it: a name, a type, a size and (since decision D-P7 the first bytes are checked too) real first bytes for the format
+const MAGIC: Record<string, number[]> = {
+  'image/jpeg': [0xff, 0xd8, 0xff, 0xe0, 0, 0x10],
+  'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  'image/webp': [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50],
+};
+const photo = (type: string, size: number) => ({ type, size, name: 'IMG_0001.HEIC', slice: () => new Blob([Uint8Array.from(MAGIC[type] ?? [0])]) } as unknown as File);
 
 describe('the categories each party is offered (decisions PI-11A, PI-11K)', () => {
   it('lists every category once, each with a class', () => {
@@ -120,6 +126,16 @@ describe('the photos (F11.2)', () => {
     await assert.rejects(() => uploadIncidentEvidenceFiles(fake(null), [photo('image/png', 1)]), /naka-login/);
     assert.equal(uploaded.length, 0);
     assert.deepEqual(await uploadIncidentEvidenceFiles(fake('u1'), []), []);
+  });
+  it('refuses a file that says it is a photo but whose first bytes are a program, and uploads nothing (decision D-P7)', async () => {
+    uploaded.length = 0;
+    const program = { type: 'image/jpeg', size: 100, name: 'IMG_0002.jpg', slice: () => new Blob([Uint8Array.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00])]) } as unknown as File;
+    await assert.rejects(() => uploadIncidentEvidenceFiles(fake('u1'), [photo('image/jpeg', 100), program]), /Hindi tanggap/);
+    assert.equal(uploaded.length, 0, 'nothing was uploaded, not even the good photo before it');
+    const pdfAsPhoto = { type: 'image/png', size: 100, name: 'scan.png', slice: () => new Blob([new TextEncoder().encode('%PDF-1.7')]) } as unknown as File;
+    await assert.rejects(() => uploadIncidentEvidenceFiles(fake('u1'), [pdfAsPhoto]), /not accepted/);
+    const pngAsJpeg = { type: 'image/jpeg', size: 100, name: 'a.jpg', slice: () => new Blob([Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])]) } as unknown as File;
+    await assert.rejects(() => uploadIncidentEvidenceFiles(fake('u1'), [pngAsJpeg]), /does not match/);
   });
   it('stores three photos in the reporter\'s own folder under a name it makes (never the phone\'s), with the extension of the format', async () => {
     uploaded.length = 0;

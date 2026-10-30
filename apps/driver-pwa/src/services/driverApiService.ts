@@ -8,7 +8,7 @@
  * ============================================================================
  */
 
-import { apiPostJson, ownedObjectPath, syncPrivacyAcceptance } from '@sakay/shared';
+import { apiPostJson, detectFileKind, ownedObjectPath, prepareUpload, syncPrivacyAcceptance, uploadProblemMessage } from '@sakay/shared';
 import type { ApplyDriverTodaAffiliationsResponse, DriverTodaApplicationInput } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { getOnboardingCache } from './driverOnboardingCache';
@@ -737,7 +737,8 @@ export async function applyDriverTodaAffiliations(
 // ============================================================================
 
 /**
- * Helper to convert Base64 Data URL to Blob for Supabase Storage uploads
+ * Helper to convert Base64 Data URL to Blob for Supabase Storage uploads. The bytes must be a JPEG, PNG or WebP photo (decision D-P7): the type in the data URL is only what
+ * the sender wrote, so the stored type is the one the bytes show.
  */
 export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
   if (!dataUrl || !dataUrl.startsWith('data:')) {
@@ -745,12 +746,17 @@ export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string }
   }
   const arr = dataUrl.split(',');
   const mimeMatch = arr[0].match(/:(.*?);/);
-  const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const declaredType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
   const bstr = atob(arr[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
   while (n--) {
     u8arr[n] = bstr.charCodeAt(n);
+  }
+  const kind = detectFileKind(u8arr.subarray(0, 512));
+  const mimeType = kind === 'jpeg' ? 'image/jpeg' : kind === 'png' ? 'image/png' : kind === 'webp' ? 'image/webp' : null;
+  if (!mimeType) {
+    throw new Error(`The file is not a photo (it says ${declaredType}, its content is not).`);
   }
   return { blob: new Blob([u8arr], { type: mimeType }), mimeType };
 }
@@ -1357,13 +1363,19 @@ export async function saveDriverProfilePicture(
     }
 
     const authUserId = user.id;
-    const contentType = photo.type || 'image/jpeg';
+    let safePhoto: Blob;
+    try {
+      safePhoto = await prepareUpload(photo, ['image']);
+    } catch (rejected) {
+      return failure(uploadProblemMessage(rejected, 'tl'), uploadProblemMessage(rejected, 'en'));
+    }
+    const contentType = safePhoto.type || 'image/jpeg';
     const profilePhotoPath = ownedObjectPath(authUserId, `avatar-${captureId}.jpg`);
     const reviewPhotoPath = `${authUserId}/selfie.jpg`;
 
     const { error: avatarErr } = await supabase.storage
       .from('profiles')
-      .upload(profilePhotoPath, photo, { contentType, upsert: true });
+      .upload(profilePhotoPath, safePhoto, { contentType, upsert: true });
     if (avatarErr) {
       console.error('[DRIVER PROFILE PICTURE] Profile bucket upload failed:', avatarErr);
       return failure(
@@ -1376,7 +1388,7 @@ export async function saveDriverProfilePicture(
     for (const bucket of ['driver-selfies', 'driver-licenses']) {
       const { error: reviewErr } = await supabase.storage
         .from(bucket)
-        .upload(reviewPhotoPath, photo, { contentType, upsert: true });
+        .upload(reviewPhotoPath, safePhoto, { contentType, upsert: true });
       if (!reviewErr) {
         reviewCopySaved = true;
         break;

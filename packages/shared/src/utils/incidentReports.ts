@@ -8,6 +8,7 @@
  * under the reporter's own folder; the report keeps only its storage path.
  */
 import { INCIDENT_EVIDENCE_BUCKET } from './incidentEvidence';
+import { checkUploadMatchesKind } from './fileSignature';
 import { ownedObjectPath } from './storageUrls';
 import { INCIDENT_EVIDENCE_MAX_BYTES, INCIDENT_EVIDENCE_MAX_FILES, INCIDENT_EVIDENCE_MIME_TYPES } from '../config/policyConfig';
 
@@ -111,6 +112,12 @@ export async function uploadEvidenceFilesTo(bucket: string, client: IncidentUplo
   for (const file of files) {
     const problem = evidenceFileProblem(file);
     if (problem) throw new Error(problem);
+    // the first bytes must be a photo too (the type the phone reported is only what it said); evidence is NOT re-drawn: what was filed is kept exactly as it was (decision D-P7)
+    const signature = await checkUploadMatchesKind(file, ['image']);
+    if (!signature.ok) {
+      const tl = await checkUploadMatchesKind(file, ['image'], 'tl');
+      throw new Error(`${tl.reason} (${signature.reason})`);
+    }
   }
   const paths: string[] = [];
   const stamp = Date.now();

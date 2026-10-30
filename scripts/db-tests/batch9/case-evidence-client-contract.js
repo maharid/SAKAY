@@ -23,7 +23,8 @@ function loadTs(file) {
   const s = await setup();
   const { db, internal, one, q, svc } = s;
   const P1 = PAX.P1.uid, P2 = PAX.P2.uid, D1 = DRIVERS.D1.uid;
-  const jpeg = (size = 200000, name = 'photo.jpg') => ({ type: 'image/jpeg', size, name });
+  // a photo as the phone gives it; since decision D-P7 the upload also checks the first bytes, so the stand-in carries the real header of a JPEG
+  const jpeg = (size = 200000, name = 'photo.jpg') => ({ type: 'image/jpeg', size, name, slice: () => new Blob([Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10])]) });
 
   // a Supabase-shaped client acting as a signed-in user: rpc by NAME, the selects the screens make, and the storage calls (upload and createSignedUrl obey the real policies)
   const clientAs = (uid, o = {}) => ({

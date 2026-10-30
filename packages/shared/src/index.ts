@@ -79,6 +79,8 @@ export * from './utils/locationUtils';
 export * from './utils/serviceAreaUtils';
 export * from './utils/roadSnap';
 export * from './utils/browserLockdown';
+export * from './utils/fileSignature';
+export * from './utils/uploadGuard';
 export * from './utils/reportScope';
 export { TerminalMapPicker } from './components/TerminalMapPicker';
 export type { TerminalMapPickerProps } from './components/TerminalMapPicker';

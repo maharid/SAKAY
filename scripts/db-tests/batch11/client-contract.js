@@ -172,7 +172,9 @@ function loadTs(file) {
     auth: { getUser: async () => ({ data: { user: uid ? { id: uid } : null } }) },
     storage: { from: (bucket) => ({ upload: async (p, f, o) => { uploaded.push({ bucket, p, type: o.contentType }); return { error: null }; } }) },
   });
-  const file = (type, size) => ({ type, size, name: 'phone name.heic' });
+  // a photo as the phone gives it; since decision D-P7 the upload also checks the first bytes, so the stand-in carries the real header of its format
+  const MAGIC = { 'image/jpeg': [0xff, 0xd8, 0xff, 0xe0, 0, 0x10], 'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 'image/webp': [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50] };
+  const file = (type, size) => ({ type, size, name: 'phone name.heic', slice: () => new Blob([Uint8Array.from(MAGIC[type] ?? [0])]) });
   const tryUpload = async (client, files) => { try { return { ok: true, value: await reports.uploadIncidentEvidenceFiles(client, files) }; } catch (e) { return { ok: false, error: e.message }; } };
   let u = await tryUpload(fake(PAX.P1.uid), [file('image/jpeg', 1), file('image/png', 2), file('image/webp', 3), file('image/jpeg', 4)]);
   check('four photos: refused, nothing uploaded', !u.ok && /3/.test(u.error) && uploaded.length === 0, u);

@@ -9,7 +9,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import { ownedObjectPath } from '@sakay/shared';
+import { ownedObjectPath, prepareUpload } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 import { DateCalendarPopover } from '../popovers/DateCalendarPopover';
 import { DateField } from '../common/DateField';
@@ -250,13 +250,15 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         authUser = signIn.data.user;
       }
 
-      // 2. Documents, into the registrant's own folder
+      // 2. Documents, into the registrant's own folder. Each file must really be what its screen asks for (decision D-P7); an image is re-drawn without its metadata.
+      const clearanceFile = await prepareUpload(docs.barangayClearance, ['image']);
+      const rosterFile = await prepareUpload(docs.driverList, ['spreadsheet', 'csv']);
       const stamp = Date.now();
       const clearanceExt = (docs.barangayClearance.name.split('.').pop() || 'png').toLowerCase();
       const clearancePath = ownedObjectPath(authUser.id, `${stamp}_clearance.${clearanceExt}`);
       const { error: clearanceError } = await supabase.storage
         .from('barangay-clearances')
-        .upload(clearancePath, docs.barangayClearance, { upsert: true });
+        .upload(clearancePath, clearanceFile, { upsert: true });
       if (clearanceError) {
         throw new Error('The Barangay Clearance could not be uploaded: ' + clearanceError.message);
       }
@@ -265,7 +267,7 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
       const rosterPath = ownedObjectPath(authUser.id, `${stamp}_drivers.${rosterExt}`);
       const { error: rosterError } = await supabase.storage
         .from('toda-accredited-driver-lists')
-        .upload(rosterPath, docs.driverList, { upsert: true });
+        .upload(rosterPath, rosterFile, { upsert: true });
       if (rosterError) {
         throw new Error('The driver roster could not be uploaded: ' + rosterError.message);
       }

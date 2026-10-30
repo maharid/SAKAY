@@ -24,7 +24,7 @@ import SuccessModal from '../../../common/components/SuccessModal';
 import { RegisterInput } from '../../../common/components/RegisterInput';
 import SakayPhoneInput from '../../../common/components/SakayPhoneInput';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, signedStorageUrl, messageForLanguage } from '@sakay/shared';
+import { SIGNED_URL_TTL, extendTapArea, ownedObjectPath, prepareUpload, signedStorageUrl, messageForLanguage } from '@sakay/shared';
 import { supabase } from '../../../services/supabaseClient';
 import { fetchDriverProfile, formatPhoneToE164 } from '../../../services/driverApiService';
 
@@ -126,9 +126,11 @@ export const DriverProfileEditor: React.FC = () => {
       const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const filePath = ownedObjectPath(user.id, `avatar-${Date.now()}.${fileExt}`);
 
+      // a real photo only, and without the GPS position and camera data a phone puts in it (decision D-P7)
+      const photo = await prepareUpload(file, ['image'], { language: isTagalog ? 'tl' : 'en' });
       const { error: uploadErr } = await supabase.storage
         .from('profiles')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, photo, { upsert: true });
 
       if (uploadErr) {
         throw new Error(uploadErr.message);
