@@ -88,6 +88,8 @@ export interface AccreditedTodaRecord {
   pendingTerminalLat?: number | null;
   pendingTerminalLng?: number | null;
   pendingTerminalLocation?: string | null;
+  /** why the TODA wants to move (decision D-P4) */
+  pendingTerminalReason?: string | null;
   terminalRelocationRequestedAt?: string | null;
   documents: {
     name: string;

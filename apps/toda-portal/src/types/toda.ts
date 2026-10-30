@@ -44,6 +44,15 @@ export interface TodaProfile {
   dateEstablished: string;
   terminalLocation: string;
   pendingTerminalLocation?: string | null;
+  /** Panel comment D-P4: a request to move the terminal, waiting for the LGU (the current terminal stays in force until it decides) */
+  pendingTerminalLatitude?: number | null;
+  pendingTerminalLongitude?: number | null;
+  pendingTerminalReason?: string | null;
+  terminalRelocationStatus?: 'Approved' | 'Pending LGU Re-approval' | 'Rejected' | string | null;
+  terminalRelocationRequestedAt?: string | null;
+  /** the LGU's own words on its last decision, and when */
+  terminalRelocationDecisionNote?: string | null;
+  terminalRelocationDecidedAt?: string | null;
   terminalLatitude?: number | null;
   terminalLongitude?: number | null;
   barangay: string;

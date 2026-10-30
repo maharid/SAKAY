@@ -252,7 +252,7 @@ export const TodaRegistrationPage: React.FC = () => {
         if (draft.terminalLongitude !== undefined && draft.terminalLongitude !== null) {
           setTerminalLongitude(draft.terminalLongitude);
         }
-        if (draft.coordinatesText) setCoordinatesText(draft.coordinatesText);
+        if (draft.terminalLatitude && draft.terminalLongitude) setCoordinatesText(`${draft.terminalLatitude.toFixed(6)}, ${draft.terminalLongitude.toFixed(6)}`);
         if (draft.presidentName) setPresidentName(draft.presidentName);
         if (draft.presidentContact) setPresidentContact(draft.presidentContact);
         if (draft.vicePresidentName) setVicePresidentName(draft.vicePresidentName);
@@ -551,8 +551,8 @@ export const TodaRegistrationPage: React.FC = () => {
     if (!serviceCoverageArea.trim()) {
       emptyRequiredErrors.push({ id: 'field-serviceCoverageArea', message: 'Service Coverage / Terminal Location is required.' });
     }
-    if (!coordinatesText.trim() && (!terminalLatitude || !terminalLongitude)) {
-      emptyRequiredErrors.push({ id: 'field-coordinatesText', message: 'Terminal Coordinates are required.' });
+    if (!terminalLatitude || !terminalLongitude) {
+      emptyRequiredErrors.push({ id: 'field-coordinatesText', message: 'Pin the terminal on the map (Pin on Map).' });
     }
     if (!presidentName.trim()) {
       emptyRequiredErrors.push({ id: 'field-presidentName', message: 'President Full Name is required.' });
@@ -1008,19 +1008,12 @@ export const TodaRegistrationPage: React.FC = () => {
                 <SakayTextField
                   id="field-coordinatesText"
                   className={shakingFieldId === 'field-coordinatesText' ? 'anim-shake' : ''}
-                  label="Terminal Coordinates"
-                  placeholder="Latitude, Longitude"
+                  label="Terminal Coordinates (from the map pin)"
+                  placeholder="Use Pin on Map"
                   value={coordinatesText}
-                  onChange={(e) => {
-                    setCoordinatesText(e.target.value);
-                    const parts = e.target.value.split(',').map((s) => parseFloat(s.trim()));
-                    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                      setTerminalLatitude(parts[0]);
-                      setTerminalLongitude(parts[1]);
-                    }
-                  }}
-                  error={hasAttemptedSubmit && (!coordinatesText.trim() && (!terminalLatitude || !terminalLongitude))}
-                  helperText={hasAttemptedSubmit && (!coordinatesText.trim() && (!terminalLatitude || !terminalLongitude)) ? 'Terminal Coordinates are required.' : ''}
+                  readOnly
+                  error={hasAttemptedSubmit && (!terminalLatitude || !terminalLongitude)}
+                  helperText={hasAttemptedSubmit && (!terminalLatitude || !terminalLongitude) ? 'Pin the terminal on the map: the coordinates are taken from the pin.' : 'Not typed: use Pin on Map. The pin snaps to the nearest road inside Calapan City.'}
                   required
                   endAdornment={
                     <Button

@@ -620,6 +620,7 @@ export async function fetchAccreditedTodas(): Promise<AccreditedTodaRecord[]> {
       pendingTerminalLat: row.pending_terminal_latitude,
       pendingTerminalLng: row.pending_terminal_longitude,
       pendingTerminalLocation: row.pending_terminal_location,
+      pendingTerminalReason: row.pending_terminal_reason,
       terminalRelocationRequestedAt: row.terminal_relocation_requested_at,
       documents: await todaDocumentsOf(row),
       driverRoster: [],
@@ -2528,6 +2529,7 @@ export async function approveTerminalRelocation(todaId: string, remarks?: string
     p_remarks: remarks || null,
   });
   if (error) throw error;
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The terminal move was not approved.'));
   return data;
 }
 
@@ -2540,6 +2542,7 @@ export async function rejectTerminalRelocation(todaId: string, reason?: string) 
     p_reason: reason || null,
   });
   if (error) throw error;
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The terminal move was not rejected.'));
   return data;
 }
 

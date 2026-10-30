@@ -13,6 +13,7 @@ import { ownedObjectPath } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
 import { DateCalendarPopover } from '../popovers/DateCalendarPopover';
 import { DateField } from '../common/DateField';
+import { TerminalMapPickerModal } from '../modals/TerminalMapPickerModal';
 import SakayPhoneInput from '../common/SakayPhoneInput';
 import { SakayToast } from '../common/SakayToast';
 
@@ -73,6 +74,9 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
     contactNumber: '',
   });
 
+  // Panel comment (D-P4): the terminal's coordinates come from a pin on the map, never typed and never a fixed default
+  const [terminalPin, setTerminalPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [pinMapOpen, setPinMapOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedDateObj, setSelectedDateObj] = useState<Date>(new Date());
 
@@ -138,6 +142,10 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
     } else if (activeStep === 1) {
       if (!formData.terminalLocation || !formData.barangay || !formData.serviceCoverageArea) {
         setErrorMsg('Please fill in all required Location & Service fields.');
+        return;
+      }
+      if (!terminalPin) {
+        setErrorMsg('Pin the terminal on the map (Pin on Map). The coordinates are taken from the pin.');
         return;
       }
     } else if (activeStep === 2) {
@@ -270,8 +278,8 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
         p_date_established: formattedDate,
         p_active_drivers: parseInt(formData.activeDrivers) || 1,
         p_registered_tricycles: parseInt(formData.registeredTricycles) || 1,
-        p_terminal_latitude: 13.4117,
-        p_terminal_longitude: 121.1803,
+        p_terminal_latitude: terminalPin?.lat ?? null,
+        p_terminal_longitude: terminalPin?.lng ?? null,
         p_terminal_location_name: formData.terminalLocation || 'Calapan City Terminal',
         p_barangay: formData.barangay || 'San Vicente Central',
         p_service_coverage_area: formData.serviceCoverageArea || 'Calapan City Corridor',
@@ -285,6 +293,9 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
 
       if (rpcError || !registeredTodaId) {
         const detail = rpcError?.message || '';
+        if (detail.includes('ERR_TERMINAL_LOCATION')) {
+          throw new Error(detail.replace(/^.*ERR_TERMINAL_LOCATION:\s*/, ''));
+        }
         if (detail.includes('ERR_ALREADY_TODA_ADMIN')) {
           throw new Error('This login already administers a TODA. Use a different email to register another TODA.');
         }
@@ -465,6 +476,21 @@ export const TodaRegistrationFlow: React.FC<TodaRegistrationFlowProps> = ({ onBa
             />
             <FormInput name="terminalLocation" label="Terminal Location *" placeholder="Unit/Block, Street, Barangay, City" value={formData.terminalLocation} onChange={handleChange} sx={inputStyles} />
             <FormInput name="serviceCoverageArea" label="Service Coverage Area *" placeholder="Unit/Block, Street, Barangay, City" value={formData.serviceCoverageArea} onChange={handleChange} sx={{ ...inputStyles }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <Button variant="outlined" onClick={() => setPinMapOpen(true)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '10px', borderColor: '#FF6600', color: '#FF6600' }}>
+                {terminalPin ? 'Move the pin' : 'Pin on Map *'}
+              </Button>
+              <Typography sx={{ fontSize: '13px', color: terminalPin ? '#166534' : '#64748B', fontWeight: 600 }}>
+                {terminalPin ? `Pinned: ${terminalPin.lat.toFixed(6)}, ${terminalPin.lng.toFixed(6)}` : 'The terminal is placed with a pin on the map. Coordinates are not typed.'}
+              </Typography>
+            </Box>
+            <TerminalMapPickerModal
+              open={pinMapOpen}
+              onClose={() => setPinMapOpen(false)}
+              initialLat={terminalPin?.lat ?? null}
+              initialLng={terminalPin?.lng ?? null}
+              onConfirmLocation={({ lat, lng }) => setTerminalPin({ lat, lng })}
+            />
           </Box>
         )}
 

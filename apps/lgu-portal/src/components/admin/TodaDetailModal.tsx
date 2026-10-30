@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import L from 'leaflet';
+import { calculateDistanceKm } from '@sakay/shared';
 
 import { AccreditedTodaRecord, DriverRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
@@ -38,6 +39,8 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
   const rowsPerPage = 10;
   const [isRelocationLoading, setIsRelocationLoading] = useState(false);
   const [relocationFeedback, setRelocationFeedback] = useState<string | null>(null);
+  // the LGU decides a terminal move in its own words (decision D-P4): the dialog asks for them
+  const [relocationDecision, setRelocationDecision] = useState<'approve' | 'reject' | null>(null);
   // the accreditation controls (Rules 2.4, 24.3)
   const [renewOpen, setRenewOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -115,6 +118,17 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
       .addTo(map)
       .bindPopup(`<b>${toda.name}</b><br/>${toda.barangay}`);
 
+    // Panel comment (D-P4): when the TODA asked to move the terminal, the requested place is on the same map, joined to the current one, so the LGU sees the move
+    if (toda.pendingTerminalLat != null && toda.pendingTerminalLng != null) {
+      const pLat = Number(toda.pendingTerminalLat);
+      const pLng = Number(toda.pendingTerminalLng);
+      L.polyline([[lat, lng], [pLat, pLng]], { color: '#B45309', weight: 3, dashArray: '6 6' }).addTo(map);
+      L.marker([pLat, pLng], { icon: L.divIcon({ className: 'custom-toda-marker', html: '\u{1F4CD}', iconSize: [32, 32], iconAnchor: [16, 28] }) })
+        .addTo(map)
+        .bindPopup(`<b>Requested terminal</b><br/>${toda.pendingTerminalLocation || ''}`);
+      map.fitBounds([[lat, lng], [pLat, pLng]], { padding: [48, 48], maxZoom: 16 });
+    }
+
     leafletMapRef.current = map;
 
     return () => {
@@ -147,52 +161,31 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         badge={<StatusBadge status={toda.status as any} />}
         maxWidth={736}
       >
-        {/* Terminal Relocation Request Banner (Rule 2.2) */}
+        {/* Terminal Relocation Request Banner (Rule 2.2): the requested place is on the map below; the LGU decides in its own words (D-P4) */}
         {(toda.terminalRelocationStatus === 'Pending LGU Re-approval' || toda.pendingTerminalLat) && (
           <PageNotice
             tone="warning"
             title="Terminal move waiting for your approval"
             action={
               <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Button
-                  disabled={isRelocationLoading}
-                  onClick={async () => {
-                    setIsRelocationLoading(true);
-                    try {
-                      await rejectTerminalRelocation(toda.id, 'Relocation request does not meet municipal zoning ordinances');
-                      setRelocationFeedback('Relocation rejected.');
-                    } catch (e: any) {
-                      setRelocationFeedback(`Error: ${e.message}`);
-                    } finally {
-                      setIsRelocationLoading(false);
-                    }
-                  }}
-                  sx={rowActionSx('danger')}
-                >
+                <Button disabled={isRelocationLoading} onClick={() => setRelocationDecision('reject')} sx={rowActionSx('danger')}>
                   Reject move
                 </Button>
-                <Button
-                  variant="contained"
-                  disabled={isRelocationLoading}
-                  onClick={async () => {
-                    setIsRelocationLoading(true);
-                    try {
-                      await approveTerminalRelocation(toda.id, 'Approved by LGU Transport Board');
-                      setRelocationFeedback('Terminal relocation approved and activated.');
-                    } catch (e: any) {
-                      setRelocationFeedback(`Error: ${e.message}`);
-                    } finally {
-                      setIsRelocationLoading(false);
-                    }
-                  }}
-                  sx={primaryButtonSx}
-                >
+                <Button variant="contained" disabled={isRelocationLoading} onClick={() => setRelocationDecision('approve')} sx={primaryButtonSx}>
                   Approve move
                 </Button>
               </Box>
             }
           >
-            Requested terminal: {toda.pendingTerminalLocation || 'New terminal location'} ({toda.pendingTerminalLat}, {toda.pendingTerminalLng}). The current coordinates ({toda.centerLat}, {toda.centerLng}) stay until you approve.
+            Requested terminal: {toda.pendingTerminalLocation || 'New terminal location'} ({toda.pendingTerminalLat}, {toda.pendingTerminalLng}),{' '}
+            {toda.pendingTerminalLat != null && toda.pendingTerminalLng != null
+              ? `${Math.round(calculateDistanceKm(Number(toda.centerLat), Number(toda.centerLng), Number(toda.pendingTerminalLat), Number(toda.pendingTerminalLng)) * 1000)} m from`
+              : 'from'} the current terminal ({toda.centerLat}, {toda.centerLng}). The map shows both: the dashed line is the move. The current terminal stays in force until you approve.
+            {toda.pendingTerminalReason && (
+              <Box component="span" sx={{ display: 'block', mt: '4px' }}>
+                <b>The TODA's reason:</b> {toda.pendingTerminalReason}
+              </Box>
+            )}
             {relocationFeedback && (
               <Box component="span" sx={{ display: 'block', fontWeight: 700, color: PAGE_TEXT.warning, mt: '4px' }}>
                 {relocationFeedback}
@@ -403,6 +396,39 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
       />
 
       {/* Suspension after review (Rule 2.4): the reason is required and goes to the audit log */}
+      <MacConfirmDialog
+        open={relocationDecision !== null}
+        onClose={() => setRelocationDecision(null)}
+        title={relocationDecision === 'approve' ? 'Approve the terminal move?' : 'Reject the terminal move?'}
+        message={relocationDecision === 'approve'
+          ? `The terminal of "${toda.name}" becomes ${toda.pendingTerminalLocation || 'the requested place'} (${toda.pendingTerminalLat}, ${toda.pendingTerminalLng}). Dispatch uses it from now on.`
+          : `The terminal of "${toda.name}" stays where it is. The TODA reads your reason.`}
+        confirmLabel={relocationDecision === 'approve' ? 'Approve the move' : 'Reject the move'}
+        confirmVariant={relocationDecision === 'approve' ? 'orange' : 'danger'}
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder={relocationDecision === 'approve' ? 'Why is the move approved? (at least 10 characters)' : 'Why is the move rejected? (at least 10 characters)'}
+        onConfirm={async (reason) => {
+          const decision = relocationDecision;
+          setRelocationDecision(null);
+          setIsRelocationLoading(true);
+          try {
+            if (decision === 'approve') {
+              await approveTerminalRelocation(toda.id, reason ?? '');
+              setRelocationFeedback('Terminal relocation approved and activated.');
+            } else {
+              await rejectTerminalRelocation(toda.id, reason ?? '');
+              setRelocationFeedback('Relocation rejected.');
+            }
+            await onChanged?.();
+          } catch (e) {
+            setRelocationFeedback(`Error: ${e instanceof Error ? e.message : 'the decision was not saved.'}`);
+          } finally {
+            setIsRelocationLoading(false);
+          }
+        }}
+      />
+
       <MacConfirmDialog
         open={suspendOpen}
         onClose={() => setSuspendOpen(false)}

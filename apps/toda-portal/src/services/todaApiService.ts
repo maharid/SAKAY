@@ -23,7 +23,7 @@ import {
   EvidenceFileItem,
 } from '../types/toda';
 import { parseDriverRoster } from '../utils/rosterParser';
-import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, closeUnfinishedTripArgs, confirmAvailabilityArgs, reportAvailabilityArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
+import { REJECTION_REASON_LABEL, SIGNED_URL_TTL, calculateDistanceKm, closeUnfinishedTripArgs, confirmAvailabilityArgs, reportAvailabilityArgs, escalateExemptionArgs, apiFetch, apiPostJson, isRejectionReasonCode, ownedObjectPath, signIncidentEvidence, signedStorageUrlFromAny } from '@sakay/shared';
 import {
   decideIncident as decideIncidentReport,
   escalateIncident as escalateIncidentReport,
@@ -128,6 +128,14 @@ export async function fetchTodaProfile(todaId?: string): Promise<TodaProfile | n
       terminalLocation: data.terminal_location || data.service_coverage_area || '',
       terminalLatitude: data.terminal_latitude || null,
       terminalLongitude: data.terminal_longitude || null,
+      pendingTerminalLocation: data.pending_terminal_location || null,
+      pendingTerminalLatitude: data.pending_terminal_latitude ?? null,
+      pendingTerminalLongitude: data.pending_terminal_longitude ?? null,
+      pendingTerminalReason: data.pending_terminal_reason || null,
+      terminalRelocationStatus: data.terminal_relocation_status || null,
+      terminalRelocationRequestedAt: data.terminal_relocation_requested_at || null,
+      terminalRelocationDecisionNote: data.terminal_relocation_decision_note || null,
+      terminalRelocationDecidedAt: data.terminal_relocation_decided_at || null,
       barangay: data.barangay || '',
       serviceCoverageArea: data.service_coverage_area || '',
       contactNumber: data.president_contact || data.contact_number || '',
@@ -190,8 +198,10 @@ export async function updateTodaProfile(
     contactEmail: string;
     serviceArea: string;
     officers: any;
+    /** why the terminal is moving (panel comment D-P4): required when the pin moved */
+    relocationReason: string;
   }> = {}
-) {
+): Promise<{ relocationRequested: boolean }> {
   const targetTodaId = await getEffectiveTodaId(todaId);
   const updatePayload: any = {};
   if (profileData.name) updatePayload.toda_name = profileData.name;
@@ -203,18 +213,24 @@ export async function updateTodaProfile(
     updatePayload.service_coverage_area = profileData.serviceArea || profileData.terminalLocation;
   }
 
-  // Terminal coordinates must go through official request_terminal_relocation RPC
-  if (profileData.terminalLatitude !== undefined && profileData.terminalLongitude !== undefined && profileData.terminalLatitude !== null && profileData.terminalLongitude !== null) {
-    try {
-      await supabase.rpc('request_terminal_relocation', {
+  // The terminal moves only through request_terminal_relocation (the LGU decides), and only when the pin really moved (a profile save must not re-ask for it every time).
+  // Asked FIRST: if the database refuses it (outside the city, in the sea, no reason), nothing else is saved and the person is told why.
+  let relocationRequested = false;
+  if (profileData.terminalLatitude != null && profileData.terminalLongitude != null) {
+    const { data: current } = await supabase.from('toda').select('terminal_latitude, terminal_longitude').eq('toda_id', targetTodaId).maybeSingle();
+    const moved = !current || current.terminal_latitude == null || current.terminal_longitude == null
+      || calculateDistanceKm(Number(current.terminal_latitude), Number(current.terminal_longitude), profileData.terminalLatitude, profileData.terminalLongitude) * 1000 >= 25;
+    if (moved) {
+      const { data: reloc, error: relocError } = await supabase.rpc('request_terminal_relocation', {
         p_toda_id: targetTodaId,
         p_new_latitude: profileData.terminalLatitude,
         p_new_longitude: profileData.terminalLongitude,
-        p_new_location: profileData.terminalLocation || 'Updated Terminal Location',
-        p_reason: 'Requested relocation via TODA profile edit',
+        p_new_location: profileData.terminalLocation || profileData.serviceArea || '',
+        p_reason: profileData.relocationReason || '',
       });
-    } catch (reloErr) {
-      console.warn('[todaApiService] Relocation request error:', reloErr);
+      if (relocError) throw new Error(relocError.message);
+      if (!reloc || reloc.success !== true) throw new Error(String(reloc?.error || 'The terminal move could not be requested.'));
+      relocationRequested = true;
     }
   }
   if (profileData.officers) {
@@ -262,7 +278,7 @@ export async function updateTodaProfile(
     details: `Updated association contact info for '${updatedData?.toda_name || todaId}'.`,
   });
 
-  return { success: true, data: updatedData };
+  return { relocationRequested };
 }
 
 /**
@@ -469,8 +485,8 @@ export async function registerToda(payload: {
       p_date_established: payload.dateEstablished || new Date().toISOString().split('T')[0],
       p_active_drivers: 0,
       p_registered_tricycles: payload.registeredTricycleCount ?? 0,
-      p_terminal_latitude: payload.terminalLatitude ?? 13.4115,
-      p_terminal_longitude: payload.terminalLongitude ?? 121.1803,
+      p_terminal_latitude: payload.terminalLatitude ?? null,
+      p_terminal_longitude: payload.terminalLongitude ?? null,
       p_terminal_location_name: payload.serviceCoverageArea.trim(),
       p_barangay: payload.barangay,
       p_service_coverage_area: payload.serviceCoverageArea.trim(),
@@ -486,6 +502,9 @@ export async function registerToda(payload: {
       const detail = rpcError?.message || '';
       if (/registration_number/i.test(detail) && /duplicate|unique|already/i.test(detail)) {
         throw new Error(`The registration number '${payload.registrationNumber?.trim() || cleanAcronym}' is already registered to another TODA. Check the number on your papers.`);
+      }
+      if (detail.includes('ERR_TERMINAL_LOCATION')) {
+        throw new Error(detail.replace(/^.*ERR_TERMINAL_LOCATION:\s*/, ''));
       }
       if (detail.includes('ERR_ALREADY_TODA_ADMIN')) {
         throw new Error('This login already administers a TODA. Choose a different acronym to register another TODA.');

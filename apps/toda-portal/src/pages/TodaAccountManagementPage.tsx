@@ -24,9 +24,12 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 
+import { calculateDistanceKm } from '@sakay/shared';
+
 import { TodaProfile } from '../types/toda';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
+import { TerminalMapPickerModal } from '../components/modals/TerminalMapPickerModal';
 import { AccreditationCard } from '../components/common/AccreditationCard';
 import { ComplianceDocumentCard } from '../components/common/ComplianceDocumentCard';
 import { StatusPill } from '../components/common/DataTable';
@@ -110,7 +113,10 @@ export const TodaAccountManagementPage: React.FC = () => {
   const [editBarangay, setEditBarangay] = useState('');
   const [editDateEst, setEditDateEst] = useState('');
   const [editTerminalLoc, setEditTerminalLoc] = useState('');
-  const [editTerminalCoordinates, setEditTerminalCoordinates] = useState('');
+  // Panel comment (D-P4): the terminal is a pin on the map, never typed. Moving it is a request the LGU decides, and it needs a reason.
+  const [editPin, setEditPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [pinMapOpen, setPinMapOpen] = useState(false);
+  const [editRelocationReason, setEditRelocationReason] = useState('');
 
   // Officers Form State
   const [editPresident, setEditPresident] = useState('');
@@ -212,11 +218,8 @@ export const TodaAccountManagementPage: React.FC = () => {
     setEditBarangay(p.barangay || 'San Vicente Central');
     setEditDateEst(p.dateEstablished || '');
     setEditTerminalLoc(p.terminalLocation || '');
-    setEditTerminalCoordinates(
-      p.terminalLatitude && p.terminalLongitude
-        ? `${p.terminalLatitude}, ${p.terminalLongitude}`
-        : ''
-    );
+    setEditPin(p.terminalLatitude && p.terminalLongitude ? { lat: p.terminalLatitude, lng: p.terminalLongitude } : null);
+    setEditRelocationReason('');
     setEditPresident(p.officers?.president || '');
     setEditPresidentContact(p.officers?.presidentContact || '');
     setEditVicePresident(p.officers?.vicePresident || '');
@@ -278,23 +281,29 @@ export const TodaAccountManagementPage: React.FC = () => {
     }
   };
 
+  // Has the pin been moved away from the terminal on record (25 m or more)? Only then is there anything to ask the LGU.
+  const pinMoved = Boolean(
+    editPin && profile
+    && (profile.terminalLatitude == null || profile.terminalLongitude == null
+        || calculateDistanceKm(profile.terminalLatitude, profile.terminalLongitude, editPin.lat, editPin.lng) * 1000 >= 25)
+  );
+
   // Submit Organizational Profile Edit
   const handleEditProfileSubmit = async () => {
     if (!profile) return;
     setIsSavingEdit(true);
 
-    let lat: number | null = null;
-    let lng: number | null = null;
-    if (editTerminalCoordinates.trim()) {
-      const parts = editTerminalCoordinates.split(',').map((s) => parseFloat(s.trim()));
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-        lat = parts[0];
-        lng = parts[1];
-      }
+    const lat = editPin?.lat ?? null;
+    const lng = editPin?.lng ?? null;
+    // a moved pin is a request to the LGU, which reads the reason before it decides
+    if (pinMoved && editRelocationReason.trim().length < 10) {
+      setIsSavingEdit(false);
+      setUploadSnackbar({ open: true, message: 'Say why the terminal is moving (at least 10 characters). The LGU reads it before it decides.', severity: 'error' });
+      return;
     }
 
     try {
-      await updateTodaProfile(profile.id, {
+      const saved = await updateTodaProfile(profile.id, {
         name: editTodaName.trim(),
         acronym: editTodaAcronym.trim(),
         barangay: editBarangay,
@@ -302,6 +311,7 @@ export const TodaAccountManagementPage: React.FC = () => {
         terminalLocation: editTerminalLoc.trim(),
         terminalLatitude: lat,
         terminalLongitude: lng,
+        relocationReason: editRelocationReason.trim(),
         serviceArea: editTerminalLoc.trim(),
         officers: {
           president: editPresident.trim(),
@@ -319,7 +329,9 @@ export const TodaAccountManagementPage: React.FC = () => {
       setEditProfileModalOpen(false);
       setUploadSnackbar({
         open: true,
-        message: 'Successfully updated TODA organizational profile!',
+        message: saved.relocationRequested
+          ? 'Profile saved. The terminal move was sent to the LGU for approval; the current terminal stays in force until it decides.'
+          : 'Successfully updated TODA organizational profile!',
         severity: 'success',
       });
     } catch (err: any) {
@@ -536,6 +548,22 @@ export const TodaAccountManagementPage: React.FC = () => {
               {profile.terminalLatitude && profile.terminalLongitude ? `${profile.terminalLatitude}, ${profile.terminalLongitude}` : 'None specified'}
             </InfoItem>
           </Box>
+          {profile.terminalRelocationStatus === 'Pending LGU Re-approval' && (
+            <Alert severity="warning" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
+              <strong>Terminal move waiting for the LGU.</strong> Requested: {profile.pendingTerminalLocation || 'new terminal'} ({profile.pendingTerminalLatitude}, {profile.pendingTerminalLongitude}).
+              {profile.pendingTerminalReason ? ` Your reason: ${profile.pendingTerminalReason}` : ''} The current terminal stays in force until the LGU decides.
+            </Alert>
+          )}
+          {profile.terminalRelocationStatus === 'Rejected' && profile.terminalRelocationDecisionNote && (
+            <Alert severity="error" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
+              <strong>The LGU did not approve the terminal move.</strong> {profile.terminalRelocationDecisionNote}
+            </Alert>
+          )}
+          {profile.terminalRelocationStatus === 'Approved' && profile.terminalRelocationDecisionNote && (
+            <Alert severity="success" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
+              <strong>The LGU approved the terminal move.</strong> {profile.terminalRelocationDecisionNote}
+            </Alert>
+          )}
         </SectionCard>
 
         <SectionCard icon={<GroupsIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="Authorized TODA officers">
@@ -587,6 +615,15 @@ export const TodaAccountManagementPage: React.FC = () => {
           </Box>
         </SectionCard>
       </Box>
+
+      {/* Panel comment (D-P4): the terminal is chosen with a pin; the picker keeps it on a road inside the city */}
+      <TerminalMapPickerModal
+        open={pinMapOpen}
+        onClose={() => setPinMapOpen(false)}
+        initialLat={editPin?.lat ?? null}
+        initialLng={editPin?.lng ?? null}
+        onConfirmLocation={({ lat, lng }) => setEditPin({ lat, lng })}
+      />
 
       {/* Edit the organisation and its officers */}
       <MacCenterModal
@@ -664,15 +701,39 @@ export const TodaAccountManagementPage: React.FC = () => {
                 fullWidth
                 size="small"
               />
-              <TextField
-                label="Terminal Coordinates"
-                placeholder="Latitude, Longitude"
-                value={editTerminalCoordinates}
-                onChange={(e) => setEditTerminalCoordinates(e.target.value)}
-                fullWidth
-                size="small"
-              />
+              <Box>
+                <TextField
+                  label="Terminal Coordinates (from the map pin)"
+                  placeholder="Use Pin on Map"
+                  value={editPin ? `${editPin.lat.toFixed(6)}, ${editPin.lng.toFixed(6)}` : ''}
+                  fullWidth
+                  size="small"
+                  slotProps={{ input: { readOnly: true } }}
+                  onClick={() => setPinMapOpen(true)}
+                />
+                <Button onClick={() => setPinMapOpen(true)} sx={{ ...secondaryButtonSx, mt: '8px' }}>
+                  {editPin ? 'Move the pin on the map' : 'Pin on Map'}
+                </Button>
+              </Box>
             </Box>
+            {pinMoved && (
+              <Box sx={{ mt: SPACE.gap }}>
+                <Alert severity="info" sx={{ mb: '8px', fontSize: FONT.body }}>
+                  The terminal is moving. The LGU has to approve the move; the current terminal stays in force until it decides.
+                </Alert>
+                <TextField
+                  label="Why is the terminal moving?"
+                  placeholder="e.g. The old terminal lot was sold; the TODA now queues at the new lot beside the market."
+                  value={editRelocationReason}
+                  onChange={(e) => setEditRelocationReason(e.target.value)}
+                  required
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  size="small"
+                />
+              </Box>
+            )}
           </Box>
 
           <Divider sx={{ borderColor: OPS_BORDER }} />
