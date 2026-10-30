@@ -61,8 +61,10 @@ const { setup, ID, DRIVERS, PAX, attempt, check, summary } = require('../b11fixt
   r = await rpc(PAX.P1.uid, 'toda_submit_compliance_document($1,$2,$3,$4)', ['Driver Roster', own(PAX.P1.uid, 'r.csv'), 'r.csv', null]);
   check('a passenger is refused: ERR_NOT_TODA_ADMIN', r.ok && r.value.success === false && r.value.error_code === 'ERR_NOT_TODA_ADMIN', r);
   r = await rpc(ID.T2_AUTH, 'toda_submit_compliance_document($1,$2,$3,$4)', ['Driver Roster', own(ID.T2_AUTH, 'other.csv'), 'other.csv', null]);
-  check('the other TODA\'s administrator changes only the other TODA\'s own row', r.ok && r.value.success === true && (await toda()).accredited_drivers_url === own(ID.T_AUTH, 'roster.xlsx')
-    && (await one(`SELECT accredited_drivers_url FROM toda WHERE toda_id = '${ID.TODA2}'`)).accredited_drivers_url === own(ID.T2_AUTH, 'other.csv'), r);
+  check('the other TODA\'s administrator changes only the other TODA\'s own data: TODA2 is Active, so its file is a new VERSION (the registration file is never replaced after accreditation, D-P9) and TODA1\'s row is untouched',
+    r.ok && r.value.success === true && (await toda()).accredited_drivers_url === own(ID.T_AUTH, 'roster.xlsx')
+    && (await one(`SELECT accredited_drivers_url FROM toda WHERE toda_id = '${ID.TODA2}'`)).accredited_drivers_url === null
+    && (await q(`SELECT 1 FROM toda_roster_file_version WHERE toda_id = '${ID.TODA2}' AND kind = 'update' AND file_path = '${own(ID.T2_AUTH, 'other.csv')}'`)).length === 1, r);
 
   console.log('\nS4 an application the LGU returned for correction: view the reason, correct, resubmit');
   r = await rpc(ID.T_AUTH, 'toda_resubmit_application($1)', ['Nothing was returned.']);

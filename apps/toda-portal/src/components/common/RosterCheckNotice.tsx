@@ -60,6 +60,16 @@ export const RosterCheckNotice: React.FC<RosterCheckNoticeProps> = ({ applicant,
     );
   }
 
+  if (check.reason === 'entry_left') {
+    return (
+      <Alert severity="warning" sx={alertSx}>
+        <strong>On the roster, but he had left.</strong> Your roster has an entry for {franchise}: {entry}. He was marked as no longer a member on {formatWhen(check.entryCountedFrom)},
+        before this application was submitted ({formatWhen(check.submittedAt)}). A member who has left does not count.
+        {consequence}
+      </Alert>
+    );
+  }
+
   if (check.reason === 'plate_only') {
     return (
       <Alert severity="warning" sx={alertSx}>

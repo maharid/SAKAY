@@ -30,6 +30,7 @@ import { TodaProfile } from '../types/toda';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { TerminalMapPickerModal } from '../components/modals/TerminalMapPickerModal';
+import { RosterUpdateDialog } from '../components/modals/RosterUpdateDialog';
 import { AccreditationCard } from '../components/common/AccreditationCard';
 import { ComplianceDocumentCard } from '../components/common/ComplianceDocumentCard';
 import { StatusPill } from '../components/common/DataTable';
@@ -116,6 +117,8 @@ export const TodaAccountManagementPage: React.FC = () => {
   // Panel comment (D-P4): the terminal is a pin on the map, never typed. Moving it is a request the LGU decides, and it needs a reason.
   const [editPin, setEditPin] = useState<{ lat: number; lng: number } | null>(null);
   const [pinMapOpen, setPinMapOpen] = useState(false);
+  // Decision D-P9: a newer roster file of an Active TODA is a new version; the TODA reconciles it with the Master Roster member by member
+  const [rosterUpdateFile, setRosterUpdateFile] = useState<{ path: string; name: string } | null>(null);
   const [editRelocationReason, setEditRelocationReason] = useState('');
 
   // Officers Form State
@@ -366,7 +369,7 @@ export const TodaAccountManagementPage: React.FC = () => {
       const uploadResult = await uploadTodaDocument(selectedFile, targetBucket as any);
 
       // The database function replaces the file for the LGU and says what it means (a correction, or a renewal for an accredited TODA)
-      const { renewal } = await updateTodaComplianceDocument(
+      const { renewal, rosterUpdate } = await updateTodaComplianceDocument(
         profile.id,
         docCategory,
         uploadResult.url,
@@ -378,12 +381,15 @@ export const TodaAccountManagementPage: React.FC = () => {
         open: true,
         message: renewal
           ? `The renewed Barangay Clearance ("${selectedFile.name}") was sent to the LGU. Your accreditation stays as it is until the LGU records the renewal.`
+          : rosterUpdate
+          ? `Your new roster file ("${selectedFile.name}") was saved as a new version. The file you registered with stays as it was; choose which members to add or mark as left.`
           : profile.accreditationStatus === 'Resubmission Required'
           ? `${docCategory} ("${selectedFile.name}") was replaced. When every correction is done, press Resubmit for LGU review.`
           : `${docCategory} ("${selectedFile.name}") was sent to the LGU for review.`,
         severity: 'success',
       });
 
+      if (rosterUpdate) setRosterUpdateFile({ path: uploadResult.url, name: selectedFile.name });
       await loadProfile();
       setSelectedFile(null);
       setClearanceValidUntil('');
@@ -615,6 +621,14 @@ export const TodaAccountManagementPage: React.FC = () => {
           </Box>
         </SectionCard>
       </Box>
+
+      {/* Decision D-P9: the newer roster file next to the Master Roster; nothing changes until the TODA applies */}
+      <RosterUpdateDialog
+        open={Boolean(rosterUpdateFile)}
+        onClose={() => setRosterUpdateFile(null)}
+        file={rosterUpdateFile}
+        onApplied={(summary) => setUploadSnackbar({ open: true, message: `Master Roster updated: ${summary}`, severity: 'success' })}
+      />
 
       {/* Panel comment (D-P4): the terminal is chosen with a pin; the picker keeps it on a road inside the city */}
       <TerminalMapPickerModal

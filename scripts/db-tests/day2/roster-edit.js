@@ -96,12 +96,17 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   console.log('\nT6 a direct table update cannot hide a change either');
   await wait(20);
-  await as(ID.T_AUTH, (tx) => tx.query(`UPDATE toda_roster_entry SET franchise_number='FR-001', plate_number='AAA 111' WHERE entry_id='${PEDRO}'`));
+  // Since migration 20261031000005 a TODA administrator has no direct write policy at all (every change goes through the functions), so an app-side table update changes nothing:
+  const direct = await as(ID.T_AUTH, (tx) => tx.query(`UPDATE toda_roster_entry SET franchise_number='FR-001', plate_number='AAA 111' WHERE entry_id='${PEDRO}'`));
+  check('a table update from the app changes no row (D-P9: no direct write policy)', direct.rowCount === 0, direct.rowCount);
+  // The trigger stays as a second line of defence for every other path (the service role, a maintenance session): the checks below run with that privilege.
+  // a franchise number of its own: since 20261031000005 there is one ACTIVE entry per franchise number per TODA (FR-001 is Juan's)
+  await db.query(`UPDATE toda_roster_entry SET franchise_number='FR-777', plate_number='AAA 111' WHERE entry_id='${PEDRO}'`);
   e = await entryRow(PEDRO);
-  check('the trigger stamped the change although the function was bypassed', e.normalized_franchise === 'FR001' && new Date(e.identifiers_changed_at) > new Date(e.created_at), e);
-  const move = await as(ID.T_AUTH, (tx) => attempt(() => tx.query(`UPDATE toda_roster_entry SET toda_id='${ID.TODA2}' WHERE entry_id='${PEDRO}'`)));
+  check('the trigger stamped the change although the function was bypassed', e.normalized_franchise === 'FR777' && new Date(e.identifiers_changed_at) > new Date(e.created_at), e);
+  const move = await attempt(() => db.query(`UPDATE toda_roster_entry SET toda_id='${ID.TODA2}' WHERE entry_id='${PEDRO}'`));
   check('an entry cannot be moved to another TODA', !move.ok, move);
-  const back = await as(ID.T_AUTH, (tx) => attempt(() => tx.query(`UPDATE toda_roster_entry SET created_at = created_at - interval '90 days' WHERE entry_id='${PEDRO}'`)));
+  const back = await attempt(() => db.query(`UPDATE toda_roster_entry SET created_at = created_at - interval '90 days' WHERE entry_id='${PEDRO}'`));
   check('and cannot be back-dated', !back.ok, back);
 
   process.exit(summary() ? 0 : 1);

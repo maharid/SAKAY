@@ -22,7 +22,7 @@ import { DriverDetailModal } from './DriverDetailModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { TodaAccreditationDialog } from './TodaAccreditationDialog';
-import { fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
+import { fetchTodaRosterSummary, fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
 import { FONT } from '../../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../../styles/pageTheme';
 
@@ -41,6 +41,15 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
   const [relocationFeedback, setRelocationFeedback] = useState<string | null>(null);
   // the LGU decides a terminal move in its own words (decision D-P4): the dialog asks for them
   const [relocationDecision, setRelocationDecision] = useState<'approve' | 'reject' | null>(null);
+  // "20 at registration, 22 now" (decision D-P9): the roster file the TODA registered with next to what its Master Roster holds today
+  const [rosterSummary, setRosterSummary] = useState<Awaited<ReturnType<typeof fetchTodaRosterSummary>>>(null);
+  useEffect(() => {
+    if (!open || !toda) return;
+    let stopped = false;
+    setRosterSummary(null);
+    void fetchTodaRosterSummary(toda.id).then((r) => { if (!stopped) setRosterSummary(r); });
+    return () => { stopped = true; };
+  }, [open, toda?.id]);
   // the accreditation controls (Rules 2.4, 24.3)
   const [renewOpen, setRenewOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -195,6 +204,19 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         )}
 
         {/* Accreditation controls: record the renewal of the Barangay Clearance, remind the TODA, or suspend the accreditation after review */}
+        {rosterSummary && (
+          <DetailSection title="Master Roster">
+            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.6 }}>
+              <b>{rosterSummary.from_registration_file}</b> member{rosterSummary.from_registration_file === 1 ? '' : 's'} came from the roster file the TODA registered with
+              {rosterSummary.registration_file ? ` (${rosterSummary.registration_file.file_name})` : ''}, which is kept as submitted. Its Master Roster today holds{' '}
+              <b>{rosterSummary.active}</b> active member{rosterSummary.active === 1 ? '' : 's'}: {rosterSummary.added_later} added since, {rosterSummary.left} no longer a member.
+              {rosterSummary.versions.filter((v) => v.kind === 'update').length > 0
+                ? ` ${rosterSummary.versions.filter((v) => v.kind === 'update').length} newer roster file version${rosterSummary.versions.filter((v) => v.kind === 'update').length === 1 ? '' : 's'} submitted (latest ${new Date(rosterSummary.versions.filter((v) => v.kind === 'update')[0].uploaded_at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}).`
+                : ''}
+            </Typography>
+          </DetailSection>
+        )}
+
         <DetailSection title="Accreditation">
           <Box sx={{ backgroundColor: '#FAFAF8', border: `1px solid ${PAGE_BORDER}`, borderRadius: '12px', padding: '14px 16px' }}>
             <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>

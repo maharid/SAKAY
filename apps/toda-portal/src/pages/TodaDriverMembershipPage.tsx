@@ -45,14 +45,18 @@ import {
   reactivateTodaDriver,
   recordTodaAuditAction,
   fetchTodaRosterEntries,
+  fetchTodaRosterSummary,
   addTodaRosterEntry,
   updateTodaRosterEntry,
+  markTodaRosterEntryLeft,
+  reinstateTodaRosterEntry,
   fetchTodaProfile,
   fetchTodaExemptionRequests,
   decideExemptionRequest,
   escalateExemptionRequest,
   signTodaCaseEvidence,
   TodaRosterEntry,
+  RosterSummary,
 } from '../services/todaApiService';
 import { isTodaLocked } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
@@ -102,14 +106,22 @@ export const TodaDriverMembershipPage: React.FC = () => {
   const [newMemberName, setNewMemberName] = useState('');
   const [newFranchiseNumber, setNewFranchiseNumber] = useState('');
   const [newPlateNumber, setNewPlateNumber] = useState('');
+  const [newMembershipNumber, setNewMembershipNumber] = useState('');
   const [rosterSubmitting, setRosterSubmitting] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
+  // Decision D-P9: "20 at registration, 22 now", and members who left stay on the list as history
+  const [rosterSummary, setRosterSummary] = useState<RosterSummary | null>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [leftTarget, setLeftTarget] = useState<TodaRosterEntry | null>(null);
+  const [leftBusy, setLeftBusy] = useState(false);
+  const [leftError, setLeftError] = useState<string | null>(null);
 
   // Editing one roster entry (checklist: update member information)
   const [editingEntry, setEditingEntry] = useState<TodaRosterEntry | null>(null);
   const [editName, setEditName] = useState('');
   const [editFranchise, setEditFranchise] = useState('');
   const [editPlate, setEditPlate] = useState('');
+  const [editMembership, setEditMembership] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -118,6 +130,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
     setEditName(entry.member_name || '');
     setEditFranchise(entry.franchise_number || '');
     setEditPlate(entry.plate_number || '');
+    setEditMembership(entry.membership_number || '');
     setEditError(null);
   };
 
@@ -134,11 +147,12 @@ export const TodaDriverMembershipPage: React.FC = () => {
         memberName: editName.trim(),
         franchiseNumber: editFranchise.trim(),
         plateNumber: editPlate.trim(),
+        membershipNumber: editMembership,
       });
       if (changed) {
         const now = new Date().toISOString();
         setRosterEntries((prev) => prev.map((x) => (x.entry_id === editingEntry.entry_id
-          ? { ...x, member_name: editName.trim(), franchise_number: editFranchise.trim(), plate_number: editPlate.trim(), updated_at: now }
+          ? { ...x, member_name: editName.trim(), franchise_number: editFranchise.trim(), plate_number: editPlate.trim(), membership_number: editMembership.trim() || null, updated_at: now }
           : x)));
       }
       setEditingEntry(null);
@@ -176,6 +190,14 @@ export const TodaDriverMembershipPage: React.FC = () => {
       .catch((err) => {
         console.warn('[TodaMembership] Failed to fetch roster entries:', err);
       });
+    void fetchTodaRosterSummary().then(setRosterSummary);
+  };
+
+  // the roster and its summary again, after a change (the database is the truth, not this browser's copy)
+  const refreshRoster = async () => {
+    const targetId = effectiveTodaId || todaAdminProfile?.toda_id;
+    setRosterEntries((await fetchTodaRosterEntries(targetId)) || []);
+    setRosterSummary(await fetchTodaRosterSummary());
   };
 
   const handleAddRosterSubmit = async () => {
@@ -188,7 +210,11 @@ export const TodaDriverMembershipPage: React.FC = () => {
       setRosterError('The franchise number needs letters or numbers.');
       return;
     }
-    if (rosterEntries.some((e) => normalizeFranchise(e.franchise_number) === normalizedFranchise)) {
+    if (!newPlateNumber.trim()) {
+      setRosterError('The plate number is required for a member you add yourself: it ties the franchise number to the tricycle.');
+      return;
+    }
+    if (rosterEntries.some((e) => e.status !== 'Left' && normalizeFranchise(e.franchise_number) === normalizedFranchise)) {
       setRosterError('A roster entry with that franchise number already exists. Edit that entry instead.');
       return;
     }
@@ -201,12 +227,15 @@ export const TodaDriverMembershipPage: React.FC = () => {
         memberName: newMemberName.trim(),
         franchiseNumber: newFranchiseNumber.trim(),
         plateNumber: newPlateNumber.trim(),
+        membershipNumber: newMembershipNumber.trim(),
       });
       setRosterEntries((prev) => [added, ...prev]);
+      void fetchTodaRosterSummary().then(setRosterSummary);
       setRosterAddModalOpen(false);
       setNewMemberName('');
       setNewFranchiseNumber('');
       setNewPlateNumber('');
+      setNewMembershipNumber('');
     } catch (err: any) {
       setRosterError(err.message || 'Failed to add roster entry');
     } finally {
@@ -398,7 +427,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
         >
           <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Driver Members (${totalCount})`} />
           <Tab icon={<GavelIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Strike Exemption Appeals (${exemptions.length})`} />
-          <Tab icon={<DescriptionIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Master Roster (${rosterEntries.length})`} />
+          <Tab icon={<DescriptionIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`Master Roster (${rosterEntries.filter((e) => e.status !== 'Left').length})`} />
         </Tabs>
       </Box>
 
@@ -592,7 +621,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
           </TableBody>
         </DataTableCard>
       ) : (
-        /* 6. Official Master Roster Tab (Rule 2.4) */
+        /* 6. Official Master Roster Tab (Rule 2.4; decision D-P9: the living list, with where each member came from and who has left) */
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '13px', mb: SPACE.gap }}>
             <Box sx={{ minWidth: 0, flex: '1 1 320px' }}>
@@ -600,8 +629,9 @@ export const TodaDriverMembershipPage: React.FC = () => {
                 Master Roster
               </Typography>
               <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px', lineHeight: 1.5, maxWidth: '90ch' }}>
-                The franchise numbers your TODA vouches for. The roster file you submitted is added here automatically. When a driver applies to your TODA, Driver Verification
-                checks the franchise number on the application against this list, so use Add Roster Member when a new driver joins. An entry counts for applications submitted after it was added.
+                The members your TODA vouches for, by franchise number. This list is the one that counts: when a driver applies, Driver Verification checks the franchise number on the
+                application against it. The roster file you submitted at registration is kept as it was; add a member when one joins, and mark one as left when he goes.
+                An entry counts for applications submitted after it was added, and a member who left still counts for applications made while he was a member.
               </Typography>
             </Box>
             <Button
@@ -617,51 +647,96 @@ export const TodaDriverMembershipPage: React.FC = () => {
             </Button>
           </Box>
 
-          <DataTableCard label="Master roster" minWidth={760} columns={[{ label: 'Member full name' }, { label: 'Franchise number' }, { label: 'Vehicle plate number' }, { label: 'Date added' }, { label: 'Screening status' }, { label: 'Action', align: 'right' }]}>
+          {rosterSummary && (
+            <Alert severity="info" sx={{ mb: SPACE.gap, fontSize: FONT.body }}>
+              <strong>{rosterSummary.from_registration_file} member{rosterSummary.from_registration_file === 1 ? '' : 's'}</strong> came from the roster file you submitted at registration
+              {rosterSummary.registration_file ? ` (${rosterSummary.registration_file.file_name}, ${dateOf(rosterSummary.registration_file.uploaded_at)})` : ''}. The Master Roster now has{' '}
+              <strong>{rosterSummary.active} active member{rosterSummary.active === 1 ? '' : 's'}</strong>: {rosterSummary.added_later} added since, {rosterSummary.left} no longer a member.
+              The file stays as submitted; changes are made here and every one is recorded.
+            </Alert>
+          )}
+
+          {rosterEntries.some((e) => e.status === 'Left') && (
+            <Box sx={{ mb: SPACE.gap }}>
+              <Button onClick={() => setShowLeft((v) => !v)} sx={rowActionSx('neutral')}>
+                {showLeft ? 'Hide members who left' : `Show members who left (${rosterEntries.filter((e) => e.status === 'Left').length})`}
+              </Button>
+            </Box>
+          )}
+
+          <DataTableCard label="Master roster" minWidth={980} columns={[{ label: 'Member full name' }, { label: 'Franchise number' }, { label: 'Vehicle plate number' }, { label: 'Membership no.' }, { label: 'Source' }, { label: 'Date added' }, { label: 'Status' }, { label: 'Action', align: 'right' }]}>
             <TableBody>
-              {rosterEntries.length === 0 ? (
+              {rosterEntries.filter((e) => showLeft || e.status !== 'Left').length === 0 ? (
                 <DataTableMessageRow
-                  colSpan={6}
+                  colSpan={8}
                   kind="empty"
                   title="No master roster entries yet"
                   hint='The roster file you submitted is added automatically. If it has no franchise numbers, click "Add Roster Member" to register members one by one.'
                 />
               ) : (
-                rosterEntries.map((entry) => (
-                  <TableRow key={entry.entry_id || entry.roster_id || `${entry.franchise_number}-${entry.plate_number}`}>
-                    <TableCell sx={{ fontWeight: 600 }}>
-                      {entry.member_name}
-                    </TableCell>
-                    <TableCell>
-                      {entry.franchise_number}
-                    </TableCell>
-                    <TableCell>
-                      {entry.plate_number || '—'}
-                    </TableCell>
-                    <TableCell sx={{ color: OPS_TEXT.secondary }}>
-                      {entry.created_at ? dateOf(entry.created_at) : 'Registered'}
-                      {entry.updated_at && (
-                        <Typography component="div" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>
-                          Edited {dateOf(entry.updated_at)}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status="Active" label="Active Roster" highContrast sx={{ height: '24px', fontSize: FONT.small }} />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Button
-                        variant="outlined"
-                        startIcon={<EditIcon sx={{ fontSize: 14 }} />}
-                        disabled={!entry.entry_id}
-                        onClick={() => openEditEntry(entry)}
-                        sx={rowActionSx('brand')}
-                      >
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                rosterEntries.filter((e) => showLeft || e.status !== 'Left').map((entry) => {
+                  const left = entry.status === 'Left';
+                  return (
+                    <TableRow key={entry.entry_id || entry.roster_id || `${entry.franchise_number}-${entry.plate_number}`} sx={left ? { opacity: 0.7 } : undefined}>
+                      <TableCell sx={{ fontWeight: 600 }}>{entry.member_name}</TableCell>
+                      <TableCell>{entry.franchise_number}</TableCell>
+                      <TableCell>{entry.plate_number || <Typography component="span" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>no plate on file</Typography>}</TableCell>
+                      <TableCell>{entry.membership_number || '—'}</TableCell>
+                      <TableCell sx={{ color: OPS_TEXT.secondary }}>
+                        {entry.source === 'registration_file' ? 'Registration file' : entry.source === 'file_update' ? 'Updated file' : 'Added by you'}
+                      </TableCell>
+                      <TableCell sx={{ color: OPS_TEXT.secondary }}>
+                        {entry.created_at ? dateOf(entry.created_at) : 'Registered'}
+                        {entry.updated_at && (
+                          <Typography component="div" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>
+                            Edited {dateOf(entry.updated_at)}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {left ? (
+                          <Box>
+                            <Chip size="small" label="Left" sx={{ fontWeight: 700 }} />
+                            <Typography component="div" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px', maxWidth: 220 }}>
+                              {entry.left_at ? dateOf(entry.left_at) : ''}{entry.left_reason ? ` · ${entry.left_reason}` : ''}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <StatusBadge status="Active" label="Active member" highContrast sx={{ height: '24px', fontSize: FONT.small }} />
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        {left ? (
+                          <Button
+                            variant="outlined"
+                            disabled={!entry.entry_id}
+                            onClick={async () => {
+                              try {
+                                await reinstateTodaRosterEntry(entry.entry_id as string);
+                                await refreshRoster();
+                                setToast({ message: `${entry.member_name} is back on the roster as a new entry (counted from today).`, severity: 'success' });
+                              } catch (err) {
+                                setToast({ message: err instanceof Error ? err.message : 'The member was not put back.', severity: 'error' });
+                              }
+                            }}
+                            sx={rowActionSx('brand')}
+                          >
+                            Put back
+                          </Button>
+                        ) : (
+                          <Box sx={{ display: 'inline-flex', gap: '6px' }}>
+                            <Button variant="outlined" startIcon={<EditIcon sx={{ fontSize: 14 }} />} disabled={!entry.entry_id} onClick={() => openEditEntry(entry)} sx={rowActionSx('brand')}>
+                              Edit
+                            </Button>
+                            <Button variant="outlined" disabled={!entry.entry_id} onClick={() => { setLeftError(null); setLeftTarget(entry); }} sx={rowActionSx('danger')}>
+                              Mark as left
+                            </Button>
+                          </Box>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </DataTableCard>
@@ -801,6 +876,35 @@ export const TodaDriverMembershipPage: React.FC = () => {
         onConfirm={handleEscalate}
       />
 
+      {/* A member who left: he stays on the list as history and stops matching new applications; a reason is kept (decision D-P9) */}
+      <MacConfirmDialog
+        open={Boolean(leftTarget)}
+        onClose={() => !leftBusy && setLeftTarget(null)}
+        title="Mark this member as left?"
+        message={`${leftTarget?.member_name ?? 'This member'} (franchise ${leftTarget?.franchise_number ?? ''}) stays on the list as history and no longer counts for NEW applications. Applications made while he was a member keep their result. You can put him back later (he then counts from that day).`}
+        confirmLabel="Mark as left"
+        confirmVariant="danger"
+        requireReason
+        reasonPlaceholder="Why is he no longer on the roster? (at least 10 characters: he left, transferred, was expelled)"
+        isLoading={leftBusy}
+        errorMessage={leftError}
+        onConfirm={async (reason) => {
+          if (!leftTarget?.entry_id) return;
+          setLeftBusy(true);
+          setLeftError(null);
+          try {
+            await markTodaRosterEntryLeft(leftTarget.entry_id, reason ?? '');
+            await refreshRoster();
+            setToast({ message: `${leftTarget.member_name} was marked as left.`, severity: 'success' });
+            setLeftTarget(null);
+          } catch (err) {
+            setLeftError(err instanceof Error ? err.message : 'The member was not marked as left.');
+          } finally {
+            setLeftBusy(false);
+          }
+        }}
+      />
+
       {/* Suspension Recommendation Confirmation Dialog */}
       <MacConfirmDialog
         open={suspendDialogOpen}
@@ -840,7 +944,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
             </Alert>
           )}
           <TextField
-            label="Member Full Name"
+            label="Driver Full Name"
             required
             fullWidth
             size="small"
@@ -859,11 +963,22 @@ export const TodaDriverMembershipPage: React.FC = () => {
           />
           <TextField
             label="Vehicle Plate Number"
+            required
             fullWidth
             size="small"
             value={newPlateNumber}
             onChange={(e) => setNewPlateNumber(e.target.value)}
             placeholder="e.g. 123-ABC"
+            helperText="Required: it ties the franchise number to the tricycle."
+          />
+          <TextField
+            label="TODA Membership Number (optional)"
+            fullWidth
+            size="small"
+            value={newMembershipNumber}
+            onChange={(e) => setNewMembershipNumber(e.target.value)}
+            placeholder="Your TODA's own number for this member"
+            helperText="Drivers give it on their application; the reviewer sees whether it agrees."
           />
         </DialogContent>
         <DialogActions sx={DIALOG_ACTIONS_SX}>
@@ -897,6 +1012,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
           <TextField label="Member Full Name" required fullWidth size="small" value={editName} onChange={(e) => setEditName(e.target.value)} />
           <TextField label="Franchise Number" required fullWidth size="small" value={editFranchise} onChange={(e) => setEditFranchise(e.target.value)} />
           <TextField label="Vehicle Plate Number" fullWidth size="small" value={editPlate} onChange={(e) => setEditPlate(e.target.value)} />
+          <TextField label="TODA Membership Number (optional)" fullWidth size="small" value={editMembership} onChange={(e) => setEditMembership(e.target.value)} />
         </DialogContent>
         <DialogActions sx={DIALOG_ACTIONS_SX}>
           <Button onClick={() => setEditingEntry(null)} disabled={editSubmitting} sx={{ textTransform: 'none', color: OPS_TEXT.secondary, fontWeight: 600 }}>

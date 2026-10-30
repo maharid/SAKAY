@@ -2498,6 +2498,22 @@ export async function fetchPassengerFeedback(): Promise<PassengerFeedbackItem[]>
 // 15. TERMINAL RELOCATION & DOCUMENT RENEWAL MANAGEMENT (Batch 1 Rules 2.2, 24.2)
 // ============================================================================
 
+/** What a TODA's Master Roster holds compared with the roster file it registered with (decision D-P9): "20 at registration, 22 now". Read-only. */
+export interface TodaRosterSummary {
+  from_registration_file: number;
+  active: number;
+  added_later: number;
+  left: number;
+  registration_file: { file_name: string; uploaded_at: string } | null;
+  versions: Array<{ kind: 'registration' | 'update'; file_name: string | null; uploaded_at: string }>;
+}
+
+export async function fetchTodaRosterSummary(todaId: string): Promise<TodaRosterSummary | null> {
+  const { data, error } = await supabase.rpc('get_toda_roster_summary', { p_toda_id: todaId });
+  if (error || !data || data.found !== true) return null;
+  return data as TodaRosterSummary;
+}
+
 /**
  * Fetches TODAs with pending terminal relocation requests (Rule 2.2)
  */

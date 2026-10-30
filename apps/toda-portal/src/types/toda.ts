@@ -111,7 +111,7 @@ export interface ApplicantDocumentReview {
 }
 
 /** Why the Master Roster check came out the way it did (database: get_affiliation_roster_matches). */
-export type RosterReason = 'matched' | 'entry_added_later' | 'plate_only' | 'no_entry' | 'no_franchise';
+export type RosterReason = 'matched' | 'entry_added_later' | 'entry_left' | 'plate_only' | 'no_entry' | 'no_franchise';
 
 /** The answer of the Master Roster check for one application, with the roster entry it found (if any). The FRANCHISE number decides. */
 export interface RosterCheck {

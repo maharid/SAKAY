@@ -374,7 +374,7 @@ export async function updateTodaComplianceDocument(
   filePath: string,
   fileName: string,
   validUntil?: string | null
-): Promise<{ renewal: boolean }> {
+): Promise<{ renewal: boolean; rosterUpdate: boolean }> {
   const { data, error } = await supabase.rpc('toda_submit_compliance_document', {
     p_category: category,
     p_path: filePath,
@@ -383,9 +383,11 @@ export async function updateTodaComplianceDocument(
   });
   const r = todaRpcResult(data, error, 'The document could not be submitted. Please try again.');
   announceTodaProfileChanged();
-  // a new roster file feeds the master roster (the members that are new to it)
-  if (category === 'Driver Roster') await autoImportTodaRoster(_todaId);
-  return { renewal: Boolean(r.renewal) };
+  // Decision D-P9: an ACTIVE TODA's new roster file is a new version, not a replacement. The screen shows what is new and what is missing and the TODA decides member by member
+  // (nothing is added or removed by itself). While the application is still pending or returned the registration file is simply replaced and imported as before.
+  const rosterUpdate = category === 'Driver Roster' && r.toda_status === 'Active';
+  if (category === 'Driver Roster' && !rosterUpdate) await autoImportTodaRoster(_todaId);
+  return { renewal: Boolean(r.renewal), rosterUpdate };
 }
 
 /** States what the TODA says its Barangay Clearance is valid until (used right after registering). Not fatal when it fails: the LGU reads the date from the document. */
@@ -652,6 +654,31 @@ async function downloadRosterFile(rawUrl: string): Promise<ArrayBuffer | null> {
   return arrayBuffer;
 }
 
+/** The Members row of a driver account of this TODA (used for a driver who is not on the Master Roster, and when the roster is still empty). */
+function memberFromDriverRow(d: any, todaRecord: any, idx = 0): TodaDriverMember {
+  return {
+        id: d.driver_id,
+        membershipNo: d.toda_membership_number || '-',
+        name: d.full_name,
+        phone: d.contact_number,
+        vehiclePlate: d.plate_number || 'N/A',
+        franchiseNo: d.franchise_number || d.plate_number || 'N/A',
+        licenseNo: d.license_number || '',
+        serviceZone: d.barangay_service_area || todaRecord?.barangay || 'Calapan City',
+        todaVerificationStatus: 'Verified',
+        lguVerificationStatus: d.account_status === 'Verified' ? 'Verified' : 'Pending',
+        accountStatus: d.account_status === 'Suspended' ? 'TODA Suspended' : (d.account_status as any) || 'Active',
+        suspensionReason: d.suspension_reason || undefined,
+        suspendedAt: d.suspended_at ? new Date(d.suspended_at).toLocaleDateString('en-US') : undefined,
+        strikesCount: d.strikes_count || 0,
+        rating: Number(d.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
+        totalTrips: 0,
+        joinedDate: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US') : 'Recent',
+        availabilityStatus: d.availability_status || undefined,
+        bookingsPausedUntil: d.bookings_paused_until || null,
+  };
+}
+
 export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMember[]> {
   try {
     const currentTodaId = await getEffectiveTodaId(todaId);
@@ -670,94 +697,58 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
     //    member of both; driver.toda_id points at only one of them), with this TODA's own membership number and service barangay.
     const driverList = currentTodaId ? await fetchAffiliatedDrivers(currentTodaId) : [];
 
-    // 3. If an accredited driver roster file was uploaded, parse and render from the submitted document
-    if (todaRecord?.accredited_drivers_url) {
-      try {
-        const arrayBuffer = await downloadRosterFile(todaRecord.accredited_drivers_url);
-
-        if (arrayBuffer) {
-          const parsed = await parseDriverRoster(arrayBuffer);
-          if (parsed && parsed.rows && parsed.rows.length > 0) {
-            return parsed.rows.map((row, idx) => {
-              const cleanName = (row.name || '').trim().toLowerCase();
-              const cleanFranchise = (row.franchiseNumber || '').trim().toLowerCase();
-
-              // Correlate strictly with registered driver account by franchise number
-              const matchedDriver = driverList.find((d: any) => {
-                const dFranchise = (d.franchise_number || d.plate_number || '').trim().toLowerCase();
-                return Boolean(cleanFranchise && dFranchise === cleanFranchise);
-              });
-
-              let accountStatus: string = 'Not Registered';
-              if (matchedDriver) {
-                const rawStatus = matchedDriver.account_status;
-                if (rawStatus === 'Suspended') {
-                  accountStatus = 'TODA Suspended';
-                } else if (rawStatus === 'Active' || rawStatus === 'Verified') {
-                  accountStatus = 'Active';
-                } else if (rawStatus === 'Deactivated') {
-                  accountStatus = 'LGU Deactivated';
-                } else if (rawStatus === 'Pending' || rawStatus === 'Pending Verification') {
-                  accountStatus = 'Pending Verification';
-                } else {
-                  accountStatus = rawStatus || 'Active';
-                }
-              } else {
-                accountStatus = 'Not Registered';
-              }
-
-              return {
-                id: matchedDriver?.driver_id || `roster-${idx + 1}`,
-                membershipNo: `MEM-${String(idx + 1).padStart(3, '0')}`,
-                name: row.name || `Driver #${idx + 1}`,
-                phone: matchedDriver?.contact_number || '',
-                vehiclePlate: matchedDriver?.plate_number || row.franchiseNumber || 'N/A',
-                franchiseNo: row.franchiseNumber || matchedDriver?.franchise_number || 'N/A',
-                licenseNo: matchedDriver?.license_number || '',
-                serviceZone: todaRecord?.service_coverage_area || todaRecord?.barangay || 'Calapan City',
-                todaVerificationStatus: 'Verified',
-                lguVerificationStatus: matchedDriver?.account_status === 'Verified' ? 'Verified' : 'Pending',
-                accountStatus: accountStatus as TodaDriverMember['accountStatus'],
-                suspensionReason: matchedDriver?.suspension_reason || undefined,
-                suspendedAt: matchedDriver?.suspended_at ? new Date(matchedDriver.suspended_at).toLocaleDateString('en-US') : undefined,
-                strikesCount: matchedDriver?.strikes_count || 0,
-                rating: Number(matchedDriver?.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
-                totalTrips: 0,
-                joinedDate: todaRecord?.created_at ? new Date(todaRecord.created_at).toLocaleDateString('en-US') : 'Recent',
-                availabilityStatus: matchedDriver?.availability_status || undefined,
-                bookingsPausedUntil: matchedDriver?.bookings_paused_until || null,
-              };
-            });
-          }
+    // 3. The Master Roster is the list of members (decision D-P9): the roster FILE submitted at registration is evidence, not the list, so a member added later appears here
+    //    and one who left does not. A member is matched to a driver account by franchise number; a driver of this TODA who is not on the roster is listed too.
+    const { data: rosterRows } = currentTodaId && currentTodaId !== DEFAULT_TODA_ID
+      ? await supabase.from('toda_roster_entry').select('*').eq('toda_id', currentTodaId).eq('status', 'Active').order('created_at', { ascending: true })
+      : { data: null };
+    if (rosterRows && rosterRows.length > 0) {
+      const matchedIds = new Set<string>();
+      const fromRoster: TodaDriverMember[] = rosterRows.map((row: any, idx: number) => {
+        const key = normalizeFranchiseKey(row.franchise_number);
+        const matchedDriver = driverList.find((d: any) => key !== '' && normalizeFranchiseKey(d.franchise_number) === key);
+        if (matchedDriver) matchedIds.add(matchedDriver.driver_id);
+        const rawStatus = matchedDriver?.account_status;
+        let accountStatus: string = 'Not Registered';
+        if (matchedDriver) {
+          if (rawStatus === 'Suspended') accountStatus = 'TODA Suspended';
+          else if (rawStatus === 'Active' || rawStatus === 'Verified') accountStatus = 'Active';
+          else if (rawStatus === 'Deactivated') accountStatus = 'LGU Deactivated';
+          else if (rawStatus === 'Pending' || rawStatus === 'Pending Verification') accountStatus = 'Pending Verification';
+          else accountStatus = rawStatus || 'Active';
         }
-      } catch (rosterParseErr) {
-        console.warn('[todaApiService] Could not parse uploaded roster file, falling back to driver table:', rosterParseErr);
-      }
+        return {
+          id: matchedDriver?.driver_id || `roster-${row.entry_id || idx + 1}`,
+          // the TODA's own number for the member (never one made up from the order of a file)
+          membershipNo: row.membership_number || matchedDriver?.toda_membership_number || '-',
+          name: row.member_name || `Member ${idx + 1}`,
+          phone: matchedDriver?.contact_number || '',
+          vehiclePlate: matchedDriver?.plate_number || row.plate_number || 'N/A',
+          franchiseNo: row.franchise_number || matchedDriver?.franchise_number || 'N/A',
+          licenseNo: matchedDriver?.license_number || '',
+          serviceZone: todaRecord?.service_coverage_area || todaRecord?.barangay || 'Calapan City',
+          todaVerificationStatus: 'Verified',
+          lguVerificationStatus: matchedDriver?.account_status === 'Verified' ? 'Verified' : 'Pending',
+          accountStatus: accountStatus as TodaDriverMember['accountStatus'],
+          suspensionReason: matchedDriver?.suspension_reason || undefined,
+          suspendedAt: matchedDriver?.suspended_at ? new Date(matchedDriver.suspended_at).toLocaleDateString('en-US') : undefined,
+          strikesCount: matchedDriver?.strikes_count || 0,
+          rating: Number(matchedDriver?.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
+          totalTrips: 0,
+          joinedDate: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US') : 'Recent',
+          availabilityStatus: matchedDriver?.availability_status || undefined,
+          bookingsPausedUntil: matchedDriver?.bookings_paused_until || null,
+        };
+      });
+      const notOnRoster: TodaDriverMember[] = driverList
+        .filter((d: any) => !matchedIds.has(d.driver_id))
+        .map((d: any) => memberFromDriverRow(d, todaRecord));
+      return [...fromRoster, ...notOnRoster];
     }
 
     // 4. Fallback to registered driver table accounts
     if (driverList.length > 0) {
-      return driverList.map((d: any, idx: number) => ({
-        id: d.driver_id,
-        membershipNo: d.toda_membership_number || `MEM-${String(idx + 1).padStart(3, '0')}`,
-        name: d.full_name,
-        phone: d.contact_number,
-        vehiclePlate: d.plate_number || 'N/A',
-        franchiseNo: d.franchise_number || d.plate_number || 'N/A',
-        licenseNo: d.license_number || '',
-        serviceZone: d.barangay_service_area || todaRecord?.barangay || 'Calapan City',
-        todaVerificationStatus: 'Verified',
-        lguVerificationStatus: d.account_status === 'Verified' ? 'Verified' : 'Pending',
-        accountStatus: d.account_status === 'Suspended' ? 'TODA Suspended' : (d.account_status as any) || 'Active',
-        suspensionReason: d.suspension_reason || undefined,
-        suspendedAt: d.suspended_at ? new Date(d.suspended_at).toLocaleDateString('en-US') : undefined,
-        strikesCount: d.strikes_count || 0,
-        rating: Number(d.weighted_average_rating) || 0,   // 0 = Not Yet Rated (Rule 23.1)
-        totalTrips: 0,
-        joinedDate: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US') : 'Recent',
-        availabilityStatus: d.availability_status || undefined,
-        bookingsPausedUntil: d.bookings_paused_until || null,
-      }));
+      return driverList.map((d: any, idx: number) => memberFromDriverRow(d, todaRecord, idx));
     }
 
     return [];
@@ -1505,6 +1496,14 @@ export interface TodaRosterEntry {
   plate_number: string;
   member_name: string;
   created_at: string;
+  /** the TODA's own number for the member (optional) */
+  membership_number?: string | null;
+  /** where the entry came from: the registration roster file, typed in, or a later file */
+  source?: 'registration_file' | 'manual' | 'file_update' | string;
+  /** a member who left stays on the list as history (decision D-P9) */
+  status?: 'Active' | 'Left' | string;
+  left_at?: string | null;
+  left_reason?: string | null;
 }
 
 /**
@@ -1548,13 +1547,15 @@ export async function fetchTodaRosterEntries(todaId?: string): Promise<TodaRoste
  */
 export async function updateTodaRosterEntry(
   entryId: string,
-  input: { memberName: string; franchiseNumber: string; plateNumber: string }
+  input: { memberName: string; franchiseNumber: string; plateNumber: string; membershipNumber?: string }
 ): Promise<{ changed: boolean }> {
   const { data, error } = await supabase.rpc('update_toda_roster_entry', {
     p_entry_id: entryId,
     p_member_name: input.memberName,
     p_franchise_number: input.franchiseNumber,
     p_plate_number: input.plateNumber.trim() || null,
+    // undefined = leave the membership number as it is; an empty text clears it
+    p_membership_number: input.membershipNumber === undefined ? null : input.membershipNumber.trim(),
   });
   if (error) throw new Error(error.message);
   if (!data || data.success !== true) throw new Error(String(data?.error || 'The roster entry was not updated.'));
@@ -1566,48 +1567,132 @@ export async function addTodaRosterEntry(entry: {
   memberName: string;
   franchiseNumber: string;
   plateNumber: string;
+  membershipNumber?: string;
 }): Promise<TodaRosterEntry> {
-  const targetTodaId = await getEffectiveTodaId(entry.todaId);
-  const memberName = entry.memberName.trim();
-  const franchiseNumber = entry.franchiseNumber.trim();
-  const plateNumber = entry.plateNumber.trim();
+  // add_toda_roster_entry (migration 20261031000005) checks the caller, the fields and the duplicate, writes the audit entry and returns the new row
+  const { data, error } = await supabase.rpc('add_toda_roster_entry', {
+    p_member_name: entry.memberName.trim(),
+    p_franchise_number: entry.franchiseNumber.trim(),
+    p_plate_number: entry.plateNumber.trim(),
+    p_membership_number: entry.membershipNumber?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The roster entry could not be saved. Please try again.'));
+  return data.entry as TodaRosterEntry;
+}
 
-  const { data, error } = await supabase
-    .from('toda_roster_entry')
-    .insert({
-      toda_id: targetTodaId,
-      member_name: memberName,
-      franchise_number: franchiseNumber,
-      plate_number: plateNumber || null,
+/** A member who has left: he stays on the list as history and stops matching NEW applications. A reason of at least 10 characters is required. */
+export async function markTodaRosterEntryLeft(entryId: string, reason: string): Promise<void> {
+  const { data, error } = await supabase.rpc('mark_toda_roster_entry_left', { p_entry_id: entryId, p_reason: reason.trim() });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The member was not marked as left.'));
+}
+
+/** Puts a member who left back: a NEW entry is made (the old one stays as history), so he counts from now like any new member. */
+export async function reinstateTodaRosterEntry(entryId: string): Promise<TodaRosterEntry> {
+  const { data, error } = await supabase.rpc('reinstate_toda_roster_entry', { p_entry_id: entryId });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The member was not put back on the roster.'));
+  return data.entry as TodaRosterEntry;
+}
+
+export interface RosterFileVersion {
+  version_id: string;
+  kind: 'registration' | 'update';
+  file_name: string | null;
+  uploaded_at: string;
+  file_path: string;
+}
+
+/** "20 at registration, 22 now": what the Master Roster holds compared with the roster file submitted at registration (get_toda_roster_summary) */
+export interface RosterSummary {
+  found: boolean;
+  registration_file: { file_name: string; uploaded_at: string } | null;
+  from_registration_file: number;
+  active: number;
+  added_later: number;
+  left: number;
+  edited: number;
+  versions: RosterFileVersion[];
+}
+
+export async function fetchTodaRosterSummary(todaId?: string): Promise<RosterSummary | null> {
+  const { data, error } = await supabase.rpc('get_toda_roster_summary', { p_toda_id: todaId ?? null });
+  if (error || !data || data.found !== true) return null;
+  return data as RosterSummary;
+}
+
+/** What a newer roster file would change in the Master Roster: nothing happens until the TODA confirms each member. */
+export interface RosterFileDiff {
+  fileName: string;
+  rowsInFile: number;
+  /** in the file, not an active member yet */
+  onlyInFile: Array<{ name: string; franchiseNumber: string }>;
+  /** an active member, not in the file */
+  onlyOnRoster: TodaRosterEntry[];
+  /** in both */
+  inBoth: number;
+}
+
+const normalizeFranchiseKey = (value?: string | null): string => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+export async function diffRosterFileWithRoster(filePath: string, fileName: string, todaId?: string): Promise<RosterFileDiff> {
+  const targetTodaId = await getEffectiveTodaId(todaId);
+  const buffer = await downloadRosterFile(filePath);
+  if (!buffer) throw new Error('The roster file could not be opened. Please try again in a moment.');
+  const parsed = await parseDriverRoster(buffer);
+  const rows = (parsed?.rows || []).filter((row) => normalizeFranchiseKey(row.franchiseNumber) !== '');
+  if (rows.length === 0) throw new Error('No members with a franchise number were found in the roster file.');
+
+  const { data, error } = await supabase.from('toda_roster_entry').select('*').eq('toda_id', targetTodaId).eq('status', 'Active');
+  if (error) throw new Error(error.message);
+  const active = (data || []) as TodaRosterEntry[];
+  const activeKeys = new Set(active.map((e) => normalizeFranchiseKey(e.franchise_number)));
+  const fileKeys = new Set(rows.map((row) => normalizeFranchiseKey(row.franchiseNumber)));
+  const seen = new Set<string>();
+  const onlyInFile = rows
+    .filter((row) => {
+      const key = normalizeFranchiseKey(row.franchiseNumber);
+      if (activeKeys.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     })
-    .select()
-    .single();
+    .map((row) => ({ name: row.name, franchiseNumber: row.franchiseNumber }));
+  return {
+    fileName,
+    rowsInFile: rows.length,
+    onlyInFile,
+    onlyOnRoster: active.filter((e) => !fileKeys.has(normalizeFranchiseKey(e.franchise_number))),
+    inBoth: active.filter((e) => fileKeys.has(normalizeFranchiseKey(e.franchise_number))).length,
+  };
+}
 
-  if (!error && data) {
-    await recordTodaAuditAction({
-      actionType: 'TODA_ROSTER_ENTRY_ADDED',
-      targetId: targetTodaId,
-      targetName: memberName,
-      details: `Added new official roster entry for '${memberName}' (Franchise: ${franchiseNumber}${plateNumber ? `, Plate: ${plateNumber}` : ''}).`,
-      category: 'Membership',
-    });
-    return data as TodaRosterEntry;
+/** Applies what the TODA confirmed: the members to add (as an updated file's entries) and the members to mark as left, each with a reason. Returns what was done. */
+export async function applyRosterReconciliation(input: {
+  add: Array<{ name: string; franchiseNumber: string }>;
+  markLeft: Array<{ entryId: string; reason: string }>;
+}): Promise<{ added: number; left: number; failed: string[] }> {
+  const result = { added: 0, left: 0, failed: [] as string[] };
+  if (input.add.length > 0) {
+    const rows = input.add.map((m) => ({ member_name: m.name, franchise_number: m.franchiseNumber }));
+    for (let i = 0; i < rows.length; i += 500) {
+      const { data, error } = await supabase.rpc('import_toda_roster', { p_entries: rows.slice(i, i + 500), p_source: 'file_update' });
+      if (error || !data || data.success !== true) {
+        result.failed.push(error?.message || String(data?.error || 'Some members could not be added.'));
+        break;
+      }
+      result.added += Number(data.added) || 0;
+    }
   }
-
-  console.warn('[todaApiService] Direct Supabase roster insert failed, trying the server:', error?.message);
-  try {
-    const serverRes = await apiFetch(supabase, `${API_BASE_URL}/admin/todas/${targetTodaId}/roster`, {
-      method: 'POST',
-      body: JSON.stringify({
-        entries: [{ driver_full_name: memberName, franchise_number: franchiseNumber, plate_number: plateNumber || undefined }],
-      }),
-    });
-    const json = await serverRes.json();
-    if (json.success && json.data?.[0]) return json.data[0] as TodaRosterEntry;
-  } catch {
-    // reported below
+  for (const m of input.markLeft) {
+    try {
+      await markTodaRosterEntryLeft(m.entryId, m.reason);
+      result.left += 1;
+    } catch (err) {
+      result.failed.push((err as Error).message);
+    }
   }
-  throw new Error('The roster entry could not be saved. Please try again.');
+  return result;
 }
 
 // Roster files already brought into the master roster during this page load (so the portal does it once, not on every screen)
@@ -1628,6 +1713,10 @@ export async function autoImportTodaRoster(todaId?: string): Promise<RosterImpor
     const key = `${targetTodaId}|${fileUrl}`;
     if (rosterFilesSynced.has(key)) return null;
     rosterFilesSynced.add(key);
+
+    // Decision D-P9: the registration file is imported ONCE, when the roster has nothing from it yet. Importing it again later would bring back a member who has left.
+    const { count } = await supabase.from('toda_roster_entry').select('entry_id', { count: 'exact', head: true }).eq('toda_id', targetTodaId).eq('source', 'registration_file');
+    if ((count ?? 0) > 0) return null;
 
     return await importTodaRosterFromUploadedFile(targetTodaId, fileUrl);
   } catch (err) {
@@ -1676,7 +1765,7 @@ export async function importTodaRosterFromUploadedFile(todaId?: string, knownFil
 
   const result: RosterImportResult = { rowsInFile: rows.length, added: 0, skippedDuplicate: 0, skippedInvalid: 0 };
   for (let i = 0; i < rows.length; i += 500) {
-    const { data, error } = await supabase.rpc('import_toda_roster', { p_entries: rows.slice(i, i + 500) });
+    const { data, error } = await supabase.rpc('import_toda_roster', { p_entries: rows.slice(i, i + 500), p_source: 'registration_file' });
     if (error) throw new Error(error.message);
     if (!data || data.success !== true) throw new Error(String(data?.error || 'The roster could not be imported.'));
     result.added += Number(data.added) || 0;
