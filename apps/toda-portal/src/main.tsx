@@ -4,7 +4,11 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import '@fontsource/poppins';
 import App from './App';
+import { installBrowserLockdown } from '@sakay/shared';
 import './styles/globals.css';
+
+// Panel comment (D-P7): in a production build the developer-tools shortcuts and the right-click menu are blocked (a deterrent; see browserLockdown.ts).
+installBrowserLockdown({ enabled: import.meta.env.PROD && import.meta.env.VITE_ALLOW_DEVTOOLS !== '1' });
 
 const theme = createTheme({
   typography: {

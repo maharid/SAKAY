@@ -9,6 +9,10 @@ services:
       # Production behaviour (locked-down CORS, generic error messages) is switched on by this value.
       - key: NODE_ENV
         value: production
+      # Panel comment (D-P7): the server runs on a pinned, current Node 24 LTS patch (Render would otherwise pick its own default). Keep it equal to /.node-version and
+      # raise both together when a newer 24.x patch is out.
+      - key: NODE_VERSION
+        value: 24.22.2
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY

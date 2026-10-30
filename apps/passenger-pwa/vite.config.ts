@@ -4,6 +4,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig({
+  build: {
+    // Panel comment (D-P7): nothing of the source is shipped to the browser. No source maps, and no console.* / debugger in the production bundle.
+    sourcemap: false,
+    rolldownOptions: { output: { minify: { compress: { dropConsole: true, dropDebugger: true } } } },
+  },
   resolve: {
     alias: {
       '@sakay/shared/src': path.resolve(__dirname, '../../packages/shared/src'),
