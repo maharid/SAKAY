@@ -85,7 +85,7 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const rows: { toda_id: string; member_name: string; franchise_number: string; plate_number: string | null }[] = [];
+  const rows: { toda_id: string; member_name: string; franchise_number: string; plate_number: string | null; approval_status: 'Pending' }[] = [];
   for (const raw of entries as RosterUploadItem[]) {
     const name = text(raw?.driver_full_name, 120);
     const franchise = text(raw?.franchise_number, 40);
@@ -95,7 +95,8 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
     // the table's column is member_name; the franchise number is what the roster check compares, so it is required
-    rows.push({ toda_id: todaId, member_name: name, franchise_number: franchise, plate_number: plate });
+    // a member added after the registration roster file counts only once the LGU approves the entry (Batch 4): this route never makes an approved entry
+    rows.push({ toda_id: todaId, member_name: name, franchise_number: franchise, plate_number: plate, approval_status: 'Pending' });
   }
 
   if (!supabase) { res.status(503).json({ success: false, error: 'The roster is temporarily unavailable.' }); return; }

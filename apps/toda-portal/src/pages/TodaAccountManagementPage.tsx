@@ -94,7 +94,8 @@ export const TodaAccountManagementPage: React.FC = () => {
   const [logoImage, setLogoImage] = useState<string | null>(null);
 
   // Modals & Dialogs
-  const [editProfileModalOpen, setEditProfileModalOpen] = useState(false);
+  // Which section of the profile is being edited (each section has its own Edit button and its own window; null = none)
+  const [editSection, setEditSection] = useState<null | 'info' | 'terminal' | 'officers'>(null);
   const [uploadDocModalOpen, setUploadDocModalOpen] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
@@ -309,32 +310,55 @@ export const TodaAccountManagementPage: React.FC = () => {
     )
   );
 
-  // Submit Organizational Profile Edit
-  const handleEditProfileSubmit = async () => {
+  // Which of the four officers' fields differ from what is on record (nothing to save otherwise)
+  const officersChanged = Boolean(
+    profile && (
+      editPresident.trim() !== (profile.officers?.president || '').trim()
+      || editPresidentContact.trim() !== (profile.officers?.presidentContact || '').trim()
+      || editVicePresident.trim() !== (profile.officers?.vicePresident || '').trim()
+      || editVicePresidentContact.trim() !== (profile.officers?.vicePresidentContact || '').trim()
+      || editSecretary.trim() !== (profile.officers?.secretary || '').trim()
+      || editSecretaryContact.trim() !== (profile.officers?.secretaryContact || '').trim()
+      || editTreasurer.trim() !== (profile.officers?.treasurer || '').trim()
+      || editTreasurerContact.trim() !== (profile.officers?.treasurerContact || '').trim()
+    )
+  );
+
+  const openSectionEditor = (section: 'info' | 'terminal' | 'officers') => {
     if (!profile) return;
-    setIsSavingEdit(true);
+    populateFormFields(profile);
+    setEditChangeReason('');
+    setEditSection(section);
+  };
 
-    const lat = editPin?.lat ?? null;
-    const lng = editPin?.lng ?? null;
-    // a moved pin is a request to the LGU, which reads the reason before it decides
-    if (pinMoved && editRelocationReason.trim().length < 10) {
-      setIsSavingEdit(false);
-      setUploadSnackbar({ open: true, message: 'Say why the terminal is moving (at least 10 characters). The LGU reads it before it decides.', severity: 'error' });
-      return;
-    }
+  // Save ONE section: only that section's fields go to the same function and the same database calls as before; the other sections are not touched
+  const handleEditSectionSubmit = async () => {
+    if (!profile || !editSection || isSavingEdit) return;
+    const fail = (message: string) => setUploadSnackbar({ open: true, message, severity: 'error' });
+    let payload: Parameters<typeof updateTodaProfile>[1] = {};
 
-    try {
-      const saved = await updateTodaProfile(profile.id, {
-        name: editTodaName.trim(),
-        acronym: editTodaAcronym.trim(),
-        barangay: editBarangay,
-        dateEstablished: editDateEst,
+    if (editSection === 'info') {
+      if (!editTodaName.trim() || !editTodaAcronym.trim() || !editBarangay || !editDateEst) return fail('Fill in the name, the acronym, the operating barangay and the date established.');
+      // only what changed is sent
+      if (editTodaName.trim() !== (profile.name || '').trim()) payload.name = editTodaName.trim();
+      if (editTodaAcronym.trim().toUpperCase() !== (profile.acronym || '').trim().toUpperCase()) payload.acronym = editTodaAcronym.trim();
+      if (editBarangay !== (profile.barangay || '')) payload.barangay = editBarangay;
+      if (editDateEst !== String(profile.dateEstablished || '').slice(0, 10)) payload.dateEstablished = editDateEst;
+      payload.changeReason = editChangeReason.trim();
+    } else if (editSection === 'terminal') {
+      // a moved pin is a request to the LGU, which reads the reason before it decides
+      if (pinMoved && editRelocationReason.trim().length < 10) return fail('Say why the terminal is moving (at least 10 characters). The LGU reads it before it decides.');
+      if (pinMoved && editTerminalLoc.trim().length < 3) return fail('Name the new terminal place (street and barangay). It is sent with the pin.');
+      payload = {
         // the name of the terminal place travels with the pin: it is sent only when the pin moved (the LGU approves both together)
         terminalLocation: pinMoved ? editTerminalLoc.trim() : undefined,
-        terminalLatitude: lat,
-        terminalLongitude: lng,
+        terminalLatitude: editPin?.lat ?? null,
+        terminalLongitude: editPin?.lng ?? null,
         relocationReason: editRelocationReason.trim(),
-        changeReason: editChangeReason.trim(),
+      };
+    } else {
+      if (!editPresident.trim() || !editPresidentContact.trim()) return fail('The President\'s name and mobile number are required.');
+      payload = {
         officers: {
           president: editPresident.trim(),
           presidentContact: editPresidentContact.trim(),
@@ -345,28 +369,31 @@ export const TodaAccountManagementPage: React.FC = () => {
           treasurer: editTreasurer.trim(),
           treasurerContact: editTreasurerContact.trim(),
         },
-      });
+      };
+    }
 
+    setIsSavingEdit(true);
+    try {
+      const saved = await updateTodaProfile(profile.id, payload);
       await loadProfile();
-      setEditProfileModalOpen(false);
+      setEditSection(null);
       setUploadSnackbar({
         open: true,
-        message: saved.relocationRequested && saved.profileChangeRequested
-          ? 'Saved. The terminal move and the change to the TODA details were sent to the LGU; the current ones stay in force until it decides.'
-          : saved.relocationRequested
-          ? 'Profile saved. The terminal move was sent to the LGU for approval; the current terminal stays in force until it decides.'
-          : saved.profileChangeRequested
-          ? 'Saved. The change to the TODA details was sent to the LGU for approval; the current details stay in force until it decides.'
-          : 'Successfully updated TODA organizational profile!',
+        message:
+          editSection === 'terminal'
+            ? saved.relocationRequested
+              ? 'The terminal move was sent to the LGU for approval; the current terminal stays in force until it decides.'
+              : 'The terminal location is unchanged.'
+            : editSection === 'info'
+            ? saved.profileChangeRequested
+              ? 'The change to the TODA details was sent to the LGU for approval; the current details stay in force until it decides.'
+              : 'The TODA information was updated.'
+            : 'The authorized officers were updated.',
         severity: 'success',
       });
     } catch (err: any) {
       console.error('[TodaAccount] Error updating profile in database:', err);
-      setUploadSnackbar({
-        open: true,
-        message: err?.message || 'Failed to update organizational profile. Please try again.',
-        severity: 'error',
-      });
+      fail(err?.message || 'The change could not be saved. Please try again.');
     } finally {
       setIsSavingEdit(false);
     }
@@ -551,46 +578,21 @@ export const TodaAccountManagementPage: React.FC = () => {
             </Typography>
           </Box>
 
-          <Button
-            variant="contained"
-            disableElevation
-            startIcon={<EditIcon sx={{ fontSize: 16 }} />}
-            onClick={() => {
-              populateFormFields(profile);
-              setEditProfileModalOpen(true);
-            }}
-            sx={primaryButtonSx}
-          >
-            Edit TODA Profile
-          </Button>
         </Box>
       </Card>
 
       {/* 2. Accreditation: status, certificate, validity, and the Resubmit step when the LGU returned the application */}
       <AccreditationCard profile={profile} onResubmit={handleResubmit} />
 
-      {/* 3. The organisation and its officers, side by side */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' }, gap: SPACE.gapLarge, mb: SPACE.gapLarge }}>
-        <SectionCard icon={<BusinessIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="TODA information">
+      {/* 3. The organisation, its terminal and its officers: three sections, each with its own Edit button */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' }, gap: SPACE.gapLarge, mb: SPACE.gapLarge, alignItems: 'start' }}>
+        <SectionCard icon={<BusinessIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="TODA information" action={<Button variant="outlined" startIcon={<EditIcon sx={{ fontSize: 16 }} />} onClick={() => openSectionEditor('info')} aria-label="Edit the TODA information" sx={secondaryButtonSx}>Edit</Button>}>
           <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
-            <InfoItem label="Date established">{formatDisplayDate(profile.dateEstablished)}</InfoItem>
+            <InfoItem label="TODA name">{profile.name}</InfoItem>
+            <InfoItem label="Acronym">{profile.acronym || 'Not provided'}</InfoItem>
             <InfoItem label="Operating barangay">{profile.barangay || 'San Vicente Central'}</InfoItem>
-            <InfoItem label="Terminal location">{profile.terminalLocation || 'Calapan City Terminal'}</InfoItem>
-            <InfoItem label="Terminal coordinates">
-              {profile.terminalLatitude && profile.terminalLongitude ? `${profile.terminalLatitude}, ${profile.terminalLongitude}` : 'None specified'}
-            </InfoItem>
+            <InfoItem label="Date established">{formatDisplayDate(profile.dateEstablished)}</InfoItem>
           </Box>
-          {profile.terminalRelocationStatus === 'Pending LGU Re-approval' && (
-            <Alert severity="warning" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
-              <strong>Terminal move waiting for the LGU.</strong> Requested: {profile.pendingTerminalLocation || 'new terminal'} ({profile.pendingTerminalLatitude}, {profile.pendingTerminalLongitude}).
-              {profile.pendingTerminalReason ? ` Your reason: ${profile.pendingTerminalReason}` : ''} The current terminal stays in force until the LGU decides.
-            </Alert>
-          )}
-          {profile.terminalRelocationStatus === 'Rejected' && profile.terminalRelocationDecisionNote && (
-            <Alert severity="error" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
-              <strong>The LGU did not approve the terminal move.</strong> {profile.terminalRelocationDecisionNote}
-            </Alert>
-          )}
           <PendingChangesList
             requests={changeRequests}
             busyId={withdrawingId}
@@ -607,14 +609,9 @@ export const TodaAccountManagementPage: React.FC = () => {
               }
             }}
           />
-          {profile.terminalRelocationStatus === 'Approved' && profile.terminalRelocationDecisionNote && (
-            <Alert severity="success" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
-              <strong>The LGU approved the terminal move.</strong> {profile.terminalRelocationDecisionNote}
-            </Alert>
-          )}
         </SectionCard>
 
-        <SectionCard icon={<GroupsIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="Authorized TODA officers">
+        <SectionCard icon={<GroupsIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="Authorized TODA officers" action={<Button variant="outlined" startIcon={<EditIcon sx={{ fontSize: 16 }} />} onClick={() => openSectionEditor('officers')} aria-label="Edit the authorized TODA officers" sx={secondaryButtonSx}>Edit</Button>}>
           <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
             {officers.map((officer) => (
               <InfoItem key={officer.role} label={officer.role}>
@@ -627,6 +624,31 @@ export const TodaAccountManagementPage: React.FC = () => {
               </InfoItem>
             ))}
           </Box>
+        </SectionCard>
+
+        <SectionCard icon={<BusinessIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="Terminal" action={<Button variant="outlined" startIcon={<EditIcon sx={{ fontSize: 16 }} />} onClick={() => openSectionEditor('terminal')} aria-label="Edit the terminal location" sx={secondaryButtonSx}>Edit</Button>}>
+          <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
+            <InfoItem label="Terminal location">{profile.terminalLocation || 'Calapan City Terminal'}</InfoItem>
+            <InfoItem label="Terminal coordinates">
+              {profile.terminalLatitude && profile.terminalLongitude ? `${profile.terminalLatitude}, ${profile.terminalLongitude}` : 'None specified'}
+            </InfoItem>
+          </Box>
+          {profile.terminalRelocationStatus === 'Pending LGU Re-approval' && (
+            <Alert severity="warning" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
+              <strong>Terminal move waiting for the LGU.</strong> Requested: {profile.pendingTerminalLocation || 'new terminal'} ({profile.pendingTerminalLatitude}, {profile.pendingTerminalLongitude}).
+              {profile.pendingTerminalReason ? ` Your reason: ${profile.pendingTerminalReason}` : ''} The current terminal stays in force until the LGU decides.
+            </Alert>
+          )}
+          {profile.terminalRelocationStatus === 'Rejected' && profile.terminalRelocationDecisionNote && (
+            <Alert severity="error" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
+              <strong>The LGU did not approve the terminal move.</strong> {profile.terminalRelocationDecisionNote}
+            </Alert>
+          )}
+          {profile.terminalRelocationStatus === 'Approved' && profile.terminalRelocationDecisionNote && (
+            <Alert severity="success" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
+              <strong>The LGU approved the terminal move.</strong> {profile.terminalRelocationDecisionNote}
+            </Alert>
+          )}
         </SectionCard>
       </Box>
 
@@ -688,221 +710,147 @@ export const TodaAccountManagementPage: React.FC = () => {
         }}
       />
 
-      {/* Edit the organisation and its officers */}
+      {/* Edit the TODA information (name, acronym, barangay, date established) */}
       <MacCenterModal
-        open={editProfileModalOpen}
-        onClose={() => setEditProfileModalOpen(false)}
-        title="Edit TODA Organizational Profile"
-        subtitle={`Update official TODA records and authorized officers for ${profile.name}`}
-        maxWidth={624}
-        primaryActionLabel={isSavingEdit ? 'Saving...' : 'Save Organizational Profile'}
-        onPrimaryAction={handleEditProfileSubmit}
+        open={editSection === 'info'}
+        onClose={() => !isSavingEdit && setEditSection(null)}
+        title="Edit TODA information"
+        subtitle={`The name, acronym, barangay and date established of ${profile.name}`}
+        maxWidth={560}
+        primaryActionLabel={isSavingEdit ? 'Saving...' : 'Save'}
+        primaryActionDisabled={isSavingEdit || !identityChanged}
+        onPrimaryAction={handleEditSectionSubmit}
         secondaryActionLabel="Cancel"
-        onSecondaryAction={() => setEditProfileModalOpen(false)}
+        onSecondaryAction={() => setEditSection(null)}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge, pt: '6px' }}>
-          <Box>
-            <FormSectionTitle>Association information</FormSectionTitle>
-            {profile.accreditationStatus === 'Active' && (
-              <Alert severity="info" sx={{ mb: SPACE.gap, fontSize: FONT.body }}>
-                Your TODA is accredited. A new name, acronym, barangay or date established is sent to the LGU for approval, and the current details stay in force until it decides.
-                Officer names and contact numbers are saved at once.
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap, pt: '6px' }}>
+          {profile.accreditationStatus === 'Active' && (
+            <Alert severity="info" sx={{ fontSize: FONT.body }}>
+              Your TODA is accredited. A new name, acronym, barangay or date established is sent to the LGU for approval, and the current details stay in force until it decides.
+            </Alert>
+          )}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <TextField label="Official Association / TODA Name" placeholder="e.g. Calapan Central Tricycle Operators & Drivers Association" value={editTodaName} onChange={(e) => setEditTodaName(e.target.value)} required fullWidth size="small" />
+            <TextField label="TODA Acronym" placeholder="e.g. CCTODA" value={editTodaAcronym} onChange={(e) => setEditTodaAcronym(e.target.value.toUpperCase())} required fullWidth size="small" />
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <FormControl fullWidth size="small" required>
+              <InputLabel id="edit-barangay-label">Operating Barangay</InputLabel>
+              <Select labelId="edit-barangay-label" label="Operating Barangay" value={editBarangay} onChange={(e) => setEditBarangay(e.target.value)}>
+                {CALAPAN_BARANGAYS.map((brgy) => (
+                  <MenuItem key={brgy} value={brgy}>{brgy}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField label="Date Established" type="date" value={editDateEst} onChange={(e) => setEditDateEst(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} required fullWidth size="small" />
+          </Box>
+          {profile.accreditationStatus === 'Active' && identityChanged && (
+            <TextField
+              label="Why are the details changing? (optional)"
+              placeholder="e.g. The association was renamed at the general assembly."
+              value={editChangeReason}
+              onChange={(e) => setEditChangeReason(e.target.value)}
+              fullWidth
+              multiline
+              minRows={2}
+              size="small"
+              slotProps={{ htmlInput: { maxLength: 500 } }}
+            />
+          )}
+        </Box>
+      </MacCenterModal>
+
+      {/* Edit the terminal: the pin on the map, and why it moves */}
+      <MacCenterModal
+        open={editSection === 'terminal'}
+        onClose={() => !isSavingEdit && setEditSection(null)}
+        title="Edit terminal location"
+        subtitle={`Where ${profile.name} queues`}
+        maxWidth={560}
+        primaryActionLabel={isSavingEdit ? 'Saving...' : pinMoved ? 'Send to the LGU' : 'Save'}
+        primaryActionDisabled={isSavingEdit || !pinMoved}
+        onPrimaryAction={handleEditSectionSubmit}
+        secondaryActionLabel="Cancel"
+        onSecondaryAction={() => setEditSection(null)}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap, pt: '6px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <TextField
+              label={pinMoved ? 'Name of the new terminal place' : 'Terminal Location'}
+              placeholder="e.g. Calapan Public Market, J.P. Rizal St."
+              value={editTerminalLoc}
+              onChange={(e) => setEditTerminalLoc(e.target.value)}
+              required={pinMoved}
+              disabled={!pinMoved}
+              helperText={pinMoved ? 'Street and barangay of the new place. It is sent with the pin.' : 'Move the pin on the map to propose a new terminal place; the LGU approves the place and the pin together.'}
+              fullWidth
+              size="small"
+            />
+            <Box>
+              <TextField
+                label="Terminal Coordinates (from the map pin)"
+                placeholder="Use Pin on Map"
+                value={editPin ? `${editPin.lat.toFixed(6)}, ${editPin.lng.toFixed(6)}` : ''}
+                fullWidth
+                size="small"
+                slotProps={{ input: { readOnly: true } }}
+                onClick={() => setPinMapOpen(true)}
+              />
+              <Button onClick={() => setPinMapOpen(true)} sx={{ ...secondaryButtonSx, mt: '8px' }}>
+                {editPin ? 'Move the pin on the map' : 'Pin on Map'}
+              </Button>
+            </Box>
+          </Box>
+          {pinMoved && (
+            <Box>
+              <Alert severity="info" sx={{ mb: '8px', fontSize: FONT.body }}>
+                The terminal is moving. The LGU has to approve the move; the current terminal stays in force until it decides.
               </Alert>
-            )}
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
               <TextField
-                label="Official Association / TODA Name"
-                placeholder="e.g. Calapan Central Tricycle Operators & Drivers Association"
-                value={editTodaName}
-                onChange={(e) => setEditTodaName(e.target.value)}
+                label="Why is the terminal moving?"
+                placeholder="e.g. The old terminal lot was sold; the TODA now queues at the new lot beside the market."
+                value={editRelocationReason}
+                onChange={(e) => setEditRelocationReason(e.target.value)}
                 required
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="TODA Acronym"
-                placeholder="e.g. CCTODA"
-                value={editTodaAcronym}
-                onChange={(e) => setEditTodaAcronym(e.target.value.toUpperCase())}
-                required
-                fullWidth
-                size="small"
-              />
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
-              <FormControl fullWidth size="small" required>
-                <InputLabel id="edit-barangay-label">Operating Barangay</InputLabel>
-                <Select
-                  labelId="edit-barangay-label"
-                  label="Operating Barangay"
-                  value={editBarangay}
-                  onChange={(e) => setEditBarangay(e.target.value)}
-                >
-                  {CALAPAN_BARANGAYS.map((brgy) => (
-                    <MenuItem key={brgy} value={brgy}>
-                      {brgy}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                label="Date Established"
-                type="date"
-                value={editDateEst}
-                onChange={(e) => setEditDateEst(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                required
-                fullWidth
-                size="small"
-              />
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
-              <TextField
-                label={pinMoved ? 'Name of the new terminal place' : 'Terminal Location'}
-                placeholder="e.g. Calapan Public Market, J.P. Rizal St."
-                value={editTerminalLoc}
-                onChange={(e) => setEditTerminalLoc(e.target.value)}
-                required={pinMoved}
-                disabled={!pinMoved}
-                helperText={pinMoved ? 'Street and barangay of the new place. It is sent with the pin.' : 'Move the pin on the map to propose a new terminal place; the LGU approves the place and the pin together.'}
-                fullWidth
-                size="small"
-              />
-              <Box>
-                <TextField
-                  label="Terminal Coordinates (from the map pin)"
-                  placeholder="Use Pin on Map"
-                  value={editPin ? `${editPin.lat.toFixed(6)}, ${editPin.lng.toFixed(6)}` : ''}
-                  fullWidth
-                  size="small"
-                  slotProps={{ input: { readOnly: true } }}
-                  onClick={() => setPinMapOpen(true)}
-                />
-                <Button onClick={() => setPinMapOpen(true)} sx={{ ...secondaryButtonSx, mt: '8px' }}>
-                  {editPin ? 'Move the pin on the map' : 'Pin on Map'}
-                </Button>
-              </Box>
-            </Box>
-            {profile.accreditationStatus === 'Active' && identityChanged && (
-              <TextField
-                label="Why are the details changing? (optional)"
-                placeholder="e.g. The association was renamed at the general assembly."
-                value={editChangeReason}
-                onChange={(e) => setEditChangeReason(e.target.value)}
                 fullWidth
                 multiline
                 minRows={2}
                 size="small"
-                slotProps={{ htmlInput: { maxLength: 500 } }}
-                sx={{ mt: SPACE.gap }}
               />
-            )}
-            {pinMoved && (
-              <Box sx={{ mt: SPACE.gap }}>
-                <Alert severity="info" sx={{ mb: '8px', fontSize: FONT.body }}>
-                  The terminal is moving. The LGU has to approve the move; the current terminal stays in force until it decides.
-                </Alert>
-                <TextField
-                  label="Why is the terminal moving?"
-                  placeholder="e.g. The old terminal lot was sold; the TODA now queues at the new lot beside the market."
-                  value={editRelocationReason}
-                  onChange={(e) => setEditRelocationReason(e.target.value)}
-                  required
-                  fullWidth
-                  multiline
-                  minRows={2}
-                  size="small"
-                />
-              </Box>
-            )}
+            </Box>
+          )}
+        </Box>
+      </MacCenterModal>
+
+      {/* Edit the authorized officers: names and mobile numbers, saved at once */}
+      <MacCenterModal
+        open={editSection === 'officers'}
+        onClose={() => !isSavingEdit && setEditSection(null)}
+        title="Edit authorized TODA officers"
+        subtitle={`The officers of ${profile.name}. Names and numbers are saved at once.`}
+        maxWidth={560}
+        primaryActionLabel={isSavingEdit ? 'Saving...' : 'Save'}
+        primaryActionDisabled={isSavingEdit || !officersChanged}
+        onPrimaryAction={handleEditSectionSubmit}
+        secondaryActionLabel="Cancel"
+        onSecondaryAction={() => setEditSection(null)}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap, pt: '6px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <TextField label="President Full Name" placeholder="e.g. Roberto Alcantara" value={editPresident} onChange={(e) => setEditPresident(e.target.value)} required fullWidth size="small" />
+            <TextField label="President Mobile Contact" placeholder="e.g. 0917 555 1001" value={editPresidentContact} onChange={(e) => setEditPresidentContact(formatPhoneNumber(e.target.value))} required fullWidth size="small" />
           </Box>
-
-          <Divider sx={{ borderColor: OPS_BORDER }} />
-
-          <Box>
-            <FormSectionTitle>Executive officers</FormSectionTitle>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
-              <TextField
-                label="President Full Name"
-                placeholder="e.g. Roberto Alcantara"
-                value={editPresident}
-                onChange={(e) => setEditPresident(e.target.value)}
-                required
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="President Mobile Contact"
-                placeholder="e.g. 0917 555 1001"
-                value={editPresidentContact}
-                onChange={(e) => setEditPresidentContact(formatPhoneNumber(e.target.value))}
-                required
-                fullWidth
-                size="small"
-              />
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
-              <TextField
-                label="Vice President Name"
-                placeholder="e.g. Eduardo Perez"
-                value={editVicePresident}
-                onChange={(e) => setEditVicePresident(e.target.value)}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Vice President Contact"
-                placeholder="e.g. 0917 555 1002"
-                value={editVicePresidentContact}
-                onChange={(e) => setEditVicePresidentContact(formatPhoneNumber(e.target.value))}
-                fullWidth
-                size="small"
-              />
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
-              <TextField
-                label="Secretary Name"
-                placeholder="e.g. Leticia Cruz"
-                value={editSecretary}
-                onChange={(e) => setEditSecretary(e.target.value)}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Secretary Contact"
-                placeholder="e.g. 0917 555 1003"
-                value={editSecretaryContact}
-                onChange={(e) => setEditSecretaryContact(formatPhoneNumber(e.target.value))}
-                fullWidth
-                size="small"
-              />
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
-              <TextField
-                label="Treasurer Name"
-                placeholder="e.g. Mario Hernandez"
-                value={editTreasurer}
-                onChange={(e) => setEditTreasurer(e.target.value)}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Treasurer Contact"
-                placeholder="e.g. 0917 555 1004"
-                value={editTreasurerContact}
-                onChange={(e) => setEditTreasurerContact(formatPhoneNumber(e.target.value))}
-                fullWidth
-                size="small"
-              />
-            </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <TextField label="Vice President Name" placeholder="e.g. Eduardo Perez" value={editVicePresident} onChange={(e) => setEditVicePresident(e.target.value)} fullWidth size="small" />
+            <TextField label="Vice President Contact" placeholder="e.g. 0917 555 1002" value={editVicePresidentContact} onChange={(e) => setEditVicePresidentContact(formatPhoneNumber(e.target.value))} fullWidth size="small" />
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <TextField label="Secretary Name" placeholder="e.g. Leticia Cruz" value={editSecretary} onChange={(e) => setEditSecretary(e.target.value)} fullWidth size="small" />
+            <TextField label="Secretary Contact" placeholder="e.g. 0917 555 1003" value={editSecretaryContact} onChange={(e) => setEditSecretaryContact(formatPhoneNumber(e.target.value))} fullWidth size="small" />
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+            <TextField label="Treasurer Name" placeholder="e.g. Mario Hernandez" value={editTreasurer} onChange={(e) => setEditTreasurer(e.target.value)} fullWidth size="small" />
+            <TextField label="Treasurer Contact" placeholder="e.g. 0917 555 1004" value={editTreasurerContact} onChange={(e) => setEditTreasurerContact(formatPhoneNumber(e.target.value))} fullWidth size="small" />
           </Box>
         </Box>
       </MacCenterModal>

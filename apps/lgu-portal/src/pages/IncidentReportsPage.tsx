@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
-import { ExportToolbar, INCIDENT_CATEGORIES } from '@sakay/shared';
+import { ExportToolbar, INCIDENT_CATEGORIES, ToolbarRow } from '@sakay/shared';
 import type { ReportTable } from '@sakay/shared';
 import { IncidentReportRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -186,7 +186,29 @@ export const IncidentReportsPage: React.FC = () => {
         ]}
       />
 
-      {/* 2. Search and filters */}
+      {/* 2. Search and filters in one card, the export in a card of its own beside it (exactly what the filters show) */}
+      <ToolbarRow
+        marginBottom={0}
+        side={
+          <ExportToolbar
+            appearance="panel"
+            getTable={incidentTable}
+            meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
+            loadXlsx={loadXlsx}
+            record={({ format, table }) =>
+              recordAdminAuditStrict({
+                actionType: 'REPORT_EXPORTED',
+                targetId: 'REPORT',
+                targetName: table.title,
+                details: `Exported ${table.title} (${format}): ${table.rows.length} report(s). ${filterWords()}. Exported by ${adminProfile?.full_name || 'the LGU Administrator'}.`,
+                category: 'Operations',
+              })
+            }
+            disabled={isLoading || filteredIncidents.length === 0}
+            disabledReason={isLoading ? 'The reports are still loading' : 'There are no reports to export for these filters'}
+          />
+        }
+      >
       <FilterToolbar
         stacked
         searchQuery={searchQuery}
@@ -209,29 +231,12 @@ export const IncidentReportsPage: React.FC = () => {
         }}
         disableMarginBottom
       />
+      </ToolbarRow>
 
-      {/* 2B. How many reports are shown, and the export of exactly those (Excel, CSV, PDF) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', my: SPACE.gap }}>
-        <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
-          {isLoading ? 'Loading reports...' : `Showing ${filteredIncidents.length} of ${incidents.length} report${incidents.length === 1 ? '' : 's'}`}
-        </Typography>
-        <ExportToolbar
-          getTable={incidentTable}
-          meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
-          loadXlsx={loadXlsx}
-          record={({ format, table }) =>
-            recordAdminAuditStrict({
-              actionType: 'REPORT_EXPORTED',
-              targetId: 'REPORT',
-              targetName: table.title,
-              details: `Exported ${table.title} (${format}): ${table.rows.length} report(s). ${filterWords()}. Exported by ${adminProfile?.full_name || 'the LGU Administrator'}.`,
-              category: 'Operations',
-            })
-          }
-          disabled={isLoading || filteredIncidents.length === 0}
-          disabledReason={isLoading ? 'The reports are still loading' : 'There are no reports to export for these filters'}
-        />
-      </Box>
+      {/* 2B. How many reports are shown */}
+      <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, my: SPACE.gap }}>
+        {isLoading ? 'Loading reports...' : `Showing ${filteredIncidents.length} of ${incidents.length} report${incidents.length === 1 ? '' : 's'}`}
+      </Typography>
 
       {/* 3. The incident reports */}
       <DataTableCard

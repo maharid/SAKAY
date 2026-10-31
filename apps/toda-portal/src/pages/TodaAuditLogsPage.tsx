@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, TableBody, TableCell, TableRow, Avatar, Button } from '@mui/material';
-import { ExportToolbar } from '@sakay/shared';
+import { ExportToolbar, ToolbarRow } from '@sakay/shared';
 
 import { TodaAuditLog } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -109,7 +109,21 @@ export const TodaAuditLogsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px' }}>
-      {/* 1. Search and filters */}
+      {/* 1. Search and filters in one card, the export in a card of its own beside it (exactly what the filters show) */}
+      <ToolbarRow
+        marginBottom={0}
+        side={
+          <ExportToolbar
+            appearance="panel"
+            getTable={() => loadTodaAuditExport(exportQuery, categoryFilter, covers(), todaName)}
+            meta={() => ({ exportedBy: todaAdminProfile?.full_name || 'TODA Administrator', role: `TODA Administrator, ${todaName}`, organisation: todaName, scope: todaName })}
+            loadXlsx={loadXlsx}
+            record={({ format, table }) => recordTodaAuditExport(format, table.rows.length, exportQuery)}
+            disabled={isLoading}
+            disabledReason="The log is still loading"
+          />
+        }
+      >
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -139,21 +153,12 @@ export const TodaAuditLogsPage: React.FC = () => {
         }}
         disableMarginBottom
       />
+      </ToolbarRow>
 
-      {/* 1B. How many entries are shown, and the export of exactly those (Excel, CSV, PDF) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', my: SPACE.gap }}>
-        <Typography role="status" sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary }}>
-          {isLoading ? 'Loading entries...' : `Showing ${filteredLogs.length} of ${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`}
-        </Typography>
-        <ExportToolbar
-          getTable={() => loadTodaAuditExport(exportQuery, categoryFilter, covers(), todaName)}
-          meta={() => ({ exportedBy: todaAdminProfile?.full_name || 'TODA Administrator', role: `TODA Administrator, ${todaName}`, organisation: todaName, scope: todaName })}
-          loadXlsx={loadXlsx}
-          record={({ format, table }) => recordTodaAuditExport(format, table.rows.length, exportQuery)}
-          disabled={isLoading}
-          disabledReason="The log is still loading"
-        />
-      </Box>
+      {/* 1B. How many entries are shown */}
+      <Typography role="status" sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, my: SPACE.gap }}>
+        {isLoading ? 'Loading entries...' : `Showing ${filteredLogs.length} of ${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`}
+      </Typography>
 
       {/* 2. The record, newest first */}
       <DataTableCard

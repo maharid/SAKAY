@@ -244,7 +244,14 @@ export const DocumentViewerDialog: React.FC<DocumentViewerDialogProps> = ({
           }}
         />
       </Box>
-    ) : kind === 'image' ? null : (
+    ) : kind === 'image' ? null : kind === 'spreadsheet' ? (
+      // a spreadsheet cannot be drawn by the browser: put in an iframe it would be DOWNLOADED, which is what View must never do. A caller that can read the file passes its own body (children).
+      <Box sx={{ width: '100%', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', textAlign: 'center', p: '24px' }}>
+        <TableChartOutlinedIcon aria-hidden sx={{ fontSize: 36, color: '#15803D' }} />
+        <Typography sx={{ fontSize: '14px', fontWeight: 700, color: INK }}>This spreadsheet cannot be shown here</Typography>
+        <Typography sx={{ fontSize: '13px', color: MUTED, maxWidth: 360 }}>Use Download to open it in your spreadsheet program.</Typography>
+      </Box>
+    ) : (
       <Box component="iframe" src={activeUrl} title={title} sx={{ width: '100%', height: '100%', minHeight: 380, border: 0, backgroundColor: '#FFFFFF' }} />
     )
   ) : null;

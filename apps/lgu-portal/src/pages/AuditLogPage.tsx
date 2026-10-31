@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
-import { ExportToolbar } from '@sakay/shared';
+import { ExportToolbar, ToolbarRow } from '@sakay/shared';
 
 import { AuditLogRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -132,7 +132,21 @@ export const AuditLogPage: React.FC = () => {
         ]}
       />
 
-      {/* 2. Search, category and dates: one card */}
+      {/* 2. Search, category and dates in one card, the export in a card of its own beside it (exactly what the filters show) */}
+      <ToolbarRow
+        marginBottom={0}
+        side={
+          <ExportToolbar
+            appearance="panel"
+            getTable={() => loadAuditExport(exportQuery, categoryFilter, covers())}
+            meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
+            loadXlsx={loadXlsx}
+            record={({ format, table }) => recordAuditExport(format, table.rows.length, exportQuery)}
+            disabled={isLoading || Boolean(loadError)}
+            disabledReason={loadError ? 'The log could not be loaded' : 'The log is still loading'}
+          />
+        }
+      >
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -162,21 +176,12 @@ export const AuditLogPage: React.FC = () => {
         }}
         disableMarginBottom
       />
+      </ToolbarRow>
 
-      {/* 2B. How many events are shown, and the export of exactly those (Excel, CSV, PDF) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', my: SPACE.gap }}>
-        <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
-          {isLoading ? 'Loading events...' : `Showing ${filteredLogs.length} of ${logs.length} event${logs.length === 1 ? '' : 's'}${logs.length >= 500 ? ' (the latest 500 for these dates: narrow the dates to see older ones)' : ''}`}
-        </Typography>
-        <ExportToolbar
-          getTable={() => loadAuditExport(exportQuery, categoryFilter, covers())}
-          meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
-          loadXlsx={loadXlsx}
-          record={({ format, table }) => recordAuditExport(format, table.rows.length, exportQuery)}
-          disabled={isLoading || Boolean(loadError)}
-          disabledReason={loadError ? 'The log could not be loaded' : 'The log is still loading'}
-        />
-      </Box>
+      {/* 2B. How many events are shown */}
+      <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, my: SPACE.gap }}>
+        {isLoading ? 'Loading events...' : `Showing ${filteredLogs.length} of ${logs.length} event${logs.length === 1 ? '' : 's'}${logs.length >= 500 ? ' (the latest 500 for these dates: narrow the dates to see older ones)' : ''}`}
+      </Typography>
       {loadError && (
         <PageNotice
           tone="danger"

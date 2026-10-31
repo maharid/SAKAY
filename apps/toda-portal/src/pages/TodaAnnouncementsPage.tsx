@@ -12,6 +12,7 @@ import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { UnsavedChangesDialog } from '../components/admin/UnsavedChangesDialog';
 import { SakayToast } from '../components/common/SakayToast';
+import { ToolbarRow, ToolbarSideCard } from '@sakay/shared';
 import { SendReminderDialog } from '../components/announcements/SendReminderDialog';
 import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
 import type { OperationsStat } from '../components/operations/OperationsStatStrip';
@@ -305,15 +306,16 @@ export const TodaAnnouncementsPage: React.FC = () => {
   // Why the list is empty, in words: nothing exists, or nothing matches the search and filters
   const hasActiveFilter = searchQuery.trim() !== '' || categoryFilter !== 'All' || statusFilter !== 'All';
 
+  // Send Reminder and New Announcement: a card of their own beside the search and filter card
   const actions = (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+    <ToolbarSideCard label="Announcement actions">
       <Button onClick={() => setReminderOpen(true)} startIcon={<NotificationsActiveIcon sx={{ fontSize: 16 }} />} variant="outlined" sx={secondaryButtonSx}>
         Send Reminder
       </Button>
       <Button onClick={handleOpenCreate} startIcon={<CampaignIcon sx={{ fontSize: 16 }} />} variant="contained" disableElevation sx={primaryButtonSx}>
         New Announcement
       </Button>
-    </Box>
+    </ToolbarSideCard>
   );
 
   return (
@@ -333,6 +335,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
       />
 
       {/* 3. Search, filters and the two things a president does here */}
+      <ToolbarRow side={actions}>
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -360,8 +363,9 @@ export const TodaAnnouncementsPage: React.FC = () => {
           setCategoryFilter('All');
           setStatusFilter('All');
         }}
-        actionButton={actions}
+        disableMarginBottom
       />
+      </ToolbarRow>
 
       {/* 4. The announcements, one per row */}
       <DataTableCard

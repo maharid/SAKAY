@@ -128,9 +128,9 @@ export function getDocumentType(doc: {
 import { DriverRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { CloseAccountButton, VoidStrikeButton } from './AccountSanctionActions';
-import { DeclineHistoryDialog, allowDriverReapplication, fetchDeclineHistory, permanentlyDisqualifyDriver } from '@sakay/shared';
+import { DeclineHistoryDialog, VerificationHistoryList, allowDriverReapplication, fetchDeclineHistory, permanentlyDisqualifyDriver } from '@sakay/shared';
 import { supabase } from '../../services/supabaseClient';
-import type { DeclineHistory } from '@sakay/shared';
+import type { DeclineHistory, VerificationHistoryEvent } from '@sakay/shared';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { RestrictionBanner } from './RestrictionBanner';
 import { StatusBadge } from '../common/StatusBadge';
@@ -149,6 +149,7 @@ import {
   verifyDriverRenewal,
   sendDriverRenewalReminder,
   updateDriverDocumentReview,
+  fetchDriverVerificationHistory,
 } from '../../services/adminApiService';
 import { CONTROL, FONT } from '../../styles/density';
 import { PAGE_TEXT } from '../../styles/pageTheme';
@@ -161,7 +162,55 @@ interface DriverDetailModalProps {
   driver: DriverRecord | null;
   onStatusChange?: (driverId: string, newStatus: 'Active' | 'Inactive') => void;
   onDriverUpdated?: (updatedDriver: DriverRecord) => void;
+  /**
+   * Opened from the Master Roster of this TODA: the page already says which TODA it is, so the list of the driver's TODA applications (and the permanent-disqualification action
+   * under it) is not repeated here, and Approve / Reject applies to this TODA's application. Disqualification stays in the Drivers page.
+   */
+  fromRosterOfToda?: string;
 }
+
+const NOTICE_DOC_LABELS: Record<string, string> = { license: "Driver's license", mtop: 'MTOP permit', tricycle: 'Tricycle photo', selfie: 'Selfie' };
+
+// The one notice at the top of the driver's record. A returned application says which documents were returned and why; a resubmission says which were replaced and when.
+const ReviewNotice: React.FC<{ driver: DriverRecord; returned: boolean }> = ({ driver, returned }) => {
+  let faulty: string[] = [];
+  let grounds = driver.rejectionReason || '';
+  let notes = '';
+  if (driver.rejectionComment && driver.rejectionComment.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(driver.rejectionComment);
+      faulty = Array.isArray(parsed.faultyDocuments) ? parsed.faultyDocuments : Array.isArray(parsed.issues) ? parsed.issues.map((i: { documentType: string }) => i.documentType) : [];
+      if (parsed.displayReason) grounds = parsed.displayReason;
+      if (parsed.displayNotes) notes = parsed.displayNotes;
+    } catch {
+      // the record is not the JSON this screen writes: nothing more to show
+    }
+  } else if (driver.rejectionComment) {
+    notes = driver.rejectionComment;
+  }
+  const when = driver.resubmittedAt ? new Date(driver.resubmittedAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  return (
+    <Alert severity={returned ? 'warning' : 'info'} sx={{ mb: 2.4, borderRadius: '12px', fontSize: FONT.body, alignItems: 'flex-start' }}>
+      <Typography sx={{ fontSize: FONT.body, fontWeight: 700 }}>
+        {returned ? 'Returned to the driver, waiting for the corrected documents' : `Corrected documents waiting for your inspection${when ? ` · resubmitted ${when}` : ''}`}
+      </Typography>
+      {faulty.length > 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.6, flexWrap: 'wrap' }}>
+          <Typography sx={{ fontSize: FONT.small, fontWeight: 600 }}>{returned ? 'Returned:' : 'Replaced:'}</Typography>
+          {faulty.map((key) => (
+            <Chip key={key} label={NOTICE_DOC_LABELS[key] || key} size="small" sx={{ fontWeight: 600, fontSize: FONT.small, backgroundColor: returned ? '#FEF3C7' : '#BFDBFE', color: returned ? '#92400E' : '#1E40AF' }} />
+          ))}
+        </Box>
+      )}
+      {returned && (grounds || notes) && (
+        <Typography sx={{ fontSize: FONT.small, mt: 0.6, lineHeight: 1.5 }}>
+          {grounds && <><strong>Grounds:</strong> {grounds}. </>}
+          {notes && <><strong>Notes:</strong> {notes}</>}
+        </Typography>
+      )}
+    </Alert>
+  );
+};
 
 /** A stored date (YYYY-MM-DD or a full timestamp) as a readable date; a missing one says so instead of showing an invented date. */
 const dateText = (value?: string | null): string => {
@@ -176,12 +225,24 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   driver,
   onStatusChange,
   onDriverUpdated,
+  fromRosterOfToda,
 }) => {
   const [docList, setDocList] = useState(driver?.documents || []);
   const [selectedDoc, setSelectedDoc] = useState<{ doc: DriverRecord['documents'][number]; index: number } | null>(null);
   const [reminderSent, setReminderSent] = useState(false);
   // which part of the record is open (the window always opens on the first)
   const [detailTab, setDetailTab] = useState<'personal' | 'license' | 'membership' | 'history'>('personal');
+  // what the workflow recorded about this driver's verification (read when the History tab is opened, once per driver)
+  const [verifHistory, setVerifHistory] = useState<{ driverId: string; events: VerificationHistoryEvent[] | null; error: string | null } | null>(null);
+  const historyDriverId = driver?.id;
+  React.useEffect(() => {
+    if (!open || detailTab !== 'history' || !historyDriverId || verifHistory?.driverId === historyDriverId) return;
+    let stale = false;
+    fetchDriverVerificationHistory(historyDriverId)
+      .then((events) => { if (!stale) setVerifHistory({ driverId: historyDriverId, events, error: null }); })
+      .catch((err: unknown) => { if (!stale) setVerifHistory({ driverId: historyDriverId, events: null, error: err instanceof Error ? err.message : 'The verification history could not be loaded.' }); });
+    return () => { stale = true; };
+  }, [open, detailTab, historyDriverId, verifHistory?.driverId]);
   React.useEffect(() => {
     if (open) setDetailTab('personal');
   }, [open, driver?.id]);
@@ -257,6 +318,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
       const rawDocs = driver.documents || [];
       const isResub = Boolean(driver.isResubmitted);
       const isFullyApproved = driver.verificationStatus === 'Verified' || driver.lguVerificationStatus === 'Verified';
+      // a driver with TODA applications: the database already worked out each document's status from the returns AND the decisions since (the LGU's verification, the TODA's endorsement, a replacement)
+      const hasReview = (driver.affiliations?.length ?? 0) > 0;
 
       const normalizedDocs = rawDocs.map((d) => {
         const dType = getDocumentType(d);
@@ -265,6 +328,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           status = 'Verified';
         } else if (verifiedList.includes(dType) || d.status === 'Verified') {
           status = 'Verified';
+        } else if (hasReview) {
+          status = d.status;
         } else if (isResub && faultyList.includes(dType)) {
           // Document was flagged in past rejection and has now been resubmitted
           status = 'Resubmitted (Awaiting Review)';
@@ -419,7 +484,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   const affiliations = driver.affiliations ?? [];
   const isAwaitingLgu = (a: { todaStage: string; lguStage: string }) => a.todaStage === 'Endorsed' && a.lguStage === 'Pending';
   const awaitingAffiliations = affiliations.filter(isAwaitingLgu);
-  const decisionAffiliationId = targetAffiliationId ?? driver.actionAffiliationId;
+  const rosterAffiliationId = fromRosterOfToda ? awaitingAffiliations.find((a) => a.todaId === fromRosterOfToda)?.affiliationId : undefined;
+  const decisionAffiliationId = targetAffiliationId ?? rosterAffiliationId ?? driver.actionAffiliationId;
   const decisionAffiliation = affiliations.find((a) => a.affiliationId === decisionAffiliationId);
   /** Which TODA a decision is about, for the dialogs: "Balite TODA", or the driver's TODA name when there is only one. */
   const decisionTodaLabel = decisionAffiliation ? decisionAffiliation.todaName : driver.todaName;
@@ -841,7 +907,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         }
       >
         {/* TODA applications (Driver Module 2.1 / Policy 3.1): one row per affiliation, each with its own TODA and LGU stage */}
-        {affiliations.length > 0 && (
+        {affiliations.length > 0 && !fromRosterOfToda && (
           <Box sx={{ mb: 1.6, p: 1.6, borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
             <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary, mb: 0.8 }}>
               TODA applications ({affiliations.length})
@@ -912,186 +978,18 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 Permanently disqualify this applicant
               </Button>
             )}
-            <Typography sx={{ fontSize: FONT.caption, color: '#64748B', mt: 0.8 }}>
-              {awaitingAffiliations.length > 1
-                ? 'Several TODA applications are waiting for the LGU. Click the one the Approve / Reject action applies to.'
-                : awaitingAffiliations.length === 1
-                ? 'The Approve / Reject action applies to the application waiting for the LGU. Each TODA application is decided on its own.'
-                : 'No TODA application is waiting for the LGU: a TODA must endorse its application first.'}
-            </Typography>
+            {awaitingAffiliations.length > 1 && (
+              <Typography sx={{ fontSize: FONT.caption, color: '#64748B', mt: 0.8 }}>
+                Several applications are waiting for the LGU. Click the one Approve / Reject applies to.
+              </Typography>
+            )}
           </Box>
         )}
 
-        {/* Resubmission Required Alert Banner */}
-        {driver.verificationStatus === 'Resubmission Required' && (() => {
-          let displayReason = driver.rejectionReason || 'Documentary Issue';
-          let displayNotes = driver.rejectionComment || 'Clearer license scan required';
-          let faultyList: string[] = [];
-
-          if (driver.rejectionComment && driver.rejectionComment.startsWith('{')) {
-            try {
-              const parsed = JSON.parse(driver.rejectionComment);
-              if (parsed.displayReason) displayReason = parsed.displayReason;
-              if (parsed.displayNotes) displayNotes = parsed.displayNotes;
-              if (Array.isArray(parsed.faultyDocuments)) {
-                faultyList = parsed.faultyDocuments;
-              } else if (Array.isArray(parsed.issues)) {
-                faultyList = parsed.issues.map((i: any) => i.documentType);
-              }
-            } catch {}
-          }
-
-          const docLabels: Record<string, string> = {
-            license: "Driver's License",
-            mtop: 'MTOP / Franchise',
-            tricycle: 'Photo ng Tricycle',
-            selfie: 'Photo / Selfie',
-          };
-
-          return (
-            <Box
-              sx={{
-                backgroundColor: '#FFFBEB',
-                border: '1.5px solid #F59E0B',
-                borderRadius: '12px',
-                p: '13px 16px',
-                mb: 2.4,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                  <Chip
-                    label="Resubmission Required"
-                    size="small"
-                    sx={{
-                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                      color: '#B45309',
-                      fontWeight: 700,
-                      fontSize: FONT.caption,
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                    }}
-                  />
-                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#92400E' }}>
-                    Application Returned for Resubmission
-                  </Typography>
-                </Box>
-              </Box>
-
-              {faultyList.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.8, flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#78350F' }}>
-                    Faulty Document(s):
-                  </Typography>
-                  {faultyList.map((docKey) => (
-                    <Chip
-                      key={docKey}
-                      label={docLabels[docKey] || docKey}
-                      size="small"
-                      sx={{
-                        backgroundColor: '#FEF3C7',
-                        color: '#92400E',
-                        fontWeight: 600,
-                        fontSize: FONT.caption,
-                        border: '1px solid #FDE68A',
-                      }}
-                    />
-                  ))}
-                </Box>
-              )}
-
-              <Typography sx={{ fontSize: FONT.caption, color: '#78350F', mt: 0.4, lineHeight: 1.5 }}>
-                <span style={{ fontWeight: 700 }}>Grounds:</span> {displayReason}
-              </Typography>
-              <Typography sx={{ fontSize: FONT.caption, color: '#78350F', mt: 0.4, lineHeight: 1.5 }}>
-                <span style={{ fontWeight: 700 }}>Reviewer Notes:</span> {displayNotes}
-              </Typography>
-            </Box>
-          );
-        })()}
-
-        {/* Resubmission Received Alert Banner (Awaiting LGU Review) */}
-        {(driver.isResubmitted || driver.verificationStatus === 'Resubmitted (Awaiting Review)') && !isVerified && driver.verificationStatus !== 'Resubmission Required' && (() => {
-          let faultyList: string[] = [];
-          if (driver.rejectionComment && driver.rejectionComment.startsWith('{')) {
-            try {
-              const parsed = JSON.parse(driver.rejectionComment);
-              if (Array.isArray(parsed.faultyDocuments)) {
-                faultyList = parsed.faultyDocuments;
-              } else if (Array.isArray(parsed.issues)) {
-                faultyList = parsed.issues.map((i: any) => i.documentType);
-              }
-            } catch {}
-          }
-
-          const docLabels: Record<string, string> = {
-            license: "Driver's License",
-            mtop: 'MTOP / Franchise',
-            tricycle: 'Photo ng Tricycle',
-            selfie: 'Photo / Selfie',
-          };
-
-          return (
-            <Box
-              sx={{
-                backgroundColor: '#EFF6FF',
-                border: '1.5px solid #3B82F6',
-                borderRadius: '12px',
-                p: '13px 16px',
-                mb: 2.4,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                  <Chip
-                    label="Resubmission Received"
-                    size="small"
-                    sx={{
-                      backgroundColor: '#DBEAFE',
-                      color: '#1D4ED8',
-                      fontWeight: 700,
-                      fontSize: FONT.caption,
-                      border: '1px solid #93C5FD',
-                    }}
-                  />
-                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 700, color: '#1E40AF' }}>
-                    Updated Documents Awaiting LGU Re-inspection
-                  </Typography>
-                </Box>
-                {driver.resubmittedAt && (
-                  <Typography sx={{ fontSize: FONT.caption, color: '#64748B', fontWeight: 500 }}>
-                    Resubmitted: {new Date(driver.resubmittedAt).toLocaleDateString()} {new Date(driver.resubmittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Typography>
-                )}
-              </Box>
-
-              {faultyList.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.8, flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#1E3A8A' }}>
-                    Corrected Document(s):
-                  </Typography>
-                  {faultyList.map((docKey) => (
-                    <Chip
-                      key={docKey}
-                      label={docLabels[docKey] || docKey}
-                      size="small"
-                      sx={{
-                        backgroundColor: '#BFDBFE',
-                        color: '#1E40AF',
-                        fontWeight: 600,
-                        fontSize: FONT.caption,
-                        border: '1px solid #93C5FD',
-                      }}
-                    />
-                  ))}
-                </Box>
-              )}
-
-              <Typography sx={{ fontSize: FONT.caption, color: '#1E3A8A', lineHeight: 1.5 }}>
-                Driver <strong>{driver.name}</strong> has submitted corrected documents following the previous return. Please inspect the updated document(s) below to proceed with Stage 2 verification approval.
-              </Typography>
-            </Box>
-          );
-        })()}
+        {/* What needs the reviewer, in ONE notice: a return that is waiting for the driver, or corrected documents waiting for the LGU's inspection */}
+        {(driver.verificationStatus === 'Resubmission Required' || ((driver.isResubmitted || driver.verificationStatus === 'Resubmitted (Awaiting Review)') && !isVerified)) && (
+          <ReviewNotice driver={driver} returned={driver.verificationStatus === 'Resubmission Required'} />
+        )}
 
         {/* Header Profile Summary Bar */}
         <Box
@@ -1473,8 +1371,8 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                 backgroundColor: strikeLevel.bg,
                 color: strikeLevel.color,
                 fontWeight: 700,
-                fontSize: FONT.cardTitle,
-                height: 26,
+                fontSize: FONT.heading,
+                height: 28,
                 border: `1px solid ${strikeLevel.border}`,
               }}
             />
@@ -1542,8 +1440,14 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         {detailTab === 'history' && (
           <Box role="tabpanel" id="driver-panel-history" aria-labelledby="driver-tab-history" sx={{ display: 'flex', flexDirection: 'column', gap: 1.6, mb: 3.2 }}>
             <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>Verification history</Typography>
+            <VerificationHistoryList
+              events={verifHistory && verifHistory.driverId === driver.id ? verifHistory.events : null}
+              error={verifHistory && verifHistory.driverId === driver.id ? verifHistory.error : null}
+              loading={!verifHistory || verifHistory.driverId !== driver.id}
+            />
+            {historyEntries.length > 0 && <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary, mt: 1 }}>Where it stands now</Typography>}
             {historyEntries.length === 0 ? (
-              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>Nothing is on record yet beyond the application itself.</Typography>
+              null
             ) : (
               <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {historyEntries.map((entry, i) => (

@@ -9,10 +9,13 @@
  * ============================================================================
  */
 
+import { mapVerificationHistoryRows } from '@sakay/shared';
+import type { VerificationHistoryEvent } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import type { TodaChangeRequest } from '../types/toda';
 import { applicantStage, memberLguStatus } from '../utils/applicantStage';
 import {
+  ApplicantDocumentApproval,
   ApplicantDocumentReview,
   TodaProfile,
   DriverApplicant,
@@ -852,6 +855,22 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
       console.warn('[todaApiService] document reviews unavailable:', reviewErr);
     }
 
+    // Where each document stands after the decisions (endorsed by this TODA, verified by the LGU, replaced since): the review above says only what was RETURNED, so a document
+    // that was never returned would stay "Pending Inspection" for ever, and a returned one "Resubmitted" even after the LGU had verified the driver.
+    const approvalsByAffiliation = new Map<string, ApplicantDocumentApproval[]>();
+    try {
+      const { data: approvalRows } = await supabase.rpc('get_affiliation_document_approvals', {
+        p_affiliation_ids: data.map((aff: any) => aff.affiliation_id),
+      });
+      for (const r of (approvalRows || []) as any[]) {
+        const list = approvalsByAffiliation.get(r.affiliation_id) || [];
+        list.push({ documentType: r.document_type, state: r.approval_state, decidedAt: r.decided_at, decidedStage: r.decided_stage, changedAt: r.changed_at, awaitingStage: r.awaiting_stage });
+        approvalsByAffiliation.set(r.affiliation_id, list);
+      }
+    } catch (approvalErr) {
+      console.warn('[todaApiService] document approvals unavailable:', approvalErr);
+    }
+
     // The roster match, asked of the database: the SAME function the endorsement uses (the FRANCHISE number against this TODA's roster entries
     // made before the application; a name alone never matches, a plate alone does not either), so this screen and the Roster Mismatch flag
     // cannot disagree. It also says why, and which roster entry it found.
@@ -930,6 +949,7 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         isResubmitted,
         resubmittedAt: aff.resubmitted_at || undefined,
         documentReviews,
+        documentApprovals: approvalsByAffiliation.get(aff.affiliation_id) || [],
         assignedTerminal: aff.assigned_terminal || undefined,
         barangayServiceArea: aff.barangay_service_area || undefined,
         submittedDate: aff.submitted_at ? new Date(aff.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
@@ -1557,6 +1577,12 @@ export interface TodaRosterEntry {
   status?: 'Active' | 'Left' | string;
   left_at?: string | null;
   left_reason?: string | null;
+  /** A member added after the registration roster file counts only once the LGU approves the entry (Pending / Approved / Rejected). The registration file's entries are Approved. */
+  approval_status?: 'Pending' | 'Approved' | 'Rejected' | string;
+  approval_basis?: 'original_roster' | 'lgu_decision' | 'prior_verification' | 'reinstated' | string | null;
+  approval_decided_at?: string | null;
+  approval_decided_by_name?: string | null;
+  approval_reason?: string | null;
 }
 
 /**
@@ -1665,6 +1691,9 @@ export interface RosterSummary {
   active: number;
   added_later: number;
   left: number;
+  /** active members waiting for the LGU's approval / that the LGU did not approve */
+  pending_lgu?: number;
+  rejected_lgu?: number;
   edited: number;
   versions: RosterFileVersion[];
 }
@@ -2084,4 +2113,11 @@ export async function sendFollowupToLgu(incidentId: string, message: string): Pr
   const result = await sendIncidentFollowup(supabase, incidentId, message.trim() || null);
   if (!result.ok) return { error: result.error ?? 'The follow-up could not be sent. Please try again.', nextAllowedAt: typeof result.data?.next_allowed_at === 'string' ? result.data.next_allowed_at : undefined };
   return { error: null, nextAllowedAt: typeof result.data?.next_allowed_at === 'string' ? result.data.next_allowed_at : undefined };
+}
+
+/** What happened to a driver's verification, oldest first: registration, application, endorsement, inspection, LGU verification, returns, resubmissions. Real recorded times only. */
+export async function fetchDriverVerificationHistory(driverId: string): Promise<VerificationHistoryEvent[]> {
+  const { data, error } = await supabase.rpc('get_driver_verification_history', { p_driver_id: driverId });
+  if (error) throw new Error('The verification history could not be loaded.');
+  return mapVerificationHistoryRows(data as Array<Record<string, unknown>> | null);
 }

@@ -23,7 +23,8 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 
-import { EvidenceLinks } from '@sakay/shared';
+import { EvidenceLinks, ROSTER_APPROVAL_LABEL, ROSTER_MEMBER_STATE_HINT, ROSTER_MEMBER_STATE_LABEL, driverForFranchise, rosterCounts, rosterMemberState } from '@sakay/shared';
+import type { RosterApprovalStatus, RosterMemberState } from '@sakay/shared';
 import { TodaDriverMember, DriverExemptionRequest } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { STRIKE_LADDER } from '@sakay/shared/config/policyConfig';
@@ -63,6 +64,38 @@ import { useAuth } from '../contexts/AuthContext';
 import { SakayDialogTitle } from '@sakay/shared';
 
 // toda driver roster membership, strikes record, and suspension management
+type FigureTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+const FIGURE_TONES: Record<FigureTone, { backgroundColor: string; borderColor: string; color: string }> = {
+  neutral: { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', color: '#334155' },
+  info: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', color: '#1E40AF' },
+  success: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', color: '#166534' },
+  warning: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A', color: '#92400E' },
+  danger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA', color: '#991B1B' },
+};
+
+const STATE_BADGE: Record<RosterMemberState, string> = { verified: 'Verified', registered: 'Endorsed', not_registered: 'Not Registered' };
+const APPROVAL_BADGE: Record<RosterApprovalStatus, string> = { Pending: 'Pending', Approved: 'Approved', Rejected: 'Rejected' };
+
+// An active member: whether he has a SAKAY account (Registered), whether the LGU verified him (Verified), and, for a member added after the registration file, where the LGU's approval stands.
+const RosterStatusCell: React.FC<{ entry: TodaRosterEntry; state: RosterMemberState }> = ({ entry, state }) => {
+  const approval = (entry.approval_status ?? 'Approved') as RosterApprovalStatus;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+      <StatusBadge status={STATE_BADGE[state]} label={ROSTER_MEMBER_STATE_LABEL[state]} highContrast title={ROSTER_MEMBER_STATE_HINT[state]} sx={{ height: '24px', fontSize: FONT.small }} />
+      {approval !== 'Approved' && (
+        <>
+          <StatusBadge status={APPROVAL_BADGE[approval]} label={ROSTER_APPROVAL_LABEL[approval]} highContrast sx={{ height: '22px', fontSize: FONT.small }} />
+          {approval === 'Rejected' && entry.approval_reason && (
+            <Typography component="div" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, maxWidth: 240 }}>
+              {entry.approval_reason} Edit the entry to send it again.
+            </Typography>
+          )}
+        </>
+      )}
+    </Box>
+  );
+};
+
 export const TodaDriverMembershipPage: React.FC = () => {
   const { todaAdminProfile } = useAuth();
   const effectiveTodaId = todaAdminProfile?.toda_id;
@@ -247,6 +280,8 @@ export const TodaDriverMembershipPage: React.FC = () => {
   useEffect(() => {
     loadDrivers();
   }, [effectiveTodaId]);
+
+  const counts = rosterCounts(rosterEntries, drivers);
 
   // the roster is compared by franchise number, ignoring case and punctuation (the same way the database does it)
   const normalizeFranchise = (value?: string | null) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -642,10 +677,8 @@ export const TodaDriverMembershipPage: React.FC = () => {
               <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>
                 Master Roster
               </Typography>
-              <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px', lineHeight: 1.5, maxWidth: '90ch' }}>
-                The members your TODA vouches for, by franchise number. This list is the one that counts: when a driver applies, Driver Verification checks the franchise number on the
-                application against it. The roster file you submitted at registration is kept as it was; add a member when one joins, and mark one as left when he goes.
-                An entry counts for applications submitted after it was added, and a member who left still counts for applications made while he was a member.
+              <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mt: '2px', lineHeight: 1.5 }}>
+                Members your TODA vouches for, by franchise number. Add a member when one joins; mark one as left when they go.
               </Typography>
             </Box>
             <Button
@@ -661,13 +694,25 @@ export const TodaDriverMembershipPage: React.FC = () => {
             </Button>
           </Box>
 
-          {rosterSummary && (
-            <Alert severity="info" sx={{ mb: SPACE.gap, fontSize: FONT.body }}>
-              <strong>{rosterSummary.from_registration_file} member{rosterSummary.from_registration_file === 1 ? '' : 's'}</strong> came from the roster file you submitted at registration
-              {rosterSummary.registration_file ? ` (${rosterSummary.registration_file.file_name}, ${dateOf(rosterSummary.registration_file.uploaded_at)})` : ''}. The Master Roster now has{' '}
-              <strong>{rosterSummary.active} active member{rosterSummary.active === 1 ? '' : 's'}</strong>: {rosterSummary.added_later} added since, {rosterSummary.left} no longer a member.
-              The file stays as submitted; changes are made here and every one is recorded.
-            </Alert>
+          {/* what is true of the active members: registered (has a SAKAY account) and verified (the LGU verified the driver) are different things */}
+          <Box aria-label="Master Roster figures" role="group" sx={{ display: 'flex', flexWrap: 'wrap', gap: '8px', mb: SPACE.gap }}>
+            {([
+              ['Members', counts.members, 'neutral'],
+              ['Registered', counts.registered, 'info'],
+              ['Verified by the LGU', counts.verified, 'success'],
+              ['Awaiting LGU approval', counts.pendingApproval, 'warning'],
+              ...(counts.rejected > 0 ? [['Not approved by the LGU', counts.rejected, 'danger']] : []),
+            ] as Array<[string, number, FigureTone]>).map(([label, value, tone]) => (
+              <Box key={label} sx={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px', px: '12px', py: '5px', borderRadius: '8px', border: '1px solid', ...FIGURE_TONES[tone] }}>
+                <Typography component="span" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, lineHeight: 1 }}>{value}</Typography>
+                <Typography component="span" sx={{ fontSize: FONT.small, fontWeight: 600 }}>{label}</Typography>
+              </Box>
+            ))}
+          </Box>
+          {counts.pendingApproval > 0 && (
+            <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, mb: SPACE.gap }}>
+              A member you add counts for driver verification once the LGU approves the entry.
+            </Typography>
           )}
 
           {rosterEntries.some((e) => e.status === 'Left') && (
@@ -716,7 +761,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
                             </Typography>
                           </Box>
                         ) : (
-                          <StatusBadge status="Active" label="Active member" highContrast sx={{ height: '24px', fontSize: FONT.small }} />
+                          <RosterStatusCell entry={entry} state={rosterMemberState(driverForFranchise(entry.franchise_number, drivers))} />
                         )}
                       </TableCell>
                       <TableCell align="right">

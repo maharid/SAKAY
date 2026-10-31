@@ -122,8 +122,25 @@ export interface ApplicantDocumentReview {
   resubmittedAt?: string | null;
 }
 
+/**
+ * Where one document stands after the decisions on the application (database: get_affiliation_document_approvals).
+ *   pending      nothing has been decided since the application was submitted
+ *   endorsed     the TODA inspected it and endorsed the application after the document was last replaced
+ *   verified     the LGU verified the application after the document was last replaced
+ *   resubmitted  the driver replaced it after the application was submitted and nothing has been decided since: it is waiting for review again
+ */
+export interface ApplicantDocumentApproval {
+  documentType: 'license' | 'mtop' | 'tricycle' | 'selfie';
+  state: 'pending' | 'endorsed' | 'verified' | 'resubmitted';
+  decidedAt?: string | null;
+  decidedStage?: 'TODA' | 'LGU' | null;
+  changedAt?: string | null;
+  /** whose turn it is while the document is not verified */
+  awaitingStage?: 'TODA' | 'LGU' | null;
+}
+
 /** Why the Master Roster check came out the way it did (database: get_affiliation_roster_matches). */
-export type RosterReason = 'matched' | 'entry_added_later' | 'entry_left' | 'plate_only' | 'no_entry' | 'no_franchise';
+export type RosterReason = 'matched' | 'entry_pending_lgu' | 'entry_rejected_lgu' | 'entry_added_later' | 'entry_left' | 'plate_only' | 'no_entry' | 'no_franchise';
 
 /** The answer of the Master Roster check for one application, with the roster entry it found (if any). The FRANCHISE number decides. */
 export interface RosterCheck {
@@ -147,6 +164,8 @@ export interface DriverApplicant {
   resubmittedAt?: string;
   /** Per document: what this review returned, why, and whether the driver has replaced it. */
   documentReviews?: ApplicantDocumentReview[];
+  /** Per document: where it stands after the TODA's endorsement and the LGU's verification (a replaced document is never shown as approved). */
+  documentApprovals?: ApplicantDocumentApproval[];
   /** The AFFILIATION id (driver x this TODA). One driver applying to two TODAs is two applicants, one in each TODA's list. */
   id: string;
   affiliationId?: string;

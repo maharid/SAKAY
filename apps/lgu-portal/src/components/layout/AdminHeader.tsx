@@ -5,7 +5,7 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { LGU_RECIPIENT, ProfileAvatar, formatNotificationTime, localizeSystemNotification, noticeDestination, portalNotice, selectImportantNotifications } from '@sakay/shared';
+import { LGU_RECIPIENT, ProfileAvatar, compactNotificationMessage, formatNotificationTime, localizeSystemNotification, noticeDestination, portalNotice, selectImportantNotifications } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/admin';
@@ -300,7 +300,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         const time = formatNotificationTime(n.rawTimestamp, language);
         if (n.kind === 'db') {
           const text = localizeSystemNotification(n.rawTitle || '', n.rawMessage || '', language, n.type);
-          return { ...n, title: text.title, description: text.message, time };
+          // the panel shows the short form (what to do, for whom, by when); the whole text stays in the database and on the page the notice opens
+          return { ...n, title: text.title, description: compactNotificationMessage(text.message, n.type), time };
         }
         if (n.kind === 'resubmitted' || n.kind === 'endorsed' || n.kind === 'todaPending') {
           return { ...n, ...portalNotice(n.kind, n.subject, language), time };

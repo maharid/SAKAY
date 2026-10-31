@@ -145,6 +145,8 @@ const { setup, ID, AFF, attempt, check, summary, asUser } = require('../b4fixtur
   await internal(`INSERT INTO driver_verification(driver_id, submitted_license_number, submitted_franchise_number) VALUES ('${ID.D1}', 'L-D1', 'CHK-100')`);
   await add(T1, 'Check Member', 'CHK-100', 'CHK 100');
   const chk = (await entryOf(ID.TODA1, 'CHK100'));
+  // Batch 4: a member added after the registration file counts only once the LGU approves the entry (the timing rule below is unchanged)
+  await call(ID.L_AUTH, 'decide_toda_roster_entry($1,$2,$3)', [chk.entry_id, 'approve', null]);
   const verdict = async (submittedAt) => {
     await internal(`UPDATE driver_toda_affiliation SET submitted_at = '${submittedAt}' WHERE affiliation_id = '${AFF.D1_T1}'`);
     return (await one(`SELECT roster_matched, reason_code FROM public.affiliation_roster_check('${AFF.D1_T1}')`));

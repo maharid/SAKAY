@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Box, Breadcrumbs, Button, Link, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { messageForLanguage } from '@sakay/shared';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -8,6 +9,8 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import type { AccreditedTodaRecord, DriverRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { DriverDetailModal } from '../components/admin/DriverDetailModal';
+import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
+import { SakayToast } from '../components/common/SakayToast';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { StatStrip, StatItem } from '../components/common/StatStrip';
@@ -15,6 +18,7 @@ import { PageNotice } from '../components/common/PageNotice';
 import { DetailSection } from '../components/common/DetailSection';
 import { CellStack, DataTableCard, DataTableMessageRow, FlagTag, PersonCell } from '../components/common/DataTable';
 import {
+  decideTodaRosterEntry,
   fetchAccreditedTodas,
   fetchTodaDrivers,
   fetchTodaMasterRoster,
@@ -37,6 +41,14 @@ const MATCH_LABEL: Record<Match, string> = {
 const MATCH_TONE: Record<Match, 'success' | 'neutral' | 'warning' | 'danger'> = { matched: 'success', rosterOnly: 'neutral', driverOnly: 'warning', left: 'neutral' };
 
 const formatDay = (iso?: string | null): string => (iso ? new Date(iso).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }) : '');
+
+/** Where the LGU's approval of a member added after the registration file stands (the registration file's members never need it) */
+function approvalTag(entry: MasterRosterEntryRow): React.ReactNode {
+  if (entry.approvalStatus === 'Pending') return <FlagTag label="Awaiting your approval" tone="warning" />;
+  if (entry.approvalStatus === 'Rejected') return <FlagTag label="Not approved" tone="danger" />;
+  if (entry.approvalBasis === 'prior_verification') return <FlagTag label="Verified before approvals" tone="neutral" />;
+  return <FlagTag label={`Approved${entry.approvalDecidedByName ? ` by ${entry.approvalDecidedByName}` : ''}`} tone="success" />;
+}
 
 /** Where the driver stands with THIS TODA, in the words of the two stages (TODA endorses, then the City LGU decides) */
 function driverStage(driver?: DriverRecord): { label: string; status: string } {
@@ -69,6 +81,9 @@ export const TodaMasterRosterPage: React.FC = () => {
   const [view, setView] = useState('All');
   const [selectedDriver, setSelectedDriver] = useState<DriverRecord | null>(null);
   const [fileOpen, setFileOpen] = useState<{ title: string; name: string; url: string } | null>(null);
+  // the LGU's decision on a new member: which entry, approve or reject
+  const [deciding, setDeciding] = useState<{ entry: MasterRosterEntryRow; decision: 'approve' | 'reject' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -101,12 +116,14 @@ export const TodaMasterRosterPage: React.FC = () => {
   }, [rows]);
 
   const activeMembers = entries.filter((e) => e.status === 'Active').length;
+  const awaitingApproval = entries.filter((e) => e.status === 'Active' && e.approvalStatus === 'Pending').length;
   const registrationFile = versions.find((v) => v.kind === 'registration') ?? null;
   const rosterDoc = toda?.documents?.find((d) => /roster|driver/i.test(d.type) || /roster/i.test(d.name));
   const newerFiles = versions.filter((v) => v.kind === 'update');
 
   const stats: StatItem[] = [
     { key: 'members', label: 'On the Master Roster', value: activeMembers, note: `${entries.filter((e) => e.source === 'registration_file').length} from the registration file`, onSelect: () => setView('All'), selected: view === 'All' },
+    { key: 'pending', label: 'Awaiting your approval', value: awaitingApproval, tone: awaitingApproval > 0 ? 'brand' : 'neutral', note: 'Members added after the registration file', onSelect: () => setView('pending'), selected: view === 'pending' },
     { key: 'drivers', label: 'Registered drivers', value: drivers.length, note: `${drivers.filter((d) => d.affiliations?.[0]?.lguStage === 'Approved').length} verified by the LGU` },
     { key: 'matched', label: 'On both lists', value: counts.matched, tone: 'success', onSelect: () => setView('matched'), selected: view === 'matched' },
     { key: 'rosterOnly', label: 'On the roster only', value: counts.rosterOnly, note: 'No driver account yet', onSelect: () => setView('rosterOnly'), selected: view === 'rosterOnly' },
@@ -118,11 +135,14 @@ export const TodaMasterRosterPage: React.FC = () => {
     { label: MATCH_LABEL.matched, value: 'matched' },
     { label: MATCH_LABEL.rosterOnly, value: 'rosterOnly' },
     { label: MATCH_LABEL.driverOnly, value: 'driverOnly' },
+    { label: `Awaiting your approval (${awaitingApproval})`, value: 'pending' },
     { label: `${MATCH_LABEL.left} (${counts.left})`, value: 'left' },
   ];
 
   const shown = rows.filter((r) => {
-    if (view === 'All' ? r.match === 'left' : r.match !== view) return false;
+    if (view === 'pending') {
+      if (!(r.entry && r.entry.status === 'Active' && r.entry.approvalStatus === 'Pending')) return false;
+    } else if (view === 'All' ? r.match === 'left' : r.match !== view) return false;
     const q = search.trim().toLowerCase();
     return !q || [r.name, r.franchise, r.plate, r.membershipNo].some((v) => String(v || '').toLowerCase().includes(q));
   });
@@ -162,9 +182,8 @@ export const TodaMasterRosterPage: React.FC = () => {
       )}
 
       <PageNotice title={`${todaName}: roster and registered drivers`}>
-        The Master Roster is the TODA's own list of members; it is what an application is checked against. Below it is set next to <b>every</b> driver who registered with this TODA,
-        whether the driver is verified or not, so you can compare who the TODA says belongs to it with who actually applied. This page only reads: the TODA keeps its roster, and a driver is
-        verified from <b>Drivers</b> or the driver's own review window.
+        The roster is what an application is checked against, set next to <b>every</b> driver who registered with this TODA. Members on the roster file the TODA registered with are already
+        accredited; a member the TODA adds later counts only after you approve the entry here.
       </PageNotice>
 
       <StatStrip stats={stats} label="Master roster numbers" />
@@ -255,6 +274,7 @@ export const TodaMasterRosterPage: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       {r.entry ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                         <CellStack
                           primary={r.entry.status === 'Active' ? 'Active member' : 'Left the roster'}
                           secondary={
@@ -263,6 +283,11 @@ export const TodaMasterRosterPage: React.FC = () => {
                               : `${r.entry.source === 'registration_file' ? 'From the registration file' : r.entry.source === 'file_update' ? 'From a newer file' : 'Added by the TODA'} · ${formatDay(r.entry.addedAt)}`
                           }
                         />
+                        {r.entry.status === 'Active' && r.entry.source !== 'registration_file' && approvalTag(r.entry)}
+                        {r.entry.approvalStatus === 'Rejected' && r.entry.approvalReason && (
+                          <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>{r.entry.approvalReason}</Typography>
+                        )}
+                        </Box>
                       ) : (
                         <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>Not on the roster</Typography>
                       )}
@@ -278,13 +303,25 @@ export const TodaMasterRosterPage: React.FC = () => {
                       )}
                     </TableCell>
                     <TableCell align="right">
-                      {r.driver ? (
-                        <Button aria-label={`Review driver ${r.name}`} onClick={() => setSelectedDriver(r.driver!)} sx={rowActionSx('neutral')}>
-                          Review driver
-                        </Button>
-                      ) : (
-                        <Typography component="span" sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>-</Typography>
-                      )}
+                      <Box sx={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '6px' }}>
+                        {r.entry && r.entry.status === 'Active' && r.entry.approvalStatus === 'Pending' && (
+                          <>
+                            <Button aria-label={`Approve ${r.name}`} onClick={() => setDeciding({ entry: r.entry!, decision: 'approve' })} sx={rowActionSx('brand')}>
+                              Approve
+                            </Button>
+                            <Button aria-label={`Reject ${r.name}`} onClick={() => setDeciding({ entry: r.entry!, decision: 'reject' })} sx={rowActionSx('danger')}>
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {r.driver ? (
+                          <Button aria-label={`Review driver ${r.name}`} onClick={() => setSelectedDriver(r.driver!)} sx={rowActionSx('neutral')}>
+                            Review driver
+                          </Button>
+                        ) : !(r.entry && r.entry.status === 'Active' && r.entry.approvalStatus === 'Pending') ? (
+                          <Typography component="span" sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>-</Typography>
+                        ) : null}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 );
@@ -294,7 +331,37 @@ export const TodaMasterRosterPage: React.FC = () => {
         </DataTableCard>
       </Box>
 
-      {selectedDriver && <DriverDetailModal open onClose={() => { setSelectedDriver(null); void load(); }} driver={selectedDriver} />}
+      {selectedDriver && <DriverDetailModal open onClose={() => { setSelectedDriver(null); void load(); }} driver={selectedDriver} fromRosterOfToda={todaId} />}
+      <MacConfirmDialog
+        open={deciding !== null}
+        onClose={() => setDeciding(null)}
+        title={deciding?.decision === 'reject' ? 'Reject this roster member?' : 'Approve this roster member?'}
+        message={
+          deciding
+            ? deciding.decision === 'reject'
+              ? `${deciding.entry.memberName} (franchise ${deciding.entry.franchiseNumber || 'not recorded'}) will not count as on the roster. The TODA is shown your reason and can correct the entry to send it again.`
+              : `${deciding.entry.memberName} (franchise ${deciding.entry.franchiseNumber || 'not recorded'}, plate ${deciding.entry.plateNumber || 'not recorded'}) will count as on the ${todaName} roster for driver verification. Your name and the time are recorded.`
+            : ''
+        }
+        confirmLabel={deciding?.decision === 'reject' ? 'Reject member' : 'Approve member'}
+        confirmVariant={deciding?.decision === 'reject' ? 'danger' : 'orange'}
+        requireReason={deciding?.decision === 'reject'}
+        minReasonLength={10}
+        reasonPlaceholder="Why is this member not approved? (at least 10 characters)"
+        onConfirm={async (reason) => {
+          const target = deciding;
+          setDeciding(null);
+          if (!target) return;
+          try {
+            await decideTodaRosterEntry(target.entry.entryId, target.decision, reason);
+            setToast({ message: `${target.entry.memberName} was ${target.decision === 'approve' ? 'approved' : 'rejected'}. The TODA has been told.`, severity: 'success' });
+            await load();
+          } catch (err) {
+            setToast({ message: err instanceof Error ? messageForLanguage(err.message, 'en') : 'The decision was not saved.', severity: 'error' });
+          }
+        }}
+      />
+      <SakayToast open={toast !== null} message={toast?.message ?? ''} severity={toast?.severity ?? 'success'} onClose={() => setToast(null)} />
       {fileOpen && <DocumentReviewModal open onClose={() => setFileOpen(null)} documentTitle={fileOpen.title} fileName={fileOpen.name} fileUrl={fileOpen.url} />}
     </Box>
   );

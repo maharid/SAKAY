@@ -16,7 +16,8 @@
 import { adminActionMessage, mapServiceAreas, pilotAreaArgs, closeAccountArgs, closeUnfinishedTripArgs, confirmAvailabilityArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { ServiceAreaRecord, AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
-import { signCaseEvidence, asAnnouncementEventType, volumeByPeriod } from '@sakay/shared';
+import { signCaseEvidence, asAnnouncementEventType, mapVerificationHistoryRows, messageForLanguage, volumeByPeriod } from '@sakay/shared';
+import type { VerificationHistoryEvent } from '@sakay/shared';
 import type { BookingLike, GeoBoundary, VolumeRow } from '@sakay/shared';
 import type { CaseEvidenceFile } from '@sakay/shared';
 import { supabase } from './supabaseClient';
@@ -834,6 +835,9 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
     // Per-TODA applications. A driver may apply to several TODAs; each affiliation (driver x TODA) has its OWN TODA stage and LGU stage,
     // and the LGU decides each one separately, after its TODA has endorsed it.
     const affByDriver = new Map<string, DriverAffiliationRecord[]>();
+    // Where each document stands after the decisions (affiliation -> document -> pending / endorsed / verified / resubmitted): the LGU's own verification and the TODA's endorsement,
+    // each counted only if the document was not replaced after it. Without this a document stayed "Pending Inspection" or "Resubmitted" for ever.
+    const approvalsByAffiliation = new Map<string, Map<string, string>>();
     // What the review of each driver's applications says (returned / resubmitted / endorsed...), from the DATABASE: per application, the
     // documents it returned and whether they were replaced. The shared verification record's remarks are never read for this.
     const statusByDriver = new Map<string, ApplicationStatus>();
@@ -847,6 +851,16 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
       const openRosterFlags = new Set<string>();
       const affIds = ((affRows || []) as any[]).map((a) => a.affiliation_id);
       if (affIds.length > 0) {
+        try {
+          const { data: approvalRows } = await supabase.rpc('get_affiliation_document_approvals', { p_affiliation_ids: affIds });
+          for (const r of (approvalRows || []) as any[]) {
+            const byDoc = approvalsByAffiliation.get(r.affiliation_id) || new Map<string, string>();
+            byDoc.set(r.document_type, r.approval_state);
+            approvalsByAffiliation.set(r.affiliation_id, byDoc);
+          }
+        } catch (approvalErr) {
+          console.warn('[adminApiService] fetchDrivers document approvals note:', approvalErr);
+        }
         try {
           const { data: docRows } = await supabase.rpc('get_affiliation_document_reviews', { p_affiliation_ids: affIds });
           for (const r of (docRows || []) as any[]) {
@@ -1058,14 +1072,29 @@ export async function fetchDrivers(filters?: { status?: string; toda?: string })
         } catch {}
       }
 
+      // what the decisions on the driver's applications say about a document: verified by the LGU (for any of the applications), replaced since the last decision, or endorsed by the TODA
+      const approvalOf = (docType: string): 'verified' | 'resubmitted' | 'endorsed' | 'pending' | null => {
+        const states = affs.map((a) => approvalsByAffiliation.get(a.affiliationId)?.get(docType)).filter((x): x is string => Boolean(x));
+        if (states.length === 0) return null;
+        if (states.includes('verified')) return 'verified';
+        if (states.includes('resubmitted')) return 'resubmitted';
+        if (states.includes('endorsed')) return 'endorsed';
+        return 'pending';
+      };
+
       const getDocStatus = (docType: string): 'Verified' | 'Pending Inspection' | 'Resubmission Required' | 'Resubmitted (Awaiting Review)' => {
         if (isFullyApproved) return 'Verified';
         if (verifiedList.includes(docType)) return 'Verified';
+        const approval = approvalOf(docType);
+        // the LGU verified the application after the document was last replaced: it is verified, whatever its earlier returns were
+        if (approval === 'verified') return 'Verified';
         if (reviewStatus) {
           // from the database: was THIS document returned, and has the driver replaced it since?
           const state = reviewStatus.documentStates[docType as ReviewDocumentType];
           if (state === 'returned' || state === 'returned_elsewhere') return 'Resubmission Required';
-          if (state === 'resubmitted' || state === 'replaced_elsewhere') return 'Resubmitted (Awaiting Review)';
+          // the TODA inspected the replacement and endorsed the application: it waits for the LGU's inspection, it is no longer "resubmitted"
+          if (approval === 'endorsed') return 'Pending Inspection';
+          if (state === 'resubmitted' || state === 'replaced_elsewhere' || approval === 'resubmitted') return 'Resubmitted (Awaiting Review)';
           return 'Pending Inspection';
         }
         // a driver with no TODA application on record: only the list written on the shared record says which documents were faulty
@@ -1390,6 +1419,13 @@ export async function returnDriverForCorrection(
     console.error('[adminApiService] returnDriverForCorrection exception:', err);
     throw err;
   }
+}
+
+/** What happened to a driver's verification, oldest first: registration, application, endorsement, inspection, LGU verification, returns, resubmissions and Master Roster decisions. Real recorded times only. */
+export async function fetchDriverVerificationHistory(driverId: string): Promise<VerificationHistoryEvent[]> {
+  const { data, error } = await supabase.rpc('get_driver_verification_history', { p_driver_id: driverId });
+  if (error) throw new Error('The verification history could not be loaded.');
+  return mapVerificationHistoryRows(data as Array<Record<string, unknown>> | null);
 }
 
 export async function updateDriverDocumentReview(
@@ -2931,6 +2967,23 @@ export interface MasterRosterEntryRow {
   addedAt: string;
   leftAt?: string | null;
   leftReason?: string | null;
+  /** A member added after the registration roster file counts only once the LGU approves the entry. The registration file's members are Approved. */
+  approvalStatus: 'Pending' | 'Approved' | 'Rejected';
+  /** original_roster (the file the LGU accredited), lgu_decision, prior_verification (verified by the LGU before this step existed), reinstated */
+  approvalBasis?: string | null;
+  approvalDecidedAt?: string | null;
+  approvalDecidedByName?: string | null;
+  approvalReason?: string | null;
+}
+
+/**
+ * The LGU's decision on a member the TODA added to its Master Roster after the registration roster file (database: decide_toda_roster_entry). Approving makes the member count for
+ * driver verification; rejecting needs a reason (10 characters) that the TODA is shown. The decision, the LGU account and the time are recorded by the database.
+ */
+export async function decideTodaRosterEntry(entryId: string, decision: 'approve' | 'reject', reason?: string): Promise<void> {
+  const { data, error } = await supabase.rpc('decide_toda_roster_entry', { p_entry_id: entryId, p_decision: decision, p_reason: reason?.trim() || null });
+  if (error) throw new Error('The decision was not saved. Check the connection and try again.');
+  if (!data || data.success !== true) throw new Error(messageForLanguage((data && data.error) || 'The decision was not saved.', 'en'));
 }
 
 export interface RosterFileVersionRow {
@@ -2959,6 +3012,11 @@ export async function fetchTodaMasterRoster(todaId: string): Promise<{ entries: 
       addedAt: e.created_at,
       leftAt: e.left_at,
       leftReason: e.left_reason,
+      approvalStatus: e.approval_status === 'Pending' || e.approval_status === 'Rejected' ? e.approval_status : 'Approved',
+      approvalBasis: e.approval_basis ?? null,
+      approvalDecidedAt: e.approval_decided_at ?? null,
+      approvalDecidedByName: e.approval_decided_by_name ?? null,
+      approvalReason: e.approval_reason ?? null,
     })),
     versions: (versionRows || []).map((v: any) => ({
       versionId: v.version_id,

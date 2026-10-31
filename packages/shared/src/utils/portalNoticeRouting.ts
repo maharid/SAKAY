@@ -27,7 +27,7 @@ export function noticeVisualKind(type: string | null | undefined): NoticeVisualK
   if (t === 'INCIDENT_FOLLOWUP') return 'followup';
   if (/^INCIDENT_/.test(t)) return 'incident';
   if (t === 'DRIVER_RESUBMITTED' || t === 'RESUBMISSION' || t === 'RESUBMITTED') return 'resubmission';
-  if (t === 'TODA_DRIVER_LGU_DECISION' || t === 'ENDORSEMENT' || t === 'ENDORSED' || /^DRIVER_(VERIFIED|REJECTED|APPLICATION)/.test(t)) return 'driverVerification';
+  if (t === 'TODA_DRIVER_LGU_DECISION' || t === 'ENDORSEMENT' || t === 'ENDORSED' || /^DRIVER_(VERIFIED|REJECTED|APPLICATION)/.test(t) || /^ROSTER_ENTRY_/.test(t)) return 'driverVerification';
   if (/^TODA_ACCREDITATION/.test(t) || t === 'TODA_EXPIRY_REMINDER' || t === 'LGU_RENEWAL_REMINDER' || t === 'TODA' || t === 'TODAPENDING') return 'accreditation';
   if (/^APPEAL_/.test(t) || t === 'APPEAL') return 'appeal';
   if (/REMINDER|EXPIRY/.test(t)) return 'reminder';
@@ -52,12 +52,16 @@ export function noticeDestination(audience: PortalAudience, type: string | null 
     if (/^APPEAL/.test(t)) return q('/appeals', 'appeal');
     if (t === 'TODA_ACCREDITATION_EXPIRED_LGU' || t === 'TODA_EXPIRY_REMINDER') return q('/accredited-todas', 'toda');
     if (t === 'TODA' || t === 'TODAPENDING') return q('/toda-applications', 'toda');
+    // a new roster member waits for the LGU: the subject is the TODA, the page is that TODA's Master Roster
+    if (t === 'ROSTER_ENTRY_PENDING_LGU') return id ? `/accredited-todas/${encodeURIComponent(id)}/roster` : '/accredited-todas';
     return null;
   }
 
   if (/^INCIDENT_/.test(t)) return q('/reports', 'incident');
   if (t === 'DRIVER_RESUBMITTED' || t === 'TODA_DRIVER_LGU_DECISION') return q('/driver-verification', 'application');
   if (/^TODA_ACCREDITATION/.test(t) || t === 'TODA_EXPIRY_REMINDER' || t === 'LGU_RENEWAL_REMINDER') return '/account';
+  // the LGU decided on a member the TODA added to its Master Roster
+  if (t === 'ROSTER_ENTRY_DECIDED') return '/drivers';
   return null;
 }
 

@@ -50,6 +50,26 @@ export const RosterCheckNotice: React.FC<RosterCheckNoticeProps> = ({ applicant,
     </Typography>
   ) : null;
 
+  if (check.reason === 'entry_pending_lgu') {
+    return (
+      <Alert severity="warning" sx={alertSx}>
+        <strong>On the roster, waiting for the LGU.</strong> Your roster has an entry for {franchise}: {entry}. A member added after the registration roster file counts only once the LGU
+        approves the entry.
+        {consequence}
+      </Alert>
+    );
+  }
+
+  if (check.reason === 'entry_rejected_lgu') {
+    return (
+      <Alert severity="error" sx={alertSx}>
+        <strong>On the roster, but the LGU did not approve the entry.</strong> Your roster has an entry for {franchise}: {entry}. Correct the entry on the Master Roster to send it to the LGU
+        again.
+        {consequence}
+      </Alert>
+    );
+  }
+
   if (check.reason === 'entry_added_later') {
     return (
       <Alert severity="warning" sx={alertSx}>

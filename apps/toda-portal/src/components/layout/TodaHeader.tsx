@@ -6,7 +6,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { ProfileAvatar, formatNotificationTime, localizeSystemNotification, noticeDestination, selectImportantNotifications, todaRecipient } from '@sakay/shared';
+import { ProfileAvatar, compactNotificationMessage, formatNotificationTime, localizeSystemNotification, noticeDestination, selectImportantNotifications, todaRecipient } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/toda';
@@ -160,7 +160,7 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
     () =>
       notifications.map((n) => {
         const text = localizeSystemNotification(n.rawTitle || n.title, n.rawMessage || n.description || '', language, n.kind);
-        return { ...n, title: text.title, description: text.message, time: formatNotificationTime(n.sentAt, language) };
+        return { ...n, title: text.title, description: compactNotificationMessage(text.message, n.kind), time: formatNotificationTime(n.sentAt, language) };
       }),
     [notifications, language]
   );

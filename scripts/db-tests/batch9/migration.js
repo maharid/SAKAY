@@ -26,7 +26,7 @@ const PREVIOUS = '20261023000001_batch8_arrival_noshow_cancellation.sql';
   gitDirty.split('\n').filter(Boolean).every((l) => {
     const isBatch9 = /20261024000001_batch9_trip_end_payment_disputes\.sql$/.test(l);
     const isNewLaterMigration =
-      /^(?:A  | A |\\?\\? )supabase\/migrations\/(\d{14})_/.test(l) &&
+      /^(?:A  | A |\?\? )supabase\/migrations\/(\d{14})_/.test(l) &&
       l.match(/supabase\/migrations\/(\d{14})_/)?.[1] > '20261024000001';
 
     return isBatch9 || isNewLaterMigration;

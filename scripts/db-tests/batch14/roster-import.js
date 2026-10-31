@@ -71,6 +71,9 @@ const { AFF } = require('../b4fixtures');
   await internal(`INSERT INTO driver_verification(driver_id, submitted_franchise_number) VALUES ('${ID.D3}', 'T2-77') ON CONFLICT DO NOTHING`);
   await internal(`UPDATE driver_verification SET submitted_franchise_number = 'T2-77' WHERE driver_id = '${ID.D3}'`);
   const reason = async () => (await asRows(T2, `SELECT * FROM public.get_affiliation_roster_matches($1::uuid[])`, [[AFF.D3_T2]]))[0];
+  // Batch 4: this TODA already had a roster, so the file is an UPDATE: its new members count once the LGU approves them (the timing rule below is unchanged)
+  const juan = await one(`SELECT entry_id FROM toda_roster_entry WHERE toda_id = '${ID.TODA2}' AND normalized_franchise = 'T277'`);
+  await asUser(db, { uid: ID.L_AUTH }, (tx) => tx.query(`SELECT public.decide_toda_roster_entry($1, 'approve', NULL)`, [juan.entry_id]), { commit: true });
   let r0 = await reason();
   check('D3 applied to TODA2 BEFORE the import, so the imported entry is "added later" and does not make the application look found',
     r0.roster_matched === false && r0.reason_code === 'entry_added_later' && r0.entry_member_name === 'Juan Dela Cruz', r0);

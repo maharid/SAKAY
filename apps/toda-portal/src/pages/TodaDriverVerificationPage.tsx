@@ -18,6 +18,8 @@ import {
   TextField,
   MenuItem,
   Snackbar,
+  Tab,
+  Tabs,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -27,13 +29,14 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
-import { DriverApplicant } from '../types/toda';
+import { ApplicantDocumentApproval, ApplicantDocumentReview, DriverApplicant } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { DocumentPreviewModal } from '../components/admin/DocumentPreviewModal';
 import {
+  fetchDriverVerificationHistory,
   fetchDriverApplicants,
   fetchTodaDrivers,
   fetchTodaProfile,
@@ -45,7 +48,8 @@ import {
 import { isTodaLocked } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
 import type { DocumentReturnInput } from '../services/todaApiService';
-import { REJECTION_REASON_CODES, REJECTION_REASON_LABEL, rejectionReasonParts } from '@sakay/shared';
+import { REJECTION_REASON_CODES, REJECTION_REASON_LABEL, VerificationHistoryList, rejectionReasonParts } from '@sakay/shared';
+import type { VerificationHistoryEvent } from '@sakay/shared';
 import type { RejectionReasonCode, ReturnReasonCode, ReviewDocumentType } from '@sakay/shared';
 import { DataTableCard, DataTableMessageRow, CellStack, PersonCell, StatusPill } from '../components/common/DataTable';
 import { FeatureLockedNotice } from '../components/common/FeatureLockedNotice';
@@ -103,6 +107,74 @@ const expiryPill = (iso?: string | null): React.ReactNode => {
 // the look shared by the notices inside the review window
 const reviewAlertSx = { borderRadius: '10px', fontSize: FONT.body } as const;
 
+type ReviewTab = 'overview' | 'documents' | 'screening' | 'history';
+
+// Why the roster check did not match, in a few words (the full explanation is in the Screening tab)
+const ROSTER_SHORT: Record<string, string> = {
+  entry_pending_lgu: "The entry is waiting for the LGU's approval.",
+  entry_rejected_lgu: 'The LGU did not approve the entry.',
+  entry_added_later: 'The entry was added after the application.',
+  entry_left: 'The member had left before the application.',
+  plate_only: 'Only the plate number matches.',
+  no_entry: 'No roster entry has this franchise number.',
+  no_franchise: 'The application has no franchise number.',
+};
+
+// ONE card at the top of the review window, and only when something needs the reviewer: what the driver sent again, what was returned and is still outstanding, and a roster check that
+// did not match. Nothing is said twice: the detail of each lives in its own tab, and what is fine (a roster match, a document nobody questioned) is not announced here.
+const ReviewAttention: React.FC<{ applicant: DriverApplicant; onGo: (tab: ReviewTab) => void }> = ({ applicant, onGo }) => {
+  const reviews = applicant.documentReviews || [];
+  const names = (rows: ApplicantDocumentReview[]) => rows.map((r) => documentLabelOf(r.documentType)).join(', ');
+  const lines: { key: string; text: React.ReactNode; tab: ReviewTab; go: string }[] = [];
+
+  if (applicant.todaStageStatus === 'Resubmission Required') {
+    const open = reviews.filter((r) => r.state === 'returned');
+    lines.push({ key: 'returned', tab: 'documents', go: 'Documents', text: <>Returned to the driver, waiting for the corrected documents{open.length > 0 ? <>: <strong>{names(open)}</strong></> : ''}.</> });
+  } else if (applicant.isResubmitted) {
+    const replaced = reviews.filter((r) => r.state === 'resubmitted');
+    lines.push({ key: 'resubmitted', tab: 'documents', go: 'Documents', text: <>Resubmitted by the driver on {formatWhen(applicant.resubmittedAt)}{replaced.length > 0 ? <>: <strong>{names(replaced)}</strong> replaced</> : ''}. The 5-day review period restarted.</> });
+  }
+
+  const check = applicant.rosterCheck;
+  if (applicant.rosterMatchKnown === false || !check) {
+    lines.push({ key: 'roster', tab: 'screening', go: 'Screening', text: <>Roster check unavailable. Refresh the page before you decide.</> });
+  } else if (check.reason !== 'matched') {
+    lines.push({ key: 'roster', tab: 'screening', go: 'Screening', text: <>Roster check: not matched. {ROSTER_SHORT[check.reason] ?? 'The franchise number is not on the roster.'}</> });
+  }
+
+  if (lines.length === 0) return null;
+  return (
+    <Alert severity={lines.some((l) => l.key !== 'resubmitted') ? 'warning' : 'info'} sx={{ ...reviewAlertSx, '& .MuiAlert-message': { width: '100%' } }}>
+      <Box component="ul" aria-label="Needs your attention" sx={{ m: 0, p: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {lines.map((l) => (
+          <Box component="li" key={l.key} sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+            <Typography component="span" sx={{ fontSize: FONT.body }}>{l.text}</Typography>
+            <Button size="small" onClick={() => onGo(l.tab)} sx={{ textTransform: 'none', fontWeight: 700, fontSize: FONT.small, minWidth: 0, p: '0 4px', color: 'inherit', textDecoration: 'underline' }}>
+              {l.go}
+            </Button>
+          </Box>
+        ))}
+      </Box>
+    </Alert>
+  );
+};
+
+// What one document says about where it stands, from the TODA's own return of it and from the decisions since (endorsement, the LGU's verification, a replacement). A decision never
+// hides an open return, and a document the driver replaced after a decision is waiting for review again, never approved.
+function documentBadge(review: ApplicantDocumentReview | undefined, approval: ApplicantDocumentApproval | undefined, hasFile: boolean): React.ReactNode {
+  if (!hasFile) return <StatusPill label="No file received" tone="danger" />;
+  const own = !review || review.state === 'not_returned' ? null : review.state;
+  if (own === 'returned') return <StatusPill label="Resubmission Required" tone="warning" />;
+  if (approval?.state === 'verified') return <StatusPill label={`Verified by the LGU${approval.decidedAt ? ` · ${formatWhen(approval.decidedAt)}` : ''}`} tone="success" />;
+  if (approval?.state === 'endorsed') return <StatusPill label={`Inspected and endorsed${approval.decidedAt ? ` · ${formatWhen(approval.decidedAt)}` : ''}`} tone="info" />;
+  if (own === 'resubmitted' || approval?.state === 'resubmitted') {
+    return <StatusPill label={approval?.awaitingStage === 'LGU' ? 'Resubmitted (Awaiting LGU Review)' : 'Resubmitted (Awaiting Review)'} tone="info" />;
+  }
+  if (own === 'returned_elsewhere') return <StatusPill label="Flagged in another review" tone="neutral" />;
+  if (own === 'replaced_elsewhere') return <StatusPill label={`Replaced · ${formatWhen(review?.resubmittedAt)} (another review)`} tone="neutral" />;
+  return <StatusPill label="Pending Inspection" tone="neutral" />;
+}
+
 // a titled block of the review window
 const ReviewSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <Box component="section">
@@ -130,6 +202,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
 
   // Selected Applicant for Review Modal
   const [selectedApplicant, setSelectedApplicant] = useState<DriverApplicant | null>(null);
+  const [reviewTab, setReviewTab] = useState<ReviewTab>('overview');
+  const [history, setHistory] = useState<{ driverId: string; events: VerificationHistoryEvent[] | null; error: string | null } | null>(null);
   const [previewDocData, setPreviewDocData] = useState<{
     name: string;
     type: string;
@@ -271,7 +345,20 @@ export const TodaDriverVerificationPage: React.FC = () => {
     { label: 'Roster Mismatch Flag', value: 'Mismatch' },
   ];
 
+  // the history is read when its tab is opened, once per driver in the window
+  useEffect(() => {
+    const driverId = selectedApplicant?.driverId;
+    if (reviewTab !== 'history' || !driverId || history?.driverId === driverId) return;
+    let stale = false;
+    fetchDriverVerificationHistory(driverId)
+      .then((events) => { if (!stale) setHistory({ driverId, events, error: null }); })
+      .catch((err: unknown) => { if (!stale) setHistory({ driverId, events: null, error: err instanceof Error ? err.message : 'The verification history could not be loaded.' }); });
+    return () => { stale = true; };
+  }, [reviewTab, selectedApplicant?.driverId, history?.driverId]);
+
   const handleOpenReview = (app: DriverApplicant) => {
+    setReviewTab('overview');
+    setHistory(null);
     setSelectedApplicant(app);
     setRosterChecked(app.rosterVerified);
     setPhotoChecked(app.photoVerified);
@@ -298,6 +385,8 @@ export const TodaDriverVerificationPage: React.FC = () => {
       );
       setToastSeverity('error');
       setToastOpen(true);
+      // the checklist is in the Screening tab: take the reviewer to it
+      setReviewTab('screening');
       return;
     }
     setForwardError(null);
@@ -636,64 +725,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
           onMiddleAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? openReturnDialog : undefined}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge }}>
-            {/* Resubmitted: what changed, and what this review asked for before (so the reviewer can compare) */}
-            {selectedApplicant.isResubmitted && (
-              <Alert severity="info" icon={false} sx={{ ...reviewAlertSx, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E3A8A' }}>
-                <Typography sx={{ fontWeight: 700, fontSize: FONT.body, mb: '3px' }}>
-                  Resubmitted by the driver on {formatWhen(selectedApplicant.resubmittedAt)}
-                </Typography>
-                <Typography sx={{ fontSize: FONT.small, mb: '6px' }}>
-                  The 5-calendar-day review period restarted on that date. Replaced:{' '}
-                  <strong>
-                    {(selectedApplicant.documentReviews || [])
-                      .filter((r) => r.state === 'resubmitted')
-                      .map((r) => documentLabelOf(r.documentType))
-                      .join(', ')}
-                  </strong>
-                  . Documents that were not returned are unchanged.
-                </Typography>
-                {(selectedApplicant.documentReviews || [])
-                  .filter((r) => r.state === 'resubmitted')
-                  .map((r) => (
-                    <Box key={r.documentType} sx={{ borderTop: '1px solid #BFDBFE', pt: '5px', mt: '5px' }}>
-                      <Typography sx={{ fontSize: FONT.small, fontWeight: 700 }}>
-                        {documentLabelOf(r.documentType)} — previous return ({formatWhen(r.returnedAt)}): {reasonLabelOf(r.reasonCode)}
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.small, fontStyle: 'italic' }}>"{r.reason}"</Typography>
-                    </Box>
-                  ))}
-              </Alert>
-            )}
-
-            {/* Returned: waiting for the driver */}
-            {selectedApplicant.todaStageStatus === 'Resubmission Required' && (
-              <Alert severity="warning" sx={reviewAlertSx}>
-                <Typography sx={{ fontWeight: 700, fontSize: FONT.body, mb: '3px' }}>Returned to the driver — waiting for the corrected documents</Typography>
-                {(selectedApplicant.documentReviews || [])
-                  .filter((r) => r.state === 'returned')
-                  .map((r) => (
-                    <Typography key={r.documentType} sx={{ fontSize: FONT.small }}>
-                      <strong>{documentLabelOf(r.documentType)}</strong> ({formatWhen(r.returnedAt)}): {reasonLabelOf(r.reasonCode)} — {r.reason}
-                    </Typography>
-                  ))}
-              </Alert>
-            )}
-
-            {/* A shared document that another review flagged or replaced (no reason: that is the other review's judgement) */}
-            {(selectedApplicant.documentReviews || []).some((r) => r.state === 'returned_elsewhere' || r.state === 'replaced_elsewhere') && (
-              <Alert severity="info" sx={reviewAlertSx}>
-                {(selectedApplicant.documentReviews || [])
-                  .filter((r) => r.state === 'returned_elsewhere' || r.state === 'replaced_elsewhere')
-                  .map((r) => (
-                    <Typography key={r.documentType} sx={{ fontSize: FONT.small }}>
-                      <strong>{documentLabelOf(r.documentType)}</strong>{' '}
-                      {r.state === 'returned_elsewhere'
-                        ? 'was returned to the driver in another review and has not been replaced yet. Your review is not affected.'
-                        : `was replaced by the driver on ${formatWhen(r.resubmittedAt)} after another review returned it. Look at the current copy.`}
-                    </Typography>
-                  ))}
-              </Alert>
-            )}
+            {selectedApplicant.todaStageStatus !== 'Rejected' && <ReviewAttention applicant={selectedApplicant} onGo={setReviewTab} />}
 
             {/* A rejected application: the reason, and that it is final (there is no action on it any more) */}
             {selectedApplicant.todaStageStatus === 'Rejected' && (() => {
@@ -710,9 +742,21 @@ export const TodaDriverVerificationPage: React.FC = () => {
               );
             })()}
 
-            {/* Master Roster check: decided by the database, by the franchise number (never by name or plate alone), with the reason */}
-            <RosterCheckNotice applicant={selectedApplicant} canDecide={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus)} />
+            <Tabs
+              value={reviewTab}
+              onChange={(_, value: ReviewTab) => setReviewTab(value)}
+              variant="scrollable"
+              scrollButtons="auto"
+              aria-label="Application sections"
+              sx={{ minHeight: 40, borderBottom: '1px solid var(--mac-border-color)', '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontWeight: 600, fontSize: FONT.body }, '& .MuiTabs-indicator': { backgroundColor: OPS_TEXT.brand }, '& .Mui-selected': { color: `${OPS_TEXT.brand} !important` } }}
+            >
+              <Tab value="overview" label="Overview" />
+              <Tab value="documents" label={`Documents (${reviewDocuments.length})`} />
+              <Tab value="screening" label="Screening" />
+              <Tab value="history" label="History" />
+            </Tabs>
 
+            {reviewTab === 'overview' && (<>
             <DetailSection icon={<PersonIcon />} title="Personal details">
               <DetailGrid>
                 <DetailField label="Full Name" value={selectedApplicant.name} />
@@ -771,25 +815,16 @@ export const TodaDriverVerificationPage: React.FC = () => {
               )}
             </DetailSection>
 
+            </>)}
+
+            {reviewTab === 'documents' && (
             <DetailSection icon={<VerifiedUserIcon />} title={`Verification documents (${reviewDocuments.length})`}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {reviewDocuments.map((doc) => {
                   const rv = (selectedApplicant.documentReviews || []).find((r) => r.documentType === doc.docType);
+                  const ap = (selectedApplicant.documentApprovals || []).find((r) => r.documentType === doc.docType);
                   const state = !rv || rv.state === 'not_returned' ? null : rv.state;
-                  const badge =
-                    doc.urls.length === 0 ? (
-                      <StatusPill label="No file received" tone="danger" />
-                    ) : state === null ? (
-                      <StatusPill label="Pending Inspection" tone="neutral" />
-                    ) : state === 'resubmitted' ? (
-                      <StatusPill label="Resubmitted (Awaiting Review)" tone="info" />
-                    ) : state === 'returned' ? (
-                      <StatusPill label="Resubmission Required" tone="warning" />
-                    ) : state === 'returned_elsewhere' ? (
-                      <StatusPill label="Flagged in another review" tone="neutral" />
-                    ) : (
-                      <StatusPill label={`Replaced · ${formatWhen(rv?.resubmittedAt)} (another review)`} tone="neutral" />
-                    );
+                  const badge = documentBadge(rv, ap, doc.urls.length > 0);
                   return (
                     <ReviewDocumentRow
                       key={doc.docType}
@@ -797,7 +832,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
                       title={doc.title}
                       type={doc.type}
                       badges={badge}
-                      tone={state === 'returned' ? 'returned' : state === 'resubmitted' ? 'resubmitted' : 'neutral'}
+                      tone={state === 'returned' ? 'returned' : state === 'resubmitted' && ap?.state !== 'verified' && ap?.state !== 'endorsed' ? 'resubmitted' : 'neutral'}
                       onView={() =>
                         setPreviewDocData({
                           name: `${doc.title} — ${selectedApplicant.name}`,
@@ -811,6 +846,11 @@ export const TodaDriverVerificationPage: React.FC = () => {
                 })}
               </Box>
             </DetailSection>
+            )}
+
+            {reviewTab === 'screening' && (<>
+            {/* Master Roster check: decided by the database, by the franchise number (never by name or plate alone), with the reason */}
+            <RosterCheckNotice applicant={selectedApplicant} canDecide={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus)} />
 
             <ReviewSection title="Screening checklist">
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -852,6 +892,15 @@ export const TodaDriverVerificationPage: React.FC = () => {
                 />
               </Box>
             </ReviewSection>
+            </>)}
+
+            {reviewTab === 'history' && (
+              <VerificationHistoryList
+                events={history && history.driverId === selectedApplicant.driverId ? history.events : null}
+                error={history && history.driverId === selectedApplicant.driverId ? history.error : null}
+                loading={history?.driverId !== selectedApplicant.driverId}
+              />
+            )}
           </Box>
         </MacCenterModal>
       )}

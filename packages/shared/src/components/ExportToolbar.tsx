@@ -6,6 +6,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 
 import { SakayToast } from './SakayToast';
+import { ToolbarSideCard } from './ToolbarRow';
 import type { SakayToastSeverity } from './SakayToast';
 import type { XlsxLike } from '../utils/auditLog';
 import { exportReportCsv, exportReportPdf, exportReportXlsx, reportPdfName, reportXlsxName } from '../utils/reportExport';
@@ -37,8 +38,8 @@ export interface ExportToolbarProps {
   label?: string;
   /** A short line under the heading, e.g. "Follows the filters above" */
   hint?: string;
-  /** How the group sits: a bordered card (default) or bare buttons for a tight toolbar */
-  appearance?: 'card' | 'bare';
+  /** How the group sits: a small bordered card (default), bare buttons for a tight toolbar, or "panel": the card of its own that sits BESIDE the filter card (see ToolbarRow) */
+  appearance?: 'card' | 'bare' | 'panel';
 }
 
 const FORMAT_INFO: Record<ExportFormat, { short: string; tip: string; Icon: React.ElementType }> = {
@@ -144,6 +145,17 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({ getTable, meta, lo
     <>
       {appearance === 'bare' ? (
         buttons
+      ) : appearance === 'panel' ? (
+        <ToolbarSideCard label={label}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <FileDownloadOutlinedIcon aria-hidden sx={{ fontSize: 20, color: '#B34700' }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#1d1d1f', lineHeight: 1.2 }}>{label}</Typography>
+              {hint && <Typography sx={{ fontSize: '11px', color: '#4d4d52', lineHeight: 1.2 }}>{hint}</Typography>}
+            </Box>
+          </Box>
+          {buttons}
+        </ToolbarSideCard>
       ) : (
         <Box
           component="section"

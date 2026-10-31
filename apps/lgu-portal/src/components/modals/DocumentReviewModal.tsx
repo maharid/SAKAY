@@ -142,16 +142,13 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({ open, 
 
   const rosterTable = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', px: '12px', py: '4px', borderRadius: '8px', backgroundColor: 'var(--sakay-orange-soft)', border: '1px solid var(--sakay-orange-border)' }}>
-          <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>Drivers in the file:</Typography>
-          <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: '#B34700' }}>{tableData.length}</Typography>
-        </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px 14px' }}>
         <TextField
           size="small"
           placeholder="Search driver name or franchise..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ flex: '1 1 240px', minWidth: 0 }}
           slotProps={{
             htmlInput: { 'aria-label': 'Search the roster file' },
             input: {
@@ -160,10 +157,14 @@ export const DocumentReviewModal: React.FC<DocumentReviewModalProps> = ({ open, 
                   <SearchIcon sx={{ color: '#64748B', fontSize: 18 }} />
                 </InputAdornment>
               ),
-              sx: { fontSize: FONT.body, backgroundColor: '#FFFFFF', borderRadius: '8px', width: { xs: '100%', sm: 280 } },
+              sx: { fontSize: FONT.body, backgroundColor: '#FFFFFF', borderRadius: '8px' },
             },
           }}
         />
+        <Box role="status" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0, whiteSpace: 'nowrap', px: '12px', height: 36, borderRadius: '8px', backgroundColor: 'var(--sakay-orange-soft)', border: '1px solid var(--sakay-orange-border)' }}>
+          <Typography component="span" sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>Drivers in the file:</Typography>
+          <Typography component="span" sx={{ fontSize: FONT.small, fontWeight: 700, color: '#B34700' }}>{tableData.length}</Typography>
+        </Box>
       </Box>
 
       {loading ? (

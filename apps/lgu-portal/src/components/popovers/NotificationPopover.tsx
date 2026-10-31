@@ -59,10 +59,10 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         className: 'mac-glass-popover',
         sx: {
           mt: '8px',
-          // never wider or taller than the screen: 320 x 368 on a desktop, shrinking on a phone or a short window
-          width: 320,
+          // never wider or taller than the screen: 352 wide and tall enough for about three notices (the rest scrolls), shrinking on a phone or a short window
+          width: 352,
           maxWidth: 'calc(100vw - 32px)',
-          maxHeight: 'min(368px, calc(100dvh - 80px))',
+          maxHeight: 'min(432px, calc(100dvh - 80px))',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 'var(--mac-radius-lg)',

@@ -6,7 +6,7 @@ import UnpublishedIcon from '@mui/icons-material/Unpublished';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { AnnouncementEventIcon, LGU_ANNOUNCEMENT_EVENT_TYPES, asAnnouncementEventType, type AnnouncementEventType } from '@sakay/shared';
+import { AnnouncementEventIcon, LGU_ANNOUNCEMENT_EVENT_TYPES, ToolbarRow, ToolbarSideCard, asAnnouncementEventType, type AnnouncementEventType } from '@sakay/shared';
 
 import { AnnouncementRecord, AccreditedTodaRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -366,7 +366,16 @@ export const AnnouncementManagementPage: React.FC = () => {
         ]}
       />
 
-      {/* 2. Search, filters and the "New announcement" button */}
+      {/* 2. Search and filters in one card; "New announcement" in a card of its own beside it */}
+      <ToolbarRow
+        side={
+          <ToolbarSideCard label="Announcement actions">
+            <Button onClick={openCreate} variant="contained" startIcon={<AddAlertIcon sx={{ fontSize: 16 }} />} sx={primaryButtonSx}>
+              New announcement
+            </Button>
+          </ToolbarSideCard>
+        }
+      >
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -392,12 +401,9 @@ export const AnnouncementManagementPage: React.FC = () => {
           setRoleFilter('All');
           setStatusFilter('All');
         }}
-        actionButton={
-          <Button onClick={openCreate} variant="contained" startIcon={<AddAlertIcon sx={{ fontSize: 16 }} />} sx={primaryButtonSx}>
-            New announcement
-          </Button>
-        }
+        disableMarginBottom
       />
+      </ToolbarRow>
 
       {/* 3. The announcements */}
       <DataTableCard

@@ -15,6 +15,7 @@ import { DetailField, DetailGrid, DetailSection } from '../common/DetailSection'
 import { PageNotice } from '../common/PageNotice';
 import { TodaZoneMap } from './TodaZoneMap';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { DocumentReviewModal } from '../modals/DocumentReviewModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { TodaAccreditationDialog } from './TodaAccreditationDialog';
 import { fetchTodaRosterSummary, fetchTodaChangeRequests, decideTodaChangeRequest, type TodaChangeRequestRow, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, reinstateTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
@@ -37,6 +38,12 @@ interface TodaDetailModalProps {
   /** the accreditation was renewed or suspended: the directory reloads */
   onChanged?: () => void | Promise<void>;
 }
+
+/** A roster (CSV or Excel) is read into a table in the app; it is never put in a frame, where the browser would download it. */
+const SPREADSHEET_NAME = /\.(csv|xlsx?|ods)$/i;
+const SPREADSHEET_URL = /\.(csv|xlsx?|ods)(\?|$)/i;
+const isSpreadsheetDoc = (doc: { name: string; type: string; url?: string | null }): boolean =>
+  /spreadsheet|roster/i.test(doc.type) || SPREADSHEET_NAME.test(doc.name) || SPREADSHEET_URL.test(doc.url ?? '');
 
 export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose, toda, onChanged }) => {
   const navigate = useNavigate();
@@ -443,8 +450,11 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         }}
       />
 
-      {/* Document Inspection Popover */}
-      {selectedDoc && (
+      {/* A roster file is read into a table (View never downloads it; Download is a button of the window); any other document opens in the document window */}
+      {selectedDoc && isSpreadsheetDoc(selectedDoc) && (
+        <DocumentReviewModal open onClose={() => setSelectedDoc(null)} documentTitle={selectedDoc.type || 'Driver Roster'} fileName={selectedDoc.name} fileUrl={selectedDoc.url ?? null} />
+      )}
+      {selectedDoc && !isSpreadsheetDoc(selectedDoc) && (
         <DocumentPreviewModal
           open={Boolean(selectedDoc)}
           onClose={() => setSelectedDoc(null)}
