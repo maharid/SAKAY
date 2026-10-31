@@ -5,6 +5,7 @@
  * only a trip they drove; anything else is refused by the database, not by this screen.
  */
 import { supabase } from './supabaseClient';
+import { getLocalizedError } from './driverApiService';
 import { uploadIncidentEvidenceFiles, BOOKING_OPEN_STATUSES } from '@sakay/shared';
 
 /**
@@ -67,7 +68,7 @@ export async function submitIncidentReport(input: {
     .single();
   if (error || !data) {
     // The database's own words (Filipino and English), without its internal error code
-    throw new Error((error?.message || 'Hindi naisumite ang ulat. (The report could not be submitted.)').replace(/^ERR_[A-Z_]+:\s*/, ''));
+    throw new Error((error?.message || getLocalizedError('Hindi naisumite ang ulat.', 'The report could not be submitted.')).replace(/^ERR_[A-Z_]+:\s*/, ''));
   }
   return { incidentId: data.incident_id as string };
 }

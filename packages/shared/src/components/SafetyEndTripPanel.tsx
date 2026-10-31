@@ -5,7 +5,6 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Portal from '@mui/material/Portal';
@@ -17,6 +16,7 @@ import { useInFlight } from '../hooks/useInFlight';
 import { SAFETY_END_REASONS, type SafetyEnd, type SafetyEndReason } from '../utils/tripSafety';
 import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX, EMPTY_OPTION_SX, WRAPPING_SELECT_SLOTS } from './dialogStyles';
 import { SakayToast } from './SakayToast';
+import { SakayDialogTitle } from './SakayDialogTitle';
 
 export interface SafetyEndTripOption {
   bookingId: string;
@@ -170,7 +170,7 @@ export const SafetyEndTripPanel: React.FC<SafetyEndTripPanelProps> = ({ trips, o
         </Paper>
 
         <Dialog open={open} onClose={closeModal} maxWidth="sm" fullWidth aria-labelledby={titleId} slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-          <DialogTitle id={titleId} sx={DIALOG_TITLE_SX}>End a trip for safety</DialogTitle>
+          <SakayDialogTitle onClose={closeModal} id={titleId} sx={DIALOG_TITLE_SX}>End a trip for safety</SakayDialogTitle>
           <DialogContent sx={DIALOG_CONTENT_SX}>
             <Typography sx={DIALOG_INTRO_SX}>
               A driver who was detained or arrested, a driver who became ill, an accident, or a passenger in danger: you end the trip, nobody is struck.

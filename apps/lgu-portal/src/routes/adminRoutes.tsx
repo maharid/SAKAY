@@ -4,8 +4,10 @@ import { AdminLayout } from '../components/layout/AdminLayout';
 import { ProtectedRoute, PublicOnlyRoute } from '../components/auth/ProtectedRoute';
 import { LoginPage } from '../pages/LoginPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { ReviewFlagsPage } from '../pages/ReviewFlagsPage';
 import { TodaApplicationsPage } from '../pages/TodaApplicationsPage';
 import { AccreditedTodasPage } from '../pages/AccreditedTodasPage';
+import { TodaMasterRosterPage } from '../pages/TodaMasterRosterPage';
 import { DriverManagementPage } from '../pages/DriverManagementPage';
 import { PassengerManagementPage } from '../pages/PassengerManagementPage';
 import { PassengerFeedbackPage } from '../pages/PassengerFeedbackPage';
@@ -53,6 +55,17 @@ export const AdminRoutes: React.FC = () => {
 
       {/* Management Routes */}
       <Route
+        path="/review-flags"
+        element={
+          <ProtectedRoute>
+            <AdminLayout pageTitle="Review Flags" pageSubtitle="Everything that needs an administrator's decision, and what was decided.">
+              <ReviewFlagsPage />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/toda-applications"
         element={
           <ProtectedRoute>
@@ -69,6 +82,17 @@ export const AdminRoutes: React.FC = () => {
           <ProtectedRoute>
             <AdminLayout pageTitle="Accredited TODAs" pageSubtitle="The accredited TODAs, their service zones and records.">
               <AccreditedTodasPage />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/accredited-todas/:todaId/roster"
+        element={
+          <ProtectedRoute>
+            <AdminLayout pageTitle="Master Roster" pageSubtitle="A TODA's roster next to every driver registered with it.">
+              <TodaMasterRosterPage />
             </AdminLayout>
           </ProtectedRoute>
         }

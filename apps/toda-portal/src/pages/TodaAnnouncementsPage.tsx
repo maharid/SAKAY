@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
+import { Box, ListItemIcon, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
-import { shakeElement } from '@sakay/shared';
+import { AnnouncementEventIcon, ANNOUNCEMENT_EVENT_TYPES, TODA_ANNOUNCEMENT_EVENT_TYPES, shakeElement } from '@sakay/shared';
 
 import { TodaAnnouncement } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -121,10 +121,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
 
   const categoryOptions: FilterOption[] = [
     { label: 'All Categories', value: 'All' },
-    { label: 'Terminal Rules', value: 'Terminal Rules' },
-    { label: 'Document Renewal', value: 'Document Renewal' },
-    { label: 'Meeting Notice', value: 'Meeting Notice' },
-    { label: 'Safety Advisory', value: 'Safety Advisory' },
+    ...ANNOUNCEMENT_EVENT_TYPES.map((type) => ({ label: type, value: type })),
   ];
 
   const statusOptions: FilterOption[] = [
@@ -213,9 +210,9 @@ export const TodaAnnouncementsPage: React.FC = () => {
     const message = formMessage.trim();
     try {
       if (mode === 'update' && editingId) {
-        await updateTodaAnnouncement(editingId, { title, message, urgency: formUrgency });
+        await updateTodaAnnouncement(editingId, { title, message, urgency: formUrgency, eventType: formCategory });
       } else {
-        await postTodaAnnouncement(title, message, formUrgency, undefined, mode === 'publish');
+        await postTodaAnnouncement(title, message, formUrgency, undefined, mode === 'publish', formCategory);
       }
     } catch (err) {
       return err instanceof Error ? err.message : 'The change could not be saved.';
@@ -380,6 +377,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
               <TableRow key={ann.id}>
                 <TableCell sx={{ maxWidth: 420 }}>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 8px' }}>
+                    <AnnouncementEventIcon type={ann.category} sx={{ color: OPS_TEXT.brand }} />
                     <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>{ann.title}</Typography>
                     {ann.urgency === 'High Priority' && <StatusPill label="High priority" tone="danger" icon={<PriorityHighIcon aria-hidden sx={{ fontSize: 13 }} />} />}
                   </Box>
@@ -502,10 +500,22 @@ export const TodaAnnouncementsPage: React.FC = () => {
                 value={formCategory}
                 label="Category"
                 onChange={(e) => setFormCategory(e.target.value as TodaAnnouncement['category'])}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AnnouncementEventIcon type={value} sx={{ color: OPS_TEXT.brand }} />
+                    {value}
+                  </Box>
+                )}
                 sx={{ borderRadius: '10px' }}
               >
-                {categoryOptions.filter((c) => c.value !== 'All').map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                {/* An announcement the LGU wrote keeps its own type when a TODA edits nothing but its text; a new one is one of the TODA's types */}
+                {(TODA_ANNOUNCEMENT_EVENT_TYPES.includes(formCategory) ? TODA_ANNOUNCEMENT_EVENT_TYPES : [...TODA_ANNOUNCEMENT_EVENT_TYPES, formCategory]).map((type) => (
+                  <MenuItem key={type} value={type}>
+                    <ListItemIcon sx={{ minWidth: 34, color: OPS_TEXT.brand }}>
+                      <AnnouncementEventIcon type={type} />
+                    </ListItemIcon>
+                    {type}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -569,7 +579,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
               handlePublishDraft(selectedAnn);
             }
           }}
-          secondaryActionLabel={selectedAnn.isPublished ? "Close" : "Edit Draft"}
+          secondaryActionLabel={selectedAnn.isPublished ? undefined : "Edit Draft"}
           onSecondaryAction={() => {
             if (selectedAnn.isPublished) {
               setSelectedAnn(null);
@@ -581,7 +591,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap }}>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
               <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary }}>Category and priority</Typography>
-              <StatusPill label={selectedAnn.category} tone="neutral" />
+              <StatusPill label={selectedAnn.category} tone="neutral" icon={<AnnouncementEventIcon type={selectedAnn.category} fontSize={13} />} />
               {selectedAnn.urgency === 'High Priority' ? (
                 <StatusPill label="High priority" tone="danger" icon={<PriorityHighIcon aria-hidden sx={{ fontSize: 13 }} />} />
               ) : (

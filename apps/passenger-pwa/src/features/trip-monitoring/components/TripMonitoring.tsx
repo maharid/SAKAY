@@ -20,7 +20,6 @@ import MessageIcon from '@mui/icons-material/Message';
 import StarIcon from '@mui/icons-material/Star';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CancelIcon from '@mui/icons-material/Cancel';
-import LinearProgress from '@mui/material/LinearProgress';
 import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import PassengerCancelModal from '../../../common/components/PassengerCancelModal';
 import SakayToast from '../../../common/components/SakayToast';
@@ -40,6 +39,9 @@ import {
   buildTripDetails,
   calculateTripProgressPercent,
   fetchServerTripProgress,
+  TripProgressBar,
+  useShownTripProgress,
+  usePlausibleDriverPoint,
   useInFlight,
   QuickMessageDialog,
   MapControlButton,
@@ -768,19 +770,26 @@ export const TripMonitoring: React.FC = () => {
   const driverToPickupKm = calculateDistanceKm(driverPos.lat, driverPos.lng, pickupLat, pickupLng);
   const driverToDropoffKm = calculateDistanceKm(driverPos.lat, driverPos.lng, dropoffLat, dropoffLng);
 
-  let tripProgress = 0;
+  // The progress reads the driver's REAL position (never the stand-in used for the distance text) and not a GPS error: a position no tricycle could have
+  // reached since the last good one is held back, so one odd fix cannot drag the bar to the end of the trip.
+  const progressPoint = usePlausibleDriverPoint(driverKnown ? driverPos.lat : null, driverKnown ? driverPos.lng : null, activeBookingId);
+  const progressToDropoffKm = progressPoint ? calculateDistanceKm(progressPoint.lat, progressPoint.lng, dropoffLat, dropoffLng) : Number.NaN;
+
+  let targetProgress = 0;
   if (status === 'Trip Ongoing') {
     // One formula for both screens and the database (@sakay/shared tripProgress); the best the trip has reached is kept, and so is the database's
     const here = calculateTripProgressPercent({
       totalKm: totalTripKm,
-      driverToDestinationKm: driverToDropoffKm,
+      driverToDestinationKm: progressToDropoffKm,
       previousPercent: Math.max(maxProgressRef.current, serverProgress ?? 0),
     });
     maxProgressRef.current = here;
-    tripProgress = here;
+    targetProgress = here;
   } else if (status === 'Arrived at Destination' || status === 'Completed') {
-    tripProgress = 100;
+    targetProgress = 100;
   }
+  // What is drawn moves toward that figure a little at a time (arrival is shown at once)
+  const tripProgress = useShownTripProgress(targetProgress, activeBookingId);
 
   // What the Trip Details panel shows (the same facts the driver's panel shows for this trip)
   const tripDetails = buildTripDetails({
@@ -817,6 +826,8 @@ export const TripMonitoring: React.FC = () => {
                 lng: dropoffLng,
               }
         }
+        pickupLabel={{ title: 'Pickup', address: booking?.pickup_address }}
+        dropoffLabel={{ title: language === 'tl' ? 'Destinasyon' : 'Destination', address: booking?.dropoff_address }}
         driverLocation={status !== 'Searching Driver' && driverKnown ? driverPos : null}
         userLocation={passengerLocation.fix}
         showUserMarker
@@ -1075,6 +1086,16 @@ export const TripMonitoring: React.FC = () => {
               </Box>
             )}
 
+            {/* How far the trip has gone: in the part of the card that is always shown, so it can be read with the card collapsed */}
+            {status === 'Trip Ongoing' && (
+              <TripProgressBar
+                percent={tripProgress}
+                label={language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
+                detailLeft={<>{language === 'tl' ? 'Natitira:' : 'Remaining:'} <strong>{formatDistance(driverToDropoffKm)}</strong></>}
+                detailRight={<>ETA: <strong>~{Math.max(1, Math.round(driverToDropoffKm * 3))} min</strong></>}
+              />
+            )}
+
             {/* Ride-sharing (Rules 14.2.1, 14.5): the Accept / Decline Shared Match question, and the limited facts about the passenger who shares */}
             <SharedMatchPanel view={sharedMatch.view} language={language} secondsLeft={sharedMatch.secondsLeft} busy={sharedMatch.busy} errorMessage={sharedMatch.error} onRespond={(accept) => void sharedMatch.respond(accept)} />
           </Box>
@@ -1083,32 +1104,6 @@ export const TripMonitoring: React.FC = () => {
           <>
           {/* Trip details: collapsed by default, one tap away at every stage */}
             <TripDetailsPanel view={tripDetails} language={language} />
-
-            {/* Live trip progress (the passenger is on board) */}
-            {status === 'Trip Ongoing' && (
-              <Box sx={{ p: '12px 16px', borderRadius: '14px', backgroundColor: '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                    {language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
-                  </Typography>
-                  <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{tripProgress}%</Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={tripProgress}
-                  aria-label={language === 'tl' ? 'Progreso ng biyahe' : 'Trip progress'}
-                  sx={{ height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', '& .MuiLinearProgress-bar': { backgroundColor: '#FF6600', borderRadius: 4 } }}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.75 }}>
-                  <Typography sx={{ fontSize: '12px', color: '#475569' }}>
-                    {language === 'tl' ? 'Natitira:' : 'Remaining:'} <strong>{formatDistance(driverToDropoffKm)}</strong>
-                  </Typography>
-                  <Typography sx={{ fontSize: '12px', color: '#475569' }}>
-                    ETA: <strong>~{Math.max(1, Math.round(driverToDropoffKm * 3))} min</strong>
-                  </Typography>
-                </Box>
-              </Box>
-            )}
 
             {/* Tricycle: the franchise body number and plate, to recognise it at the pickup */}
             {status !== 'Searching Driver' && status !== 'No Driver Found' && (franchiseNo !== '-' || plateNo !== '-') && (

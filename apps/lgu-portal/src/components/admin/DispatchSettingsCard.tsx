@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Box, Button, TextField, Typography } from '@mui/material';
+import { SakayToast } from '@sakay/shared';
 
 import { DashboardCard } from '../dashboard/DashboardCard';
 import { fetchDispatchSettings, saveDispatchSetting, type DispatchSettings } from '../../services/adminApiService';
@@ -31,6 +32,7 @@ export const DispatchSettingsCard: React.FC = () => {
   const [tier3Max, setTier3Max] = useState<string>('');
   const [busy, setBusy] = useState<SettingKey | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -58,7 +60,7 @@ export const DispatchSettingsCard: React.FC = () => {
     try {
       await saveDispatchSetting(key, value);
       await load();
-      setMessage({ type: 'success', text: 'Saved. It applies from the next offer or search that reaches this point.' });
+      setSaved(true);
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'The setting was not saved.' });
     } finally {
@@ -99,8 +101,9 @@ export const DispatchSettingsCard: React.FC = () => {
 
   return (
     <Box sx={{ mb: '19px' }}>
-      <DashboardCard title="Driver search settings" description="How long drivers and the search for a driver may take.">
+      <DashboardCard title="Driver search" description="How long a driver has to answer an offer, and how long the search for a driver may run. The search radii are fixed by policy.">
         {message && <Alert severity={message.type} sx={{ mb: '10px', borderRadius: '10px' }}>{message.text}</Alert>}
+        <SakayToast message={saved ? 'Saved. It applies from the next offer or search that reaches this point.' : null} severity="success" onClose={() => setSaved(false)} />
         <Box sx={{ '& > div + div': { borderTop: `1px solid ${PAGE_DIVIDER}` } }}>
           {row('offer_window_seconds', 'Offer response window', 'How long one driver has to accept or decline an offer.', offerWindow, setOfferWindow,
             settings.offerWindowSeconds, settings.defaults.offerWindowSeconds, settings.limits.offerWindowSeconds)}

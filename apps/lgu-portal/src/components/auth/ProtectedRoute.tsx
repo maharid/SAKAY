@@ -27,7 +27,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)',
           color: '#FFFFFF',
           gap: 2,
-          fontFamily: "'Poppins', sans-serif",
+          fontFamily: "var(--sakay-font-family, Poppins), sans-serif",
         }}
       >
         <Box

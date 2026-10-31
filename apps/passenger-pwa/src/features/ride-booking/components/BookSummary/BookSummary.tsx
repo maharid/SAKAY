@@ -177,7 +177,7 @@ const BookSummary: React.FC = () => {
       setSuccessOpen(true);
     } catch (err: any) {
       console.error("Booking error:", err);
-      const errMsg = err?.message || "May aberya sa pag-book. Pakisubukang muli.";
+      const errMsg = err?.message || (language === "tl" ? "May aberya sa pag-book. Pakisubukang muli." : "Something went wrong with the booking. Please try again.");
       setErrorMessage(errMsg);
       setBookingLoading(false);
       // The rate changed (or the figure was off) between the quote and the tap: show the current fare again.

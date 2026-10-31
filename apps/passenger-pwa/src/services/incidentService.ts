@@ -11,6 +11,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { getLocalizedError } from './passengerApiService';
 import { signIncidentEvidence, uploadIncidentEvidenceFiles, INCIDENT_EVIDENCE_MAX_BYTES, BOOKING_OPEN_STATUSES } from '@sakay/shared';
 import type { IncidentEvidenceFile } from '@sakay/shared';
 
@@ -139,7 +140,7 @@ export async function submitIncidentReport(input: {
     })
     .select('incident_id')
     .single();
-  if (error || !data) throw new Error(error?.message || 'Hindi naisumite ang ulat. (The report could not be submitted.)');
+  if (error || !data) throw new Error(error?.message || getLocalizedError('Hindi naisumite ang ulat.', 'The report could not be submitted.'));
   return { incidentId: data.incident_id as string };
 }
 

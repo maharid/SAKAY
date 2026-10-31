@@ -7,18 +7,25 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
-  IconButton,
   Chip,
+  CircularProgress,
+  InputAdornment,
+  List,
+  ListItemButton,
+  ListItemText,
+  TextField,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PlaceIcon from '@mui/icons-material/Place';
+import SearchIcon from '@mui/icons-material/Search';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+import { DialogCloseButton } from './DialogCloseButton';
 import { offRoadMessage, snapToRoad } from '../utils/roadSnap';
+import { searchCalapanPlaces, type PlaceResult } from '../utils/placeSearch';
 import { serviceAreaContains, type ServiceAreaShape } from '../utils/serviceAreaUtils';
 
 /**
@@ -57,6 +64,11 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
   const [currentLat, setCurrentLat] = useState<number>(initialLat || DEFAULT_CALAPAN_LAT);
   const [currentLng, setCurrentLng] = useState<number>(initialLng || DEFAULT_CALAPAN_LNG);
   const [activeLandmark, setActiveLandmark] = useState<string | null>(null);
+  // Searching a place: the results are only a list until the person chooses one. The pin moves for a choice, a click on the map or a drag, and for nothing else.
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchedOnce, setSearchedOnce] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -77,8 +89,38 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
       const lng = initialLng || DEFAULT_CALAPAN_LNG;
       setCurrentLat(lat);
       setCurrentLng(lng);
+      setSearchText('');
+      setSearchResults([]);
+      setSearchedOnce(false);
+      setActiveLandmark(null);
     }
   }, [open, initialLat, initialLng]);
+
+  // the search runs a moment after the person stops typing, and a slower answer for an older text is dropped
+  useEffect(() => {
+    if (!open) return;
+    const text = searchText.trim();
+    if (text.length < 3) {
+      setSearchResults([]);
+      setSearching(false);
+      setSearchedOnce(false);
+      return;
+    }
+    const controller = new AbortController();
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchCalapanPlaces(text, controller.signal).then((found) => {
+        if (controller.signal.aborted) return;
+        setSearchResults(found);
+        setSearching(false);
+        setSearchedOnce(true);
+      });
+    }, 450);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchText, open]);
 
   // Puts the pin (and the coordinates it stands for) at a point, without judging it
   const movePin = useCallback((lat: number, lng: number) => {
@@ -243,6 +285,16 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
     updateMapPosition(landmark.lat, landmark.lng, landmark.name);
   };
 
+  const handleChooseResult = (place: PlaceResult) => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([place.lat, place.lng], 17, { duration: 0.8 });
+    }
+    updateMapPosition(place.lat, place.lng, place.name);
+    setSearchText('');
+    setSearchResults([]);
+    setSearchedOnce(false);
+  };
+
   const handleResetToCenter = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.flyTo([DEFAULT_CALAPAN_LAT, DEFAULT_CALAPAN_LNG], 15, { duration: 0.8 });
@@ -319,14 +371,55 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
               Pin Terminal Location on Map
             </Typography>
             <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
-              Click anywhere on Calapan City map or drag the orange pin to set the exact terminal coordinates.
+              Search a place, click the map or drag the orange pin to set the exact terminal coordinates.
             </Typography>
           </Box>
         </Box>
 
-        <IconButton size="small" onClick={onClose} sx={{ color: 'var(--mac-text-muted)' }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
+      </Box>
+
+      {/* Search a place by name: choosing a result moves the pin (and names the place); the pin can still be dragged afterwards */}
+      <Box sx={{ px: 3, pt: 1.5, pb: 1, backgroundColor: '#FFFFFF', borderBottom: '1px solid var(--mac-border-color)', position: 'relative' }}>
+        <TextField
+          size="small"
+          fullWidth
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search a place in Calapan, e.g. Public Market or a street"
+          slotProps={{
+            htmlInput: { 'aria-label': 'Search a place in Calapan City' },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18, color: '#64748B' }} />
+                </InputAdornment>
+              ),
+              endAdornment: searching ? <CircularProgress size={16} sx={{ color: 'var(--sakay-orange)' }} /> : undefined,
+            },
+          }}
+        />
+        {(searchResults.length > 0 || (searchedOnce && !searching)) && (
+          <List
+            dense
+            aria-label="Places found"
+            sx={{ mt: 0.75, maxHeight: 188, overflowY: 'auto', border: '1px solid var(--mac-border-color)', borderRadius: '8px', backgroundColor: '#FFFFFF', py: 0 }}
+          >
+            {searchResults.length === 0 ? (
+              <ListItemText sx={{ px: 2, py: 1 }} primary="No place with that name was found in Calapan City." slotProps={{ primary: { sx: { fontSize: '12.5px', color: '#475569' } } }} />
+            ) : (
+              searchResults.map((place, index) => (
+                <ListItemButton key={`${place.name}-${index}`} onClick={() => handleChooseResult(place)}>
+                  <ListItemText
+                    primary={place.name}
+                    secondary={place.detail || undefined}
+                    slotProps={{ primary: { sx: { fontSize: '13px', fontWeight: 600 } }, secondary: { sx: { fontSize: '11.5px' } } }}
+                  />
+                </ListItemButton>
+              ))
+            )}
+          </List>
+        )}
       </Box>
 
       {/* Quick Landmark Chips Bar */}
@@ -383,7 +476,7 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
               width: '100%',
               height: '100%',
               borderRadius: 0,
-              fontFamily: "'Poppins', sans-serif !important",
+              fontFamily: "var(--sakay-font-family, 'Poppins'), sans-serif !important",
             },
           }}
         />
@@ -413,6 +506,9 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
             </Typography>
             <Typography sx={{ fontSize: '13px', fontWeight: 700, color: 'var(--sakay-orange)', fontFamily: 'monospace' }}>
               {currentLat.toFixed(6)}, {currentLng.toFixed(6)}
+            </Typography>
+            <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-muted)', maxWidth: 220, overflowWrap: 'anywhere' }}>
+              {activeLandmark ? `Place: ${activeLandmark}` : 'Placed by you on the map'}
             </Typography>
           </Box>
           <Chip
@@ -466,7 +562,7 @@ export const TerminalMapPicker: React.FC<TerminalMapPickerProps> = ({
           </Alert>
         ) : (
           <Typography sx={{ fontSize: '12px', color: 'var(--mac-text-muted)' }}>
-            The pin snaps to the nearest road. The selected coordinates are filled in for you; nothing is typed by hand.
+            Search a place, click the map or drag the pin. The pin snaps to the nearest road, and the coordinates follow it: nothing is typed by hand.
           </Typography>
         )}
 

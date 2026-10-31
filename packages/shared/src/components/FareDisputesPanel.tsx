@@ -6,7 +6,6 @@ import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
@@ -16,6 +15,7 @@ import { EvidenceLinks } from './EvidenceLinks';
 import { useInFlight } from '../hooks/useInFlight';
 import type { CaseEvidenceFile } from '../utils/caseEvidence';
 import { FARE_DISPUTE_OUTCOMES, FARE_DISPUTE_STRIKES, earlyEndReasonLabel, type FareDisputeDecision, type FareDisputeRow } from '../utils/tripEnd';
+import { SakayDialogTitle } from './SakayDialogTitle';
 
 export interface FareDisputesPanelProps {
   /** Which administrator is looking: the TODA Administrator decides an Open dispute or escalates it; the LGU Administrator decides anything not yet resolved */
@@ -232,7 +232,7 @@ export const FareDisputesPanel: React.FC<FareDisputesPanelProps> = ({ role, disp
       )}
 
       <Dialog open={deciding !== null} onClose={() => setDeciding(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Decide the dispute</DialogTitle>
+        <SakayDialogTitle onClose={() => setDeciding(null)} sx={{ fontWeight: 700, fontSize: '16px' }}>Decide the dispute</SakayDialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
           <TextField select size="small" label="Decision" value={outcome} onChange={(e) => setOutcome(e.target.value)} fullWidth>
             {(deciding ? FARE_DISPUTE_OUTCOMES[deciding.kind] : []).map((o) => (
@@ -273,7 +273,7 @@ export const FareDisputesPanel: React.FC<FareDisputesPanelProps> = ({ role, disp
       </Dialog>
 
       <Dialog open={escalating !== null} onClose={() => setEscalating(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Escalate to the LGU Administrator</DialogTitle>
+        <SakayDialogTitle onClose={() => setEscalating(null)} sx={{ fontWeight: 700, fontSize: '16px' }}>Escalate to the LGU Administrator</SakayDialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
           <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>
             Say why this dispute needs the LGU Administrator (for example a passenger strike, or a conflict of interest). You will no longer be able to decide it.

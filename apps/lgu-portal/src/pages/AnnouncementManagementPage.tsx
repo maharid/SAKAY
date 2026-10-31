@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem, Select, FormControl, InputLabel, Alert } from '@mui/material';
+import { Box, ListItemIcon, Typography, TableBody, TableCell, TableRow, Button, TextField, MenuItem, Select, FormControl, InputLabel, Alert } from '@mui/material';
 import AddAlertIcon from '@mui/icons-material/AddAlert';
 import PublishIcon from '@mui/icons-material/Publish';
 import UnpublishedIcon from '@mui/icons-material/Unpublished';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+
+import { AnnouncementEventIcon, LGU_ANNOUNCEMENT_EVENT_TYPES, asAnnouncementEventType, type AnnouncementEventType } from '@sakay/shared';
 
 import { AnnouncementRecord, AccreditedTodaRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -82,6 +84,7 @@ export const AnnouncementManagementPage: React.FC = () => {
   const [formMessage, setFormMessage] = useState('');
   const [formRole, setFormRole] = useState<AnnouncementRecord['target_role']>('All');
   const [formTodaId, setFormTodaId] = useState<string>('all-todas');
+  const [formEventType, setFormEventType] = useState<AnnouncementEventType>('General');
   // the announcement being edited (null = composing a new one) and whether it is published (an edit never changes that)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingPublished, setEditingPublished] = useState(false);
@@ -95,7 +98,7 @@ export const AnnouncementManagementPage: React.FC = () => {
   const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   // What the form held when it was opened: closing it is only a question when it now holds something different
-  const formBaseline = useRef({ title: '', message: '', role: 'All' as AnnouncementRecord['target_role'], todaId: null as string | null });
+  const formBaseline = useRef({ title: '', message: '', role: 'All' as AnnouncementRecord['target_role'], todaId: null as string | null, eventType: 'General' as AnnouncementEventType });
   // The fields, so the first missing one can be focused and every missing one can shake
   const titleFieldRef = useRef<HTMLDivElement>(null);
   const messageFieldRef = useRef<HTMLDivElement>(null);
@@ -172,25 +175,26 @@ export const AnnouncementManagementPage: React.FC = () => {
   const failure = (err: unknown) => setNotice({ severity: 'error', text: err instanceof Error ? err.message : 'The change could not be saved.' });
 
   // Opens the form with these values, and remembers them as the starting point
-  const openForm = (values: { id: string | null; published: boolean; title: string; message: string; role: AnnouncementRecord['target_role']; todaId: string | null }) => {
+  const openForm = (values: { id: string | null; published: boolean; title: string; message: string; role: AnnouncementRecord['target_role']; todaId: string | null; eventType: AnnouncementEventType }) => {
     setEditingId(values.id);
     setEditingPublished(values.published);
     setFormTitle(values.title);
     setFormMessage(values.message);
     setFormRole(values.role);
     setFormTodaId(values.todaId || 'all-todas');
+    setFormEventType(values.eventType);
     setFormErrors({});
     setDismissOpen(false);
     setDismissError(null);
-    formBaseline.current = { title: values.title.trim(), message: values.message.trim(), role: values.role, todaId: values.todaId };
+    formBaseline.current = { title: values.title.trim(), message: values.message.trim(), role: values.role, todaId: values.todaId, eventType: values.eventType };
     setCreateModalOpen(true);
   };
 
-  const openCreate = () => openForm({ id: null, published: false, title: '', message: '', role: 'All', todaId: null });
+  const openCreate = () => openForm({ id: null, published: false, title: '', message: '', role: 'All', todaId: null, eventType: 'General' });
 
   const openEdit = (ann: AnnouncementRecord) => {
     setSelectedAnn(null);
-    openForm({ id: ann.id, published: ann.is_published, title: ann.title, message: ann.message, role: ann.target_role, todaId: ann.toda_id ?? null });
+    openForm({ id: ann.id, published: ann.is_published, title: ann.title, message: ann.message, role: ann.target_role, todaId: ann.toda_id ?? null, eventType: asAnnouncementEventType(ann.event_type) });
   };
 
   /** True when the form holds something that would be lost by closing it: any text in a new announcement, or any change to an existing one. */
@@ -201,6 +205,7 @@ export const AnnouncementManagementPage: React.FC = () => {
       formTitle.trim() !== base.title ||
       formMessage.trim() !== base.message ||
       formRole !== base.role ||
+      formEventType !== base.eventType ||
       effectiveTodaId(formRole, formTodaId) !== (base.role !== 'All' ? base.todaId : null)
     );
   };
@@ -246,6 +251,7 @@ export const AnnouncementManagementPage: React.FC = () => {
       message: formMessage.trim(),
       targetRole: formRole,
       targetTodaId: effectiveTodaId(formRole, formTodaId),
+      eventType: formEventType,
     };
     try {
       if (mode === 'update' && editingId) {
@@ -405,14 +411,19 @@ export const AnnouncementManagementPage: React.FC = () => {
           ) : filteredAnnouncements.length > 0 ? (
             filteredAnnouncements.map((ann) => (
               <TableRow key={ann.id}>
-                <TableCell sx={{ maxWidth: 360 }}>
-                  <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{ann.title}</Typography>
-                  <Typography
-                    component="div"
-                    sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  >
-                    {ann.message}
-                  </Typography>
+                <TableCell sx={{ maxWidth: 380 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <AnnouncementEventIcon type={ann.event_type} sx={{ color: PAGE_TEXT.brand, mt: '1px', flexShrink: 0 }} />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{ann.title}</Typography>
+                      <Typography
+                        component="div"
+                        sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {asAnnouncementEventType(ann.event_type)} · {ann.message}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </TableCell>
                 <TableCell>
                   <FlagTag label={audienceLabel(ann.target_role)} tone={ann.target_role === 'All' ? 'brand' : 'neutral'} />
@@ -508,6 +519,33 @@ export const AnnouncementManagementPage: React.FC = () => {
             sx={TEXT_FIELD_SX}
           />
 
+          <FormControl fullWidth>
+            <InputLabel id="event-type-label">Event type</InputLabel>
+            <Select
+              labelId="event-type-label"
+              value={formEventType}
+              label="Event type"
+              onChange={(e) => setFormEventType(e.target.value as AnnouncementEventType)}
+              renderValue={(value) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <AnnouncementEventIcon type={value} sx={{ color: PAGE_TEXT.brand }} />
+                  {value}
+                </Box>
+              )}
+              sx={{ borderRadius: '10px' }}
+            >
+              {/* A declared calamity publishes an Emergency announcement; it stays editable under its own type */}
+              {(LGU_ANNOUNCEMENT_EVENT_TYPES.includes(formEventType) ? LGU_ANNOUNCEMENT_EVENT_TYPES : [...LGU_ANNOUNCEMENT_EVENT_TYPES, formEventType]).map((type) => (
+                <MenuItem key={type} value={type}>
+                  <ListItemIcon sx={{ minWidth: 34, color: PAGE_TEXT.brand }}>
+                    <AnnouncementEventIcon type={type} />
+                  </ListItemIcon>
+                  {type}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.6 }}>
             <FormControl fullWidth>
               <InputLabel id="target-audience-label">Audience</InputLabel>
@@ -599,6 +637,7 @@ export const AnnouncementManagementPage: React.FC = () => {
 
           <DetailSection title="Details">
             <DetailGrid>
+              <DetailField label="Event type">{asAnnouncementEventType(selectedAnn.event_type)}</DetailField>
               <DetailField label="Audience">{selectedAnn.target_role}</DetailField>
               <DetailField label="TODA">{selectedAnn.toda_name || 'Whole city'}</DetailField>
               <DetailField label="Written by">{selectedAnn.created_by_lgu_admin}</DetailField>

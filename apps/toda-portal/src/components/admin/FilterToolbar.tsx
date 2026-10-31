@@ -24,6 +24,8 @@ export interface SelectFilterProps {
   options: FilterOption[];
   onChange: (value: string) => void;
   width?: number | string;
+  /** A short word shown before the chosen value, so a closed drop-down says what it filters ("Status · All") */
+  prefix?: string;
 }
 
 export interface FilterToolbarProps {
@@ -33,6 +35,8 @@ export interface FilterToolbarProps {
   selectFilters?: SelectFilterProps[];
   onResetFilters?: () => void;
   actionButton?: React.ReactNode;
+  /** More controls beside the drop-downs (for example a date field) */
+  extraControls?: React.ReactNode;
   disableMarginBottom?: boolean;
 }
 
@@ -48,6 +52,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   selectFilters = [],
   onResetFilters,
   actionButton,
+  extraControls,
   disableMarginBottom = false,
 }) => {
   return (
@@ -129,6 +134,16 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               value={filter.value}
               onChange={(e) => filter.onChange(e.target.value)}
               displayEmpty
+              renderValue={
+                filter.prefix
+                  ? (value) => (
+                      <span>
+                        <Box component="span" sx={{ color: 'var(--mac-text-secondary)', fontWeight: 400 }}>{filter.prefix} · </Box>
+                        {filter.options.find((o) => o.value === value)?.label ?? String(value)}
+                      </span>
+                    )
+                  : undefined
+              }
               SelectDisplayProps={filter.label ? { 'aria-label': filter.label } : undefined}
               sx={{
                 borderRadius: '8px',
@@ -159,6 +174,8 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             </Select>
           </FormControl>
         ))}
+
+        {extraControls}
 
         {onResetFilters && (
           <Button

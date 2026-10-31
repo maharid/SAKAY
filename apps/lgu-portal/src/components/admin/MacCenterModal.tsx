@@ -6,10 +6,9 @@ import {
   DialogActions,
   Box,
   Typography,
-  IconButton,
   Button,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import { DialogCloseButton } from '@sakay/shared';
 import { FONT } from '../../styles/density';
 import { PAGE_TEXT, dangerButtonSx, dangerOutlineButtonSx, pageFocusRing, primaryButtonSx, secondaryButtonSx } from '../../styles/pageTheme';
 
@@ -42,7 +41,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
   onPrimaryAction,
   primaryActionColor = 'primary',
   primaryActionDisabled = false,
-  secondaryActionLabel = 'Close',
+  secondaryActionLabel,
   onSecondaryAction,
   secondaryActionColor = 'inherit',
   extraActions,
@@ -98,25 +97,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
           )}
         </Box>
 
-        <IconButton
-          onClick={onClose}
-          aria-label="Close"
-          size="small"
-          sx={{
-            width: 32,
-            height: 32,
-            '@media (pointer: coarse)': { width: 44, height: 44 },
-            color: PAGE_TEXT.secondary,
-            backgroundColor: 'var(--mac-canvas-bg)',
-            ...pageFocusRing,
-            '&:hover': {
-              backgroundColor: 'rgba(0,0,0,0.06)',
-              color: PAGE_TEXT.primary,
-            },
-          }}
-        >
-          <CloseIcon fontSize="small" sx={{ fontSize: '14px' }} />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
       </DialogTitle>
 
       {/* Modal Content */}

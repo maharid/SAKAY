@@ -90,7 +90,6 @@ export const AppealDetailModal: React.FC<AppealDetailModalProps> = ({ open, onCl
         subtitle={`${appeal.subjectType === 'passenger' ? 'Passenger' : 'Driver'} · requested ${stamp(appeal.requestedAt)}`}
         badge={<StatusBadge status={appeal.status} />}
         maxWidth={576}
-        secondaryActionLabel="Close"
         extraActions={
           pending && COUNTED.has(appeal.strikeStatus) && appeal.assignedRole === 'lgu_admin' ? (
             <Button

@@ -50,6 +50,7 @@ import { DateCalendarPopover } from '../components/popovers/DateCalendarPopover'
 import { TerminalMapPickerModal } from '../components/modals/TerminalMapPickerModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { parseDriverRoster } from '../utils/rosterParser';
+import { DialogCloseButton } from '@sakay/shared';
 
 
 const REGISTRATION_DRAFT_KEY = 'sakay_toda_registration_draft';
@@ -1906,6 +1907,13 @@ export const TodaRegistrationPage: React.FC = () => {
           },
         }}
       >
+        <DialogCloseButton
+          onClick={() => {
+            setSuccessModalOpen(false);
+            navigate('/login', { replace: true });
+          }}
+          sx={{ position: 'absolute', top: 10, right: 10 }}
+        />
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, my: 1 }}>
           <Box
             sx={{

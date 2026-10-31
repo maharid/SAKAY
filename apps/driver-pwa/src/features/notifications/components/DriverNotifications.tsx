@@ -15,7 +15,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverNotifications } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { activateWithKeyboard, formatNotificationTime, localizeSystemNotification, notificationCategory } from '@sakay/shared';
+import { AnnouncementEventIcon, activateWithKeyboard, formatNotificationTime, localizeSystemNotification, notificationCategory } from '@sakay/shared';
 
 export interface NotificationItem {
   id: string;
@@ -26,6 +26,8 @@ export interface NotificationItem {
   createdAt?: string;
   isRead?: boolean;
   category?: 'trips' | 'advisories' | 'all';
+  /** What an announcement is about (announcement.event_type): its icon follows it */
+  eventType?: string;
   /** The kind of system notice (the strike notices take the driver to his strikes and the way to appeal them) */
   notificationType?: string;
 }
@@ -85,6 +87,7 @@ export const DriverNotifications: React.FC = () => {
               createdAt: d.sentAt || undefined,
               isRead: d.read === true,
               notificationType: d.notificationType,
+              eventType: d.eventType,
               category: notificationCategory(d.notificationType),
             };
           });
@@ -134,7 +137,8 @@ export const DriverNotifications: React.FC = () => {
     return item.category === activeFilter;
   });
 
-  const getCategoryIcon = (category?: string) => {
+  const getCategoryIcon = (category?: string, eventType?: string) => {
+    if (eventType) return <AnnouncementEventIcon type={eventType} sx={{ color: '#FF6600' }} />;
     switch (category) {
       case 'trips':
         return <LocalTaxiIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
@@ -167,7 +171,7 @@ export const DriverNotifications: React.FC = () => {
           onBack={() => setSelectedNotif(null)}
         />
 
-        <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
+        <Box sx={{ flex: 1, overflowY: 'auto', px: 2, py: 2.5 }}>
           {/* Header info */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -183,7 +187,7 @@ export const DriverNotifications: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {getCategoryIcon(selectedNotif.category)}
+                {getCategoryIcon(selectedNotif.category, selectedNotif.eventType)}
               </Box>
               <Box>
                 <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#FF6600' }}>
@@ -400,7 +404,7 @@ export const DriverNotifications: React.FC = () => {
                           justifyContent: 'center',
                         }}
                       >
-                        {getCategoryIcon(item.category)}
+                        {getCategoryIcon(item.category, item.eventType)}
                       </Box>
                       {!item.isRead && (
                         <Box

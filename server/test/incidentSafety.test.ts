@@ -30,6 +30,7 @@ import {
   URGENT_REPORT_OPTIONS,
   createTripShare,
   declareCalamity,
+  updateCalamity,
   fetchActiveCalamity,
   fetchSharedTripView,
   fileUrgentSafetyReport,
@@ -288,7 +289,15 @@ describe('the calamity (Rules 15.3, 15.4, 29.6)', () => {
   });
   it('reads an active one into what the banner shows', async () => {
     const c = await fetchActiveCalamity(fakeClient({ active: true, declaration_id: 'd1', kind: 'Typhoon', title: 'Typhoon', message: 'Signal No. 2', scope: 'ALL', declared_at: '2026-10-15T01:00:00Z' }).client);
-    assert.deepEqual(c, { active: true, declarationId: 'd1', kind: 'Typhoon', title: 'Typhoon', message: 'Signal No. 2', scope: 'ALL', declaredAt: '2026-10-15T01:00:00Z' });
+    assert.deepEqual(c, { active: true, declarationId: 'd1', kind: 'Typhoon', title: 'Typhoon', message: 'Signal No. 2', scope: 'ALL', declaredAt: '2026-10-15T01:00:00Z', expectedEndAt: undefined, updatedAt: undefined });
+  });
+  it('reads the expected end and the last change of the declaration (Batch 2), and changing it is ONE call', async () => {
+    const c = await fetchActiveCalamity(fakeClient({ active: true, declaration_id: 'd1', kind: 'Typhoon', title: 'Typhoon', message: 'Signal No. 3', scope: 'ALL', declared_at: '2026-10-15T01:00:00Z', expected_end_at: '2026-10-17T15:59:00Z', updated_at: '2026-10-15T09:00:00Z' }).client);
+    assert.equal(c.expectedEndAt, '2026-10-17T15:59:00Z');
+    assert.equal(c.updatedAt, '2026-10-15T09:00:00Z');
+    const f = fakeClient({ success: true });
+    await updateCalamity(f.client, { title: 'Typhoon warning 3', message: 'Stay indoors.', expectedEndAt: '2026-10-17T15:59:00Z' });
+    assert.deepEqual(f.calls, [{ fn: 'update_calamity', args: { p_title: 'Typhoon warning 3', p_message: 'Stay indoors.', p_expected_end: '2026-10-17T15:59:00Z' } }]);
   });
   it('declaring is ONE call with the four parameters (the announcement and the pause are the database\'s one action)', async () => {
     const f = fakeClient({ success: true });

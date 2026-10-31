@@ -22,7 +22,7 @@ export interface RateAppFormProps {
   onSubmit: () => void;
 }
 
-const FONT = 'Poppins, sans-serif';
+const FONT = 'var(--sakay-font-family, Poppins), sans-serif';
 
 const TEXT = {
   en: {

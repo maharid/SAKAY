@@ -25,7 +25,6 @@ import { useLanguage } from '../../../utils/LanguageContext';
 import {
   enhanceLicenseDocument,
   assessImageQuality,
-  captureRawFrame,
   ImageQualityAssessment,
 } from '../../../services/imageEnhancementService';
 import appIcon from '@sakay/shared/src/assets/icons/app-icon-toto.webp';
@@ -240,12 +239,13 @@ export const DriverScanLicenseFront: React.FC = () => {
     try {
       if (videoRef.current && videoRef.current.videoWidth > 0) {
         try {
-          rawFrameDataUrl = captureRawFrame(videoRef.current);
+          // Only the licence card inside the guide frame is kept. The whole camera frame (the room, the hands, anything else in view) is never stored or uploaded.
           capturedDataUrl = await enhanceLicenseDocument(
             videoRef.current,
             guideRef.current || viewfinderRef.current,
             'front'
           );
+          rawFrameDataUrl = capturedDataUrl;
         } catch (err) {
           console.warn('[DriverScanLicenseFront] Image enhancement error:', err);
           const video = videoRef.current;
@@ -366,7 +366,7 @@ export const DriverScanLicenseFront: React.FC = () => {
           <WarningAmberRoundedIcon sx={{ color: '#D97706', fontSize: 20, flexShrink: 0 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', lineHeight: 1.2 }}>
-              {isTagalog ? 'Kailangang Iwasto / Required Correction' : 'Required Correction'}
+              {isTagalog ? 'Kailangang Iwasto' : 'Required Correction'}
             </Typography>
             <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600, lineHeight: 1.3, mt: 0.25 }} noWrap>
               {state?.issues?.find((i: any) => i.documentType === 'license')?.notes ||

@@ -6,7 +6,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { ProfileAvatar, formatNotificationTime, localizeSystemNotification, selectImportantNotifications } from '@sakay/shared';
+import { ProfileAvatar, formatNotificationTime, localizeSystemNotification, noticeDestination, selectImportantNotifications, todaRecipient } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/toda';
@@ -78,15 +78,14 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
           setTodaName(p.name);
           const todaId = p.id || todaAdminProfile?.toda_id;
           if (todaId) {
-            const { data: notifs } = await supabase
-              .from('notification')
-              .select('*')
-              .eq('recipient_id', `toda_${todaId}`)
-              .order('sent_at', { ascending: false })
-              .limit(10);
+            const [{ data: notifs }, { data: reads }] = await Promise.all([
+              supabase.from('notification').select('*').eq('recipient_id', todaRecipient(todaId)).order('sent_at', { ascending: false }).limit(30),
+              supabase.from('portal_notification_read').select('notification_id'),
+            ]);
 
             if (isMounted && notifs) {
               const read = readIds();
+              ((reads || []) as { notification_id: string }[]).forEach((r) => read.add(String(r.notification_id)));
               // only what is worth the administrator's attention (a repeated write is listed once)
               setNotifications(
                 selectImportantNotifications(notifs as any[], (n) => ({ type: n.notification_type, title: n.title, message: n.message, sentAt: n.sent_at })).map((n: any) => {
@@ -100,8 +99,10 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
                     description: n.message,
                     read: read.has(id),
                     unread: !read.has(id),
-                    type: n.notification_type?.toLowerCase().includes('expiry') ? 'alert' : 'info',
+                    type: n.notification_type,
                     kind: n.notification_type,
+                    subjectId: n.subject_id || undefined,
+                    link: noticeDestination('toda', n.notification_type, n.subject_id) ?? undefined,
                   };
                 })
               );
@@ -137,8 +138,20 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
     if (menu && !menu.contains(document.activeElement)) (menu.querySelector('[role="menuitem"]') as HTMLElement | null)?.focus();
   };
 
+  // a notice is marked read in the database (per administrator, kept across devices) and remembered in this browser as well
+  const markRead = (ids: string[]) => {
+    if (ids.length > 0) void supabase.rpc('mark_portal_notifications_read', { p_ids: ids });
+    rememberRead(ids);
+  };
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    markRead([item.id]);
+    setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true, unread: false } : n)));
+    if (item.link) navigate(item.link);
+  };
+
   const handleMarkAllAsRead = () => {
-    rememberRead(notifications.map((n) => n.id));
+    markRead(notifications.map((n) => n.id));
     setNotifications(notifications.map((n) => ({ ...n, read: true, unread: false })));
   };
 
@@ -234,6 +247,7 @@ export const TodaHeader: React.FC<TodaHeaderProps> = ({
             onClose={() => setNotifAnchor(null)}
             notifications={shownNotifications}
             onMarkAllAsRead={handleMarkAllAsRead}
+            onNotificationClick={handleNotificationClick}
           />
         </Box>
 

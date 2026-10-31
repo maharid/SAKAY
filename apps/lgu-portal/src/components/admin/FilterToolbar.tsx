@@ -25,6 +25,8 @@ export interface SelectFilterProps {
   options: FilterOption[];
   onChange: (value: string) => void;
   width?: number | string;
+  /** A short word shown before the chosen value, so a closed drop-down says what it filters ("Status · All") */
+  prefix?: string;
 }
 
 export interface FilterToolbarProps {
@@ -34,6 +36,8 @@ export interface FilterToolbarProps {
   selectFilters?: SelectFilterProps[];
   onResetFilters?: () => void;
   actionButton?: React.ReactNode;
+  /** More controls beside the drop-downs (for example the audit log's two date fields) */
+  extraControls?: React.ReactNode;
   disableMarginBottom?: boolean;
   /** For a toolbar with many filters (more than will sit beside the search box): the search box on its own row, and the filters under it in one even row (Reset and the action on the right) */
   stacked?: boolean;
@@ -46,6 +50,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   selectFilters = [],
   onResetFilters,
   actionButton,
+  extraControls,
   disableMarginBottom = false,
   stacked = false,
 }) => {
@@ -137,6 +142,16 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                 value={filter.value}
                 onChange={(e) => filter.onChange(e.target.value)}
                 displayEmpty
+                renderValue={
+                  filter.prefix
+                    ? (value) => (
+                        <span>
+                          <Box component="span" sx={{ color: 'var(--mac-text-secondary)', fontWeight: 400 }}>{filter.prefix} · </Box>
+                          {filter.options.find((o) => o.value === value)?.label ?? String(value)}
+                        </span>
+                      )
+                    : undefined
+                }
                 SelectDisplayProps={{ 'aria-label': filter.label ?? filter.id }}
                 sx={{
                   borderRadius: '10px',
@@ -167,6 +182,8 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               </Select>
             </FormControl>
           ))}
+
+          {extraControls}
 
           {/* Reset Filter Button */}
           {onResetFilters && (

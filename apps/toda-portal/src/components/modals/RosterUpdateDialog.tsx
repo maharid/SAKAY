@@ -6,6 +6,7 @@ import { OPS_TEXT } from '../operations/operationsTheme';
 import { primaryButtonSx } from '../common/pageButtons';
 import { applyRosterReconciliation, diffRosterFileWithRoster } from '../../services/todaApiService';
 import type { RosterFileDiff } from '../../services/todaApiService';
+import { SakayDialogTitle } from '@sakay/shared';
 
 interface RosterUpdateDialogProps {
   open: boolean;
@@ -81,7 +82,7 @@ export const RosterUpdateDialog: React.FC<RosterUpdateDialogProps> = ({ open, on
 
   return (
     <Dialog open={open} onClose={() => !busy && onClose()} maxWidth="md" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-      <DialogTitle sx={DIALOG_TITLE_SX}>Update the Master Roster from your new roster file</DialogTitle>
+      <SakayDialogTitle onClose={onClose} busy={busy} sx={DIALOG_TITLE_SX}>Update the Master Roster from your new roster file</SakayDialogTitle>
       <DialogContent sx={DIALOG_CONTENT_SX}>
         <Typography sx={DIALOG_INTRO_SX}>
           The file you submitted when you registered stays as it was. This new file ({file?.name}) is kept as a new version. Nothing is added or removed until you press Apply:

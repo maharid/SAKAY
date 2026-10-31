@@ -21,8 +21,8 @@ import type { ExportFormat } from './ReportExportButtons';
 interface BookingVolumeReportProps {
   trips: BookingLike[];
   todaName: string;
-  /** called after the file is saved, so the page can write the audit entry */
-  onExported: (reportName: string, format: ExportFormat) => void;
+  /** called BEFORE the file is handed over, so the page can write the audit entry */
+  onExported: (reportName: string, format: ExportFormat) => void | Promise<void>;
 }
 
 const PERIOD_LABEL: Record<VolumePeriod, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly' };

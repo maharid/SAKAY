@@ -39,6 +39,9 @@ import {
   calculateDistanceKm,
   calculateTripProgressPercent,
   fetchServerTripProgress,
+  TripProgressBar,
+  useShownTripProgress,
+  usePlausibleDriverPoint,
   formatDistance,
   isTripFinishable,
   MapControlButton,
@@ -461,17 +464,22 @@ export const DriverActiveTrip: React.FC = () => {
 
   // The progress is one formula for both screens and the database (tripProgress in @sakay/shared); the best the trip has reached is kept, and so is
   // the database's. The database also checks it again when the driver taps Finish Trip.
-  let computedProgress = 0;
+  // A position no tricycle could have reached since the last good one (a GPS error) is held back, so one odd fix cannot drag the progress to the end.
+  const progressPoint = usePlausibleDriverPoint(driverLocation.lat, driverLocation.lng, bookingId);
+  const progressDropoffKm = progressPoint ? calculateDistanceKm(progressPoint.lat, progressPoint.lng, dropoffLat, dropoffLng) : Number.NaN;
+  let targetProgress = 0;
   if (isArrived || isCompleted) {
-    computedProgress = 100;
+    targetProgress = 100;
   } else if (isOngoing) {
-    computedProgress = calculateTripProgressPercent({
+    targetProgress = calculateTripProgressPercent({
       totalKm: totalTripKm,
-      driverToDestinationKm: dropoffDistKm,
+      driverToDestinationKm: progressDropoffKm,
       previousPercent: Math.max(maxProgressRef.current, serverProgress ?? 0),
     });
-    maxProgressRef.current = computedProgress;
+    maxProgressRef.current = targetProgress;
   }
+  // What is drawn (and what opens End Trip) moves toward that figure a little at a time: arrival is shown at once, a jump is not
+  const computedProgress = useShownTripProgress(targetProgress, bookingId);
   const finishable = isTripFinishable(computedProgress);
   // End Trip opens at the destination gate, or when the passenger asked to end the trip early (the database checks the same two things)
   const canEndTrip = finishable || earlyRequested;
@@ -558,6 +566,8 @@ export const DriverActiveTrip: React.FC = () => {
         ref={mapRef}
         pickupLocation={{ lat: pickupLat, lng: pickupLng }}
         dropoffLocation={!isPreTrip ? { lat: dropoffLat, lng: dropoffLng } : undefined}
+        pickupLabel={{ title: 'Pickup', address: booking?.pickup_address }}
+        dropoffLabel={{ title: language === 'tl' ? 'Destinasyon' : 'Destination', address: booking?.dropoff_address }}
         userLocation={driverLocation}
         userStale={driverFixStale}
         insets={mapInsets}
@@ -642,6 +652,16 @@ export const DriverActiveTrip: React.FC = () => {
 
             {onTheWay && (
               <EnRouteNotices bookingId={bookingId} language={language} stallWarnedAt={clocks.stallWarnedAt} onMessage={setToastMessage} />
+            )}
+
+            {/* How far the trip has gone: in the part of the card that is always shown, so it can be read with the card collapsed */}
+            {isOngoing && (
+              <TripProgressBar
+                percent={computedProgress}
+                label={tl ? 'Progreso ng biyahe' : 'Trip progress'}
+                detailLeft={<>{tl ? 'Natitira:' : 'Remaining:'} <strong>{formatDistance(dropoffDistKm)}</strong></>}
+                detailRight={finishable ? (tl ? 'Maaari nang tapusin' : 'Ready to finish') : <>{tl ? 'Tapusin sa' : 'Finish at'} <strong>{TRIP_FINISH_MIN_PROGRESS_PERCENT}%</strong></>}
+              />
             )}
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>

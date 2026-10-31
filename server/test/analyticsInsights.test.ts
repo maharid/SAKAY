@@ -386,8 +386,8 @@ describe('incident summary', () => {
 describe('report export', () => {
   const table: ReportTable = { title: 'Booking Trend Report (Weekly)', notes: ['All dates'], headers: ['Week', 'Bookings'], rows: [['Sep 28 - Oct 4', 3], ['Oct 5 - Oct 11', null]] };
 
-  it('names the workbook like the CSV, with .xlsx', () => {
-    assert.equal(reportXlsxName(table.title, new Date('2026-10-06T00:00:00Z')), 'booking_trend_report_weekly_2026-10-06.xlsx');
+  it('names the workbook like the CSV (SAKAY, the report, the Manila date and time), with .xlsx', () => {
+    assert.equal(reportXlsxName(table.title, new Date('2026-10-06T00:00:00Z')), 'sakay_booking_trend_report_weekly_2026-10-06_0800.xlsx');
   });
 
   const meta = { exportedBy: 'Test Admin', role: 'LGU Administrator', generatedAt: new Date('2026-10-06T00:00:00Z') };
@@ -416,7 +416,7 @@ describe('report export', () => {
     assert.deepEqual(aoa.slice(head, head + 3), [['Week', 'Bookings'], ['Sep 28 - Oct 4', 3], ['Oct 5 - Oct 11', '']]);
     assert.match(String(aoa.at(-2)?.[0]), /Exported by Test Admin/);
     assert.equal(written.sheet, 'Booking Trend Report (Weekly)');
-    assert.equal(written.file, 'booking_trend_report_weekly_2026-10-06.xlsx');
+    assert.equal(written.file, 'sakay_booking_trend_report_weekly_2026-10-06_0800.xlsx');
   });
 
   it('keeps the sheet name within what Excel accepts', () => {

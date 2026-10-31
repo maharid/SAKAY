@@ -14,6 +14,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, highCon
   const getStatusStyles = (statusStr: string) => {
     switch (statusStr) {
       case 'Approved':
+      case 'Verified by LGU':
       case 'Full Waiver':
       case 'Partial Waiver':
       case 'Active':
@@ -51,6 +52,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, highCon
           borderColor: 'rgba(21, 101, 192, 0.3)',
         };
       case 'Expiring Soon':
+      case 'Returned by LGU':
       case 'Resubmission Required':
       case 'Escalated to LGU':
       case 'Pending LGU Review':
@@ -74,6 +76,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, highCon
           borderColor: 'rgba(100, 116, 139, 0.3)',
         };
       case 'Rejected':
+      case 'Rejected by LGU':
       case 'Denied':
       case 'Declined':
       case 'Suspended':

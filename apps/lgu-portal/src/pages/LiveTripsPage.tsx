@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import appIconToto from '@sakay/shared/assets/icons/app-icon-toto.webp';
@@ -8,7 +9,6 @@ import appIconToto from '@sakay/shared/assets/icons/app-icon-toto.webp';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { TripDetailModal } from '../components/admin/TripDetailModal';
-import { DispatchSettingsCard } from '../components/admin/DispatchSettingsCard';
 import { CellStack, DataTableCard, DataTableMessageRow } from '../components/common/DataTable';
 import { StatStrip } from '../components/common/StatStrip';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
@@ -20,6 +20,7 @@ import { hasRoutablePlaces, roadBetween } from '../utils/tripRoutes';
 import type { LatLng } from '../utils/tripRoutes';
 import { FONT } from '../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
+import { SPACE } from '../styles/density';
 
 /** A position older than this is drawn grey: the phone is not reporting any more (the policy treats 3 minutes of silence as Driver Unreachable) */
 const LIVE_FIX_STALE_SECONDS = 90;
@@ -59,9 +60,21 @@ export const LiveTripsPage: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const framedRef = useRef(false);
+  const activeTripsRef = useRef<BookingRecordItem[]>([]);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   // counts the roads that have just arrived (or failed), so the map is drawn again with them
   const [routeTick, setRouteTick] = useState(0);
   const redrawRoutes = useCallback(() => setRouteTick((n) => n + 1), []);
+
+  // frames every active trip that has a driver position (the map also does this by itself the first time)
+  const fitAllTrips = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const points = activeTripsRef.current.filter((t) => t.driverLat !== null && t.driverLng !== null).map((t) => [t.driverLat as number, t.driverLng as number] as L.LatLngTuple);
+    if (points.length === 0) return;
+    map.invalidateSize();
+    map.fitBounds(points, { padding: [48, 48], maxZoom: 16 });
+  }, []);
 
   const loadTrips = async () => {
     setIsLoading(true);
@@ -111,6 +124,7 @@ export const LiveTripsPage: React.FC = () => {
       'Arrived at Destination',
     ].includes(b.status)
   );
+  activeTripsRef.current = activeTrips;
   const completedTrips = bookings.filter((b) => b.status === 'Completed');
   const cancelledTrips = bookings.filter((b) => (b.status || '').toLowerCase().includes('cancel') || b.status === 'No Driver Found');
 
@@ -162,6 +176,10 @@ export const LiveTripsPage: React.FC = () => {
       }).addTo(map);
 
       mapInstanceRef.current = map;
+      // the map is told when its box changes size (the side menu opens or closes, the window is resized), so no tiles are left grey and no corner is cut off
+      const observer = new ResizeObserver(() => map.invalidateSize());
+      observer.observe(mapContainerRef.current);
+      resizeObserverRef.current = observer;
     }
 
     const map = mapInstanceRef.current;
@@ -226,10 +244,20 @@ export const LiveTripsPage: React.FC = () => {
 
     // The first time drivers appear, frame them
     if (bounds.length > 0 && !framedRef.current) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      map.fitBounds(bounds, { padding: [48, 48], maxZoom: 16 });
       framedRef.current = true;
     }
   }, [activeTrips, routeTick, redrawRoutes]);
+
+  // the map and its observer end with the page
+  useEffect(
+    () => () => {
+      resizeObserverRef.current?.disconnect();
+      mapInstanceRef.current?.remove();
+      mapInstanceRef.current = null;
+    },
+    []
+  );
 
   // Rules 29.20 - 29.22: the live trips with a driver on them (a booking still searching has nothing to end)
   const safetyTrips = bookings
@@ -283,21 +311,65 @@ export const LiveTripsPage: React.FC = () => {
         ]}
       />
 
-      {/* Live map of Calapan City */}
-      <Box sx={{ mb: '19px' }}>
-        <DashboardCard
-          title="Live map"
-          description={`${activeTrips.length} active ${activeTrips.length === 1 ? 'trip' : 'trips'}, ${activeTrips.filter((t) => t.driverLat !== null).length} with a driver GPS position.`}
-          actions={
-            <Button onClick={loadTrips} startIcon={<RefreshIcon sx={{ fontSize: 16 }} />} sx={rowActionSx('neutral')}>
-              Refresh
-            </Button>
-          }
-        >
-          <Box sx={{ width: '100%', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${PAGE_BORDER}` }}>
-            <div ref={mapContainerRef} style={{ width: '100%', height: '340px' }} />
-          </Box>
-        </DashboardCard>
+      {/* Live map of Calapan City, and the one tool that ends a trip for safety (a window, so the page keeps its size) */}
+      <Box sx={{ containerType: 'inline-size', mb: SPACE.gapLarge }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: SPACE.gapLarge, alignItems: 'start', '@container (min-width: 1000px)': { gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 1fr)' } }}>
+          <DashboardCard
+            title="Live map"
+            description={`${activeTrips.length} active ${activeTrips.length === 1 ? 'trip' : 'trips'}, ${activeTrips.filter((t) => t.driverLat !== null).length} with a driver GPS position.`}
+            wrapHeader
+            actions={
+              <Box sx={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <Button onClick={fitAllTrips} startIcon={<CenterFocusStrongOutlinedIcon sx={{ fontSize: 16 }} />} sx={rowActionSx('neutral')}>
+                  Fit all trips
+                </Button>
+                <Button onClick={loadTrips} startIcon={<RefreshIcon sx={{ fontSize: 16 }} />} sx={rowActionSx('neutral')}>
+                  Refresh
+                </Button>
+              </Box>
+            }
+          >
+            {/* its own stacking layer, its corners rounded to the card, nothing sticking out: the zoom buttons and the popups stay inside the map */}
+            <Box
+              sx={{
+                position: 'relative',
+                isolation: 'isolate',
+                width: '100%',
+                height: 'clamp(320px, 52vh, 520px)',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                border: `1px solid ${PAGE_BORDER}`,
+                '& .leaflet-container': { borderRadius: '10px', fontFamily: 'inherit' },
+                '& .leaflet-popup-content-wrapper': { borderRadius: '10px' },
+              }}
+            >
+              <div ref={mapContainerRef} role="region" aria-label="Map of the active trips" style={{ width: '100%', height: '100%' }} />
+            </Box>
+            <Box component="ul" aria-label="Map key" sx={{ m: 0, mt: '8px', p: 0, listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '4px 18px', fontSize: FONT.small, color: PAGE_TEXT.secondary }}>
+              {[
+                ['#FF5500', 'Driver on the way'],
+                ['#1565C0', 'Trip ongoing'],
+                ['#94A3B8', 'GPS not current'],
+              ].map(([color, label]) => (
+                <Box component="li" key={label} sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Box aria-hidden sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: color }} />
+                  {label}
+                </Box>
+              ))}
+            </Box>
+          </DashboardCard>
+
+          <SafetyEndTripPanel
+            compact
+            trips={safetyTrips}
+            loading={isLoading}
+            onEnd={async (end) => {
+              const message = await endTripSafely(end);
+              if (!message) loadTrips();
+              return message;
+            }}
+          />
+        </Box>
       </Box>
 
       {/* The trips: search, filter, list */}
@@ -379,20 +451,6 @@ export const LiveTripsPage: React.FC = () => {
           )}
         </TableBody>
       </DataTableCard>
-
-      {/* Tools that are used less often: ending a trip for safety, and how long the search for a driver runs */}
-      <Box sx={{ mt: '26px' }}>
-        <SafetyEndTripPanel
-          trips={safetyTrips}
-          onEnd={async (end) => {
-            const message = await endTripSafely(end);
-            if (!message) loadTrips();
-            return message;
-          }}
-        />
-
-        <DispatchSettingsCard />
-      </Box>
 
       {/* Trip details window */}
       {selectedTrip && (

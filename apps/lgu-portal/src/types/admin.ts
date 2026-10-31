@@ -55,6 +55,8 @@ export interface LguAdminProfile {
   email: string;
   contact_number?: string | null;
   position?: string | null;
+  /** the office the administrator works in (lgu_admin.office_name, migration 20261103000001) */
+  office_name?: string | null;
   role?: string | null;
   department?: string | null;
   account_status: 'Active' | 'Suspended';
@@ -182,6 +184,8 @@ export interface NotificationItem {
   rawMessage?: string;
   /** a notice of the portal's own: who it is about (the driver or the TODA) */
   subject?: string;
+  /** the record a stored notice is about (an incident, an application, an appeal) */
+  subjectId?: string;
 }
 
 export interface ActiveTripMarker {

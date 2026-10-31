@@ -18,6 +18,8 @@ import {
   MenuItem,
   IconButton,
   Badge,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import PersonIcon from '@mui/icons-material/Person';
@@ -151,6 +153,7 @@ import {
 import { CONTROL, FONT } from '../../styles/density';
 import { PAGE_TEXT } from '../../styles/pageTheme';
 import { SakayToast } from '../common/SakayToast';
+import { SakayDialogTitle } from '@sakay/shared';
 
 interface DriverDetailModalProps {
   open: boolean;
@@ -177,6 +180,11 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   const [docList, setDocList] = useState(driver?.documents || []);
   const [selectedDoc, setSelectedDoc] = useState<{ doc: DriverRecord['documents'][number]; index: number } | null>(null);
   const [reminderSent, setReminderSent] = useState(false);
+  // which part of the record is open (the window always opens on the first)
+  const [detailTab, setDetailTab] = useState<'personal' | 'license' | 'membership' | 'history'>('personal');
+  React.useEffect(() => {
+    if (open) setDetailTab('personal');
+  }, [open, driver?.id]);
   const [snackbarMsg, setSnackbarMsg] = useState<string | null>(null);
 
   // Dialog states
@@ -388,6 +396,23 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
   if (!driver) return null;
 
   const isAccountActive = driver.accountStatus === 'Active';
+
+  // The verification history, from what the record already holds (nothing is invented): each TODA application with its two stages, what was returned and why,
+  // a resubmission, a renewal waiting for the LGU, and a permanent disqualification.
+  const historyEntries: { title: string; detail?: string; tone: 'good' | 'bad' | 'warn' | 'neutral' }[] = [];
+  for (const a of driver.affiliations ?? []) {
+    const todaWords = a.todaStage === 'Endorsed' ? 'endorsed by the TODA' : a.todaStage === 'Rejected' ? 'rejected by the TODA' : a.todaStage === 'Resubmission Required' ? 'returned by the TODA for correction' : 'waiting for the TODA';
+    const lguWords = a.lguStage === 'Approved' ? 'verified by the LGU' : a.lguStage === 'Rejected' ? 'rejected by the LGU' : a.lguStage === 'Resubmission Required' ? 'returned by the LGU for correction' : a.todaStage === 'Endorsed' ? 'waiting for the LGU' : 'not with the LGU yet';
+    historyEntries.push({
+      title: `${a.todaName}: ${todaWords}, ${lguWords}`,
+      detail: [a.membershipNo ? `Membership no. ${a.membershipNo}` : '', a.isActive ? 'The affiliation the driver goes Online under' : ''].filter(Boolean).join(' · ') || undefined,
+      tone: a.lguStage === 'Approved' ? 'good' : a.lguStage === 'Rejected' || a.todaStage === 'Rejected' ? 'bad' : a.lguStage === 'Resubmission Required' || a.todaStage === 'Resubmission Required' ? 'warn' : 'neutral',
+    });
+  }
+  if (driver.rejectionReason) historyEntries.push({ title: driver.verificationStatus === 'Rejected' ? 'Application rejected' : 'Returned for correction', detail: driver.rejectionReason, tone: driver.verificationStatus === 'Rejected' ? 'bad' : 'warn' });
+  if (driver.isResubmitted) historyEntries.push({ title: 'Resubmitted by the driver', detail: driver.resubmittedAt ? new Date(driver.resubmittedAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : undefined, tone: 'neutral' });
+  if (driver.renewalStatus === 'Pending LGU Verification') historyEntries.push({ title: 'Document renewal waiting for the LGU', detail: [driver.pendingLicenseExpiry ? `New licence expiry ${driver.pendingLicenseExpiry}` : '', driver.pendingMtopExpiry ? `New MTOP expiry ${driver.pendingMtopExpiry}` : ''].filter(Boolean).join(' · ') || undefined, tone: 'warn' });
+  if (driver.isPermanentlyDisqualified) historyEntries.push({ title: 'Permanently disqualified', detail: driver.disqualificationReason, tone: 'bad' });
   const isVerified = driver.verificationStatus === 'Verified';
 
   // Per-TODA applications: every affiliation is verified by its TODA first and then decided by the LGU on its own.
@@ -746,12 +771,12 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         title={driver.name}
         subtitle={`License no. ${driver.licenseNo} · ${driver.todaName}`}
         badge={<StatusBadge status={(driver.verificationStatus && driver.verificationStatus !== 'Verified' ? driver.verificationStatus : driver.accountStatus) as any} />}
-        maxWidth={672}
+        maxWidth={720}
         primaryActionLabel={primaryActionLabel}
         primaryActionColor={primaryActionColor}
         primaryActionDisabled={primaryActionDisabled}
         onPrimaryAction={onPrimaryAction}
-        secondaryActionLabel={!isVerified ? 'Reject application' : 'Close'}
+        secondaryActionLabel={!isVerified ? 'Reject application' : undefined}
         secondaryActionColor={!isVerified ? 'error' : 'inherit'}
         onSecondaryAction={!isVerified ? () => setRejectDialogOpen(true) : handleRequestClose}
         extraActions={
@@ -1129,87 +1154,32 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           </Box>
         </Box>
 
-        {/* Section 1: Strike System & Policy Compliance */}
-        <Box sx={{ mb: 3.2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-              <FlashOnIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-              <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
-                Strikes and discipline
-              </Typography>
-            </Box>
-            <Chip
-              icon={<ShieldIcon style={{ fontSize: '12px', color: strikeLevel.color }} />}
-              label={strikeLevel.label}
-              size="small"
-              sx={{
-                backgroundColor: strikeLevel.bg,
-                color: strikeLevel.color,
-                fontWeight: 700,
-                fontSize: FONT.cardTitle,
-                height: 26,
-                border: `1px solid ${strikeLevel.border}`,
-              }}
-            />
-          </Box>
+        {/* The review is organised in four parts, one at a time: the person is not shown everything at once */}
+        <Tabs
+          value={detailTab}
+          onChange={(_, value) => setDetailTab(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          aria-label="Parts of the driver's record"
+          sx={{
+            minHeight: 40,
+            mb: 2.4,
+            borderBottom: '1px solid var(--mac-border-color)',
+            '& .MuiTabs-indicator': { backgroundColor: '#C75000', height: 3 },
+            '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.secondary, px: 1.6 },
+            '& .MuiTab-root.Mui-selected': { color: '#B34700' },
+            '& .MuiTab-root.Mui-focusVisible': { outline: '2px solid #C75000', outlineOffset: -2 },
+          }}
+        >
+          <Tab value="personal" label="Personal information" id="driver-tab-personal" aria-controls="driver-panel-personal" />
+          <Tab value="license" label={`License and documents (${docList.length})`} id="driver-tab-license" aria-controls="driver-panel-license" />
+          <Tab value="membership" label={`Membership${driver.strikesCount > 0 ? ` · ${driver.strikesCount} strike${driver.strikesCount === 1 ? '' : 's'}` : ''}`} id="driver-tab-membership" aria-controls="driver-panel-membership" />
+          <Tab value="history" label="Verification history" id="driver-tab-history" aria-controls="driver-panel-history" />
+        </Tabs>
 
-          <Box sx={{ backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px', mb: 1.6 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                Active Strikes: <span style={{ color: activeStrikes > 0 ? '#DC2626' : '#1E8E3E', fontWeight: 700 }}>{activeStrikes} Strike(s)</span>
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 0.8 }}>
-                <ActionButton
-                  label="Booking offers"
-                  showArrow={false}
-                  onClick={openDeclineHistory}
-                  sx={{ height: 32, fontSize: FONT.caption }}
-                />
-                <ActionButton
-                  label="+ Record Violation / Strike"
-                  showArrow={false}
-                  onClick={() => setStrikeDialogOpen(true)}
-                  sx={{ height: 32, fontSize: FONT.caption }}
-                />
-              </Box>
-            </Box>
-
-            {strikeData.history.length > 0 && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 1.6 }}>
-                {strikeData.history.slice(0, 8).map((item) => (
-                  <Box
-                    key={item.id}
-                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.6, backgroundColor: '#FFFFFF', padding: '8px 11px', borderRadius: '9px', border: '1px solid var(--mac-border-color)' }}
-                  >
-                    <Box>
-                      <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                        +{item.strikesApplied} • {item.reason}
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-                        {item.date} • {item.issuedBy}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0 }}>
-                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#C25E00' }}>{item.status}</Typography>
-                      {item.voidable && (
-                        <VoidStrikeButton
-                          strikeId={item.id}
-                          onDone={async (message) => {
-                            setSnackbarMsg(message);
-                            await strikeData.reload();
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </Box>
-
-          <RestrictionBanner kind={driver.restrictionKind} suspendedUntil={driver.suspendedUntil} reason={driver.suspensionReason} />
-        </Box>
-
+        {detailTab === 'personal' && (
+          <Box role="tabpanel" id="driver-panel-personal" aria-labelledby="driver-tab-personal">
         {/* Section 2: Personal Information */}
         <Box sx={{ mb: 3.2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
@@ -1239,37 +1209,10 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           </Box>
         </Box>
 
-        {/* Section 3: TODA Affiliation */}
-        <Box sx={{ mb: 3.2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
-            <AccountBalanceIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
-              TODA membership and endorsement
-            </Typography>
           </Box>
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Affiliated TODA</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.todaName}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Stage 1 Endorsement</Typography>
-              <StatusBadge status={driver.todaVerificationStatus as any} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Membership No.</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
-                {driver.affiliations?.find((a) => a.isActive)?.membershipNo ?? driver.affiliations?.find((a) => a.membershipNo)?.membershipNo ?? 'Not recorded'}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Assigned Corridor</Typography>
-              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.barangay}</Typography>
-            </Box>
-          </Box>
-        </Box>
-
+        )}
+        {detailTab === 'license' && (
+          <Box role="tabpanel" id="driver-panel-license" aria-labelledby="driver-tab-license">
         {/* Section 4: Vehicle & License Credentials */}
         <Box sx={{ mb: 3.2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
@@ -1372,7 +1315,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         )}
 
         {/* Section 5: Verification Credentials */}
-        <Box>
+        <Box sx={{ mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
               <VerifiedUserIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
@@ -1478,6 +1421,144 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
             })}
           </Box>
         </Box>
+          </Box>
+        )}
+        {detailTab === 'membership' && (
+          <Box role="tabpanel" id="driver-panel-membership" aria-labelledby="driver-tab-membership">
+        {/* Section 3: TODA Affiliation */}
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1.6 }}>
+            <AccountBalanceIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+              TODA membership and endorsement
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px' }}>
+            <Box>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Affiliated TODA</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.todaName}</Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Stage 1 Endorsement</Typography>
+              <StatusBadge status={driver.todaVerificationStatus as any} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>TODA Membership No.</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                {driver.affiliations?.find((a) => a.isActive)?.membershipNo ?? driver.affiliations?.find((a) => a.membershipNo)?.membershipNo ?? 'Not recorded'}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-muted)', mb: '3px' }}>Assigned Corridor</Typography>
+              <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: 'var(--mac-text-primary)' }}>{driver.barangay}</Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Section 1: Strike System & Policy Compliance */}
+        <Box sx={{ mb: 3.2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.6 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+              <FlashOnIcon fontSize="small" sx={{ color: 'var(--sakay-orange)' }} />
+              <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>
+                Strikes and discipline
+              </Typography>
+            </Box>
+            <Chip
+              icon={<ShieldIcon style={{ fontSize: '12px', color: strikeLevel.color }} />}
+              label={strikeLevel.label}
+              size="small"
+              sx={{
+                backgroundColor: strikeLevel.bg,
+                color: strikeLevel.color,
+                fontWeight: 700,
+                fontSize: FONT.cardTitle,
+                height: 26,
+                border: `1px solid ${strikeLevel.border}`,
+              }}
+            />
+          </Box>
+
+          <Box sx={{ backgroundColor: '#F5F5F7', padding: '16px', borderRadius: '12px', mb: 1.6 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                Active Strikes: <span style={{ color: activeStrikes > 0 ? '#DC2626' : '#1E8E3E', fontWeight: 700 }}>{activeStrikes} Strike(s)</span>
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 0.8 }}>
+                <ActionButton
+                  label="Booking offers"
+                  showArrow={false}
+                  onClick={openDeclineHistory}
+                  sx={{ height: 32, fontSize: FONT.caption }}
+                />
+                <ActionButton
+                  label="+ Record Violation / Strike"
+                  showArrow={false}
+                  onClick={() => setStrikeDialogOpen(true)}
+                  sx={{ height: 32, fontSize: FONT.caption }}
+                />
+              </Box>
+            </Box>
+
+            {strikeData.history.length > 0 && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 1.6 }}>
+                {strikeData.history.slice(0, 8).map((item) => (
+                  <Box
+                    key={item.id}
+                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.6, backgroundColor: '#FFFFFF', padding: '8px 11px', borderRadius: '9px', border: '1px solid var(--mac-border-color)' }}
+                  >
+                    <Box>
+                      <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: 'var(--mac-text-primary)' }}>
+                        +{item.strikesApplied} • {item.reason}
+                      </Typography>
+                      <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
+                        {item.date} • {item.issuedBy}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: '#C25E00' }}>{item.status}</Typography>
+                      {item.voidable && (
+                        <VoidStrikeButton
+                          strikeId={item.id}
+                          onDone={async (message) => {
+                            setSnackbarMsg(message);
+                            await strikeData.reload();
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+
+          <RestrictionBanner kind={driver.restrictionKind} suspendedUntil={driver.suspendedUntil} reason={driver.suspensionReason} />
+        </Box>
+
+          </Box>
+        )}
+        {detailTab === 'history' && (
+          <Box role="tabpanel" id="driver-panel-history" aria-labelledby="driver-tab-history" sx={{ display: 'flex', flexDirection: 'column', gap: 1.6, mb: 3.2 }}>
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary }}>Verification history</Typography>
+            {historyEntries.length === 0 ? (
+              <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>Nothing is on record yet beyond the application itself.</Typography>
+            ) : (
+              <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {historyEntries.map((entry, i) => (
+                  <Box component="li" key={i} sx={{ display: 'flex', gap: '12px', p: '12px 14px', borderRadius: '12px', backgroundColor: '#F5F5F7', border: '1px solid var(--mac-border-color)' }}>
+                    <Box aria-hidden sx={{ width: 10, height: 10, borderRadius: '50%', mt: '5px', flexShrink: 0, backgroundColor: entry.tone === 'good' ? '#16A34A' : entry.tone === 'bad' ? '#DC2626' : entry.tone === 'warn' ? '#D97706' : '#64748B' }} />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary }}>{entry.title}</Typography>
+                      {entry.detail && <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, mt: '2px', overflowWrap: 'anywhere' }}>{entry.detail}</Typography>}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
       </MacCenterModal>
 
       {/* Confirmation Dialogs */}
@@ -1521,7 +1602,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           },
         }}
       >
-        <DialogTitle
+        <SakayDialogTitle onClose={() => setReturnSummaryDialogOpen(false)}
           sx={{
             padding: '16px 19px 13px 19px',
             borderBottom: '1px solid var(--mac-border-color)',
@@ -1536,7 +1617,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         >
           <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 18 }} />
           Return Application for Resubmission
-        </DialogTitle>
+        </SakayDialogTitle>
 
         <DialogContent sx={{ p: '19px !important', maxHeight: '65vh', overflowY: 'auto' }}>
           <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.5, mb: 2 }}>
@@ -1686,7 +1767,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           },
         }}
       >
-        <DialogTitle
+        <SakayDialogTitle onClose={() => setConfigureDocIssue(null)}
           sx={{
             padding: '14px 19px 11px',
             borderBottom: '1px solid var(--mac-border-color)',
@@ -1701,7 +1782,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         >
           <AssignmentReturnIcon sx={{ color: '#D97706', fontSize: 16 }} />
           Configure Document Resubmission
-        </DialogTitle>
+        </SakayDialogTitle>
 
         <DialogContent sx={{ p: '16px 19px !important' }}>
           {configureDocIssue && (
@@ -1939,7 +2020,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           },
         }}
       >
-        <DialogTitle
+        <SakayDialogTitle onClose={() => setNoDocForReturnDialogOpen(false)}
           sx={{
             padding: '14px 19px 11px',
             borderBottom: '1px solid var(--mac-border-color)',
@@ -1954,7 +2035,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         >
           <InfoOutlinedIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
           No Documents Selected for Resubmission
-        </DialogTitle>
+        </SakayDialogTitle>
         <DialogContent sx={{ p: '16px 19px !important' }}>
           <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-secondary)', lineHeight: 1.5 }}>
             There are currently no documents requested for resubmission. Please inspect a file from the <strong>Verification Documents</strong> list above and select <strong>Request Resubmission</strong> if corrections are required.
@@ -2000,7 +2081,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
           },
         }}
       >
-        <DialogTitle
+        <SakayDialogTitle onClose={() => setUnsubmittedExitDialogOpen(false)}
           sx={{
             padding: '14px 19px 11px',
             borderBottom: '1px solid var(--mac-border-color)',
@@ -2015,7 +2096,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
         >
           <WarningAmberIcon sx={{ color: '#D97706', fontSize: 18 }} />
           Unsubmitted Resubmission Requests
-        </DialogTitle>
+        </SakayDialogTitle>
         <DialogContent sx={{ p: '16px 19px !important' }}>
           <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-primary)', lineHeight: 1.5, mb: 0.8 }}>
             You have marked <strong>{pendingReturnCount} document{pendingReturnCount === 1 ? '' : 's'}</strong> for resubmission.

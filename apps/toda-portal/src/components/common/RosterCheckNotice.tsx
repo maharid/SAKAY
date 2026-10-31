@@ -39,7 +39,7 @@ export const RosterCheckNotice: React.FC<RosterCheckNoticeProps> = ({ applicant,
     );
   }
 
-  const endorsed = applicant.todaStageStatus === 'Endorsed to LGU';
+  const endorsed = Boolean(applicant.todaEndorsed) || applicant.todaStageStatus === 'Endorsed to LGU';
   const consequence = canDecide ? (
     <Typography component="span" sx={{ display: 'block', fontSize: FONT.small, mt: '4px' }}>
       You can still endorse the application, but it will carry a Roster Mismatch flag for the LGU, which must give a written reason before approving.

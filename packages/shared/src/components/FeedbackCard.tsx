@@ -23,7 +23,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({ icon, title, descrip
     <Box
       component="section"
       aria-labelledby={headingId}
-      sx={{ maxWidth: 680, border: '1px solid rgba(15, 23, 42, 0.12)', borderRadius: '14px', backgroundColor: '#FAFAF8', overflow: 'hidden' }}
+      sx={{ width: '100%', border: '1px solid rgba(15, 23, 42, 0.12)', borderRadius: '14px', backgroundColor: '#FAFAF8', overflow: 'hidden' }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px', p: '16px 20px', borderBottom: '1px solid rgba(15, 23, 42, 0.08)', backgroundColor: '#FFFFFF' }}>
         <Box

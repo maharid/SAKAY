@@ -10,6 +10,8 @@
  */
 
 import { supabase } from './supabaseClient';
+import type { TodaChangeRequest } from '../types/toda';
+import { applicantStage, memberLguStatus } from '../utils/applicantStage';
 import {
   ApplicantDocumentReview,
   TodaProfile,
@@ -30,6 +32,8 @@ import {
   confirmFlaggedViolationArgs,
   endTripForSafety,
   startIncidentReview,
+  sendIncidentFollowup,
+  type IncidentFollowupRow,
   updateLostItem,
   type IncidentDecision,
   type ReviewFlagRow,
@@ -42,9 +46,11 @@ import { signCaseEvidence } from '@sakay/shared';
 import type { CaseEvidenceFile } from '@sakay/shared';
 import { adminActionMessage, deliberateOfflineArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
-import { exportAuditLogFile, fetchAuditLogPage, manilaDayStartIso, manilaNextDayStartIso } from '@sakay/shared';
+import { loadAuditExportTable, recordAuditExportEntry, fetchAuditLogPage, manilaDayStartIso, manilaNextDayStartIso } from '@sakay/shared';
+import type { ReportTable } from '@sakay/shared';
 import type { AuditLogFilters, AuditRpc, XlsxLike } from '@sakay/shared';
 import type { DeliberateOfflineInput, ReconcileInput, ReconciliationTrip } from '@sakay/shared';
+import { asAnnouncementEventType } from '@sakay/shared';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -205,18 +211,21 @@ export async function updateTodaProfile(
     officers: any;
     /** why the terminal is moving (panel comment D-P4): required when the pin moved */
     relocationReason: string;
+    /** why the details of an accredited TODA are changing (optional; the LGU reads it) */
+    changeReason: string;
   }> = {}
-): Promise<{ relocationRequested: boolean }> {
+): Promise<{ relocationRequested: boolean; profileChangeRequested: boolean; profileChangeApplied: boolean }> {
   const targetTodaId = await getEffectiveTodaId(todaId);
+  // What the TODA changes by itself (contact numbers and officers) is saved with a table update. What identifies the accredited TODA (its name, acronym, barangay and
+  // date established) is a REQUEST once the TODA is Active: the record the LGU approved stays until the LGU decides (request_toda_profile_change, migration 20261101000001).
+  // The name of the terminal place is never written here: it travels with the terminal move, which the LGU approves with the pin.
   const updatePayload: any = {};
-  if (profileData.name) updatePayload.toda_name = profileData.name;
-  if (profileData.acronym) updatePayload.toda_acronym = profileData.acronym;
-  if (profileData.barangay) updatePayload.barangay = profileData.barangay;
-  if (profileData.dateEstablished) updatePayload.date_established = profileData.dateEstablished;
+  const identityChanges: Record<string, string> = {};
+  if (profileData.name) identityChanges.toda_name = profileData.name;
+  if (profileData.acronym) identityChanges.toda_acronym = profileData.acronym;
+  if (profileData.barangay) identityChanges.barangay = profileData.barangay;
+  if (profileData.dateEstablished) identityChanges.date_established = profileData.dateEstablished;
   if (profileData.contactPhone) updatePayload.president_contact = profileData.contactPhone;
-  if (profileData.serviceArea || profileData.terminalLocation) {
-    updatePayload.service_coverage_area = profileData.serviceArea || profileData.terminalLocation;
-  }
 
   // The terminal moves only through request_terminal_relocation (the LGU decides), and only when the pin really moved (a profile save must not re-ask for it every time).
   // Asked FIRST: if the database refuses it (outside the city, in the sea, no reason), nothing else is saved and the person is told why.
@@ -238,6 +247,15 @@ export async function updateTodaProfile(
       relocationRequested = true;
     }
   }
+  let profileChangeRequested = false;
+  let profileChangeApplied = false;
+  if (Object.keys(identityChanges).length > 0) {
+    const { data: changed, error: changeError } = await supabase.rpc('request_toda_profile_change', { p_changes: identityChanges, p_reason: profileData.changeReason || null });
+    if (changeError) throw new Error(changeError.message);
+    if (!changed || changed.success !== true) throw new Error(String(changed?.error || 'The change to the TODA details could not be saved.'));
+    profileChangeRequested = Boolean(changed.pending);
+    profileChangeApplied = Boolean(changed.applied);
+  }
   if (profileData.officers) {
     if (profileData.officers.president !== undefined) updatePayload.president_name = profileData.officers.president;
     if (profileData.officers.presidentContact !== undefined) updatePayload.president_contact = profileData.officers.presidentContact;
@@ -250,7 +268,7 @@ export async function updateTodaProfile(
   }
 
   let updatedData: any = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 5 && Object.keys(updatePayload).length > 0; attempt++) {
     const { data, error } = await supabase
       .from('toda')
       .update(updatePayload)
@@ -280,10 +298,10 @@ export async function updateTodaProfile(
   await recordTodaAuditAction({
     actionType: 'TODA_PROFILE_UPDATED',
     targetId: todaId,
-    details: `Updated association contact info for '${updatedData?.toda_name || todaId}'.`,
+    details: `Updated association contact info for '${updatedData?.toda_name || profileData.name || todaId}'.`,
   });
 
-  return { relocationRequested };
+  return { relocationRequested, profileChangeRequested, profileChangeApplied };
 }
 
 /**
@@ -596,7 +614,7 @@ export async function resubmitTodaApplication(note?: string): Promise<void> {
 async function fetchAffiliatedDrivers(todaId: string): Promise<any[]> {
   const { data } = await supabase
     .from('driver_toda_affiliation')
-    .select('toda_membership_number, assigned_terminal, barangay_service_area, submitted_at, driver:driver_id(*)')
+    .select('toda_membership_number, assigned_terminal, barangay_service_area, submitted_at, lgu_verification_status, toda_endorsement_status, driver:driver_id(*)')
     .eq('toda_id', todaId)
     .order('submitted_at', { ascending: false });
 
@@ -609,10 +627,14 @@ async function fetchAffiliatedDrivers(todaId: string): Promise<any[]> {
         toda_membership_number: aff.toda_membership_number || d.toda_membership_number || null,
         assigned_terminal: aff.assigned_terminal || d.assigned_terminal || null,
         barangay_service_area: aff.barangay_service_area || d.barangay_service_area || null,
+        affiliation_lgu_status: aff.lgu_verification_status || null,
+        affiliation_toda_status: aff.toda_endorsement_status || null,
       };
     })
     .filter((row: any) => row !== null);
 }
+
+
 
 /**
  * The TODA's registered roster file (the spreadsheet uploaded at registration or replaced in Settings) as bytes, or null when it cannot be
@@ -682,7 +704,7 @@ function memberFromDriverRow(d: any, todaRecord: any, idx = 0): TodaDriverMember
         licenseNo: d.license_number || '',
         serviceZone: d.barangay_service_area || todaRecord?.barangay || 'Calapan City',
         todaVerificationStatus: 'Verified',
-        lguVerificationStatus: d.account_status === 'Verified' ? 'Verified' : 'Pending',
+        lguVerificationStatus: memberLguStatus(d),
         accountStatus: d.account_status === 'Suspended' ? 'TODA Suspended' : (d.account_status as any) || 'Active',
         suspensionReason: d.suspension_reason || undefined,
         suspendedAt: d.suspended_at ? new Date(d.suspended_at).toLocaleDateString('en-US') : undefined,
@@ -744,7 +766,7 @@ export async function fetchTodaDrivers(todaId?: string): Promise<TodaDriverMembe
           licenseNo: matchedDriver?.license_number || '',
           serviceZone: todaRecord?.service_coverage_area || todaRecord?.barangay || 'Calapan City',
           todaVerificationStatus: 'Verified',
-          lguVerificationStatus: matchedDriver?.account_status === 'Verified' ? 'Verified' : 'Pending',
+          lguVerificationStatus: memberLguStatus(matchedDriver),
           accountStatus: accountStatus as TodaDriverMember['accountStatus'],
           suspensionReason: matchedDriver?.suspension_reason || undefined,
           suspendedAt: matchedDriver?.suspended_at ? new Date(matchedDriver.suspended_at).toLocaleDateString('en-US') : undefined,
@@ -869,10 +891,10 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
       const verif = Array.isArray(d.driver_verification) ? d.driver_verification[0] : d.driver_verification;
 
       // The stage is THIS affiliation's TODA stage, never the shared verification record or the driver's overall status.
-      let stageStatus: DriverApplicant['todaStageStatus'] = 'Awaiting Screening';
-      if (aff.toda_endorsement_status === 'Endorsed') stageStatus = 'Endorsed to LGU';
-      else if (aff.toda_endorsement_status === 'Rejected') stageStatus = 'Rejected';
-      else if (aff.toda_endorsement_status === 'Resubmission Required') stageStatus = 'Resubmission Required';
+      // Once the TODA has endorsed it the application is the CITY LGU's: what the database holds for the LGU's decision decides what is shown (it used to say
+      // "Endorsed to LGU" for ever, even after the LGU had approved the driver).
+      const lguStage = (aff.lgu_verification_status as DriverApplicant['lguStageStatus']) || 'Pending';
+      const stageStatus = applicantStage(aff.toda_endorsement_status, aff.lgu_verification_status);
 
       const authId = d.auth_user_id;
       const licFrontPath = verif?.license_front_photo_path || (authId ? `${authId}/license_front.jpg` : null);
@@ -929,6 +951,9 @@ export async function fetchDriverApplicants(todaId?: string): Promise<DriverAppl
         photoVerified: true,
         rosterVerified: rosterMatches.get(aff.affiliation_id) === true,
         todaStageStatus: stageStatus,
+        todaEndorsed: aff.toda_endorsement_status === 'Endorsed',
+        lguStageStatus: lguStage,
+        lguDecisionReason: aff.lgu_rejection_reason || aff.lgu_return_notes || undefined,
         rejectionReason: aff.toda_rejection_reason || aff.toda_return_notes || undefined,
       };
       return applicant;
@@ -1305,6 +1330,10 @@ const todaAuditFilters = (q: TodaAuditQuery = {}): AuditLogFilters => ({
   search: q.search || null,
 });
 
+/** The category of an audit entry in this portal (the same words on the screen and in the export) */
+export const todaAuditCategoryOf = (action: string): TodaAuditLog['category'] =>
+  (action.includes('DRIVER') ? 'Driver Verification' : action.includes('INCIDENT') ? 'Incident' : action.includes('ANNOUNCEMENT') ? 'Announcement' : 'Account') as TodaAuditLog['category'];
+
 /** This TODA's entries (Rule 28.4): a TODA Administrator reads their own; the actor's name and the time come from the database, never from the browser. */
 export async function fetchTodaAuditLogs(query: TodaAuditQuery = {}): Promise<TodaAuditLog[]> {
   try {
@@ -1323,13 +1352,7 @@ export async function fetchTodaAuditLogs(query: TodaAuditQuery = {}): Promise<To
       performed_at_iso: l.performed_at,
       before_state: l.before_state,
       after_state: l.after_state,
-      category: (l.action_type.includes('DRIVER')
-        ? 'Driver Verification'
-        : l.action_type.includes('INCIDENT')
-        ? 'Incident'
-        : l.action_type.includes('ANNOUNCEMENT')
-        ? 'Announcement'
-        : 'Account') as TodaAuditLog['category'],
+      category: todaAuditCategoryOf(l.action_type),
     }));
   } catch (err) {
     console.error('[todaApiService] fetchTodaAuditLogs error:', err);
@@ -1337,17 +1360,20 @@ export async function fetchTodaAuditLogs(query: TodaAuditQuery = {}): Promise<To
   }
 }
 
-/** Exports every entry the filters match (up to the cap) as Excel, CSV or a PDF (the browser's print dialog: "Save as PDF"); the export is written to the audit log first. */
-export async function exportTodaAuditLog(format: 'xlsx' | 'csv' | 'pdf', query: TodaAuditQuery, generatedBy: string): Promise<{ count: number; truncated: boolean }> {
-  return exportAuditLogFile({
-    rpc: auditRpc,
-    format,
-    filters: todaAuditFilters(query),
-    generatedBy,
-    title: 'SAKAY - Audit Log (TODA Administrator)',
-    loadXlsx: async () => (await import('xlsx')) as unknown as XlsxLike,
+/**
+ * Every entry the page's filters match (the dates and the search go to the database, the category is applied here with the same rule as the screen), up to the cap, as the table of
+ * an export (Excel, CSV, PDF: the one export design). A TODA Administrator receives only their own entries: the database applies that, not this code.
+ */
+export async function loadTodaAuditExport(query: TodaAuditQuery, category: string, covers: string[], todaName: string): Promise<ReportTable> {
+  return loadAuditExportTable(auditRpc, todaAuditFilters(query), {
+    title: `Audit Log (${todaName})`,
+    covers,
+    keep: category === 'All' ? undefined : (entry) => todaAuditCategoryOf(entry.action_type) === category,
   });
 }
+
+/** Writes the export itself to the audit log (who, the format, how many entries, which filters) before any file is made */
+export const recordTodaAuditExport = (format: 'Excel' | 'CSV' | 'PDF', rowCount: number, query: TodaAuditQuery): Promise<void> => recordAuditExportEntry(auditRpc, format, rowCount, todaAuditFilters(query));
 
 /**
  * A free-text note from a screen. The database stamps WHO (the signed-in administrator) and WHEN (the server's clock); the browser's own time is not sent. Decisions
@@ -1372,6 +1398,14 @@ export async function recordTodaAuditAction(action: {
   } catch (err) {
     console.warn('[todaApiService] recordTodaAuditAction error:', err);
   }
+}
+
+/** Like recordTodaAuditAction, but a failure is raised: an export is not handed over unless it was recorded (Rule 28.4) */
+export async function recordTodaAuditStrict(action: { actionType: string; targetId?: string; targetName?: string; details: string }): Promise<void> {
+  const { error } = await supabase.from('audit_log').insert([
+    { action_type: action.actionType, target_id: action.targetId || null, target_name: action.targetName || null, details: `[TODA Admin]: ${action.details}` },
+  ]);
+  if (error) throw new Error(error.message);
 }
 
 export type ReminderAudience = 'ALL_DRIVERS' | 'EXPIRING_DOCUMENTS';
@@ -1408,7 +1442,7 @@ export async function fetchTodaAnnouncements(todaId?: string): Promise<TodaAnnou
       id: a.announcement_id,
       title: a.title,
       message: a.message,
-      category: 'General',
+      category: asAnnouncementEventType(a.event_type),
       urgency: (a.urgency === 'Urgent' ? 'High Priority' : 'Standard') as any,
       isPublished: a.is_published ?? true,
       sendPushNotification: true,
@@ -1427,7 +1461,9 @@ export async function postTodaAnnouncement(
   urgency: 'Standard' | 'High Priority' = 'Standard',
   todaId?: string,
   /** false saves a draft that no driver sees until it is published */
-  publish = true
+  publish = true,
+  /** What the announcement is about (one of ANNOUNCEMENT_EVENT_TYPES): its icon follows it */
+  eventType: string = 'General'
 ) {
   const effectiveTodaId = await getEffectiveTodaId(todaId);
 
@@ -1437,6 +1473,7 @@ export async function postTodaAnnouncement(
       title,
       message,
       urgency: urgency === 'High Priority' ? 'Urgent' : 'Normal',
+      event_type: asAnnouncementEventType(eventType),
       is_published: publish,
       toda_id: effectiveTodaId,
     },
@@ -1466,12 +1503,12 @@ function announcementChanged(result: { data: unknown[] | null; error: { message:
 /** Changes the text or the priority of an existing announcement (the same row; the publish state is untouched). */
 export async function updateTodaAnnouncement(
   announcementId: string,
-  input: { title: string; message: string; urgency: 'Standard' | 'High Priority' }
+  input: { title: string; message: string; urgency: 'Standard' | 'High Priority'; eventType: string }
 ): Promise<void> {
   announcementChanged(
     await supabase
       .from('announcement')
-      .update({ title: input.title, message: input.message, urgency: input.urgency === 'High Priority' ? 'Urgent' : 'Normal' })
+      .update({ title: input.title, message: input.message, urgency: input.urgency === 'High Priority' ? 'Urgent' : 'Normal', event_type: asAnnouncementEventType(input.eventType) })
       .eq('announcement_id', announcementId)
       .select('announcement_id')
   );
@@ -1978,4 +2015,73 @@ export async function decideExemptionRequest(requestId: string, outcome: 'FULL' 
     p_points_to_waive: outcome === 'PARTIAL' ? pointsToWaive ?? null : null,
   });
   return error ? adminActionMessage(error.message, 'The decision could not be recorded.') : null;
+}
+
+/**
+ * The changes this TODA asked for that the LGU has not decided yet, and its latest decided ones (a refusal is shown with the LGU's own words).
+ * Read from the table the TODA's administrator may read; nothing is invented when it cannot be read.
+ */
+export async function fetchTodaChangeRequests(todaId?: string): Promise<TodaChangeRequest[]> {
+  try {
+    const targetTodaId = await getEffectiveTodaId(todaId);
+    const { data, error } = await supabase
+      .from('toda_change_request')
+      .select('request_id, kind, status, proposed, previous, reason, file_name, requested_at, decided_at, decision_note')
+      .eq('toda_id', targetTodaId)
+      .in('status', ['Pending', 'Approved', 'Rejected'])
+      .order('requested_at', { ascending: false })
+      .limit(12);
+    if (error || !data) return [];
+    return data.map((r: any) => ({
+      requestId: r.request_id,
+      kind: r.kind,
+      status: r.status,
+      proposed: r.proposed || {},
+      previous: r.previous || {},
+      reason: r.reason,
+      fileName: r.file_name,
+      requestedAt: r.requested_at,
+      decidedAt: r.decided_at,
+      decisionNote: r.decision_note,
+    }));
+  } catch (err) {
+    console.warn('[todaApiService] fetchTodaChangeRequests:', err);
+    return [];
+  }
+}
+
+/** The TODA takes back a request of its own that the LGU has not decided. */
+export async function withdrawTodaChangeRequest(requestId: string): Promise<void> {
+  const { data, error } = await supabase.rpc('withdraw_toda_change_request', { p_request_id: requestId });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The request could not be taken back.'));
+}
+
+/** The follow-ups this TODA sent the LGU on its reports (who, when, what), newest first per report. Nothing is invented when they cannot be read. */
+export async function fetchIncidentFollowups(incidentIds: string[]): Promise<Map<string, IncidentFollowupRow[]>> {
+  const out = new Map<string, IncidentFollowupRow[]>();
+  if (incidentIds.length === 0) return out;
+  try {
+    const { data, error } = await supabase
+      .from('incident_followup')
+      .select('followup_id, incident_id, kind, sequence_no, message, sent_by_name, sent_at, next_allowed_at')
+      .in('incident_id', incidentIds)
+      .order('sent_at', { ascending: false });
+    if (error || !data) return out;
+    for (const row of data as IncidentFollowupRow[]) {
+      const list = out.get(row.incident_id) ?? [];
+      list.push(row);
+      out.set(row.incident_id, list);
+    }
+  } catch (err) {
+    console.warn('[todaApiService] fetchIncidentFollowups:', err);
+  }
+  return out;
+}
+
+/** A TODA administrator asks the LGU to act on a report that is with the LGU. Null error when it was sent; otherwise the database's own sentence (a second one inside the cooldown says when it is allowed). */
+export async function sendFollowupToLgu(incidentId: string, message: string): Promise<{ error: string | null; nextAllowedAt?: string }> {
+  const result = await sendIncidentFollowup(supabase, incidentId, message.trim() || null);
+  if (!result.ok) return { error: result.error ?? 'The follow-up could not be sent. Please try again.', nextAllowedAt: typeof result.data?.next_allowed_at === 'string' ? result.data.next_allowed_at : undefined };
+  return { error: null, nextAllowedAt: typeof result.data?.next_allowed_at === 'string' ? result.data.next_allowed_at : undefined };
 }

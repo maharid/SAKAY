@@ -5,7 +5,7 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { ProfileAvatar, formatNotificationTime, localizeSystemNotification, portalNotice, selectImportantNotifications } from '@sakay/shared';
+import { LGU_RECIPIENT, ProfileAvatar, formatNotificationTime, localizeSystemNotification, noticeDestination, portalNotice, selectImportantNotifications } from '@sakay/shared';
 
 import { NotificationPopover } from '../popovers/NotificationPopover';
 import { NotificationItem } from '../../types/admin';
@@ -73,7 +73,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         // The applications waiting for the LGU (TODA endorsed, LGU not decided), from the applications themselves. Whether one of them came back
         // from an LGU correction is read from the documents it returned (below), never from a remark on the shared verification record: a remark
         // outlives the correction it described and then mislabels later applications.
-        const [awaitingLgu, pendingTodas, notifsRes] = await Promise.all([
+        const [awaitingLgu, pendingTodas, notifsRes, appealsRes, readsRes] = await Promise.all([
           supabase
             .from('driver_toda_affiliation')
             .select('affiliation_id, driver_id, resubmitted_at, toda_endorsed_at, submitted_at, updated_at, driver:driver_id(full_name)')
@@ -87,12 +87,22 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             .in('toda_status', ['Pending', 'Pending Accreditation', 'Under Review'])
             .order('created_at', { ascending: false })
             .limit(5),
+          // ONLY the notices addressed to the LGU (a notice of a passenger or a driver, such as "your report is being reviewed", is not the LGU's)
           supabase
             .from('notification')
             .select('*')
+            .eq('recipient_id', LGU_RECIPIENT)
             .order('sent_at', { ascending: false })
-            .limit(10),
+            .limit(30),
+          supabase
+            .from('exemption_request')
+            .select('request_id, subject_type, requested_at')
+            .eq('status', 'Pending LGU Review')
+            .order('requested_at', { ascending: false })
+            .limit(5),
+          supabase.from('portal_notification_read').select('notification_id'),
         ]);
+        const readInDb = new Set<string>(((readsRes.data || []) as { notification_id: string }[]).map((r) => `db-${r.notification_id}`));
 
         // a failed read comes back as an error value, not as an exception, and would look like an empty list: when every read failed, say so instead of "nothing new"
         if ([awaitingLgu, pendingTodas, notifsRes].every((res) => res.error)) throw new Error(notifsRes.error?.message || 'The notices could not be read.');
@@ -134,7 +144,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           const id = `db-${n.notification_id || n.id}`;
           if (!seenIds.has(id)) {
             seenIds.add(id);
-            const isRead = n.is_read || readSet.has(id);
+            const isRead = readInDb.has(id) || readSet.has(id);
             items.push({
               id,
               kind: 'db',
@@ -144,12 +154,36 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               description: n.message,
               rawTimestamp: n.sent_at,
               category: n.notification_type?.toLowerCase().includes('resubmission') ? 'resubmission' : 'general',
-              link: '/drivers',
+              link: noticeDestination('lgu', n.notification_type, n.subject_id) ?? undefined,
               read: isRead,
               unread: !isRead,
               type: n.notification_type || 'alert',
+              subjectId: n.subject_id || undefined,
             });
           }
+        });
+
+        // an appeal that waits for the LGU and has no notice of its own yet (it arrived before notices were written for appeals): listed from the appeal itself
+        const noticedAppeals = new Set(items.filter((i) => i.type === 'APPEAL_PENDING_LGU').map((i) => i.subjectId));
+        ((appealsRes.data || []) as any[]).forEach((a) => {
+          if (noticedAppeals.has(String(a.request_id))) return;
+          const id = `appeal-${a.request_id}`;
+          const isRead = readSet.has(id);
+          items.push({
+            id,
+            kind: 'db',
+            rawTitle: 'A strike appeal is waiting for the LGU',
+            rawMessage: `A ${a.subject_type}'s appeal needs the LGU Administrator's decision. Open Strike Appeals to review it.`,
+            title: 'A strike appeal is waiting for the LGU',
+            description: '',
+            rawTimestamp: a.requested_at,
+            category: 'general',
+            link: noticeDestination('lgu', 'APPEAL_PENDING_LGU', String(a.request_id)) ?? undefined,
+            read: isRead,
+            unread: !isRead,
+            type: 'APPEAL_PENDING_LGU',
+            subjectId: String(a.request_id),
+          });
         });
 
         // 2. Resubmitted driver applications
@@ -165,7 +199,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               ...portalNotice('resubmitted', v.name, 'en'),
               rawTimestamp: v.ts,
               category: 'resubmission',
-              link: '/drivers',
+              link: noticeDestination('lgu', 'DRIVER_RESUBMITTED', v.id) ?? '/drivers',
               read: isRead,
               unread: !isRead,
               type: 'resubmission',
@@ -186,7 +220,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               ...portalNotice('endorsed', v.name, 'en'),
               rawTimestamp: v.ts,
               category: 'endorsement',
-              link: '/drivers',
+              link: noticeDestination('lgu', 'ENDORSEMENT', v.id) ?? '/drivers',
               read: isRead,
               unread: !isRead,
               type: 'endorsement',
@@ -207,7 +241,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               ...portalNotice('todaPending', t.toda_name || t.toda_acronym, 'en'),
               rawTimestamp: t.created_at,
               category: 'toda',
-              link: '/toda',
+              link: noticeDestination('lgu', 'TODA', t.toda_id) ?? '/toda-applications',
               read: isRead,
               unread: !isRead,
               type: 'toda',
@@ -276,13 +310,21 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     [notifications, language]
   );
 
+  // a stored notice is marked read in the database (per administrator, kept across devices); a notice the portal builds from live records is remembered in this browser
+  const markStoredRead = (ids: string[]) => {
+    const uuids = ids.filter((id) => id.startsWith('db-')).map((id) => id.slice(3));
+    if (uuids.length > 0) void supabase.rpc('mark_portal_notifications_read', { p_ids: uuids });
+  };
+
   const handleMarkAllAsRead = () => {
     const allIds = notifications.map((n) => n.id);
+    markStoredRead(allIds);
     saveReadNotifIds(allIds);
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false, read: true })));
   };
 
   const handleNotificationClick = (item: NotificationItem) => {
+    markStoredRead([item.id]);
     saveReadNotifIds([item.id]);
     setNotifications((prev) =>
       prev.map((n) => (n.id === item.id ? { ...n, unread: false, read: true } : n))

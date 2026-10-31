@@ -20,7 +20,7 @@ export interface SharedMatchPanelProps {
   onRespond: (accept: boolean) => void;
 }
 
-const FONT = 'Poppins, sans-serif';
+const FONT = 'var(--sakay-font-family, Poppins), sans-serif';
 const INK = '#0F172A';
 const MUTED = '#475569';
 

@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { Alert, Box, Button, Card, Typography } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import { checkPassword } from '@sakay/shared';
-import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX } from '@sakay/shared/components/dialogStyles';
+import { ChangePasswordDialog as SharedChangePasswordDialog } from '@sakay/shared';
 
 import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../hooks/useLanguage';
 import { FONT, SPACE } from '../../styles/density';
 import { OPS_TEXT, opsCardSx } from '../operations/operationsTheme';
-import { primaryButtonSx, secondaryButtonSx } from './pageButtons';
+import { secondaryButtonSx } from './pageButtons';
 
 interface ChangePasswordDialogProps {
   open: boolean;
@@ -18,84 +17,33 @@ interface ChangePasswordDialogProps {
 }
 
 /**
- * Checklist B1: the TODA administrator changes their own password. The same four rules as the other SAKAY apps (8 characters, upper and lower case, a number, a symbol);
- * the login system sets it for the signed-in user only. It is a window, so any page can offer it (Account & Accreditation and Settings do).
+ * Checklist B1: the TODA administrator changes their own password. It is the shared window of the LGU and TODA portals (the current password is checked again, the same four rules
+ * as the other SAKAY apps are a live checklist, the strength is shown, and the login system sets the new password for the signed-in user only). Any page can offer it
+ * (Account & Accreditation and Settings do).
  */
 export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({ open, onClose, onChanged }) => {
   const { t } = useLanguage();
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const check = checkPassword(password);
-
-  // every time the window opens it starts empty
-  useEffect(() => {
-    if (open) {
-      setPassword('');
-      setConfirm('');
-      setError(null);
-    }
-  }, [open]);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!check.ok) {
-      setError(t('password.rules'));
-      return;
-    }
-    if (password !== confirm) {
-      setError(t('password.mismatch'));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setBusy(false);
-    if (updateError) {
-      setError(updateError.message || 'The password could not be changed. Please try again.');
-      return;
-    }
-    setPassword('');
-    setConfirm('');
-    onClose();
-    onChanged();
+  const verifyCurrent = async (current: string): Promise<string | null> => {
+    const { data } = await supabase.auth.getUser();
+    const email = data.user?.email;
+    if (!email) return 'Your login has no e-mail address on record, so the current password cannot be checked. Sign in again.';
+    const { error } = await supabase.auth.signInWithPassword({ email, password: current });
+    if (!error) return null;
+    return error.status === 429 ? 'Too many attempts. Wait a minute and try again.' : 'The current password is not right.';
   };
-
-  // a rule that is met shows a tick and turns green; one that is not shows a dot, so the state is in the symbol and not only in the colour
-  const rule = (ok: boolean, text: string) => (
-    <Typography key={text} sx={{ fontSize: FONT.small, color: ok ? OPS_TEXT.success : OPS_TEXT.secondary }}>
-      {ok ? '✓' : '•'} {text}
-    </Typography>
-  );
-
+  const setNewPassword = async (password: string): Promise<string | null> => {
+    const { error } = await supabase.auth.updateUser({ password });
+    return error ? error.message || 'The password could not be changed. Please try again.' : null;
+  };
   return (
-    <Dialog open={open} onClose={() => !busy && onClose()} maxWidth="xs" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-      <form onSubmit={submit}>
-        <DialogTitle sx={DIALOG_TITLE_SX}>{t('password.change')}</DialogTitle>
-        <DialogContent sx={DIALOG_CONTENT_SX}>
-          <Typography sx={DIALOG_INTRO_SX}>Choose a new password for this administrator login.</Typography>
-          {error && <Alert severity="error" sx={{ borderRadius: '8px', fontSize: FONT.body }}>{error}</Alert>}
-          <TextField fullWidth size="small" type="password" label={t('password.new')} autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
-          <TextField fullWidth size="small" type="password" label={t('password.confirm')} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} disabled={busy} />
-          <Box>
-            {rule(check.length, 'At least 8 characters')}
-            {rule(check.letters, 'Upper and lower case letters')}
-            {rule(check.digit, 'A number')}
-            {rule(check.symbol, 'A symbol')}
-            {check.tooLong && rule(false, 'No longer than 72 bytes')}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={DIALOG_ACTIONS_SX}>
-          <Button onClick={onClose} disabled={busy} variant="outlined" sx={secondaryButtonSx}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="contained" disableElevation disabled={busy || !password} sx={primaryButtonSx}>
-            {busy ? 'Saving...' : t('password.change')}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+    <SharedChangePasswordDialog
+      open={open}
+      onClose={onClose}
+      verifyCurrent={verifyCurrent}
+      setNewPassword={setNewPassword}
+      onChanged={onChanged}
+      labels={{ title: t('password.change'), newPassword: t('password.new'), confirm: t('password.confirm'), submit: t('password.change') }}
+    />
   );
 };
 

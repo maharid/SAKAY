@@ -1,3 +1,5 @@
+import type { AnnouncementEventType } from '@sakay/shared';
+
 export type StatusType =
   | 'Approved'
   | 'Pending'
@@ -22,6 +24,9 @@ export type StatusType =
   | 'Under Investigation'
   | 'TODA Endorsed'
   | 'Endorsed to LGU'
+  | 'Verified by LGU'
+  | 'Returned by LGU'
+  | 'Rejected by LGU'
   | 'Awaiting Screening'
   | 'Submitted'
   | 'TODA Review'
@@ -180,7 +185,27 @@ export interface DriverApplicant {
   selfieUrl?: string;
   photoVerified: boolean;
   rosterVerified: boolean;
-  todaStageStatus: 'Awaiting Screening' | 'Submitted' | 'TODA Review' | 'TODA Endorsed' | 'Endorsed to LGU' | 'Rejected' | 'Resubmission Required';
+  /**
+   * Where this application stands NOW, from the two stages the database keeps for THIS TODA's affiliation. While the TODA has not decided it is the TODA stage;
+   * once the TODA endorsed it, it is the CITY LGU's decision ('Endorsed to LGU' while the LGU has not decided, then 'Verified by LGU', 'Returned by LGU' or 'Rejected by LGU').
+   */
+  todaStageStatus:
+    | 'Awaiting Screening'
+    | 'Submitted'
+    | 'TODA Review'
+    | 'TODA Endorsed'
+    | 'Endorsed to LGU'
+    | 'Verified by LGU'
+    | 'Returned by LGU'
+    | 'Rejected by LGU'
+    | 'Rejected'
+    | 'Resubmission Required';
+  /** The TODA's own stage, kept apart from the LGU's: true once this TODA endorsed the application (whatever the LGU decided after) */
+  todaEndorsed?: boolean;
+  /** The City LGU's decision on this affiliation, as the database holds it */
+  lguStageStatus?: 'Pending' | 'Approved' | 'Resubmission Required' | 'Rejected';
+  /** Why the LGU returned or rejected it, when it did */
+  lguDecisionReason?: string;
   rejectionReason?: string;
   notes?: string;
 }
@@ -197,7 +222,8 @@ export interface TodaDriverMember {
   terminalShift?: string;
   serviceZone: string;
   todaVerificationStatus: 'Verified' | 'Endorsed' | 'Pending';
-  lguVerificationStatus: 'Verified' | 'Pending' | 'Suspended';
+  /** The City LGU's decision on this driver's affiliation with this TODA (the persisted status of the affiliation, not a local guess) */
+  lguVerificationStatus: 'Verified' | 'Pending' | 'Suspended' | 'Returned' | 'Rejected';
   accountStatus: 'Active' | 'TODA Suspended' | 'LGU Deactivated' | 'Suspension Review' | 'Reactivation Review' | 'Not Registered' | 'Unregistered' | 'Pending Verification' | 'Pending Review';
   suspensionReason?: string;
   suspendedAt?: string;
@@ -240,7 +266,8 @@ export interface TodaAnnouncement {
   id: string;
   title: string;
   message: string;
-  category: 'Terminal Rules' | 'Document Renewal' | 'Meeting Notice' | 'Safety Advisory' | 'General';
+  /** What the announcement is about (announcement.event_type): its icon follows it */
+  category: AnnouncementEventType;
   urgency: 'Standard' | 'High Priority';
   isPublished: boolean;
   sendPushNotification: boolean;
@@ -329,6 +356,9 @@ export interface NotificationItem {
   sentAt?: string | null;
   /** the database's kind of notice (notification_type) */
   kind?: string;
+  /** the record the notice is about, and the page it opens */
+  subjectId?: string;
+  link?: string;
 }
 
 export interface TodaAdminProfile {
@@ -354,3 +384,19 @@ export interface TodaAdminProfile {
   };
 }
 
+
+/** A change to an accredited TODA that waits for the LGU (migration 20261101000001): 'profile' = name, acronym, barangay, date established; 'bylaws' = a new Internal Bylaws file */
+export interface TodaChangeRequest {
+  requestId: string;
+  kind: 'profile' | 'bylaws';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Superseded' | 'Withdrawn';
+  /** What is asked for, and what was in force when it was asked */
+  proposed: Record<string, unknown>;
+  previous: Record<string, unknown>;
+  reason?: string | null;
+  fileName?: string | null;
+  requestedAt: string;
+  decidedAt?: string | null;
+  /** The LGU's own words on its decision */
+  decisionNote?: string | null;
+}

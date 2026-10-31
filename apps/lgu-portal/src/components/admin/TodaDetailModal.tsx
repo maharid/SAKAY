@@ -1,28 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  TableBody,
-  TableCell,
-  TableRow,
-  Pagination,
   Button,
 } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
-import L from 'leaflet';
 import { calculateDistanceKm } from '@sakay/shared';
 
-import { AccreditedTodaRecord, DriverRecord } from '../../mockData/adminData';
+import { AccreditedTodaRecord } from '../../mockData/adminData';
 import { MacCenterModal } from './MacCenterModal';
 import { StatusBadge } from '../common/StatusBadge';
-import { DataTableCard, DataTableMessageRow, PersonCell } from '../common/DataTable';
 import { DetailField, DetailGrid, DetailSection } from '../common/DetailSection';
 import { PageNotice } from '../common/PageNotice';
-import { DriverDetailModal } from './DriverDetailModal';
+import { TodaZoneMap } from './TodaZoneMap';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { MacConfirmDialog } from './MacConfirmDialog';
 import { TodaAccreditationDialog } from './TodaAccreditationDialog';
-import { fetchTodaRosterSummary, fetchTodaDrivers, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, reinstateTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
+import { fetchTodaRosterSummary, fetchTodaChangeRequests, decideTodaChangeRequest, type TodaChangeRequestRow, approveTerminalRelocation, rejectTerminalRelocation, approveTodaApplication, suspendTodaAccreditation, reinstateTodaAccreditation, sendTodaRenewalReminder } from '../../services/adminApiService';
 import { FONT } from '../../styles/density';
 import { PAGE_BORDER, PAGE_TEXT, dangerOutlineButtonSx, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../../styles/pageTheme';
 
@@ -33,6 +28,8 @@ const manilaDayFromNow = (days: number): string => new Date(Date.now() + days * 
 const tomorrowManila = (): string => manilaDayFromNow(1);
 const oneYearManila = (): string => manilaDayFromNow(365);
 
+const CHANGE_FIELD_LABEL: Record<string, string> = { toda_name: 'Name', toda_acronym: 'Acronym', barangay: 'Barangay', date_established: 'Date established' };
+
 interface TodaDetailModalProps {
   open: boolean;
   onClose: () => void;
@@ -42,8 +39,7 @@ interface TodaDetailModalProps {
 }
 
 export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose, toda, onChanged }) => {
-  const [page, setPage] = useState(1);
-  const rowsPerPage = 10;
+  const navigate = useNavigate();
   const [isRelocationLoading, setIsRelocationLoading] = useState(false);
   const [relocationFeedback, setRelocationFeedback] = useState<string | null>(null);
   // the LGU decides a terminal move in its own words (decision D-P4): the dialog asks for them
@@ -63,107 +59,23 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
   const [reinstateOpen, setReinstateOpen] = useState(false);
   const [accreditationFeedback, setAccreditationFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Real affiliated drivers fetched from database
-  const [drivers, setDrivers] = useState<DriverRecord[]>([]);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState<boolean>(true);
-
-  // Selected driver inside TODA roster modal for inspecting driver details
-  const [selectedDriver, setSelectedDriver] = useState<DriverRecord | null>(null);
-
   // Selected document for official records preview
   const [selectedDoc, setSelectedDoc] = useState<{ name: string; type: string; url?: string | null } | null>(null);
 
-  // Map Ref for Leaflet
-  const mapRef = useRef<HTMLDivElement>(null);
-  const leafletMapRef = useRef<L.Map | null>(null);
-
-  // Fetch real drivers affiliated with this TODA
+  // The changes this TODA asked for (its details, new Internal Bylaws) and the LGU's last decisions: the record in force stays until the LGU decides
+  const [changes, setChanges] = useState<TodaChangeRequestRow[]>([]);
+  const [changeDecision, setChangeDecision] = useState<{ request: TodaChangeRequestRow; approve: boolean } | null>(null);
+  const [changeFeedback, setChangeFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const loadChanges = React.useCallback(() => {
+    if (!open || !toda) return;
+    void fetchTodaChangeRequests(toda.id).then(setChanges);
+  }, [open, toda?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!toda || !open) return;
-
-    setIsLoadingDrivers(true);
-    fetchTodaDrivers(toda.id)
-      .then((data) => {
-        setDrivers(data);
-      })
-      .catch((err) => {
-        console.error('[TodaDetailModal] Error loading toda drivers:', err);
-      })
-      .finally(() => {
-        setIsLoadingDrivers(false);
-      });
-  }, [toda, open]);
-
-  // Initialize map when modal is open
-  useEffect(() => {
-    if (!toda || !mapRef.current || !open) return;
-
-    if (leafletMapRef.current) {
-      leafletMapRef.current.remove();
-      leafletMapRef.current = null;
-    }
-
-    const lat = toda.centerLat || 13.4115;
-    const lng = toda.centerLng || 121.1803;
-
-    const map = L.map(mapRef.current, {
-      center: [lat, lng],
-      zoom: 15,
-      zoomControl: false,
-      attributionControl: false,
-    });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-    // Draw service zone circle
-    L.circle([lat, lng], {
-      color: '#FF5500',
-      fillColor: '#FF5500',
-      fillOpacity: 0.15,
-      radius: 600,
-    }).addTo(map);
-
-    // Custom TODA Marker
-    const customIcon = L.divIcon({
-      className: 'custom-toda-marker',
-      html: '🏛️',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-    });
-
-    L.marker([lat, lng], { icon: customIcon })
-      .addTo(map)
-      .bindPopup(`<b>${toda.name}</b><br/>${toda.barangay}`);
-
-    // Panel comment (D-P4): when the TODA asked to move the terminal, the requested place is on the same map, joined to the current one, so the LGU sees the move
-    if (toda.pendingTerminalLat != null && toda.pendingTerminalLng != null) {
-      const pLat = Number(toda.pendingTerminalLat);
-      const pLng = Number(toda.pendingTerminalLng);
-      L.polyline([[lat, lng], [pLat, pLng]], { color: '#B45309', weight: 3, dashArray: '6 6' }).addTo(map);
-      L.marker([pLat, pLng], { icon: L.divIcon({ className: 'custom-toda-marker', html: '\u{1F4CD}', iconSize: [32, 32], iconAnchor: [16, 28] }) })
-        .addTo(map)
-        .bindPopup(`<b>Requested terminal</b><br/>${toda.pendingTerminalLocation || ''}`);
-      map.fitBounds([[lat, lng], [pLat, pLng]], { padding: [48, 48], maxZoom: 16 });
-    }
-
-    leafletMapRef.current = map;
-
-    return () => {
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-      }
-    };
-  }, [toda, open]);
+    setChangeFeedback(null);
+    loadChanges();
+  }, [loadChanges]);
 
   if (!toda) return null;
-
-  // Pagination calculation
-  const totalDrivers = drivers.length;
-  const totalPages = Math.ceil(Math.max(1, totalDrivers) / rowsPerPage);
-  const startIndex = (page - 1) * rowsPerPage;
-  const endIndex = Math.min(startIndex + rowsPerPage, totalDrivers);
-  const currentPageDrivers = drivers.slice(startIndex, endIndex);
 
   // The files this TODA actually uploaded at registration (nothing is listed that is not on file)
   const officialDocs = toda.documents ?? [];
@@ -228,19 +140,63 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
           </PageNotice>
         )}
 
-        {/* Accreditation controls: record the renewal of the Barangay Clearance, remind the TODA, or suspend the accreditation after review */}
-        {rosterSummary && (
-          <DetailSection title="Master Roster">
-            <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.6 }}>
-              <b>{rosterSummary.from_registration_file}</b> member{rosterSummary.from_registration_file === 1 ? '' : 's'} came from the roster file the TODA registered with
-              {rosterSummary.registration_file ? ` (${rosterSummary.registration_file.file_name})` : ''}, which is kept as submitted. Its Master Roster today holds{' '}
-              <b>{rosterSummary.active}</b> active member{rosterSummary.active === 1 ? '' : 's'}: {rosterSummary.added_later} added since, {rosterSummary.left} no longer a member.
-              {rosterSummary.versions.filter((v) => v.kind === 'update').length > 0
-                ? ` ${rosterSummary.versions.filter((v) => v.kind === 'update').length} newer roster file version${rosterSummary.versions.filter((v) => v.kind === 'update').length === 1 ? '' : 's'} submitted (latest ${new Date(rosterSummary.versions.filter((v) => v.kind === 'update')[0].uploaded_at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}).`
-                : ''}
-            </Typography>
-          </DetailSection>
+        {/* Changes the TODA asked for: its record in force stays as it is until the LGU decides, in its own words */}
+        {changes.some((c) => c.status === 'Pending') && (
+          <PageNotice tone="warning" title="Changes waiting for your decision">
+            <Box component="span" sx={{ display: 'block', mb: '8px' }}>The details and the bylaws in force stay as they are until you approve.</Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {changes.filter((c) => c.status === 'Pending').map((c) => (
+                <Box key={c.requestId} sx={{ backgroundColor: '#FFFFFF', border: `1px solid ${PAGE_BORDER}`, borderRadius: '10px', p: '10px 12px' }}>
+                  <Typography sx={{ fontSize: FONT.body, fontWeight: 700, color: PAGE_TEXT.primary }}>
+                    {c.kind === 'profile' ? 'Change to the TODA details' : 'New Internal Bylaws'}
+                    <Typography component="span" sx={{ fontSize: FONT.small, fontWeight: 500, color: PAGE_TEXT.secondary }}> · sent {formatDay(c.requestedAt)}{c.requestedByName ? ` by ${c.requestedByName}` : ''}</Typography>
+                  </Typography>
+                  {c.kind === 'profile' ? (
+                    <Box component="ul" sx={{ m: '4px 0 0', pl: '18px' }}>
+                      {Object.keys(c.proposed).map((key) => (
+                        <li key={key}>
+                          <Typography component="span" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
+                            {CHANGE_FIELD_LABEL[key] ?? key}: {String(c.previous[key] ?? 'not set')} → <b>{String(c.proposed[key] ?? 'not set')}</b>
+                          </Typography>
+                        </li>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', mt: '4px' }}>
+                      <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, overflowWrap: 'anywhere' }}>{(c.fileName || 'New bylaws file').replace(/^\d{13}_/, '')}</Typography>
+                      <Button onClick={() => setSelectedDoc({ name: (c.fileName || 'New Internal Bylaws').replace(/^\d{13}_/, ''), type: 'Internal Bylaws (proposed)', url: String(c.proposed.bylaws_url || '') })} sx={rowActionSx('brand')}>View new file</Button>
+                    </Box>
+                  )}
+                  {c.reason && <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, mt: '4px' }}><b>The TODA's reason:</b> {c.reason}</Typography>}
+                  <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap', mt: '8px' }}>
+                    <Button onClick={() => setChangeDecision({ request: c, approve: false })} sx={rowActionSx('danger')}>Reject</Button>
+                    <Button variant="contained" onClick={() => setChangeDecision({ request: c, approve: true })} sx={primaryButtonSx}>Approve</Button>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+            {changeFeedback && <Box component="span" sx={{ display: 'block', fontWeight: 700, mt: '6px', color: changeFeedback.ok ? PAGE_TEXT.success : PAGE_TEXT.danger }}>{changeFeedback.text}</Box>}
+          </PageNotice>
         )}
+
+        {/* Master Roster: the list itself is on its own page, next to every registered driver */}
+        <DetailSection title="Master Roster and drivers">
+          <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.6 }}>
+            {rosterSummary ? (
+              <>
+                <b>{rosterSummary.active}</b> active member{rosterSummary.active === 1 ? '' : 's'} on the Master Roster ({rosterSummary.from_registration_file} from the registration file, {rosterSummary.added_later} added since,{' '}
+                {rosterSummary.left} no longer a member), and <b>{toda.registeredDrivers}</b> registered {toda.registeredDrivers === 1 ? 'driver' : 'drivers'}.
+              </>
+            ) : (
+              <>{toda.registeredDrivers} registered {toda.registeredDrivers === 1 ? 'driver' : 'drivers'}.</>
+            )}
+          </Typography>
+          <Box sx={{ mt: '10px' }}>
+            <Button variant="contained" onClick={() => { onClose(); navigate(`/accredited-todas/${toda.id}/roster`); }} sx={primaryButtonSx}>
+              Open the Master Roster
+            </Button>
+          </Box>
+        </DetailSection>
 
         <DetailSection title="Accreditation">
           <Box sx={{ backgroundColor: '#FAFAF8', border: `1px solid ${PAGE_BORDER}`, borderRadius: '12px', padding: '14px 16px' }}>
@@ -298,20 +254,12 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
           </DetailGrid>
         </DetailSection>
 
-        {/* Service zone and boundary map */}
-        <DetailSection title="Service zone and boundary">
-          <Box
-            sx={{
-              width: '100%',
-              height: 210,
-              borderRadius: '12px',
-              overflow: 'hidden',
-              border: `1px solid ${PAGE_BORDER}`,
-              position: 'relative',
-            }}
-          >
-            <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-          </Box>
+        {/* Service zone and boundary: the terminal pin on a real map, inside the area SAKAY serves */}
+        <DetailSection title="Service zone and boundary" note={toda.serviceZone || toda.barangay}>
+          <TodaZoneMap
+            terminal={toda.centerLat && toda.centerLng ? { lat: Number(toda.centerLat), lng: Number(toda.centerLng), label: toda.serviceZone || toda.barangay } : null}
+            proposed={toda.pendingTerminalLat != null && toda.pendingTerminalLng != null ? { lat: Number(toda.pendingTerminalLat), lng: Number(toda.pendingTerminalLng), label: toda.pendingTerminalLocation ?? undefined } : null}
+          />
         </DetailSection>
 
         {/* Official records and permits */}
@@ -361,73 +309,6 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
           </Box>
         </DetailSection>
 
-        {/* Affiliated driver roster */}
-        <DetailSection title="Affiliated drivers" note={totalDrivers > 0 ? `Showing ${startIndex + 1}–${endIndex} of ${totalDrivers}` : `${totalDrivers} drivers`}>
-          <DataTableCard
-            label="Affiliated drivers"
-            minWidth={620}
-            stackBelow={560}
-            columns={[{ label: 'Driver' }, { label: 'Plate' }, { label: 'Online' }, { label: 'Verification' }, { label: 'Account' }, { label: 'Action', align: 'right' }]}
-          >
-            <TableBody>
-              {isLoadingDrivers ? (
-                <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading drivers..." />
-              ) : currentPageDrivers.length > 0 ? (
-                currentPageDrivers.map((drv) => (
-                  <TableRow key={drv.id} onClick={() => setSelectedDriver(drv)} sx={{ cursor: 'pointer' }}>
-                    <TableCell>
-                      <PersonCell name={drv.name} />
-                    </TableCell>
-                    <TableCell sx={{ color: PAGE_TEXT.secondary }}>{drv.vehiclePlate}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: drv.onlineStatus === 'Online' ? '#34A853' : '#9AA0A6' }} />
-                        <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>{drv.onlineStatus}</Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={drv.verificationStatus as any} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={drv.accountStatus as any} />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Button
-                        aria-label={`Review driver ${drv.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedDriver(drv);
-                        }}
-                        sx={rowActionSx('neutral')}
-                      >
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <DataTableMessageRow colSpan={6} kind="empty" title="No drivers yet" hint="No registered drivers are affiliated with this TODA." />
-              )}
-            </TableBody>
-          </DataTableCard>
-
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={(_, val) => setPage(val)}
-                size="small"
-                sx={{
-                  '& .Mui-selected': {
-                    backgroundColor: '#C75000 !important',
-                    color: '#FFFFFF',
-                  },
-                }}
-              />
-            </Box>
-          )}
-        </DetailSection>
       </MacCenterModal>
 
 
@@ -439,6 +320,10 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         hasClearance={toda.hasBarangayClearance !== false}
         currentCertificateNumber={toda.certificateNumber}
         declaredValidUntil={toda.declaredClearanceValidUntil}
+        onViewClearance={() => {
+          const clearance = officialDocs.find((d) => /clearance/i.test(d.type) || /clearance/i.test(d.name));
+          if (clearance) setSelectedDoc({ name: clearance.name, type: clearance.type, url: clearance.url });
+        }}
         onClose={() => setRenewOpen(false)}
         onSubmit={async (certificateNumber, validUntilIso, remarks) => {
           await approveTodaApplication(toda.id, remarks ? `Renewal. ${remarks}` : 'Renewal of the Barangay Clearance.', certificateNumber, validUntilIso);
@@ -530,14 +415,33 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
         }}
       />
 
-      {/* Driver Detail Inspection Modal */}
-      {selectedDriver && (
-        <DriverDetailModal
-          open={Boolean(selectedDriver)}
-          onClose={() => setSelectedDriver(null)}
-          driver={selectedDriver}
-        />
-      )}
+      {/* The LGU decides a change in its own words (10 to 500 characters); the TODA reads them */}
+      <MacConfirmDialog
+        open={changeDecision !== null}
+        onClose={() => setChangeDecision(null)}
+        title={changeDecision?.approve ? 'Approve this change?' : 'Reject this change?'}
+        message={changeDecision?.approve
+          ? `The TODA's ${changeDecision.request.kind === 'profile' ? 'details become the ones it asked for' : 'Internal Bylaws become the new file'} from now on. The decision is recorded with your name and your reason.`
+          : 'Nothing changes: the TODA keeps what is in force and reads your reason.'}
+        confirmLabel={changeDecision?.approve ? 'Approve the change' : 'Reject the change'}
+        confirmVariant={changeDecision?.approve ? 'orange' : 'danger'}
+        requireReason
+        minReasonLength={10}
+        reasonPlaceholder={changeDecision?.approve ? 'Why is it approved? (at least 10 characters)' : 'Why is it rejected? (at least 10 characters)'}
+        onConfirm={async (reason) => {
+          const decision = changeDecision;
+          setChangeDecision(null);
+          if (!decision) return;
+          try {
+            await decideTodaChangeRequest(decision.request.requestId, decision.approve, reason ?? '');
+            setChangeFeedback({ ok: true, text: decision.approve ? 'Approved. The change is now in force.' : 'Rejected. The TODA was told why.' });
+            loadChanges();
+            await onChanged?.();
+          } catch (err) {
+            setChangeFeedback({ ok: false, text: err instanceof Error ? err.message : 'The decision was not saved.' });
+          }
+        }}
+      />
 
       {/* Document Inspection Popover */}
       {selectedDoc && (

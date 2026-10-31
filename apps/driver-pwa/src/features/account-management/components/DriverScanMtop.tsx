@@ -215,6 +215,9 @@ export const DriverScanMtop: React.FC = () => {
         }
       }
 
+      // Only the permit inside the guide frame is kept, never the whole camera frame
+      rawPhoto = processedPhoto;
+
       if (!processedPhoto) {
         // Fallback sample MTOP photo if camera stream is unavailable in desktop preview mode
         processedPhoto = defaultMtopSample;

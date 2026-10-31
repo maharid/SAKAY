@@ -9,6 +9,18 @@ import {
   createMapCamera,
   DRIVER_MARKER_SIZE,
   driverMarkerHtml,
+  destinationMarkerHtml,
+  DESTINATION_MARKER_ANCHOR,
+  DESTINATION_MARKER_HEIGHT,
+  DESTINATION_MARKER_WIDTH,
+  DESTINATION_MARKER_Z_OFFSET,
+  DESTINATION_POPUP_OFFSET,
+  pickupMarkerHtml,
+  PICKUP_MARKER_ANCHOR,
+  PICKUP_MARKER_SIZE,
+  PICKUP_MARKER_Z_OFFSET,
+  PICKUP_POPUP_OFFSET,
+  placePopupElement,
   passengerMarkerHtml,
   PASSENGER_MARKER_SIZE,
   resolveHeading,
@@ -32,6 +44,10 @@ export interface MapViewProps {
   userLocation?: GlideFix | null;
   pickupLocation?: { lat: number; lng: number } | null;
   dropoffLocation?: { lat: number; lng: number } | null;
+  /** What the popup of the pickup marker says: its heading ("Pickup") and the booking's address, in the screen's language */
+  pickupLabel?: { title: string; address?: string | null };
+  /** The same for the destination marker */
+  dropoffLabel?: { title: string; address?: string | null };
   driverLocation?: GlideFix | null;
   routeCoordinates?: [number, number][];
   recenterTrigger?: number;
@@ -98,6 +114,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     userLocation,
     pickupLocation,
     dropoffLocation,
+    pickupLabel,
+    dropoffLabel,
     driverLocation,
     routeCoordinates,
     recenterTrigger = 0,
@@ -499,7 +517,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       getOSRMRoute(startPoint.lat, startPoint.lng, endPoint.lat, endPoint.lng)
         .then((result) => {
-          if (isMounted && result.coordinates && result.coordinates.length >= 2) {
+          if (isMounted && result.source === "osrm" && result.coordinates && result.coordinates.length >= 2) {
             setRoadCoords(result.coordinates);
           }
         })
@@ -539,55 +557,42 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     // (The person's position and the driver's tricycle are live markers, moved by their own effects above.)
 
-    // 2. Pickup Marker: Google Maps Style Glowing & Moving Circle
+    // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared mapMarkers): a green pickup badge and a red
+    //    destination pin. Pressing either opens a popup that names the place.
     if (pickupLocation && pickupLocation.lat !== 0) {
-      const pickupIcon = L.divIcon({
-        className: "leaflet-pickup-marker",
-        html: `
-          <div class="leaflet-gmaps-pickup-container">
-            <div class="gmaps-pickup-radar-wave"></div>
-            <div class="gmaps-pickup-radar-wave wave-delayed"></div>
-            <div class="gmaps-pickup-aura"></div>
-            <div class="gmaps-pickup-core-dot"></div>
-          </div>
-        `,
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
+      const title = pickupLabel?.title || "Pickup";
+      const marker = L.marker([pickupLocation.lat, pickupLocation.lng], {
+        icon: L.divIcon({
+          className: "leaflet-pickup-marker",
+          html: pickupMarkerHtml(),
+          iconSize: [PICKUP_MARKER_SIZE, PICKUP_MARKER_SIZE],
+          iconAnchor: PICKUP_MARKER_ANCHOR,
+        }),
+        title: pickupLabel?.address ? `${title}: ${pickupLabel.address}` : title,
+        alt: title,
+        keyboard: true,
+        zIndexOffset: PICKUP_MARKER_Z_OFFSET,
       });
-
-      L.marker([pickupLocation.lat, pickupLocation.lng], { icon: pickupIcon }).addTo(markersLayer);
+      marker.bindPopup(placePopupElement(title, pickupLabel?.address), { offset: PICKUP_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
+      marker.addTo(markersLayer);
     }
 
-    // 3. Dropoff Marker: Google Maps Style Red Location Pin
     if (dropoffLocation && dropoffLocation.lat !== 0) {
-      const dropoffIcon = L.divIcon({
-        className: "leaflet-destination-marker",
-        html: `
-          <div style="
-            position: relative;
-            width: 32px;
-            height: 42px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.38));
-            cursor: pointer;
-          ">
-            <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M16 0C7.16344 0 0 7.16344 0 16C0 27.2 14.5 40.5 15.36 41.28C15.73 41.62 16.27 41.62 16.64 41.28C17.5 40.5 32 27.2 32 16C32 7.16344 24.8366 0 16 0Z"
-                fill="#EA4335"
-              />
-              <circle cx="16" cy="16" r="6.2" fill="#FFFFFF" />
-              <circle cx="16" cy="16" r="3" fill="#C5221F" />
-            </svg>
-          </div>
-        `,
-        iconSize: [32, 42],
-        iconAnchor: [16, 42],
+      const title = dropoffLabel?.title || "Destination";
+      const marker = L.marker([dropoffLocation.lat, dropoffLocation.lng], {
+        icon: L.divIcon({
+          className: "leaflet-destination-marker",
+          html: destinationMarkerHtml(),
+          iconSize: [DESTINATION_MARKER_WIDTH, DESTINATION_MARKER_HEIGHT],
+          iconAnchor: DESTINATION_MARKER_ANCHOR,
+        }),
+        title: dropoffLabel?.address ? `${title}: ${dropoffLabel.address}` : title,
+        alt: title,
+        keyboard: true,
+        zIndexOffset: DESTINATION_MARKER_Z_OFFSET,
       });
-
-      L.marker([dropoffLocation.lat, dropoffLocation.lng], { icon: dropoffIcon }).addTo(markersLayer);
+      marker.bindPopup(placePopupElement(title, dropoffLabel?.address), { offset: DESTINATION_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
+      marker.addTo(markersLayer);
     }
 
     // 5. Draw Road-Based Route Polyline (Google Maps style) & Fit Bounds (No straight-line fallback)
@@ -636,7 +641,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
     // The pins and the route are redrawn only when they change (the live markers have their own effects), so the dependencies are their numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, roadCoords, routeCoordinates, searchActive, stageKey]);
+  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, pickupLabel?.title, pickupLabel?.address, dropoffLabel?.title, dropoffLabel?.address, roadCoords, routeCoordinates, searchActive, stageKey]);
 
   // The driver-search area: a dashed light-orange circle around the pickup, at the radius the DATABASE reports. When the search widens the
   // circle grows to the new radius over a moment (or at once for a person who prefers reduced motion), and the camera frames it.

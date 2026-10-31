@@ -613,6 +613,8 @@ const NewTrip: React.FC = () => {
         userLocation={pickup.lat ? { lat: pickup.lat, lng: pickup.lng } : undefined}
         pickupLocation={pickup.lat ? pickup : undefined}
         dropoffLocation={dropoff.lat && !dropoffOutside ? dropoff : undefined}
+        pickupLabel={{ title: "Pickup", address: pickup.address }}
+        dropoffLabel={{ title: language === "tl" ? "Destinasyon" : "Destination", address: dropoff.address }}
         routeCoordinates={routeCoordinates}
         recenterTrigger={recenterTrigger}
         insets={mapInsets}

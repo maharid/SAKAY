@@ -9,9 +9,19 @@ import {
   createMapCamera,
   DRIVER_MARKER_SIZE,
   driverMarkerHtml,
+  destinationMarkerHtml,
+  DESTINATION_MARKER_ANCHOR,
+  DESTINATION_MARKER_HEIGHT,
+  DESTINATION_MARKER_WIDTH,
+  DESTINATION_MARKER_Z_OFFSET,
+  DESTINATION_POPUP_OFFSET,
+  pickupMarkerHtml,
+  PICKUP_MARKER_ANCHOR,
+  PICKUP_MARKER_SIZE,
+  PICKUP_MARKER_Z_OFFSET,
+  PICKUP_POPUP_OFFSET,
+  placePopupElement,
   getOSRMRoute,
-  passengerMarkerHtml,
-  PASSENGER_MARKER_SIZE,
   resolveHeading,
   type CameraMap,
   type CameraMode,
@@ -40,6 +50,10 @@ export interface MapViewProps {
   userLocation?: GlideFix | null;
   pickupLocation?: { lat: number; lng: number } | null;
   dropoffLocation?: { lat: number; lng: number } | null;
+  /** What the popup of the pickup marker says: its heading ("Pickup") and the booking's address, in the screen's language */
+  pickupLabel?: { title: string; address?: string | null };
+  /** The same for the destination marker */
+  dropoffLabel?: { title: string; address?: string | null };
   routeCoordinates?: [number, number][];
   recenterTrigger?: number;
   height?: string;
@@ -79,6 +93,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     userLocation,
     pickupLocation,
     dropoffLocation,
+    pickupLabel,
+    dropoffLabel,
     routeCoordinates,
     recenterTrigger = 0,
     height = "100%",
@@ -389,7 +405,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       getOSRMRoute(startPoint.lat, startPoint.lng, endPoint.lat, endPoint.lng)
         .then((result) => {
-          if (isMounted && result.coordinates && result.coordinates.length >= 2) {
+          if (isMounted && result.source === "osrm" && result.coordinates && result.coordinates.length >= 2) {
             setRoadCoords(result.coordinates);
           }
         })
@@ -427,52 +443,42 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     // (The driver's own marker is a live marker, moved by its own effect above.)
 
-    // 2. The pickup. While the passenger is still to be collected it is THE PASSENGER: the same blue person marker the passenger sees for
-    //    themselves. After boarding the place is only a spot already passed, so it is a small quiet dot.
+    // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared mapMarkers): a green pickup badge and a red
+    //    destination pin. Pressing either opens a popup that names the place.
     if (pickupLocation && pickupLocation.lat !== 0) {
-      const waiting = !(dropoffLocation && dropoffLocation.lat !== 0);
-      const pickupIcon = waiting
-        ? L.divIcon({
-            className: "leaflet-pickup-marker",
-            html: passengerMarkerHtml(),
-            iconSize: [PASSENGER_MARKER_SIZE, PASSENGER_MARKER_SIZE],
-            iconAnchor: [PASSENGER_MARKER_SIZE / 2, PASSENGER_MARKER_SIZE / 2],
-          })
-        : L.divIcon({
-            className: "leaflet-pickup-marker",
-            html: `<div style="width:14px;height:14px;background-color:#FFFFFF;border:3px solid #FF6600;border-radius:50%;opacity:0.85;box-shadow:0 2px 6px rgba(15,23,42,0.25);box-sizing:content-box;"></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-          });
-
-      L.marker([pickupLocation.lat, pickupLocation.lng], { icon: pickupIcon, zIndexOffset: waiting ? 800 : 0 }).addTo(markersLayer);
+      const title = pickupLabel?.title || "Pickup";
+      const marker = L.marker([pickupLocation.lat, pickupLocation.lng], {
+        icon: L.divIcon({
+          className: "leaflet-pickup-marker",
+          html: pickupMarkerHtml(),
+          iconSize: [PICKUP_MARKER_SIZE, PICKUP_MARKER_SIZE],
+          iconAnchor: PICKUP_MARKER_ANCHOR,
+        }),
+        title: pickupLabel?.address ? `${title}: ${pickupLabel.address}` : title,
+        alt: title,
+        keyboard: true,
+        zIndexOffset: PICKUP_MARKER_Z_OFFSET,
+      });
+      marker.bindPopup(placePopupElement(title, pickupLabel?.address), { offset: PICKUP_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
+      marker.addTo(markersLayer);
     }
 
-    // 3. Dropoff Pin Marker (Red/Orange)
     if (dropoffLocation && dropoffLocation.lat !== 0) {
-      const dropoffIcon = L.divIcon({
-        className: "leaflet-dropoff-marker",
-        html: `
-          <div style="
-            width: 28px;
-            height: 28px;
-            background-color: #EF4444;
-            border: 3px solid #FFFFFF;
-            border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #FFFFFF;
-            font-size: 11px;
-            font-weight: 800;
-          ">D</div>
-        `,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+      const title = dropoffLabel?.title || "Destination";
+      const marker = L.marker([dropoffLocation.lat, dropoffLocation.lng], {
+        icon: L.divIcon({
+          className: "leaflet-destination-marker",
+          html: destinationMarkerHtml(),
+          iconSize: [DESTINATION_MARKER_WIDTH, DESTINATION_MARKER_HEIGHT],
+          iconAnchor: DESTINATION_MARKER_ANCHOR,
+        }),
+        title: dropoffLabel?.address ? `${title}: ${dropoffLabel.address}` : title,
+        alt: title,
+        keyboard: true,
+        zIndexOffset: DESTINATION_MARKER_Z_OFFSET,
       });
-
-      L.marker([dropoffLocation.lat, dropoffLocation.lng], { icon: dropoffIcon }).addTo(markersLayer);
+      marker.bindPopup(placePopupElement(title, dropoffLabel?.address), { offset: DESTINATION_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
+      marker.addTo(markersLayer);
     }
 
     // 4. Draw Road-Based Route Polyline (OSRM geometry) & Fit Bounds (No ugly straight line fallback)
@@ -514,7 +520,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
     // The pins and the route are redrawn only when they change (the driver's marker has its own effect), so the dependencies are their numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, roadCoords, routeCoordinates, stageKey]);
+  }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, pickupLabel?.title, pickupLabel?.address, dropoffLabel?.title, dropoffLabel?.address, roadCoords, routeCoordinates, stageKey]);
 
   // Recenter trigger listener (an explicit press elsewhere on the screen): takes the camera back, then frames the route, or centres on the
   // driver, inside the visible area

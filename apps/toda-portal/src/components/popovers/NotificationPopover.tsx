@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Typography, Popover, Button, List, ListItem, ListItemText, Divider } from '@mui/material';
-import { notificationPanelText } from '@sakay/shared';
+import { Box, Typography, Popover, Button, List, ListItem, Divider } from '@mui/material';
+import { PortalNoticeRow, notificationPanelText } from '@sakay/shared';
 import { NotificationItem } from '../../types/toda';
 import { useLanguage } from '../../hooks/useLanguage';
 import { FONT } from '../../styles/density';
@@ -11,6 +11,8 @@ interface NotificationPopoverProps {
   anchorEl: HTMLElement | null;
   notifications: NotificationItem[];
   onMarkAllAsRead: () => void;
+  /** Opens the page or the record a notice is about (and marks it read) */
+  onNotificationClick?: (item: NotificationItem) => void;
 }
 
 export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
@@ -19,6 +21,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   anchorEl,
   notifications,
   onMarkAllAsRead,
+  onNotificationClick,
 }) => {
   const { language } = useLanguage();
   const text = notificationPanelText(language);
@@ -76,37 +79,18 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         {notifications.length > 0 ? (
           notifications.map((n, idx) => (
             <React.Fragment key={n.id}>
-              <ListItem
-                sx={{
-                  px: '16px',
-                  py: '11px',
-                  backgroundColor: n.unread ? 'rgba(255, 102, 0, 0.04)' : 'transparent',
-                  '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                }}
-              >
-                <ListItemText
-                  // the texts hold block elements, so they are not paragraphs or spans
-                  slotProps={{ primary: { component: 'div' }, secondary: { component: 'div' } }}
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '3px' }}>
-                      <Typography sx={{ fontSize: FONT.body, fontWeight: n.unread ? 700 : 500, color: 'var(--mac-text-primary)' }}>
-                        {n.title}
-                      </Typography>
-                      {n.unread && (
-                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--sakay-orange)', flexShrink: 0, ml: '8px' }} />
-                      )}
-                    </Box>
-                  }
-                  secondary={
-                    <Box>
-                      <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-secondary)', lineHeight: 1.4 }}>
-                        {n.description}
-                      </Typography>
-                      <Typography sx={{ fontSize: FONT.caption, color: '#65656a', mt: '3px' }}>
-                        {n.time}
-                      </Typography>
-                    </Box>
-                  }
+              <ListItem disablePadding>
+                <PortalNoticeRow
+                  type={n.type}
+                  title={n.title}
+                  description={n.description}
+                  time={n.time}
+                  unread={n.unread}
+                  unreadLabel={text.unread}
+                  onOpen={() => {
+                    onNotificationClick?.(n);
+                    onClose();
+                  }}
                 />
               </ListItem>
               {idx < notifications.length - 1 && <Divider sx={{ borderColor: 'var(--mac-border-color)' }} />}

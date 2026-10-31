@@ -38,7 +38,7 @@ export const ConnectionLostBanner: React.FC<ConnectionLostBannerProps> = ({ lang
         backgroundColor: '#B91C1C',
         color: '#FFFFFF',
         boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
-        fontFamily: 'Poppins, sans-serif',
+        fontFamily: 'var(--sakay-font-family, Poppins), sans-serif',
       }}
     >
       <WifiOffIcon sx={{ fontSize: 20, flexShrink: 0 }} />

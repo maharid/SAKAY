@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, Dialog } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { DialogCloseButton } from '@sakay/shared';
 import { CONTROL, FONT } from '../../styles/density';
 
 interface LogoutConfirmModalProps {
@@ -32,6 +33,7 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
         },
       }}
     >
+      <DialogCloseButton onClick={onClose} sx={{ position: 'absolute', top: 10, right: 10 }} />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
         <Box
           sx={{

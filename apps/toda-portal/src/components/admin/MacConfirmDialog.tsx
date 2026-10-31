@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
+import { DialogCloseButton } from '@sakay/shared';
 import { dangerButtonSx, primaryButtonSx, secondaryButtonSx } from '../common/pageButtons';
 import { OPS_TEXT } from '../operations/operationsTheme';
 import { FONT } from '../../styles/density';
@@ -85,11 +86,14 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
       }}
     >
       <DialogTitle sx={{ padding: '16px 19px 10px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {confirmVariant === 'danger' && <WarningAmberIcon aria-hidden sx={{ color: '#B91C1C', fontSize: 19 }} />}
-          <Typography id="confirm-dialog-title" component="span" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary }}>
-            {title}
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            {confirmVariant === 'danger' && <WarningAmberIcon aria-hidden sx={{ color: '#B91C1C', fontSize: 19 }} />}
+            <Typography id="confirm-dialog-title" component="span" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: OPS_TEXT.primary, overflowWrap: 'anywhere' }}>
+              {title}
+            </Typography>
+          </Box>
+          <DialogCloseButton onClick={onClose} disabled={isLoading} />
         </Box>
       </DialogTitle>
 

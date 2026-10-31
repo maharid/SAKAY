@@ -505,7 +505,7 @@ export const DriverLogin: React.FC = () => {
                 '&:hover': { color: '#E65C00', textDecoration: 'underline' },
               }}
             >
-              {t.registerLink || 'Mag-register'}
+              {t.registerLink || 'Register'}
             </Box>
           </Typography>
         </Box>

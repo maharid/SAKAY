@@ -2,7 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import '@fontsource/poppins';
+import '@fontsource/poppins/latin-400.css';
+import '@fontsource/poppins/latin-500.css';
+import '@fontsource/poppins/latin-600.css';
+import '@fontsource/poppins/latin-700.css';
 import App from './App';
 import { installBrowserLockdown } from '@sakay/shared';
 import './styles/globals.css';
@@ -59,6 +62,14 @@ const theme = createTheme({
           },
           '&.Mui-focused': {
             boxShadow: '0 0 0 3px rgba(255, 102, 0, 0.12)',
+          },
+          // a multi-line field: the text area carries the inset (the box adds none), so its text starts at the same left edge as a one-line field
+          '&.MuiInputBase-multiline': {
+            padding: 0,
+            alignItems: 'flex-start',
+          },
+          '&.MuiInputBase-multiline .MuiOutlinedInput-input': {
+            padding: '18px 14px 12px !important',
           },
         },
         input: {
@@ -125,6 +136,14 @@ const theme = createTheme({
               paddingBottom: '4px !important',
               paddingLeft: '14px',
               fontSize: '14px',
+            },
+            // a multi-line field: the text area carries the inset (the box adds none), so its text starts at the same left edge as a one-line field
+            '&.MuiInputBase-multiline': {
+              padding: 0,
+              alignItems: 'flex-start',
+            },
+            '&.MuiInputBase-multiline .MuiOutlinedInput-input': {
+              padding: '18px 14px 12px !important',
             },
           },
         },

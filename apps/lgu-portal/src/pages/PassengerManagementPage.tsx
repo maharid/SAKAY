@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, TableBody, TableCell, TableRow, Rating, Chip, Button } from '@mui/material';
+import { Box, Typography, TableBody, TableCell, TableRow, Rating, Chip, Button, Tabs, Tab } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import ShieldIcon from '@mui/icons-material/Shield';
 
@@ -43,6 +43,11 @@ export const PassengerManagementPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [verificationFilter, setVerificationFilter] = useState('All');
   const [selectedPassenger, setSelectedPassenger] = useState<PassengerRecord | null>(null);
+  // which part of the account is open (the window always opens on the first)
+  const [accountTab, setAccountTab] = useState<'account' | 'strikes' | 'feedback'>('account');
+  useEffect(() => {
+    setAccountTab('account');
+  }, [selectedPassenger?.id]);
   const [strikeIssued, setStrikeIssued] = useState(false);
 
   // Suspension, Reactivation & Strike Dialog States
@@ -343,6 +348,53 @@ export const PassengerManagementPage: React.FC = () => {
             </Typography>
           </Box>
 
+          {/* A suspension or closure, as decided by the database, is always in view */}
+          <RestrictionBanner
+            kind={selectedPassenger.restrictionKind}
+            suspendedUntil={selectedPassenger.suspendedUntil}
+            reason={selectedPassenger.suspensionReason}
+          />
+
+
+          <Tabs
+            value={accountTab}
+            onChange={(_, value) => setAccountTab(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            aria-label="Parts of the passenger account"
+            sx={{
+              minHeight: 40,
+              mb: 2,
+              borderBottom: `1px solid ${PAGE_BORDER}`,
+              '& .MuiTabs-indicator': { backgroundColor: '#C75000', height: 3 },
+              '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.secondary, px: 1.6 },
+              '& .MuiTab-root.Mui-selected': { color: '#B34700' },
+              '& .MuiTab-root.Mui-focusVisible': { outline: '2px solid #C75000', outlineOffset: -2 },
+            }}
+          >
+            <Tab value="account" label="Account" id="passenger-tab-account" aria-controls="passenger-panel-account" />
+            <Tab value="strikes" label={`Strikes${selectedPassenger.strikesCount > 0 ? ` (${selectedPassenger.strikesCount})` : ''}`} id="passenger-tab-strikes" aria-controls="passenger-panel-strikes" />
+            <Tab value="feedback" label={`Feedback${(selectedPassenger.recentFeedback?.length ?? 0) > 0 ? ` (${selectedPassenger.recentFeedback?.length ?? 0})` : ''}`} id="passenger-tab-feedback" aria-controls="passenger-panel-feedback" />
+          </Tabs>
+
+          {accountTab === 'account' && <Box role="tabpanel" id="passenger-panel-account" aria-labelledby="passenger-tab-account">
+          {/* Account details */}
+          <DetailSection title="Account details">
+            <DetailGrid>
+              <DetailField label="Mobile phone">{selectedPassenger.phone}</DetailField>
+              <DetailField label="Email address">{selectedPassenger.email}</DetailField>
+              <DetailField label="Verification">
+                <Box component="span" sx={{ color: selectedPassenger.verificationStatus === 'Verified' ? PAGE_TEXT.success : PAGE_TEXT.warning }}>
+                  {selectedPassenger.verificationStatus === 'Verified' ? 'Verified (mobile number confirmed by OTP)' : 'Unverified (the OTP step is not finished; no booking is possible yet)'}
+                </Box>
+              </DetailField>
+              <DetailField label="Completed rides">{selectedPassenger.totalBookings} {selectedPassenger.totalBookings === 1 ? 'booking' : 'bookings'}</DetailField>
+            </DetailGrid>
+          </DetailSection>
+
+          </Box>}
+          {accountTab === 'strikes' && <Box role="tabpanel" id="passenger-panel-strikes" aria-labelledby="passenger-tab-strikes">
           {/* Strikes and policy compliance */}
           <DetailSection title="Strikes" note="Last 90 days">
             <Box sx={{ backgroundColor: '#FAFAF8', border: `1px solid ${PAGE_BORDER}`, padding: '14px 16px', borderRadius: '12px' }}>
@@ -414,27 +466,8 @@ export const PassengerManagementPage: React.FC = () => {
             </Box>
           </DetailSection>
 
-          {/* Suspension / deactivation state, as decided by the database */}
-          <RestrictionBanner
-            kind={selectedPassenger.restrictionKind}
-            suspendedUntil={selectedPassenger.suspendedUntil}
-            reason={selectedPassenger.suspensionReason}
-          />
-
-          {/* Account details */}
-          <DetailSection title="Account details">
-            <DetailGrid>
-              <DetailField label="Mobile phone">{selectedPassenger.phone}</DetailField>
-              <DetailField label="Email address">{selectedPassenger.email}</DetailField>
-              <DetailField label="Verification">
-                <Box component="span" sx={{ color: selectedPassenger.verificationStatus === 'Verified' ? PAGE_TEXT.success : PAGE_TEXT.warning }}>
-                  {selectedPassenger.verificationStatus === 'Verified' ? 'Verified (mobile number confirmed by OTP)' : 'Unverified (the OTP step is not finished; no booking is possible yet)'}
-                </Box>
-              </DetailField>
-              <DetailField label="Completed rides">{selectedPassenger.totalBookings} {selectedPassenger.totalBookings === 1 ? 'booking' : 'bookings'}</DetailField>
-            </DetailGrid>
-          </DetailSection>
-
+          </Box>}
+          {accountTab === 'feedback' && <Box role="tabpanel" id="passenger-panel-feedback" aria-labelledby="passenger-tab-feedback">
           {/* Recent feedback about this passenger */}
           <DetailSection title="Recent feedback and complaints">
             {selectedPassenger.recentFeedback && selectedPassenger.recentFeedback.length > 0 ? (
@@ -481,6 +514,7 @@ export const PassengerManagementPage: React.FC = () => {
               </Typography>
             )}
           </DetailSection>
+          </Box>}
         </MacCenterModal>
       )}
 

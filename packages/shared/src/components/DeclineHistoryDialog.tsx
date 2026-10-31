@@ -6,11 +6,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
 import { DECLINE_REASON_LABELS, declineRatePercent } from '../utils/dispatchInsights';
 import type { DeclineHistory } from '../utils/dispatchInsights';
+import { SakayDialogTitle } from './SakayDialogTitle';
 
 export interface DeclineHistoryDialogProps {
   open: boolean;
@@ -41,7 +41,7 @@ const Stat: React.FC<{ label: string; value: React.ReactNode }> = ({ label, valu
  */
 export const DeclineHistoryDialog: React.FC<DeclineHistoryDialogProps> = ({ open, onClose, driverName, history, loading, failed }) => (
   <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-    <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Booking offers of {driverName}</DialogTitle>
+    <SakayDialogTitle onClose={onClose} sx={{ fontWeight: 700, fontSize: '16px' }}>Booking offers of {driverName}</SakayDialogTitle>
     <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress size={28} /></Box>}
       {failed && !loading && <Alert severity="warning">The history could not be read. It is available only for a driver of your own TODA, or to the LGU Administrator.</Alert>}

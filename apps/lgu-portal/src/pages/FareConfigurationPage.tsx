@@ -9,7 +9,6 @@ import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { CellStack, DataTableCard, FlagTag } from '../components/common/DataTable';
 import { DetailField, DetailGrid, DetailSection } from '../components/common/DetailSection';
 import { PageNotice } from '../components/common/PageNotice';
-import { StatStrip } from '../components/common/StatStrip';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { fetchFareMatrices, enactFareMatrix, fetchFareExample, type FareExample } from '../services/adminApiService';
 import { FONT, SPACE } from '../styles/density';
@@ -266,26 +265,15 @@ export const FareConfigurationPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
-      {/* 1. The figures of the rule in force */}
-      <StatStrip
-        label="Fare rule in force"
-        stats={[
-          { key: 'base', label: 'Base fare', value: `₱${activeMatrix.base_fare.toFixed(2)}`, note: `First ${activeMatrix.base_distance_km.toFixed(1)} km` },
-          { key: 'rate', label: 'Rate per extra km', value: `₱${activeMatrix.succeeding_rate.toFixed(2)}`, note: `After the first ${activeMatrix.base_distance_km.toFixed(1)} km` },
-          { key: 'solo', label: 'Solo trip base', value: `₱${(activeMatrix.solo_base_fare ?? 0).toFixed(2)}`, note: 'The whole 4-seat tricycle' },
-          { key: 'versions', label: 'Rule versions', value: fareHistory.length, note: `Version V${versionNumber(activeMatrix)} is in force` },
-        ]}
-      />
-
-      {/* 2. The rule in force, and how a fare is worked out from it */}
+      {/* 1. The rule in force (its figures, then who set it and since when), and how a fare is worked out from it */}
       <Box sx={{ containerType: 'inline-size', mb: SPACE.section }}>
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: 'minmax(0, 1fr)',
             gap: SPACE.gapLarge,
-            alignItems: 'stretch',
-            '@container (min-width: 900px)': { gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)' },
+            alignItems: 'start',
+            '@container (min-width: 900px)': { gridTemplateColumns: 'minmax(0, 6fr) minmax(0, 6fr)' },
           }}
         >
           <DashboardCard
@@ -298,14 +286,28 @@ export const FareConfigurationPage: React.FC = () => {
               </Button>
             }
           >
-            <DetailGrid>
-              <DetailField label="Base fare">{`₱${activeMatrix.base_fare.toFixed(2)} for the first ${activeMatrix.base_distance_km.toFixed(1)} km`}</DetailField>
-              <DetailField label="Rate per extra km">{`₱${activeMatrix.succeeding_rate.toFixed(2)} after ${activeMatrix.base_distance_km.toFixed(1)} km`}</DetailField>
-              <DetailField label="In force since">{activeMatrix.effective_date}</DetailField>
-              <DetailField label="Applies to">The whole city</DetailField>
-              <DetailField label="Set by">{activeMatrix.configured_by_lgu_admin}</DetailField>
-              <DetailField label="Rule ID">{activeMatrix.fare_matrix_id}</DetailField>
-            </DetailGrid>
+            {/* the figures that make a fare, in one row */}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+                border: `1px solid ${PAGE_BORDER}`,
+                borderRadius: '10px',
+                overflow: 'hidden',
+                backgroundColor: '#FAFAF8',
+              }}
+            >
+              <FigureBlock label="Base fare" value={`₱${activeMatrix.base_fare.toFixed(2)}`} note={`First ${activeMatrix.base_distance_km.toFixed(1)} km`} />
+              <FigureBlock label="Rate per extra km" value={`₱${activeMatrix.succeeding_rate.toFixed(2)}`} note={`After ${activeMatrix.base_distance_km.toFixed(1)} km`} />
+              <FigureBlock label="Solo trip base" value={`₱${(activeMatrix.solo_base_fare ?? 0).toFixed(2)}`} note="The whole 4-seat tricycle" />
+              <FigureBlock label="Version" value={`V${versionNumber(activeMatrix)}`} note={`of ${fareHistory.length} kept`} />
+            </Box>
+            <Box component="dl" sx={{ m: 0, mt: '14px', display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: '10px 20px' }}>
+              <FactLine label="In force since">{activeMatrix.effective_date}</FactLine>
+              <FactLine label="Applies to">The whole city</FactLine>
+              <FactLine label="Set by">{activeMatrix.configured_by_lgu_admin}</FactLine>
+              <FactLine label="Rule ID">{activeMatrix.fare_matrix_id}</FactLine>
+            </Box>
           </DashboardCard>
 
           <DashboardCard title="How a fare is worked out" description="Fares follow the Calapan City transport rules. The examples are calculated by the system from the rule in force.">
@@ -418,6 +420,23 @@ export const FareConfigurationPage: React.FC = () => {
     </Box>
   );
 };
+
+// One of the figures of the rule in force: the label, the amount and what it covers
+const FigureBlock: React.FC<{ label: string; value: string; note: string }> = ({ label, value, note }) => (
+  <Box sx={{ p: '12px 14px', borderRight: `1px solid ${PAGE_DIVIDER}`, '&:last-of-type': { borderRight: 'none' }, minWidth: 0 }}>
+    <Typography sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.secondary }}>{label}</Typography>
+    <Typography sx={{ fontSize: FONT.pageTitle, fontWeight: 700, color: PAGE_TEXT.primary, lineHeight: 1.2, mt: '2px' }}>{value}</Typography>
+    <Typography sx={{ fontSize: FONT.caption, color: PAGE_TEXT.secondary, mt: '2px', lineHeight: 1.35 }}>{note}</Typography>
+  </Box>
+);
+
+// One fact about the rule: a label and its value
+const FactLine: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <Box sx={{ minWidth: 0 }}>
+    <Typography component="dt" sx={{ fontSize: FONT.small, fontWeight: 600, color: PAGE_TEXT.secondary }}>{label}</Typography>
+    <Typography component="dd" sx={{ m: 0, mt: '1px', fontSize: FONT.body, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{children}</Typography>
+  </Box>
+);
 
 interface FormulaItemProps {
   title: string;

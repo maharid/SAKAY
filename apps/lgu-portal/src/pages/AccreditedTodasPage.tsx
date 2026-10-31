@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
 import { AccreditedTodaRecord } from '../mockData/adminData';
@@ -29,6 +30,10 @@ export const AccreditedTodasPage: React.FC = () => {
 
   // Selected TODA for Driver Directory Modal
   const [selectedToda, setSelectedToda] = useState<AccreditedTodaRecord | null>(null);
+  const navigate = useNavigate();
+  // the breadcrumb of the Master Roster page leads back to this TODA's window: ?toda=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const todaToOpen = searchParams.get('toda');
 
   const loadTodas = async () => {
     setIsLoading(true);
@@ -47,6 +52,13 @@ export const AccreditedTodasPage: React.FC = () => {
   useEffect(() => {
     loadTodas();
   }, []);
+
+  useEffect(() => {
+    if (!todaToOpen || todas.length === 0) return;
+    const found = todas.find((t) => t.id === todaToOpen);
+    if (found) setSelectedToda(found);
+    setSearchParams({}, { replace: true });
+  }, [todaToOpen, todas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTodas = todas.filter((t) => {
     const q = searchQuery.toLowerCase();
@@ -120,7 +132,7 @@ export const AccreditedTodasPage: React.FC = () => {
           { label: 'Representative' },
           { label: 'Service zone' },
           { label: 'Barangay Clearance' },
-          { label: 'Fleet' },
+          { label: 'Drivers' },
           { label: 'Status' },
           { label: 'Action', align: 'right' },
         ]}
@@ -167,9 +179,14 @@ export const AccreditedTodasPage: React.FC = () => {
                   <StatusBadge status={toda.status as any} />
                 </TableCell>
                 <TableCell align="right">
-                  <Button aria-label={`View details of ${toda.name}`} onClick={() => setSelectedToda(toda)} sx={rowActionSx('neutral')}>
-                    View details
-                  </Button>
+                  <Box sx={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Button aria-label={`View details of ${toda.name}`} onClick={() => setSelectedToda(toda)} sx={rowActionSx('neutral')}>
+                      View details
+                    </Button>
+                    <Button aria-label={`Open the master roster of ${toda.name}`} onClick={() => navigate(`/accredited-todas/${toda.id}/roster`)} sx={rowActionSx('brand')}>
+                      Master roster
+                    </Button>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))

@@ -506,7 +506,7 @@ export const VerifyOtp: React.FC = () => {
               ? `Nagpadala kami ng 6-digit code sa `
               : `We sent a 6-digit verification code to `}
             <Box component="span" sx={{ fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
-              {displayPhone || 'iyong numero'}
+              {displayPhone || (language === 'tl' ? 'iyong numero' : 'your number')}
             </Box>
             .
           </Typography>

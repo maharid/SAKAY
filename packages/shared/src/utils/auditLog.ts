@@ -1,5 +1,6 @@
 import { AUDIT_EXPORT_MAX_ROWS, AUDIT_LOG_PAGE_SIZE } from '../config/policyConfig';
 import { downloadCsv } from './csvDownload';
+import type { ReportTable } from './reportExport';
 
 /**
  * The audit log (Rule 28.4) as the portals read and export it. The database does the work (get_audit_log: paging, the actor's real name from the account, UTC
@@ -180,4 +181,41 @@ export async function exportAuditLogFile(opts: {
     throw new Error('The browser blocked the PDF window. Allow pop-ups for this site and try again.');
   }
   return { count: rows.length, truncated };
+}
+
+// ---- the audit log as a report (the one export design, same as every other table: packages/shared/src/utils/reportExport.ts) -----------------------------------------------------
+
+/** The columns the PDF shows (the Excel and CSV files have all of them, the before / after states included): the time, who, their role, what, the target and the details */
+const AUDIT_PDF_COLUMNS = [0, 2, 3, 4, 6, 8];
+
+/**
+ * Every entry the filters match (up to the cap) as a report table: `keep` narrows them further with a filter the database does not have (the page's action category), so the file
+ * is exactly what the page shows for the same dates, search and category. The signed-in person only ever receives their own scope (a TODA Administrator's own entries).
+ */
+export async function loadAuditExportTable(
+  rpc: AuditRpc,
+  filters: AuditLogFilters,
+  opts: { title: string; covers: string[]; keep?: (entry: AuditLogEntry) => boolean },
+): Promise<ReportTable> {
+  const { rows, total, truncated } = await fetchAuditLogForExport(rpc, filters);
+  const kept = opts.keep ? rows.filter(opts.keep) : rows;
+  return {
+    title: opts.title,
+    notes: opts.covers,
+    summary: [
+      { label: 'Entries in this export', value: kept.length },
+      { label: 'Different people who acted', value: new Set(kept.map((r) => r.actor_name)).size },
+    ],
+    headers: AUDIT_EXPORT_HEADERS,
+    rows: auditLogExportMatrix(kept),
+    pdfColumns: AUDIT_PDF_COLUMNS,
+    orientation: 'landscape',
+    caveat: truncated ? `Only the first ${rows.length} of ${total} entries were exported: narrow the dates to export the rest.` : undefined,
+  };
+}
+
+/** Writes the export itself to the audit log (who, which format, how many entries, which filters) before any file is handed over */
+export async function recordAuditExportEntry(rpc: AuditRpc, format: 'Excel' | 'CSV' | 'PDF', rowCount: number, filters: AuditLogFilters): Promise<void> {
+  const { error } = await rpc('record_audit_export', { p_format: format === 'Excel' ? 'xlsx' : format.toLowerCase(), p_row_count: rowCount, p_filters: filters });
+  if (error) throw new Error(error.message);
 }

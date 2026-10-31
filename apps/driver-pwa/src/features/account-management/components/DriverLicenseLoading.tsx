@@ -78,8 +78,6 @@ export const DriverLicenseLoading: React.FC = () => {
     const runExtraction = async () => {
       const front = state?.frontPhoto || defaultFrontSample;
       const back = state?.backPhoto || defaultBackSample;
-      const rawFront = state?.rawFrontPhoto || front;
-      const rawBack = state?.rawBackPhoto || back;
 
       try {
         const result = await performLicenseOcr(front, back, (prog) => {
@@ -93,8 +91,6 @@ export const DriverLicenseLoading: React.FC = () => {
 
         const fullResultData = {
           ...result.data,
-          rawFrontPhoto: rawFront,
-          rawBackPhoto: rawBack,
         };
 
         saveLicenseScanData(fullResultData, state?.phone || '');
@@ -107,8 +103,6 @@ export const DriverLicenseLoading: React.FC = () => {
           const fallbackData = {
             frontPhoto: state?.frontPhoto || '',
             backPhoto: state?.backPhoto || '',
-            rawFrontPhoto: rawFront,
-            rawBackPhoto: rawBack,
             fullName: '',
             dob: '',
             gender: 'Male',

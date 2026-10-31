@@ -135,6 +135,9 @@ export interface ActiveCalamity {
   message?: string;
   scope?: CalamityScope;
   declaredAt?: string;
+  /** When the LGU Administrator expects it to end (none = until it is ended) and when its text was last changed */
+  expectedEndAt?: string;
+  updatedAt?: string;
 }
 /** What the apps show as a banner while it lasts: any signed-in user may read it */
 export async function fetchActiveCalamity(client: RpcCapableClient): Promise<ActiveCalamity> {
@@ -150,6 +153,8 @@ export async function fetchActiveCalamity(client: RpcCapableClient): Promise<Act
       message: String(r.message ?? ''),
       scope: r.scope as CalamityScope,
       declaredAt: typeof r.declared_at === 'string' ? r.declared_at : undefined,
+      expectedEndAt: typeof r.expected_end_at === 'string' ? r.expected_end_at : undefined,
+      updatedAt: typeof r.updated_at === 'string' ? r.updated_at : undefined,
     };
   } catch {
     return { active: false };
@@ -164,4 +169,7 @@ export interface CalamityInput {
 /** ONE administrative action: the announcement and the strike pause, recorded by one audit entry (the LGU Administrator only) */
 export const declareCalamity = (client: RpcCapableClient, c: CalamityInput): Promise<TripEndResult> =>
   callRpc(client, 'declare_calamity', { p_kind: c.kind, p_title: c.title, p_message: c.message, p_scope: c.scope });
+/** Changes the text of the declaration in effect and when it is expected to end (the LGU Administrator only; the change is audited and the announcement shows the new text) */
+export const updateCalamity = (client: RpcCapableClient, c: { title: string; message: string; expectedEndAt: string | null }): Promise<TripEndResult> =>
+  callRpc(client, 'update_calamity', { p_title: c.title, p_message: c.message, p_expected_end: c.expectedEndAt });
 export const endCalamity = (client: RpcCapableClient, note?: string | null): Promise<TripEndResult> => callRpc(client, 'end_calamity', { p_note: note?.trim() || null });

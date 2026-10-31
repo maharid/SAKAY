@@ -1,7 +1,7 @@
 import React from 'react';
-import { Box, Button, Divider, List, ListItem, ListItemButton, Popover, Typography } from '@mui/material';
+import { Box, Button, Divider, List, ListItem, Popover, Typography } from '@mui/material';
 
-import { notificationPanelText } from '@sakay/shared';
+import { PortalNoticeRow, notificationPanelText } from '@sakay/shared';
 
 import { NotificationItem } from '../../types/admin';
 import { useLanguage } from '../../hooks/useLanguage';
@@ -108,36 +108,18 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         notifications.map((item, idx) => (
           <React.Fragment key={item.id}>
             <ListItem disablePadding>
-              <ListItemButton
-                disableRipple
-                onClick={() => {
+              <PortalNoticeRow
+                type={item.type}
+                title={readable(item.title)}
+                description={item.description}
+                time={item.time}
+                unread={item.unread}
+                unreadLabel={text.unread}
+                onOpen={() => {
                   if (onNotificationClick) onNotificationClick(item);
                   onClose();
                 }}
-                sx={{
-                  display: 'block',
-                  px: '16px',
-                  py: '11px',
-                  backgroundColor: item.unread ? 'rgba(255, 102, 0, 0.04)' : 'transparent',
-                  '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-                  '&:focus-visible': { outline: '2px solid #B34700', outlineOffset: '-2px' },
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '3px' }}>
-                  <Typography sx={{ fontSize: FONT.body, fontWeight: item.unread ? 700 : 500, color: 'var(--mac-text-primary)', overflowWrap: 'anywhere' }}>
-                    {readable(item.title)}
-                  </Typography>
-                  {item.unread && (
-                    <Box component="span" role="img" aria-label={text.unread} sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--sakay-orange)', flexShrink: 0, ml: '8px' }} />
-                  )}
-                </Box>
-                {item.description && (
-                  <Typography sx={{ fontSize: FONT.small, color: 'var(--mac-text-secondary)', lineHeight: 1.4, overflowWrap: 'anywhere' }}>
-                    {item.description}
-                  </Typography>
-                )}
-                <Typography sx={{ fontSize: FONT.caption, color: '#65656a', mt: '3px' }}>{item.time}</Typography>
-              </ListItemButton>
+              />
             </ListItem>
             {idx < notifications.length - 1 && <Divider sx={{ borderColor: 'var(--mac-border-color)' }} />}
           </React.Fragment>

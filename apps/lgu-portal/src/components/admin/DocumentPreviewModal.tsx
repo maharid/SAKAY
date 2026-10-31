@@ -1,28 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Box,
-  Typography,
-  IconButton,
-  Button,
-  CircularProgress,
-  Chip,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import DescriptionIcon from '@mui/icons-material/Description';
-import DownloadIcon from '@mui/icons-material/Download';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ZoomInIcon from '@mui/icons-material/ZoomIn';
-import ZoomOutIcon from '@mui/icons-material/ZoomOut';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import React, { useCallback } from 'react';
+import { Button } from '@mui/material';
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
-import { refreshStorageUrl } from '@sakay/shared';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { DocumentViewerDialog, refreshStorageUrl } from '@sakay/shared';
+import type { DocumentViewerDialogProps } from '@sakay/shared';
+
 import { supabase } from '../../services/supabaseClient';
 import { CONTROL, FONT } from '../../styles/density';
 
@@ -31,551 +13,90 @@ export interface DocumentPreviewModalProps {
   onClose: () => void;
   documentName: string;
   documentType?: string;
+  /** The date the document was issued, when the record says one. Nothing is shown when it is not known. */
   issueDate?: string;
   url?: string | null;
   urls?: string[];
+  /** A short name for each photo of urls ('Front', 'Back') */
+  photoLabels?: string[];
   currentStatus?: 'Pending' | 'Pending Inspection' | 'Verified' | 'Resubmission Required' | 'Resubmitted (Awaiting Review)';
   onApproveDocument?: () => void;
   onRequestResubmit?: () => void;
 }
 
+const STATUS: Record<string, NonNullable<DocumentViewerDialogProps['status']>> = {
+  Verified: { label: 'Verified', tone: 'success' },
+  'Resubmitted (Awaiting Review)': { label: 'Resubmitted, awaiting review', tone: 'info' },
+  'Resubmission Required': { label: 'Resubmission required', tone: 'warning' },
+  Pending: { label: 'Pending inspection', tone: 'neutral' },
+  'Pending Inspection': { label: 'Pending inspection', tone: 'neutral' },
+};
+
+const actionButton = {
+  height: CONTROL.height,
+  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+  px: '14px',
+  borderRadius: '8px',
+  textTransform: 'none',
+  fontSize: FONT.body,
+  fontWeight: 700,
+  whiteSpace: 'nowrap',
+} as const;
+
+// The LGU's document window: the shared viewer, plus the review actions of a driver's document (approve it, or ask for a new one).
 export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   open,
   onClose,
   documentName,
-  documentType = 'Official Record',
-  issueDate = 'May 10, 2026',
+  documentType,
+  issueDate,
   url = null,
   urls,
+  photoLabels,
   currentStatus,
   onApproveDocument,
   onRequestResubmit,
 }) => {
-  const sourceUrls: string[] = urls && urls.length > 0 ? urls.filter(Boolean) : (url ? [url] : []);
-  // Links that were signed when a list loaded may be past their short life (10 minutes): they are signed again when the preview opens.
-  const [allUrls, setAllUrls] = useState<string[]>([]);
-  const [resolving, setResolving] = useState<boolean>(false);
-  const [photoIndex, setPhotoIndex] = useState<number>(0);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [imgLoading, setImgLoading] = useState<boolean>(true);
-  const [imgError, setImgError] = useState<boolean>(false);
-
-  useEffect(() => {
-    setPhotoIndex(0);
-    setZoomLevel(1);
-    setImgLoading(true);
-    setImgError(false);
-  }, [open, url, urls]);
-
-  useEffect(() => {
-    if (!open) {
-      setAllUrls([]);
-      return;
-    }
-    let cancelled = false;
-    setResolving(true);
-    Promise.all(sourceUrls.map((u) => refreshStorageUrl(supabase, u)))
-      .then((list) => {
-        if (!cancelled) setAllUrls(list.map((u, i) => u || sourceUrls[i]));
-      })
-      .catch(() => {
-        if (!cancelled) setAllUrls(sourceUrls);
-      })
-      .finally(() => {
-        if (!cancelled) setResolving(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, url, urls]);
-
-  const activeUrl = allUrls[photoIndex] || null;
-  const hasMultiplePhotos = allUrls.length > 1;
-
-  const handlePrevPhoto = () => {
-    if (photoIndex > 0) {
-      setPhotoIndex((prev) => prev - 1);
-      setZoomLevel(1);
-      setImgLoading(true);
-      setImgError(false);
-    }
-  };
-
-  const handleNextPhoto = () => {
-    if (photoIndex < allUrls.length - 1) {
-      setPhotoIndex((prev) => prev + 1);
-      setZoomLevel(1);
-      setImgLoading(true);
-      setImgError(false);
-    }
-  };
-
-  const isImage = Boolean(
-    activeUrl &&
-      (/\.(jpg|jpeg|png|webp|gif)/i.test(activeUrl.split('?')[0]) ||
-        activeUrl.startsWith('data:image') ||
-        documentType?.toLowerCase().includes('photo') ||
-        documentType?.toLowerCase().includes('proof') ||
-        documentType?.toLowerCase().includes('image') ||
-        documentType?.toLowerCase().includes('biometric') ||
-        documentType?.toLowerCase().includes('license') ||
-        documentType?.toLowerCase().includes('selfie') ||
-        documentType?.toLowerCase().includes('mtop'))
-  );
-
-  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));
-  const handleResetZoom = () => setZoomLevel(1);
-
-  const handleDownload = () => {
-    if (!activeUrl) return;
-    const a = document.createElement('a');
-    a.href = activeUrl;
-    a.target = '_blank';
-    a.download = `${documentName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${photoIndex + 1}${isImage ? '.jpg' : '.pdf'}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  const handleOpenOriginal = () => {
-    if (activeUrl) {
-      window.open(activeUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
+  const list = urls && urls.length > 0 ? urls.filter(Boolean) : url ? [url] : [];
+  const labels = photoLabels ?? (list.length === 2 && /licen[sc]e/i.test(`${documentType ?? ''} ${documentName}`) ? ['Front', 'Back'] : []);
+  const resolveUrl = useCallback((u: string) => refreshStorageUrl(supabase, u), []);
+  const subtitle = [documentType, issueDate ? `Issued ${issueDate}` : null].filter(Boolean).join(' · ') || undefined;
 
   return (
-    <Dialog
+    <DocumentViewerDialog
       open={open}
       onClose={onClose}
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-          },
-        },
-        paper: {
-          sx: {
-            borderRadius: 'var(--mac-radius-xl)',
-            maxWidth: 576,
-            width: '100%',
-            backgroundColor: '#FFFFFF',
-            boxShadow: 'var(--mac-shadow-popover)',
-            overflow: 'hidden',
-          },
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          padding: '14px 19px',
-          borderBottom: '1px solid var(--mac-border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#FAFAFC',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-          <DescriptionIcon sx={{ color: 'var(--sakay-orange)', fontSize: 18 }} />
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-              <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: 'var(--mac-text-primary)' }}>
-                {documentName}
-              </Typography>
-              {currentStatus === 'Verified' && (
-                <Chip
-                  label="Verified"
-                  size="small"
-                  sx={{ backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
-                />
-              )}
-              {currentStatus === 'Resubmitted (Awaiting Review)' && (
-                <Chip
-                  label="Resubmitted (Awaiting Review)"
-                  size="small"
-                  sx={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: FONT.caption, height: 20, border: '1px solid #93C5FD' }}
-                />
-              )}
-              {currentStatus === 'Resubmission Required' && (
-                <Chip
-                  label="Resubmission Required"
-                  size="small"
-                  sx={{ backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
-                />
-              )}
-              {(currentStatus === 'Pending' || currentStatus === 'Pending Inspection') && (
-                <Chip
-                  label="Pending Inspection"
-                  size="small"
-                  sx={{ backgroundColor: '#F1F5F9', color: '#475569', fontWeight: 700, fontSize: FONT.caption, height: 20 }}
-                />
-              )}
-            </Box>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', mt: '2px' }}>
-              {documentType} • Issued: {issueDate}
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-          {isImage && activeUrl && !imgError && (
-            <>
-              <IconButton size="small" onClick={handleZoomOut} title="Zoom Out" sx={{ color: 'var(--mac-text-secondary)' }}>
-                <ZoomOutIcon fontSize="small" />
-              </IconButton>
-              <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-muted)', minWidth: 36, textAlign: 'center' }}>
-                {Math.round(zoomLevel * 100)}%
-              </Typography>
-              <IconButton size="small" onClick={handleZoomIn} title="Zoom In" sx={{ color: 'var(--mac-text-secondary)' }}>
-                <ZoomInIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={handleResetZoom} title="Reset Zoom" sx={{ color: 'var(--mac-text-secondary)' }}>
-                <RestartAltIcon fontSize="small" />
-              </IconButton>
-            </>
-          )}
-          <IconButton
-            onClick={onClose}
-            size="small"
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: '8px',
-              color: 'var(--mac-text-muted)',
-              '&:hover': { backgroundColor: 'var(--mac-canvas-bg)', color: 'var(--mac-text-primary)' },
-            }}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent
-        sx={{
-          padding: isImage && activeUrl && !imgError ? '13px' : '19px',
-          backgroundColor: isImage && activeUrl && !imgError ? '#18181B' : '#F8F9FA',
-          minHeight: 380,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {activeUrl ? (
-          isImage && !imgError ? (
-            <Box
-              sx={{
-                position: 'relative',
-                width: '100%',
-                height: 420,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'auto',
-                borderRadius: '8px',
-                backgroundColor: '#09090B',
-              }}
-            >
-              {hasMultiplePhotos && (
-                <>
-                  {/* Photo Counter Pill */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 12,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                      backdropFilter: 'blur(4px)',
-                      color: '#FFFFFF',
-                      px: 1.6,
-                      py: 0.4,
-                      borderRadius: '20px',
-                      fontSize: FONT.caption,
-                      fontWeight: 700,
-                      zIndex: 10,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.8,
-                    }}
-                  >
-                    <span>Photo {photoIndex + 1} of {allUrls.length}:</span>
-                    <span style={{ color: '#FCD34D' }}>{photoIndex === 0 ? 'Front (Harap)' : 'Back (Likod)'}</span>
-                  </Box>
-
-                  {/* Previous Photo Button */}
-                  <IconButton
-                    disabled={photoIndex === 0}
-                    onClick={handlePrevPhoto}
-                    title="Previous Photo (Harap)"
-                    sx={{
-                      position: 'absolute',
-                      left: 14,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      zIndex: 10,
-                      backgroundColor: 'rgba(0,0,0,0.6)',
-                      color: '#FFFFFF',
-                      width: 40,
-                      height: 40,
-                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.85)' },
-                      '&.Mui-disabled': { opacity: 0.2, color: '#9CA3AF', backgroundColor: 'transparent' },
-                    }}
-                  >
-                    <ChevronLeftIcon sx={{ fontSize: 21 }} />
-                  </IconButton>
-
-                  {/* Next Photo Button */}
-                  <IconButton
-                    disabled={photoIndex === allUrls.length - 1}
-                    onClick={handleNextPhoto}
-                    title="Next Photo (Likod)"
-                    sx={{
-                      position: 'absolute',
-                      right: 14,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      zIndex: 10,
-                      backgroundColor: 'rgba(0,0,0,0.6)',
-                      color: '#FFFFFF',
-                      width: 40,
-                      height: 40,
-                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.85)' },
-                      '&.Mui-disabled': { opacity: 0.2, color: '#9CA3AF', backgroundColor: 'transparent' },
-                    }}
-                  >
-                    <ChevronRightIcon sx={{ fontSize: 21 }} />
-                  </IconButton>
-                </>
-              )}
-
-              {imgLoading && (
-                <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2 }}>
-                  <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
-                  <Typography sx={{ fontSize: FONT.caption, color: '#A1A1AA' }}>Loading image preview...</Typography>
-                </Box>
-              )}
-              <Box
-                component="img"
-                key={activeUrl}
-                src={activeUrl}
-                alt={documentName}
-                onLoad={() => setImgLoading(false)}
-                onError={() => {
-                  setImgLoading(false);
-                  setImgError(true);
-                }}
-                sx={{
-                  maxWidth: zoomLevel === 1 ? '100%' : 'none',
-                  maxHeight: zoomLevel === 1 ? '100%' : 'none',
-                  transform: `scale(${zoomLevel})`,
-                  transformOrigin: 'center center',
-                  transition: 'transform 0.15s ease-out',
-                  objectFit: 'contain',
-                  borderRadius: '6px',
-                  boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                  display: imgLoading ? 'none' : 'block',
-                }}
-              />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                width: '100%',
-                height: 420,
-                backgroundColor: '#FFFFFF',
-                borderRadius: '12px',
-                border: '1px solid var(--mac-border-color)',
-                overflow: 'hidden',
-              }}
-            >
-              <iframe
-                src={activeUrl}
-                title={documentName}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-              />
-            </Box>
-          )
-        ) : resolving ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2 }}>
-            <CircularProgress size={32} sx={{ color: 'var(--sakay-orange)' }} />
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>Preparing secure link...</Typography>
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              width: '100%',
-              height: 320,
-              backgroundColor: '#FFFFFF',
-              borderRadius: '12px',
-              border: '1px dashed var(--mac-border-color)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '19px',
-              textAlign: 'center',
-              boxShadow: 'var(--mac-shadow-subtle)',
-            }}
-          >
-            <DescriptionIcon sx={{ fontSize: 42, color: 'var(--mac-text-tertiary)', mb: 1.2 }} />
-            <Typography sx={{ fontSize: FONT.caption, fontWeight: 600, color: 'var(--mac-text-primary)', mb: '3px' }}>
-              Official Document Preview
-            </Typography>
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)', textAlign: 'center', maxWidth: 360 }}>
-              LGU Administrative Record Verified • Official Seal & Electronic Signature Intact
-            </Typography>
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions
-        sx={{
-          padding: { xs: '13px', sm: '14px 19px' },
-          borderTop: '1px solid var(--mac-border-color)',
-          backgroundColor: '#FAFAFC',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          columnGap: 2.4,
-          rowGap: 1.75,
-          // MUI puts its own left margin on every action after the first, on top of the gap
-          '& > :not(style) ~ :not(style)': { marginLeft: 0 },
-          '& .MuiButton-root': { whiteSpace: 'nowrap', flexShrink: 0 },
-          // on a narrow window every button fills its row, so none is cramped or cut off
-          '@media (max-width: 599px)': {
-            flexDirection: 'column',
-            alignItems: 'stretch',
-            '& .MuiButton-root': { width: '100%', flexShrink: 1 },
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.25, '@media (max-width: 599px)': { flexDirection: 'column', alignItems: 'stretch' } }}>
+      title={documentName}
+      subtitle={subtitle}
+      status={currentStatus ? STATUS[currentStatus] : undefined}
+      sources={list.map((u, i) => ({ url: u, label: labels[i] }))}
+      resolveUrl={resolveUrl}
+      downloadName={documentName}
+      reviewActions={
+        <>
           {onRequestResubmit && (
             <Button
               variant="outlined"
-              size="small"
               startIcon={<AssignmentReturnIcon fontSize="small" />}
               onClick={onRequestResubmit}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 14px',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: FONT.small,
-                fontWeight: 700,
-                color: '#B45309',
-                border: '1.5px solid #D97706',
-                backgroundColor: '#FFFBEB',
-                '&:hover': { backgroundColor: '#FEF3C7', borderColor: '#B45309' },
-              }}
+              sx={{ ...actionButton, color: '#92400E', border: '1.5px solid #D97706', backgroundColor: '#FFFBEB', '&:hover': { backgroundColor: '#FEF3C7', borderColor: '#B45309' } }}
             >
-              Request Resubmission
+              Request resubmission
             </Button>
           )}
-
           {onApproveDocument && (
             <Button
               variant="contained"
-              size="small"
+              disableElevation
               startIcon={<CheckCircleIcon fontSize="small" />}
               onClick={onApproveDocument}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 14px',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: FONT.small,
-                fontWeight: 700,
-                color: '#FFFFFF',
-                backgroundColor: '#16A34A',
-                '&:hover': { backgroundColor: '#15803D' },
-              }}
+              sx={{ ...actionButton, color: '#FFFFFF', backgroundColor: '#15803D', '&:hover': { backgroundColor: '#166534' } }}
             >
-              Approve Document
+              Approve document
             </Button>
           )}
-
-          {!onRequestResubmit && !onApproveDocument && (
-            <Typography sx={{ fontSize: FONT.caption, color: 'var(--mac-text-muted)' }}>
-              {activeUrl ? 'Official Compliance Submission' : 'Document Submission Record'}
-            </Typography>
-          )}
-        </Box>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1.25, marginLeft: 'auto', '@media (max-width: 599px)': { flexDirection: 'column', alignItems: 'stretch', marginLeft: 0 } }}>
-          {activeUrl && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<OpenInNewIcon fontSize="small" />}
-              onClick={handleOpenOriginal}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 13px',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: FONT.small,
-                fontWeight: 600,
-                color: 'var(--mac-text-secondary)',
-                border: '1px solid var(--mac-border-color)',
-                '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-              }}
-            >
-              Open Full Resolution
-            </Button>
-          )}
-
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<DownloadIcon fontSize="small" />}
-            disabled={!activeUrl}
-            onClick={handleDownload}
-            sx={{
-              height: CONTROL.height,
-              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-              padding: '0 14px',
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: FONT.small,
-              fontWeight: 600,
-              color: '#FFFFFF',
-              backgroundColor: 'var(--sakay-orange)',
-              '&:hover': { backgroundColor: 'var(--sakay-orange-hover)' },
-              '&.Mui-disabled': { backgroundColor: '#E5E5EA', color: '#C7C7CC' },
-            }}
-          >
-            Download Copy
-          </Button>
-
-          <Button
-            onClick={onClose}
-            sx={{
-              height: CONTROL.height,
-              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-              padding: '0 13px',
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: FONT.body,
-              fontWeight: 500,
-              color: 'var(--mac-text-secondary)',
-              border: '1px solid var(--mac-border-color)',
-              '&:hover': { backgroundColor: 'var(--mac-canvas-bg)' },
-            }}
-          >
-            Close
-          </Button>
-        </Box>
-      </DialogActions>
-    </Dialog>
+        </>
+      }
+    />
   );
 };

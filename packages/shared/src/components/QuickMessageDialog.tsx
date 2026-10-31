@@ -30,7 +30,7 @@ export interface QuickMessageDialogProps {
   launch?: (href: string) => void;
 }
 
-const FONT = 'Poppins, sans-serif';
+const FONT = 'var(--sakay-font-family, Poppins), sans-serif';
 
 /**
  * The quick-message sheet for both apps: a short list of ready-made messages, one tap to choose and one to send, and an "other message" box

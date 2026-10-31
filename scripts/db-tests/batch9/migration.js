@@ -21,7 +21,18 @@ const PREVIOUS = '20261023000001_batch8_arrival_noshow_cancellation.sql';
   check('it replaces exactly the seven functions of the plan (each copied from its newest definition), and the earlier files are untouched', replaced.every((n) => unique.includes(n)));
   const gitDirty = require('child_process').spawnSync('git', ['status', '--porcelain', '--', 'supabase/migrations'], { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8' }).stdout;
   // (a later batch adds its own NEW file next to it: only a MODIFIED or deleted file, other than this one, counts)
-  check('no earlier migration file is modified in the working tree (only the new Batch 9 file, and later new files, are new)', gitDirty.split('\n').filter(Boolean).every((l) => /20261024000001_batch9_trip_end_payment_disputes\.sql$/.test(l) || ((l.match(/^\?\? supabase\/migrations\/(\d{14})_/) || [])[1] > '20261024000001')), gitDirty);
+  check(
+  'no earlier migration file is modified in the working tree (only the new Batch 9 file, and later new files, are new)',
+  gitDirty.split('\n').filter(Boolean).every((l) => {
+    const isBatch9 = /20261024000001_batch9_trip_end_payment_disputes\.sql$/.test(l);
+    const isNewLaterMigration =
+      /^(?:A  | A |\\?\\? )supabase\/migrations\/(\d{14})_/.test(l) &&
+      l.match(/supabase\/migrations\/(\d{14})_/)?.[1] > '20261024000001';
+
+    return isBatch9 || isNewLaterMigration;
+  }),
+  gitDirty
+);
 
   console.log('\nS2 the trips of the old one-tap flow, and the trips in flight at the deploy, on a database at the Batch 8 state');
   const old = await setup(PREVIOUS);

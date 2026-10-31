@@ -1,30 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Rating, TextField, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
-import SendIcon from '@mui/icons-material/Send';
-import { FeedbackCard } from '@sakay/shared';
+import { AppFeedbackForm, FeedbackCard } from '@sakay/shared';
 
 import { SettingRow } from '../common/SettingRow';
 import { primaryButtonSx, secondaryButtonSx } from '../common/pageButtons';
 import { OPS_TEXT } from '../operations/operationsTheme';
 import { ACCREDITATION_HELP, SUPPORT_EMAIL } from '../../utils/appInfo';
-import { copyText, mailtoLink, openMailDraft } from '../../utils/mailto';
+import { copyText, mailtoLink } from '../../utils/mailto';
+import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../hooks/useLanguage';
 import { FONT } from '../../styles/density';
 
-const COMMENT_MAX = 1000;
-const FEEDBACK_SUBJECT = 'SAKAY TODA Portal feedback';
 /** how long the copy button says "Copied!" before it goes back to "Copy email address" */
 const COPIED_FOR_MS = 3000;
 
 const visuallyHidden = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' } as const;
 
-// Help and feedback. The portal has no server route that receives feedback (the "Rate the App" pages of the Driver and Passenger apps do not send anything either),
-// so both go by e-mail to the SAKAY team: the buttons open the person's own e-mail program with the message ready, and the person presses Send there.
-// Nothing is claimed as sent from this page.
+// Help and feedback. Contact goes by e-mail (the button opens the person's own mail program). Feedback is sent in the portal: the form stores it in the database (submit_app_feedback),
+// with the person's name and role written by the database, and says when it is saved.
 export const SupportFeedbackPanel: React.FC = () => {
   const { t } = useLanguage();
   // "Copied!" shows on the button itself (no toast); a failed copy is said under the row
@@ -32,10 +29,6 @@ export const SupportFeedbackPanel: React.FC = () => {
   const [copyFailed, setCopyFailed] = useState(false);
   const copiedTimer = useRef<number | undefined>(undefined);
   const mounted = useRef(true);
-  const [rating, setRating] = useState<number | null>(null);
-  const [comment, setComment] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [opened, setOpened] = useState(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -53,27 +46,6 @@ export const SupportFeedbackPanel: React.FC = () => {
     setCopyFailed(!copiedOk);
     setCopied(copiedOk);
     if (copiedOk) copiedTimer.current = window.setTimeout(() => setCopied(false), COPIED_FOR_MS);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = comment.trim();
-    if (!rating && !text) {
-      setError('Choose a star rating or write a comment first.');
-      setOpened(false);
-      return;
-    }
-    setError(null);
-    const lines = ['SAKAY TODA Administrator Portal feedback', ''];
-    if (rating) lines.push(`Rating: ${rating} out of 5`);
-    if (text) lines.push('', 'Comments:', text);
-    openMailDraft(mailtoLink(SUPPORT_EMAIL, FEEDBACK_SUBJECT, lines.join('\r\n')));
-    setOpened(true);
-  };
-
-  const edited = () => {
-    setError(null);
-    setOpened(false);
   };
 
   return (
@@ -121,59 +93,7 @@ export const SupportFeedbackPanel: React.FC = () => {
 
       <Box sx={{ py: '16px' }}>
         <FeedbackCard icon={<RateReviewOutlinedIcon />} title="Send feedback" description="Tell the SAKAY team how the portal is working for you.">
-          <Box component="form" noValidate onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <Box>
-              <Typography id="feedback-rating-label" sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary }}>
-                How is your experience with this portal? <Box component="span" sx={{ fontWeight: 400, color: OPS_TEXT.secondary }}>(optional)</Box>
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px', mt: '6px' }}>
-                <Rating
-                  name="feedback-rating"
-                  value={rating}
-                  onChange={(_, value) => {
-                    setRating(value);
-                    edited();
-                  }}
-                  aria-labelledby="feedback-rating-label"
-                  sx={{ color: '#C75000', '& .MuiRating-icon': { fontSize: 32 } }}
-                />
-                <Typography aria-hidden sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.secondary, minWidth: 74 }}>
-                  {rating ? `${rating} out of 5` : ''}
-                </Typography>
-              </Box>
-            </Box>
-            <TextField
-              label={t('feedback.comments')}
-              placeholder={t('feedback.placeholder')}
-              multiline
-              minRows={3}
-              fullWidth
-              value={comment}
-              onChange={(e) => {
-                setComment(e.target.value.slice(0, COMMENT_MAX));
-                edited();
-              }}
-              error={Boolean(error)}
-              helperText={`${comment.length} of ${COMMENT_MAX} characters`}
-              sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#FFFFFF' } }}
-            />
-            {error && (
-              <Typography role="alert" sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.danger }}>{error}</Typography>
-            )}
-            {opened && (
-              <Alert severity="info" sx={{ borderRadius: '8px', fontSize: FONT.body }}>
-                Your email program should now open with your feedback ready. Press Send there to finish. Nothing has been sent from this page yet.
-              </Alert>
-            )}
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px 16px', pt: '4px' }}>
-              <Button type="submit" variant="contained" disableElevation startIcon={<SendIcon sx={{ fontSize: 18 }} />} sx={{ ...primaryButtonSx, minHeight: 42, px: '22px', fontSize: FONT.heading }}>
-                Send feedback
-              </Button>
-              <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, lineHeight: 1.5, flex: '1 1 220px' }}>
-                Your email program opens with your message ready to send.
-              </Typography>
-            </Box>
-          </Box>
+          <AppFeedbackForm app="toda-portal" client={supabase} commentLabel={t('feedback.comments')} commentPlaceholder={t('feedback.placeholder')} />
         </FeedbackCard>
       </Box>
     </>

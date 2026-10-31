@@ -14,6 +14,7 @@ import {
 import { useInFlight } from '@sakay/shared';
 
 import type { GpsArea } from '../../services/todaApiService';
+import { SakayDialogTitle } from '@sakay/shared';
 
 interface GpsAreasCardProps {
   areas: GpsArea[];
@@ -105,7 +106,7 @@ export const GpsAreasCard: React.FC<GpsAreasCardProps> = ({ areas, minCount, win
       ))}
 
       <Dialog open={target !== null} onClose={() => setTarget(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '13px' }}>Report this area to the LGU Administrator</DialogTitle>
+        <SakayDialogTitle onClose={() => setTarget(null)} sx={{ fontWeight: 700, fontSize: '13px' }}>Report this area to the LGU Administrator</SakayDialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: '13px', pt: '6.5px !important' }}>
           <Typography sx={{ fontSize: '11px', color: 'var(--mac-text-secondary)', lineHeight: 1.45 }}>
             The counts are attached by the system. Say what you have seen or heard in this area (for example a building, a barangay road, a place drivers say loses signal).

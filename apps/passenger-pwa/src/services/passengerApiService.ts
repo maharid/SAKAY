@@ -15,7 +15,8 @@ import { supabase } from './supabaseClient';
  * Helper to get localized error message respecting current selected language
  */
 export function getLocalizedError(tlMsg: string, enMsg: string): string {
-  const lang = typeof window !== 'undefined' ? localStorage.getItem('sakay_language') || 'tl' : 'tl';
+  // English unless Tagalog was chosen
+  const lang = typeof window !== 'undefined' ? localStorage.getItem('sakay_language') : null;
   return lang === 'tl' ? tlMsg : enMsg;
 }
 

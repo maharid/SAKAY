@@ -134,7 +134,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggleC
     },
   ];
 
-  const isActiveItem = (item: NavItem) => location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/');
+  const isActiveItem = (item: NavItem) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`) || (item.path === '/dashboard' && location.pathname === '/');
 
   const renderItem = (item: NavItem) => {
     const isActive = isActiveItem(item);

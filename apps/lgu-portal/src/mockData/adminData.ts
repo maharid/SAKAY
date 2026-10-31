@@ -372,6 +372,8 @@ export interface AnnouncementRecord {
   title: string;
   message: string;
   target_role: 'All' | 'Passenger' | 'Driver' | 'TODA Administrator';
+  /** What the announcement is about (announcement.event_type): the icon follows it */
+  event_type?: string;
   is_published: boolean;
   publish_timing: 'Immediate' | 'Scheduled';
   scheduled_date?: string;

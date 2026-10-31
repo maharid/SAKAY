@@ -318,6 +318,8 @@ const Dashboard: React.FC = () => {
           createdAt: a.created_at,
           isRead: readIds.includes(a.announcement_id || a.id),
           category: "advisories",
+          // what the announcement is about: its icon follows it
+          eventType: a.event_type,
         }));
         // the notices of the other source stay; only the announcements are replaced
         setNotifications((prev) => [...prev.filter((p) => p.id.startsWith("db:")), ...fetched].sort(byNewest));

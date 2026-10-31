@@ -26,12 +26,13 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 
 import { calculateDistanceKm } from '@sakay/shared';
 
-import { TodaProfile } from '../types/toda';
+import type { TodaChangeRequest, TodaProfile } from '../types/toda';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { TerminalMapPickerModal } from '../components/modals/TerminalMapPickerModal';
 import { RosterUpdateDialog } from '../components/modals/RosterUpdateDialog';
 import { AccreditationCard } from '../components/common/AccreditationCard';
+import { PendingChangesList } from '../components/common/PendingChangesList';
 import { ComplianceDocumentCard } from '../components/common/ComplianceDocumentCard';
 import { StatusPill } from '../components/common/DataTable';
 import { InfoItem, SectionCard } from '../components/common/SectionCard';
@@ -40,6 +41,8 @@ import { OPS_BORDER, OPS_TEXT, opsCardSx } from '../components/operations/operat
 import {
   fetchTodaProfile,
   updateTodaProfile,
+  fetchTodaChangeRequests,
+  withdrawTodaChangeRequest,
   recordTodaAuditAction,
   uploadTodaDocument,
   updateTodaComplianceDocument,
@@ -120,6 +123,10 @@ export const TodaAccountManagementPage: React.FC = () => {
   // Decision D-P9: a newer roster file of an Active TODA is a new version; the TODA reconciles it with the Master Roster member by member
   const [rosterUpdateFile, setRosterUpdateFile] = useState<{ path: string; name: string } | null>(null);
   const [editRelocationReason, setEditRelocationReason] = useState('');
+  // an accredited TODA's change of name, acronym, barangay or date is a request the LGU decides; this is why (optional)
+  const [editChangeReason, setEditChangeReason] = useState('');
+  const [changeRequests, setChangeRequests] = useState<TodaChangeRequest[]>([]);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   // Officers Form State
   const [editPresident, setEditPresident] = useState('');
@@ -236,7 +243,8 @@ export const TodaAccountManagementPage: React.FC = () => {
   const loadProfile = async () => {
     setIsLoading(true);
     try {
-      const p = await fetchTodaProfile(targetTodaId);
+      const [p, requests] = await Promise.all([fetchTodaProfile(targetTodaId), fetchTodaChangeRequests(targetTodaId)]);
+      setChangeRequests(requests);
       if (p) {
         setProfile(p);
         populateFormFields(p);
@@ -291,6 +299,16 @@ export const TodaAccountManagementPage: React.FC = () => {
         || calculateDistanceKm(profile.terminalLatitude, profile.terminalLongitude, editPin.lat, editPin.lng) * 1000 >= 25)
   );
 
+  // Did the person change something that identifies the TODA (name, acronym, barangay, date established)?
+  const identityChanged = Boolean(
+    profile && (
+      editTodaName.trim() !== (profile.name || '').trim()
+      || editTodaAcronym.trim().toUpperCase() !== (profile.acronym || '').trim().toUpperCase()
+      || editBarangay !== (profile.barangay || '')
+      || editDateEst !== String(profile.dateEstablished || '').slice(0, 10)
+    )
+  );
+
   // Submit Organizational Profile Edit
   const handleEditProfileSubmit = async () => {
     if (!profile) return;
@@ -311,11 +329,12 @@ export const TodaAccountManagementPage: React.FC = () => {
         acronym: editTodaAcronym.trim(),
         barangay: editBarangay,
         dateEstablished: editDateEst,
-        terminalLocation: editTerminalLoc.trim(),
+        // the name of the terminal place travels with the pin: it is sent only when the pin moved (the LGU approves both together)
+        terminalLocation: pinMoved ? editTerminalLoc.trim() : undefined,
         terminalLatitude: lat,
         terminalLongitude: lng,
         relocationReason: editRelocationReason.trim(),
-        serviceArea: editTerminalLoc.trim(),
+        changeReason: editChangeReason.trim(),
         officers: {
           president: editPresident.trim(),
           presidentContact: editPresidentContact.trim(),
@@ -332,8 +351,12 @@ export const TodaAccountManagementPage: React.FC = () => {
       setEditProfileModalOpen(false);
       setUploadSnackbar({
         open: true,
-        message: saved.relocationRequested
+        message: saved.relocationRequested && saved.profileChangeRequested
+          ? 'Saved. The terminal move and the change to the TODA details were sent to the LGU; the current ones stay in force until it decides.'
+          : saved.relocationRequested
           ? 'Profile saved. The terminal move was sent to the LGU for approval; the current terminal stays in force until it decides.'
+          : saved.profileChangeRequested
+          ? 'Saved. The change to the TODA details was sent to the LGU for approval; the current details stay in force until it decides.'
           : 'Successfully updated TODA organizational profile!',
         severity: 'success',
       });
@@ -385,6 +408,8 @@ export const TodaAccountManagementPage: React.FC = () => {
           ? `Your new roster file ("${selectedFile.name}") was saved as a new version. The file you registered with stays as it was; choose which members to add or mark as left.`
           : profile.accreditationStatus === 'Resubmission Required'
           ? `${docCategory} ("${selectedFile.name}") was replaced. When every correction is done, press Resubmit for LGU review.`
+          : profile.accreditationStatus === 'Active' && docCategory === 'Internal Bylaws'
+          ? `The new Internal Bylaws ("${selectedFile.name}") were sent to the LGU. The bylaws in force stay as they are until the LGU approves.`
           : `${docCategory} ("${selectedFile.name}") was sent to the LGU for review.`,
         severity: 'success',
       });
@@ -441,6 +466,7 @@ export const TodaAccountManagementPage: React.FC = () => {
 
   // the three compliance files: what each one is called, the file that was sent, its status, and what it says under the name
   const renewalPending = Boolean(profile.renewalSubmittedAt);
+  const bylawsPending = changeRequests.some((r) => r.kind === 'bylaws' && r.status === 'Pending');
   const sentOn = (fileName: string, savedDate: string) => submittedDateOfStoredFile(fileName) || savedDate;
   const submittedLine = (date: string) => (date ? `Submitted ${date}` : 'No file submitted yet');
   const documents = [
@@ -468,7 +494,7 @@ export const TodaAccountManagementPage: React.FC = () => {
       title: 'Internal TODA Bylaws & Constitution',
       fileName: profile.bylawsFile?.name || 'TODA_Bylaws.pdf',
       fileUrl: profile.bylawsFile?.url || '',
-      status: complianceDocumentStatus('bylaws', profile.accreditationStatus, renewalPending),
+      status: bylawsPending ? { label: 'New file waiting for the LGU', tone: 'warning' as const } : complianceDocumentStatus('bylaws', profile.accreditationStatus, renewalPending),
       details: [submittedLine(profile.bylawsFile?.name ? sentOn(profile.bylawsFile.name, profile.bylawsFile.date) : '')],
     },
   ];
@@ -565,6 +591,22 @@ export const TodaAccountManagementPage: React.FC = () => {
               <strong>The LGU did not approve the terminal move.</strong> {profile.terminalRelocationDecisionNote}
             </Alert>
           )}
+          <PendingChangesList
+            requests={changeRequests}
+            busyId={withdrawingId}
+            onWithdraw={async (id) => {
+              setWithdrawingId(id);
+              try {
+                await withdrawTodaChangeRequest(id);
+                await loadProfile();
+                setUploadSnackbar({ open: true, message: 'Your request was taken back. Nothing changed.', severity: 'success' });
+              } catch (err: any) {
+                setUploadSnackbar({ open: true, message: err?.message || 'The request could not be taken back.', severity: 'error' });
+              } finally {
+                setWithdrawingId(null);
+              }
+            }}
+          />
           {profile.terminalRelocationStatus === 'Approved' && profile.terminalRelocationDecisionNote && (
             <Alert severity="success" sx={{ mt: SPACE.gap, fontSize: FONT.body }}>
               <strong>The LGU approved the terminal move.</strong> {profile.terminalRelocationDecisionNote}
@@ -636,7 +678,14 @@ export const TodaAccountManagementPage: React.FC = () => {
         onClose={() => setPinMapOpen(false)}
         initialLat={editPin?.lat ?? null}
         initialLng={editPin?.lng ?? null}
-        onConfirmLocation={({ lat, lng }) => setEditPin({ lat, lng })}
+        onConfirmLocation={({ lat, lng, locationName }) => {
+          setEditPin({ lat, lng });
+          // a place chosen by search (or a quick jump) names the terminal; a pin placed by hand leaves the name to the person, and an old name is not left standing for a new place
+          if (locationName) setEditTerminalLoc(locationName);
+          else if (profile && editTerminalLoc.trim() === (profile.terminalLocation || '').trim()
+            && (profile.terminalLatitude == null || profile.terminalLongitude == null
+              || calculateDistanceKm(profile.terminalLatitude, profile.terminalLongitude, lat, lng) * 1000 >= 25)) setEditTerminalLoc('');
+        }}
       />
 
       {/* Edit the organisation and its officers */}
@@ -654,6 +703,12 @@ export const TodaAccountManagementPage: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge, pt: '6px' }}>
           <Box>
             <FormSectionTitle>Association information</FormSectionTitle>
+            {profile.accreditationStatus === 'Active' && (
+              <Alert severity="info" sx={{ mb: SPACE.gap, fontSize: FONT.body }}>
+                Your TODA is accredited. A new name, acronym, barangay or date established is sent to the LGU for approval, and the current details stay in force until it decides.
+                Officer names and contact numbers are saved at once.
+              </Alert>
+            )}
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap, mb: SPACE.gap }}>
               <TextField
@@ -707,11 +762,13 @@ export const TodaAccountManagementPage: React.FC = () => {
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
               <TextField
-                label="Terminal Location"
+                label={pinMoved ? 'Name of the new terminal place' : 'Terminal Location'}
                 placeholder="e.g. Calapan Public Market, J.P. Rizal St."
                 value={editTerminalLoc}
                 onChange={(e) => setEditTerminalLoc(e.target.value)}
-                required
+                required={pinMoved}
+                disabled={!pinMoved}
+                helperText={pinMoved ? 'Street and barangay of the new place. It is sent with the pin.' : 'Move the pin on the map to propose a new terminal place; the LGU approves the place and the pin together.'}
                 fullWidth
                 size="small"
               />
@@ -730,6 +787,20 @@ export const TodaAccountManagementPage: React.FC = () => {
                 </Button>
               </Box>
             </Box>
+            {profile.accreditationStatus === 'Active' && identityChanged && (
+              <TextField
+                label="Why are the details changing? (optional)"
+                placeholder="e.g. The association was renamed at the general assembly."
+                value={editChangeReason}
+                onChange={(e) => setEditChangeReason(e.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                size="small"
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+                sx={{ mt: SPACE.gap }}
+              />
+            )}
             {pinMoved && (
               <Box sx={{ mt: SPACE.gap }}>
                 <Alert severity="info" sx={{ mb: '8px', fontSize: FONT.body }}>

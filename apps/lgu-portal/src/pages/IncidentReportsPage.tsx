@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
-import { INCIDENT_CATEGORIES, downloadCsv, reportFileName } from '@sakay/shared';
+import { ExportToolbar, INCIDENT_CATEGORIES } from '@sakay/shared';
+import type { ReportTable } from '@sakay/shared';
 import { IncidentReportRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { IncidentDetailModal } from '../components/admin/IncidentDetailModal';
 import { CellStack, DataTableCard, DataTableMessageRow, FlagTag } from '../components/common/DataTable';
 import { StatStrip } from '../components/common/StatStrip';
-import { fetchIncidents, recordAdminAuditAction } from '../services/adminApiService';
-import { FONT } from '../styles/density';
-import { PAGE_TEXT, rowActionSx, secondaryButtonSx } from '../styles/pageTheme';
+import { fetchIncidents, recordAdminAuditStrict } from '../services/adminApiService';
+import { useAuth } from '../contexts/AuthContext';
+import { loadXlsx } from '../utils/loadXlsx';
+import { FONT, SPACE } from '../styles/density';
+import { PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 const PRIORITY_RANK: Record<string, number> = { Serious: 0, Emergency: 1, Standard: 2 };
 
@@ -28,6 +31,7 @@ const PRIORITY_RANK: Record<string, number> = { Serious: 0, Emergency: 1, Standa
  * ============================================================================
  */
 export const IncidentReportsPage: React.FC = () => {
+  const { adminProfile } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReportRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +41,14 @@ export const IncidentReportsPage: React.FC = () => {
   const [routingFilter, setRoutingFilter] = useState('All');
   const [todaFilter, setTodaFilter] = useState('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // a notice opens this record: ?incident=<id> (read once, then removed from the address)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const incidentToOpen = searchParams.get('incident');
+  useEffect(() => {
+    if (!incidentToOpen || isLoading) return;
+    if (incidents.some((i) => i.id === incidentToOpen)) setSelectedId(incidentToOpen);
+    setSearchParams({}, { replace: true });
+  }, [incidentToOpen, incidents, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
   // read from the list, so the detail screen shows what the database says after every action
   const selectedIncident = incidents.find((i) => i.id === selectedId) ?? null;
 
@@ -126,18 +138,36 @@ export const IncidentReportsPage: React.FC = () => {
     ...Array.from(new Set(incidents.map((i) => i.todaName).filter((n) => n && n !== 'N/A'))).sort().map((n) => ({ label: n, value: n })),
   ];
 
-  const exportCsv = () => {
-    const name = 'Incident Reports';
-    downloadCsv(
-      reportFileName(name),
-      ['Incident ID', 'Trip', 'Category', 'Priority', 'With', 'Status', 'Outcome', 'Strike', 'Reported by', 'Reporter', 'Driver', 'TODA', 'Plate', 'Submitted', 'Findings'],
-      filteredIncidents.map((i) => [
-        i.id, i.tripId, i.category, i.priority ?? '', i.routing ?? '', i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.reportedBy, i.reporterName, i.driverName, i.todaName, i.vehiclePlate,
-        `${i.submittedDate} ${i.submittedTime}`, i.findings ?? '',
-      ])
-    );
-    void recordAdminAuditAction({ actionType: 'REPORT_EXPORTED', targetId: 'REPORT', targetName: name, details: `Exported ${name} (CSV): ${filteredIncidents.length} report(s).`, category: 'Operations' });
-  };
+  const labelOf = (options: FilterOption[], value: string) => options.find((o) => o.value === value)?.label ?? value;
+  const filterWords = (): string => [
+    `Status: ${labelOf(statusOptions, statusFilter)}`,
+    `Category: ${labelOf(categoryOptions, categoryFilter)}`,
+    `Priority: ${labelOf(priorityOptions, priorityFilter)}`,
+    `Who has it: ${labelOf(routingOptions, routingFilter)}`,
+    `TODA: ${labelOf(todaOptions, todaFilter)}`,
+    `Search: ${searchQuery.trim() ? `"${searchQuery.trim()}"` : 'none'}`,
+  ].join('; ');
+
+  // The reports on screen (the active filters applied, only what this account may read) as the table of an export
+  const incidentTable = (): ReportTable => ({
+    title: 'Incident Reports (LGU)',
+    notes: [filterWords()],
+    summary: [
+      { label: 'Reports in this export', value: filteredIncidents.length },
+      { label: 'Pending review', value: filteredIncidents.filter((i) => i.status === 'Pending Review').length },
+      { label: 'Under investigation', value: filteredIncidents.filter((i) => i.status === 'Under Investigation').length },
+      { label: 'Resolved', value: filteredIncidents.filter((i) => i.status === 'Resolved').length },
+      { label: 'Dismissed', value: filteredIncidents.filter((i) => i.status === 'Dismissed').length },
+      { label: 'Overdue', value: filteredIncidents.filter((i) => i.overdue).length },
+    ],
+    headers: ['Incident ID', 'Trip', 'Category', 'Priority', 'With', 'Status', 'Outcome', 'Strike', 'Reported by', 'Reporter', 'Driver', 'TODA', 'Plate', 'Submitted', 'Findings', 'Record ID'],
+    rows: filteredIncidents.map((i) => [
+      `#${i.id.slice(0, 8).toUpperCase()}`, i.tripId, i.category, i.priority ?? '', i.routing ?? '', i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.reportedBy, i.reporterName,
+      i.driverName, i.todaName, i.vehiclePlate, `${i.submittedDate} ${i.submittedTime}`, i.findings ?? '', i.id,
+    ]),
+    pdfColumns: [0, 2, 3, 4, 5, 10, 11, 13, 14],
+    orientation: 'landscape',
+  });
 
   // each number is also a button: it shows those reports in the list below (pressing it again shows all)
   const pick = (key: string) => () => setStatusFilter(statusFilter === key ? 'All' : key);
@@ -177,12 +207,31 @@ export const IncidentReportsPage: React.FC = () => {
           setRoutingFilter('All');
           setTodaFilter('All');
         }}
-        actionButton={
-          <Button onClick={exportCsv} disabled={filteredIncidents.length === 0} startIcon={<FileDownloadIcon sx={{ fontSize: 16 }} />} sx={secondaryButtonSx}>
-            Export CSV
-          </Button>
-        }
+        disableMarginBottom
       />
+
+      {/* 2B. How many reports are shown, and the export of exactly those (Excel, CSV, PDF) */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', my: SPACE.gap }}>
+        <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
+          {isLoading ? 'Loading reports...' : `Showing ${filteredIncidents.length} of ${incidents.length} report${incidents.length === 1 ? '' : 's'}`}
+        </Typography>
+        <ExportToolbar
+          getTable={incidentTable}
+          meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
+          loadXlsx={loadXlsx}
+          record={({ format, table }) =>
+            recordAdminAuditStrict({
+              actionType: 'REPORT_EXPORTED',
+              targetId: 'REPORT',
+              targetName: table.title,
+              details: `Exported ${table.title} (${format}): ${table.rows.length} report(s). ${filterWords()}. Exported by ${adminProfile?.full_name || 'the LGU Administrator'}.`,
+              category: 'Operations',
+            })
+          }
+          disabled={isLoading || filteredIncidents.length === 0}
+          disabledReason={isLoading ? 'The reports are still loading' : 'There are no reports to export for these filters'}
+        />
+      </Box>
 
       {/* 3. The incident reports */}
       <DataTableCard
@@ -197,12 +246,12 @@ export const IncidentReportsPage: React.FC = () => {
             filteredIncidents.map((inc) => (
               <TableRow key={inc.id}>
                 <TableCell>
-                  <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{inc.id}</Typography>
+                  <Typography component="div" sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>#{inc.id.slice(0, 8).toUpperCase()}</Typography>
                   <Typography component="div" sx={{ fontSize: FONT.small, color: PAGE_TEXT.brand, fontWeight: 600, mt: '1px' }}>{inc.category}</Typography>
                   {((inc.priority && inc.priority !== 'Standard') || inc.overdue) && (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '4px', mt: '4px' }}>
                       {inc.priority && inc.priority !== 'Standard' && <FlagTag label={inc.priority} tone={inc.priority === 'Serious' ? 'danger' : 'warning'} />}
-                      {inc.overdue && <FlagTag label="Overdue" tone="danger" />}
+                      {inc.overdue && <FlagTag label={inc.record?.overdue_kind === 'decision' || (inc.record && inc.record.first_action_at !== null) ? 'Decision overdue' : 'First action overdue'} tone="danger" />}
                     </Box>
                   )}
                 </TableCell>

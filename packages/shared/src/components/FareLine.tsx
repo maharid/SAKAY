@@ -47,7 +47,7 @@ const FareLine: React.FC<FareLineProps> = ({ label, detail, amount, emphasis = '
             fontWeight: total ? 700 : 500,
             lineHeight: 1.35,
             color: total ? c.amount : c.label,
-            fontFamily: 'Poppins, sans-serif',
+            fontFamily: 'var(--sakay-font-family, Poppins), sans-serif',
             overflowWrap: 'anywhere',
           }}
         >
@@ -56,7 +56,7 @@ const FareLine: React.FC<FareLineProps> = ({ label, detail, amount, emphasis = '
         {detail && (
           <Typography
             component="div"
-            sx={{ fontSize: '12px', lineHeight: 1.35, color: c.detail, fontFamily: 'Poppins, sans-serif', overflowWrap: 'anywhere' }}
+            sx={{ fontSize: '12px', lineHeight: 1.35, color: c.detail, fontFamily: 'var(--sakay-font-family, Poppins), sans-serif', overflowWrap: 'anywhere' }}
           >
             {detail}
           </Typography>
@@ -69,7 +69,7 @@ const FareLine: React.FC<FareLineProps> = ({ label, detail, amount, emphasis = '
           fontWeight: 700,
           lineHeight: 1.35,
           color: total ? c.total : c.amount,
-          fontFamily: 'Poppins, sans-serif',
+          fontFamily: 'var(--sakay-font-family, Poppins), sans-serif',
           fontVariantNumeric: 'tabular-nums',
           whiteSpace: 'nowrap',
           textAlign: 'right',

@@ -33,7 +33,7 @@ export const DriverCancelModal: React.FC<DriverCancelModalProps> = ({
   loading = false,
 }) => {
   const { language: contextLanguage } = useLanguage();
-  const effectiveLanguage = propLanguage || contextLanguage || "tl";
+  const effectiveLanguage = propLanguage || contextLanguage || "en";
 
   const [selectedOptionId, setSelectedOptionId] = useState<DriverCancelReason>(DRIVER_CANCEL_REASONS[0]);
 

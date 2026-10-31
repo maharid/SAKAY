@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, TableBody, TableCell, TableRow, Avatar, Button, Alert } from '@mui/material';
+import { Box, Typography, TableBody, TableCell, TableRow, Avatar, Button } from '@mui/material';
+import { ExportToolbar } from '@sakay/shared';
 
 import { TodaAuditLog } from '../types/toda';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DataTableCard, DataTableMessageRow, StatusPill } from '../components/common/DataTable';
-import { rowActionSx, secondaryButtonSx } from '../components/common/pageButtons';
+import { rowActionSx } from '../components/common/pageButtons';
 import { OPS_TEXT } from '../components/operations/operationsTheme';
 import { FONT, SHELL, SPACE } from '../styles/density';
-import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
-import { fetchTodaAuditLogs, exportTodaAuditLog } from '../services/todaApiService';
+import { fetchTodaAuditLogs, loadTodaAuditExport, recordTodaAuditExport } from '../services/todaApiService';
+import { useAuth } from '../contexts/AuthContext';
+import { loadXlsx } from '../utils/loadXlsx';
 
 // The time zone is said once in the column heading, so each row only needs the date and the time
 const MANILA_SUFFIX = ' (Asia/Manila)';
@@ -18,14 +20,14 @@ const withoutZone = (stamp: string): string => (stamp.endsWith(MANILA_SUFFIX) ? 
 const shortId = (id: string): string => (id.length > 14 ? `${id.slice(0, 8)}…` : id);
 
 export const TodaAuditLogsPage: React.FC = () => {
+  const { todaAdminProfile } = useAuth();
+  const todaName = todaAdminProfile?.toda?.toda_name || 'TODA';
   const [logs, setLogs] = useState<TodaAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('All');
   const [selectedLog, setSelectedLog] = useState<TodaAuditLog | null>(null);
-  const [exporting, setExporting] = useState<string | null>(null);
-  const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   // Days are Asia/Manila days (the database stores UTC)
   const manilaDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
@@ -36,22 +38,6 @@ export const TodaAuditLogsPage: React.FC = () => {
     if (dateFilter === 'Last 7 Days') return { fromDay: manilaDay(new Date(now - 7 * 86400000)), toDay: manilaDay(new Date(now)) };
     if (dateFilter === 'Last 30 Days') return { fromDay: manilaDay(new Date(now - 30 * 86400000)), toDay: manilaDay(new Date(now)) };
     return {};
-  };
-
-  const runExport = async (format: 'xlsx' | 'csv' | 'pdf') => {
-    setExporting(format);
-    setExportNote(null);
-    try {
-      const result = await exportTodaAuditLog(format, { ...dayRange(), search: searchQuery }, 'TODA Administrator');
-      setExportNote({
-        severity: 'success',
-        text: `${result.count} entries exported${result.truncated ? ` (the first ${AUDIT_EXPORT_MAX_ROWS}; narrow the dates to export the rest)` : ''}. The export was recorded in the audit log.`,
-      });
-    } catch (err) {
-      setExportNote({ severity: 'error', text: (err as Error).message });
-    } finally {
-      setExporting(null);
-    }
   };
 
   const loadLogs = () => {
@@ -114,23 +100,16 @@ export const TodaAuditLogsPage: React.FC = () => {
   // Why the list is empty, in words: nothing was recorded, or nothing matches the search and filters
   const hasActiveFilter = searchQuery.trim() !== '' || categoryFilter !== 'All' || dateFilter !== 'All';
 
-  const exportButtons = (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-      <Button variant="outlined" disabled={exporting !== null} onClick={() => void runExport('xlsx')} sx={secondaryButtonSx}>
-        {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
-      </Button>
-      <Button variant="outlined" disabled={exporting !== null} onClick={() => void runExport('csv')} sx={secondaryButtonSx}>
-        {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
-      </Button>
-      <Button variant="outlined" disabled={exporting !== null} onClick={() => void runExport('pdf')} sx={secondaryButtonSx}>
-        {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
-      </Button>
-    </Box>
-  );
+  // What the export follows: the same date choice, search text and category as the table (the words go into the file's header)
+  const exportQuery = { ...dayRange(), search: searchQuery };
+  const covers = (): string[] => [
+    `Dates: ${dateOptions.find((o) => o.value === dateFilter)?.label ?? dateFilter} (Asia/Manila days)`,
+    `Search text: ${searchQuery.trim() ? `"${searchQuery.trim()}"` : 'none'}; category: ${categoryOptions.find((o) => o.value === categoryFilter)?.label ?? categoryFilter}`,
+  ];
 
   return (
     <Box sx={{ maxWidth: SHELL.contentMaxWidth, margin: '0 auto', pb: '38px' }}>
-      {/* 1. Search, filters and the export buttons (the export covers what the date filter and the search show) */}
+      {/* 1. Search and filters */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -158,14 +137,23 @@ export const TodaAuditLogsPage: React.FC = () => {
           setCategoryFilter('All');
           setDateFilter('All');
         }}
-        actionButton={exportButtons}
+        disableMarginBottom
       />
 
-      {exportNote && (
-        <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: SPACE.gapLarge, borderRadius: '8px', fontSize: FONT.body }}>
-          {exportNote.text}
-        </Alert>
-      )}
+      {/* 1B. How many entries are shown, and the export of exactly those (Excel, CSV, PDF) */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', my: SPACE.gap }}>
+        <Typography role="status" sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary }}>
+          {isLoading ? 'Loading entries...' : `Showing ${filteredLogs.length} of ${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`}
+        </Typography>
+        <ExportToolbar
+          getTable={() => loadTodaAuditExport(exportQuery, categoryFilter, covers(), todaName)}
+          meta={() => ({ exportedBy: todaAdminProfile?.full_name || 'TODA Administrator', role: `TODA Administrator, ${todaName}`, organisation: todaName, scope: todaName })}
+          loadXlsx={loadXlsx}
+          record={({ format, table }) => recordTodaAuditExport(format, table.rows.length, exportQuery)}
+          disabled={isLoading}
+          disabledReason="The log is still loading"
+        />
+      </Box>
 
       {/* 2. The record, newest first */}
       <DataTableCard

@@ -3,7 +3,6 @@ import { Alert, Box, Button, CircularProgress, Tab, Tabs, Typography } from '@mu
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import DownloadIcon from '@mui/icons-material/Download';
 import GroupsIcon from '@mui/icons-material/Groups';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import MapIcon from '@mui/icons-material/Map';
@@ -12,14 +11,13 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import TimelineIcon from '@mui/icons-material/Timeline';
-import { compareWithPrevious, exportReportCsv, exportReportPdf, exportReportXlsx, scopeSeries } from '@sakay/shared';
-import type { VolumePeriod, XlsxLike } from '@sakay/shared';
+import { ExportToolbar, compareWithPrevious, scopeSeries } from '@sakay/shared';
+import type { VolumePeriod } from '@sakay/shared';
 
 import { AnalyticsFilterBar } from '../components/admin/AnalyticsFilterBar';
 import { ReportPeriodBar } from '../components/admin/ReportPeriodBar';
-import { PeakHoursByGroupTable } from '../components/admin/PeakHoursByGroupTable';
+import { HotspotsSection, PeakHoursSection, ReportChart } from '../components/admin/ReportCharts';
 import { ReportTableView } from '../components/admin/ReportTableView';
-import { MeterRow } from '../components/common/MeterRow';
 import { PageNotice } from '../components/common/PageNotice';
 import { SegmentedToggle } from '../components/common/SegmentedToggle';
 import type { SegmentedOption } from '../components/common/SegmentedToggle';
@@ -27,11 +25,12 @@ import { StatStrip } from '../components/common/StatStrip';
 import { useAuth } from '../contexts/AuthContext';
 import { useOperationalReports } from '../hooks/useOperationalReports';
 import { useReportPeriod } from '../hooks/useReportPeriod';
-import { recordAdminAuditAction } from '../services/adminApiService';
+import { recordAdminAuditStrict } from '../services/adminApiService';
+import { loadXlsx } from '../utils/loadXlsx';
 import { reportTableFor } from '../utils/reportTables';
 import type { ReportKind } from '../utils/reportTables';
 import { FONT, SPACE } from '../styles/density';
-import { PAGE_DIVIDER, PAGE_TEXT, pageCardSx, pageFocusRing, primaryButtonSx, rowActionSx, secondaryButtonSx } from '../styles/pageTheme';
+import { PAGE_DIVIDER, PAGE_TEXT, pageCardSx, pageFocusRing, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -53,8 +52,6 @@ import { PAGE_DIVIDER, PAGE_TEXT, pageCardSx, pageFocusRing, primaryButtonSx, ro
  * The PDF is the browser's print dialog ("Save as PDF"); the Excel file is a real .xlsx workbook.
  * ============================================================================
  */
-
-type ExportFormat = 'xlsx' | 'csv' | 'pdf';
 
 const NO_RECORDS: Record<ReportKind, string> = {
   Bookings: 'No booking requests match the filter.',
@@ -92,18 +89,11 @@ const REPORT_TABS: Array<{ value: ReportKind; label: string; icon: React.ReactEl
 const tabId = (kind: ReportKind) => `report-tab-${kind}`;
 const PANEL_ID = 'report-panel';
 
-// A heading inside the report panel
-const PanelHeading: React.FC<{ children: React.ReactNode; first?: boolean }> = ({ children, first = false }) => (
-  <Typography component="h3" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary, mt: first ? 0 : '22px', mb: '10px' }}>{children}</Typography>
-);
-
 export const ReportsPage: React.FC = () => {
   const { data: reportsData, filter, setFilter, isLoading, loadError, reload } = useOperationalReports();
   const { adminProfile } = useAuth();
   const [activeReportTab, setActiveReportTab] = useState<ReportKind>('Bookings');
   const [trendPeriod, setTrendPeriod] = useState<VolumePeriod>('week');
-  const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   // Decision D-P6: the reports follow ONE day, week or month
   const reportPeriod = useReportPeriod(filter, setFilter, 'week');
@@ -112,35 +102,6 @@ export const ReportsPage: React.FC = () => {
     ? { scope: singleScope, label: reportPeriod.range.label, rows: scopeSeries(reportsData.bookings, singleScope, reportPeriod.range.from, reportPeriod.range.to) }
     : undefined;
   const table = reportsData ? reportTableFor(activeReportTab, reportsData, trendPeriod, scopeInfo) : null;
-
-  const runExport = async (format: ExportFormat) => {
-    if (!table || !reportsData) return;
-    setExporting(format);
-    setExportNote(null);
-    try {
-      // who exported it is in the header and the footer of the Excel and PDF files (decision D-P6)
-      const meta = { exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator, City Transport Office' };
-      if (format === 'xlsx') {
-        exportReportXlsx((await import('xlsx')) as unknown as XlsxLike, table, meta);
-      } else if (format === 'csv') {
-        exportReportCsv(table);
-      } else {
-        await exportReportPdf(table, meta);
-      }
-      // who exported which report, for which filter (the report itself is never changed by this)
-      await recordAdminAuditAction({
-        actionType: 'REPORT_EXPORTED',
-        targetName: table.title,
-        details: `Exported '${table.title}' as ${format === 'xlsx' ? 'Excel' : format === 'csv' ? 'CSV' : 'PDF'} (${table.rows.length} rows). ${reportsData.filterText}. Exported by ${adminProfile?.full_name || 'the LGU Administrator'}.`,
-        category: 'System',
-      });
-      setExportNote({ severity: 'success', text: `${table.title}: ${table.rows.length} row${table.rows.length === 1 ? '' : 's'} exported (${reportsData.filterText}).` });
-    } catch (err) {
-      setExportNote({ severity: 'error', text: err instanceof Error ? err.message : 'The report could not be exported.' });
-    } finally {
-      setExporting(null);
-    }
-  };
 
   const summary = reportsData?.summary || {
     totalBookings: 0,
@@ -158,7 +119,7 @@ export const ReportsPage: React.FC = () => {
     </Button>
   );
 
-  const exportDisabled = !table || exporting !== null;
+  const trendRows = scopeInfo ? scopeInfo.rows : reportsData ? reportsData.volume[trendPeriod] : [];
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
@@ -175,12 +136,6 @@ export const ReportsPage: React.FC = () => {
           {loadError}
         </PageNotice>
       )}
-      {exportNote && (
-        <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: SPACE.gapLarge, borderRadius: '10px' }}>
-          {exportNote.text}
-        </Alert>
-      )}
-
       {/* 2. Filters: every report follows them */}
       {reportsData && (
         <Box sx={{ mb: SPACE.gapLarge }}>
@@ -235,20 +190,23 @@ export const ReportsPage: React.FC = () => {
             reportsData &&
             table && (
               <>
-                {/* what the report follows, and how to take it away */}
+                {/* what the report follows, and how to take it away (Excel, CSV, PDF: the shared export toolbar; the confirmation is a toast) */}
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', mb: '16px' }}>
                   <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, minWidth: 0, overflowWrap: 'anywhere' }}>Showing: {reportsData.filterText}</Typography>
-                  <Box role="group" aria-label="Export this report" sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <Button onClick={() => void runExport('xlsx')} disabled={exportDisabled} variant="contained" startIcon={<DownloadIcon sx={{ fontSize: 16 }} />} sx={primaryButtonSx}>
-                      {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel (.xlsx)'}
-                    </Button>
-                    <Button onClick={() => void runExport('csv')} disabled={exportDisabled} sx={secondaryButtonSx}>
-                      {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
-                    </Button>
-                    <Button onClick={() => void runExport('pdf')} disabled={exportDisabled} sx={secondaryButtonSx}>
-                      {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
-                    </Button>
-                  </Box>
+                  <ExportToolbar
+                    getTable={() => table}
+                    meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator, City Transport Office', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
+                    loadXlsx={loadXlsx}
+                    record={({ format, table: exported }) =>
+                      recordAdminAuditStrict({
+                        actionType: 'REPORT_EXPORTED',
+                        targetName: exported.title,
+                        details: `Exported '${exported.title}' as ${format} (${exported.rows.length} rows). ${reportsData.filterText}. Exported by ${adminProfile?.full_name || 'the LGU Administrator'}.`,
+                        category: 'System',
+                      })
+                    }
+                    disabled={!table}
+                  />
                 </Box>
 
                 {activeReportTab === 'Trend' && (
@@ -276,53 +234,21 @@ export const ReportsPage: React.FC = () => {
                   </Box>
                 )}
 
-                {activeReportTab === 'PeakHours' && (
-                  <Box sx={{ mb: '22px' }}>
-                    <PanelHeading first>Peak travel hours</PanelHeading>
-                    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '-6px', mb: '12px' }}>When SAKAY bookings are created (Asia/Manila time).</Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {reportsData.peakHourDistribution.map((h) => (
-                        <MeterRow
-                          key={h.hour}
-                          label={h.hour}
-                          valueText={`${h.count} ${h.count === 1 ? 'trip' : 'trips'}`}
-                          percent={(h.count / Math.max(1, ...reportsData.peakHourDistribution.map((x) => x.count))) * 100}
-                          color="var(--sakay-orange)"
-                          labelWidth={100}
-                          valueWidth={72}
-                          thickness={10}
-                        />
-                      ))}
-                    </Box>
-                    <PanelHeading>Peak hours of each TODA</PanelHeading>
-                    <PeakHoursByGroupTable groupLabel="TODA" rows={reportsData.peakHoursByToda} failed={Boolean(loadError)} />
-                    <PanelHeading>Peak hours of each barangay (pickup)</PanelHeading>
-                    <PeakHoursByGroupTable groupLabel="Barangay (pickup)" rows={reportsData.peakHoursByBarangay} failed={Boolean(loadError)} />
-                    <PanelHeading>The exported table</PanelHeading>
-                  </Box>
+                {/* the chart or the map first, the table under it */}
+                {activeReportTab === 'PeakHours' ? (
+                  <PeakHoursSection data={reportsData} table={table} failed={Boolean(loadError)} emptyText={loadError ? 'The records could not be loaded. Use Try again at the top of the page.' : NO_RECORDS.PeakHours} />
+                ) : (
+                  <>
+                    {activeReportTab === 'Hotspots' ? (
+                      <Box sx={{ mb: '22px' }}>
+                        <HotspotsSection data={reportsData} emptyText={NO_RECORDS.Hotspots} />
+                      </Box>
+                    ) : (
+                      <ReportChart kind={activeReportTab} data={reportsData} trendRows={trendRows} />
+                    )}
+                    <ReportTableView table={table} emptyText={loadError ? 'The records could not be loaded. Use Try again at the top of the page.' : NO_RECORDS[activeReportTab]} />
+                  </>
                 )}
-
-                {activeReportTab === 'Barangay' && reportsData.barangayDemand.length > 0 && (
-                  <Box sx={{ mb: '22px' }}>
-                    <PanelHeading first>Pickups by barangay</PanelHeading>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {reportsData.barangayDemand.map((b) => (
-                        <MeterRow
-                          key={b.barangay}
-                          label={b.barangay}
-                          valueText={`${b.count} pickup${b.count === 1 ? '' : 's'} · ${b.percentage}%`}
-                          percent={b.percentage}
-                          color="#1565C0"
-                          labelWidth={190}
-                          valueWidth={120}
-                        />
-                      ))}
-                    </Box>
-                    <PanelHeading>The exported table</PanelHeading>
-                  </Box>
-                )}
-
-                <ReportTableView table={table} emptyText={loadError ? 'The records could not be loaded. Use Try again at the top of the page.' : NO_RECORDS[activeReportTab]} />
               </>
             )
           )}

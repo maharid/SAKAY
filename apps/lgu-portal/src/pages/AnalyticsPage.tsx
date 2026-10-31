@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, Box, Button, CircularProgress, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Tab, Tabs, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -23,7 +23,7 @@ import { useOperationalReports } from '../hooks/useOperationalReports';
 import { useReportPeriod } from '../hooks/useReportPeriod';
 import { supabase } from '../services/supabaseClient';
 import { FONT, SPACE } from '../styles/density';
-import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
+import { PAGE_BORDER, PAGE_DIVIDER, PAGE_TEXT, pageCardSx, pageFocusRing, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -46,6 +46,14 @@ const CALAPAN_CENTER: L.LatLngExpression = [13.4117, 121.1803];
 
 const PERIOD_WORD: Record<VolumePeriod, string> = { day: 'day', week: 'week', month: 'month' };
 const PERIOD_RANGE_TEXT: Record<VolumePeriod, string> = { day: 'days', week: 'weeks', month: 'months' };
+
+type AnalyticsTab = 'overview' | 'demand' | 'people' | 'coverage';
+const ANALYTICS_TABS: Array<{ value: AnalyticsTab; label: string }> = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'demand', label: 'When and where' },
+  { value: 'people', label: 'Drivers and passengers' },
+  { value: 'coverage', label: 'Coverage gaps' },
+];
 
 type HotspotKind = 'pickup' | 'dropoff';
 type DayType = 'all' | 'weekday' | 'weekend';
@@ -118,6 +126,9 @@ export const AnalyticsPage: React.FC = () => {
   const [hotspotKind, setHotspotKind] = useState<HotspotKind>('pickup');
   const [dayType, setDayType] = useState<DayType>('all');
   const [peakGroup, setPeakGroup] = useState<PeakGroup>('toda');
+  // the figures are grouped in four tabs; the filters above them apply to all
+  const [tab, setTab] = useState<AnalyticsTab>('overview');
+  const [showFigureNotes, setShowFigureNotes] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
@@ -142,7 +153,7 @@ export const AnalyticsPage: React.FC = () => {
   const spotColor = hotspotKind === 'pickup' ? '#FF5500' : '#1565C0';
 
   // The map is created once, as soon as its container exists...
-  const mapReady = Boolean(data);
+  const mapReady = Boolean(data) && tab === 'demand';
   useEffect(() => {
     if (!mapReady || !mapRef.current || leafletMap.current) return;
     const map = L.map(mapRef.current, { center: CALAPAN_CENTER, zoom: 14, zoomControl: true });
@@ -181,7 +192,7 @@ export const AnalyticsPage: React.FC = () => {
     });
     map.fitBounds(L.latLngBounds(spots.map((s) => [s.lat, s.lng] as L.LatLngTuple)).pad(0.4), { maxZoom: 16 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, hotspotKind, dayType]);
+  }, [data, hotspotKind, dayType, tab]);
 
   const service = data?.serviceUtilization;
   const drivers = data?.driverUtilizationSummary;
@@ -246,20 +257,37 @@ export const AnalyticsPage: React.FC = () => {
             <AnalyticsFilterBar filter={filter} onChange={setFilter} todaOptions={data.todaOptions} barangayOptions={data.barangayOptions} actions={refreshButton} hideDates={singleScope !== null} />
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 14px', mb: SPACE.gapLarge }}>
               <ReportPeriodBar period={reportPeriod} />
-              {!singleScope && (
-                <>
-                  <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary }}>Bars per</Typography>
-                  <SegmentedToggle label="Bars per" value={period} options={PERIOD_OPTIONS} onChange={setPeriod} />
-                </>
-              )}
               <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary }}>Showing: {data.filterText}</Typography>
             </Box>
 
-            <CoverageGapsPanel gaps={coverageGaps} loading={coverageLoading} audience="lgu_admin" />
+            {/* 3. The figures, in four groups (the filters above apply to all of them) */}
+            <Box sx={{ ...pageCardSx, overflow: 'hidden', mb: SPACE.gapLarge }}>
+              <Box sx={{ borderBottom: `1px solid ${PAGE_DIVIDER}`, backgroundColor: '#FAFAF8' }}>
+                <Tabs
+                  value={tab}
+                  onChange={(_, value: AnalyticsTab) => setTab(value)}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  aria-label="Analytics groups"
+                  sx={{
+                    minHeight: 44,
+                    '& .MuiTabs-indicator': { backgroundColor: '#C75000', height: 3 },
+                    '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: FONT.body, minHeight: 44, color: PAGE_TEXT.secondary, px: '18px', ...pageFocusRing, '&:focus-visible': { outline: `2px solid ${PAGE_TEXT.brand}`, outlineOffset: '-2px' } },
+                    '& .MuiTab-root.Mui-selected': { color: `${PAGE_TEXT.brand} !important`, fontWeight: 700 },
+                  }}
+                >
+                  {ANALYTICS_TABS.map((t) => (
+                    <Tab key={t.value} id={`analytics-tab-${t.value}`} aria-controls="analytics-panel" label={t.label} value={t.value} />
+                  ))}
+                </Tabs>
+              </Box>
+            </Box>
 
-            {/* 3. The key figures */}
-            <StatStrip
-              label="Key figures"
+            <Box role="tabpanel" id="analytics-panel" aria-labelledby={`analytics-tab-${tab}`} sx={{ containerType: 'inline-size' }}>
+              {tab === 'overview' && (
+                <>
+                  <StatStrip
+              label="Booking key figures"
               minCellWidth={230}
               stats={[
                 {
@@ -282,39 +310,16 @@ export const AnalyticsPage: React.FC = () => {
                   value: service && service.completed > 0 ? `₱${service.averageFare.toFixed(2)}` : '—',
                   note: 'Per completed trip (final fare)',
                 },
-                {
-                  key: 'utilization',
-                  label: 'Driver utilization',
-                  value: drivers && drivers.verifiedDrivers > 0 ? `${drivers.rate}%` : '—',
-                  note: `${drivers?.activeDrivers ?? 0} of ${drivers?.verifiedDrivers ?? 0} verified drivers completed a trip in the 30 days up to ${filter.to ? 'the end date' : 'today'}`,
-                },
-                {
-                  key: 'perDriver',
-                  label: 'Completed trips per driver',
-                  value: data.driverAverage === null ? '—' : data.driverAverage.toFixed(1),
-                  note:
-                    data.driverAverage === null
-                      ? 'No verified drivers in this selection'
-                      : `Average over ${drivers?.verifiedDrivers ?? 0} verified driver${drivers?.verifiedDrivers === 1 ? '' : 's'} in this selection. Low-activity and high-demand drivers are listed in Reports.`,
-                },
-                {
-                  key: 'perPassenger',
-                  label: 'Bookings per passenger',
-                  value: pax?.averageBookingsPerBooker == null ? '—' : pax.averageBookingsPerBooker.toFixed(1),
-                  note:
-                    pax && pax.bookedAtLeastOnce > 0
-                      ? `${pax.bookings} booking${pax.bookings === 1 ? '' : 's'} by ${pax.bookedAtLeastOnce} passenger${pax.bookedAtLeastOnce === 1 ? '' : 's'} who booked; ${pax.repeatBookers} booked more than once${pax.averageBookingsPerRegistered !== null ? `. ${pax.averageBookingsPerRegistered.toFixed(1)} per registered passenger (${pax.registered})` : ''}`
-                      : 'No bookings in this selection',
-                },
+
               ]}
             />
-
-            <Box sx={{ containerType: 'inline-size' }}>
               {/* 4. Booking trend + service utilization */}
               <Box sx={splitRowSx('minmax(0, 3fr) minmax(0, 2fr)')}>
                 <DashboardCard
                   title={singleScope && reportPeriod.range ? `Booking trend: ${reportPeriod.range.label}` : `Booking trend (${trend.length} ${trend.length === 1 ? PERIOD_WORD[period] : PERIOD_RANGE_TEXT[period]})`}
                   description={`${trendTotal} booking${trendTotal === 1 ? '' : 's'} ${singleScope === 'day' ? 'on this day, hour by hour' : singleScope ? `in this ${singleScope}, day by day` : 'in this period'}`}
+                  wrapHeader
+                  actions={!singleScope ? <SegmentedToggle label="Bars per" value={period} options={PERIOD_OPTIONS} onChange={setPeriod} /> : undefined}
                 >
                   {/* the comparison of the last two periods; not shown when the figures could not be read (it would compare two periods of nothing) */}
                   {!failed && (
@@ -383,7 +388,10 @@ export const AnalyticsPage: React.FC = () => {
                   )}
                 </DashboardCard>
               </Box>
-
+                </>
+              )}
+              {tab === 'demand' && (
+                <>
               {/* 5. Demand by day of the week + peak hours by TODA or barangay */}
               <Box sx={splitRowSx('minmax(0, 2fr) minmax(0, 3fr)', 1180)}>
                 <DashboardCard title="Demand by day of the week" description="Bookings on each day, over the period">
@@ -423,7 +431,96 @@ export const AnalyticsPage: React.FC = () => {
                   />
                 </DashboardCard>
               </Box>
-
+              {/* 7. Booking activity hotspots */}
+              <Box sx={{ mb: SPACE.gapLarge }}>
+                <DashboardCard
+                  title={`Booking activity hotspots (${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} clusters)`}
+                  description={
+                    spots.length > 0
+                      ? `Top ${spots.length} areas of about 550 m, from the ${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} coordinates of SAKAY bookings (${dayType === 'all' ? 'all days' : dayType === 'weekday' ? 'Monday to Friday' : 'Saturday and Sunday'}). Larger circles have more bookings.`
+                      : `No booking with a ${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} location matches the filter.`
+                  }
+                  wrapHeader
+                  actions={
+                    <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <SegmentedToggle label="Show" value={hotspotKind} options={HOTSPOT_KIND_OPTIONS} onChange={setHotspotKind} />
+                      <SegmentedToggle label="Days" value={dayType} options={DAY_TYPE_OPTIONS} onChange={setDayType} />
+                    </Box>
+                  }
+                >
+                  <Box sx={{ position: 'relative', isolation: 'isolate', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${PAGE_BORDER}` }}>
+                    {spots.length === 0 && (
+                      <Box role={failed ? 'alert' : 'status'} sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, px: '14px', py: '7px', borderRadius: '8px', backgroundColor: '#FFFFFF', border: `1px solid ${PAGE_BORDER}`, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.12)', fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, whiteSpace: 'nowrap' }}>
+                        {failed ? 'Hotspots could not be loaded' : 'No hotspots to show'}
+                      </Box>
+                    )}
+                    <div ref={mapRef} role="region" aria-label="Map of booking activity hotspots" style={{ width: '100%', height: '380px' }} />
+                  </Box>
+                </DashboardCard>
+              </Box>
+              {/* 8. Weekdays against weekends */}
+              <Box sx={{ mb: '10px' }}>
+                <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary }}>Weekdays against weekends</Typography>
+                <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '2px' }}>The busiest places on weekdays and on weekends.</Typography>
+              </Box>
+              <DataTableCard
+                label="Weekdays against weekends"
+                minWidth={760}
+                columns={[
+                  { label: 'Period' },
+                  { label: 'Bookings' },
+                  { label: 'Per day' },
+                  { label: 'Busiest pickup area' },
+                  { label: 'Busiest drop-off area' },
+                  { label: 'Busiest barangay (pickup)' },
+                ]}
+              >
+                <TableBody>
+                  {[data.dayTypes.weekday, data.dayTypes.weekend].map((side) => (
+                    <TableRow key={side.label}>
+                      <TableCell><CellStack primary={side.label} /></TableCell>
+                      <TableCell>{side.bookings}</TableCell>
+                      <TableCell>{side.perDay === null ? '—' : `${side.perDay} (over ${side.days} day${side.days === 1 ? '' : 's'})`}</TableCell>
+                      <TableCell>{side.pickups[0] ? `${side.pickups[0].label} (${side.pickups[0].count})` : '—'}</TableCell>
+                      <TableCell>{side.dropoffs[0] ? `${side.dropoffs[0].label} (${side.dropoffs[0].count})` : '—'}</TableCell>
+                      <TableCell>{side.barangays[0] ? `${side.barangays[0].barangay} (${side.barangays[0].count})` : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </DataTableCard>
+                </>
+              )}
+              {tab === 'people' && (
+                <>
+                  <StatStrip
+              label="Driver and passenger key figures"
+              minCellWidth={230}
+              stats={[                {
+                  key: 'utilization',
+                  label: 'Driver utilization',
+                  value: drivers && drivers.verifiedDrivers > 0 ? `${drivers.rate}%` : '—',
+                  note: `${drivers?.activeDrivers ?? 0} of ${drivers?.verifiedDrivers ?? 0} verified drivers completed a trip in the 30 days up to ${filter.to ? 'the end date' : 'today'}`,
+                },
+                {
+                  key: 'perDriver',
+                  label: 'Completed trips per driver',
+                  value: data.driverAverage === null ? '—' : data.driverAverage.toFixed(1),
+                  note:
+                    data.driverAverage === null
+                      ? 'No verified drivers in this selection'
+                      : `Average over ${drivers?.verifiedDrivers ?? 0} verified driver${drivers?.verifiedDrivers === 1 ? '' : 's'} in this selection. Low-activity and high-demand drivers are listed in Reports.`,
+                },
+                {
+                  key: 'perPassenger',
+                  label: 'Bookings per passenger',
+                  value: pax?.averageBookingsPerBooker == null ? '—' : pax.averageBookingsPerBooker.toFixed(1),
+                  note:
+                    pax && pax.bookedAtLeastOnce > 0
+                      ? `${pax.bookings} booking${pax.bookings === 1 ? '' : 's'} by ${pax.bookedAtLeastOnce} passenger${pax.bookedAtLeastOnce === 1 ? '' : 's'} who booked; ${pax.repeatBookers} booked more than once${pax.averageBookingsPerRegistered !== null ? `. ${pax.averageBookingsPerRegistered.toFixed(1)} per registered passenger (${pax.registered})` : ''}`
+                      : 'No bookings in this selection',
+                },
+              ]}
+            />
               {/* 6. Registration and accreditation trends (decision D-P6, panel: "stack bar"): ONE stacked bar per day or period, one colour per kind */}
               <Box sx={{ mb: SPACE.gapLarge }}>
                 <DashboardCard
@@ -473,76 +570,28 @@ export const AnalyticsPage: React.FC = () => {
                           ))}
                         </Box>
                         <Box sx={{ mt: '8px' }}>
-                          {series.map((c) => (
-                            <Typography key={c.key} sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>
-                              <b>{c.label}.</b> {c.note}
-                            </Typography>
-                          ))}
+                          <Button onClick={() => setShowFigureNotes((v) => !v)} aria-expanded={showFigureNotes} sx={rowActionSx('neutral')}>
+                            {showFigureNotes ? 'Hide what these figures mean' : 'What do these figures mean?'}
+                          </Button>
+                          {showFigureNotes &&
+                            series.map((c) => (
+                              <Typography key={c.key} sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, lineHeight: 1.5, mt: '4px' }}>
+                                <b>{c.label}.</b> {c.note}
+                              </Typography>
+                            ))}
                         </Box>
                       </>
                     );
                   })()}
                 </DashboardCard>
               </Box>
-
-              {/* 7. Booking activity hotspots */}
-              <Box sx={{ mb: SPACE.gapLarge }}>
-                <DashboardCard
-                  title={`Booking activity hotspots (${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} clusters)`}
-                  description={
-                    spots.length > 0
-                      ? `Top ${spots.length} areas of about 550 m, from the ${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} coordinates of SAKAY bookings (${dayType === 'all' ? 'all days' : dayType === 'weekday' ? 'Monday to Friday' : 'Saturday and Sunday'}). Larger circles have more bookings.`
-                      : `No booking with a ${hotspotKind === 'pickup' ? 'pickup' : 'drop-off'} location matches the filter.`
-                  }
-                  wrapHeader
-                  actions={
-                    <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <SegmentedToggle label="Show" value={hotspotKind} options={HOTSPOT_KIND_OPTIONS} onChange={setHotspotKind} />
-                      <SegmentedToggle label="Days" value={dayType} options={DAY_TYPE_OPTIONS} onChange={setDayType} />
-                    </Box>
-                  }
-                >
-                  <Box sx={{ position: 'relative', isolation: 'isolate', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${PAGE_BORDER}` }}>
-                    {spots.length === 0 && (
-                      <Box role={failed ? 'alert' : 'status'} sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, px: '14px', py: '7px', borderRadius: '8px', backgroundColor: '#FFFFFF', border: `1px solid ${PAGE_BORDER}`, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.12)', fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, whiteSpace: 'nowrap' }}>
-                        {failed ? 'Hotspots could not be loaded' : 'No hotspots to show'}
-                      </Box>
-                    )}
-                    <div ref={mapRef} role="region" aria-label="Map of booking activity hotspots" style={{ width: '100%', height: '380px' }} />
-                  </Box>
-                </DashboardCard>
-              </Box>
-
-              {/* 8. Weekdays against weekends */}
-              <Box sx={{ mb: '10px' }}>
-                <Typography component="h2" sx={{ fontSize: FONT.cardTitle, fontWeight: 700, color: PAGE_TEXT.primary }}>Weekdays against weekends</Typography>
-                <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '2px' }}>The busiest places on weekdays and on weekends.</Typography>
-              </Box>
-              <DataTableCard
-                label="Weekdays against weekends"
-                minWidth={760}
-                columns={[
-                  { label: 'Period' },
-                  { label: 'Bookings' },
-                  { label: 'Per day' },
-                  { label: 'Busiest pickup area' },
-                  { label: 'Busiest drop-off area' },
-                  { label: 'Busiest barangay (pickup)' },
-                ]}
-              >
-                <TableBody>
-                  {[data.dayTypes.weekday, data.dayTypes.weekend].map((side) => (
-                    <TableRow key={side.label}>
-                      <TableCell><CellStack primary={side.label} /></TableCell>
-                      <TableCell>{side.bookings}</TableCell>
-                      <TableCell>{side.perDay === null ? '—' : `${side.perDay} (over ${side.days} day${side.days === 1 ? '' : 's'})`}</TableCell>
-                      <TableCell>{side.pickups[0] ? `${side.pickups[0].label} (${side.pickups[0].count})` : '—'}</TableCell>
-                      <TableCell>{side.dropoffs[0] ? `${side.dropoffs[0].label} (${side.dropoffs[0].count})` : '—'}</TableCell>
-                      <TableCell>{side.barangays[0] ? `${side.barangays[0].barangay} (${side.barangays[0].count})` : '—'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </DataTableCard>
+                </>
+              )}
+              {tab === 'coverage' && (
+                <Box sx={{ mb: SPACE.gapLarge }}>
+                  <CoverageGapsPanel gaps={coverageGaps} loading={coverageLoading} audience="lgu_admin" />
+                </Box>
+              )}
             </Box>
           </>
         )

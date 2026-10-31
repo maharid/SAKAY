@@ -63,13 +63,13 @@ export const DeactivateAccountDialog: React.FC<DeactivateAccountDialogProps> = (
 
   return (
     <Dialog open={open} onClose={close} fullWidth maxWidth="xs" aria-labelledby="deactivate-account-title" slotProps={{ paper: { sx: { borderRadius: '16px', m: 2 } } }}>
-      <DialogTitle id="deactivate-account-title" sx={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '17px' }}>
+      <DialogTitle id="deactivate-account-title" sx={{ fontFamily: 'var(--sakay-font-family, Poppins), sans-serif', fontWeight: 700, fontSize: '17px' }}>
         {tl ? 'I-deactivate ang aking account?' : 'Deactivate my account?'}
       </DialogTitle>
       <DialogContent>
         <Box component="ul" sx={{ m: 0, pl: 2.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
           {lines.map((line) => (
-            <Typography key={line} component="li" sx={{ fontFamily: 'Poppins, sans-serif', fontSize: '13px', color: '#334155', lineHeight: 1.5 }}>
+            <Typography key={line} component="li" sx={{ fontFamily: 'var(--sakay-font-family, Poppins), sans-serif', fontSize: '13px', color: '#334155', lineHeight: 1.5 }}>
               {line}
             </Typography>
           ))}
@@ -84,23 +84,23 @@ export const DeactivateAccountDialog: React.FC<DeactivateAccountDialogProps> = (
           onChange={(e) => setReason(e.target.value.slice(0, MAX_REASON))}
           label={tl ? 'Dahilan (hindi required)' : 'Reason (optional)'}
           helperText={`${reason.length}/${MAX_REASON}`}
-          slotProps={{ inputLabel: { sx: { fontFamily: 'Poppins, sans-serif' } } }}
+          slotProps={{ inputLabel: { sx: { fontFamily: 'var(--sakay-font-family, Poppins), sans-serif' } } }}
         />
         {problem && (
-          <Alert severity="warning" role="alert" sx={{ mt: 1, borderRadius: '10px', fontFamily: 'Poppins, sans-serif', fontSize: '13px' }}>
+          <Alert severity="warning" role="alert" sx={{ mt: 1, borderRadius: '10px', fontFamily: 'var(--sakay-font-family, Poppins), sans-serif', fontSize: '13px' }}>
             {problem}
           </Alert>
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-        <Button onClick={close} disabled={busy} sx={{ textTransform: 'none', fontWeight: 600, color: '#475569', fontFamily: 'Poppins, sans-serif' }}>
+        <Button onClick={close} disabled={busy} sx={{ textTransform: 'none', fontWeight: 600, color: '#475569', fontFamily: 'var(--sakay-font-family, Poppins), sans-serif' }}>
           {tl ? 'Huwag muna' : 'Not now'}
         </Button>
         <Button
           onClick={confirm}
           disabled={busy}
           variant="contained"
-          sx={{ textTransform: 'none', fontWeight: 700, backgroundColor: '#B91C1C', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#991B1B' } }}
+          sx={{ textTransform: 'none', fontWeight: 700, backgroundColor: '#B91C1C', fontFamily: 'var(--sakay-font-family, Poppins), sans-serif', '&:hover': { backgroundColor: '#991B1B' } }}
         >
           {busy ? (tl ? 'Isinasagawa...' : 'Working...') : tl ? 'I-deactivate' : 'Deactivate'}
         </Button>

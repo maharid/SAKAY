@@ -33,7 +33,8 @@ export async function rotateDriverSession(driverId: string): Promise<string> {
  * Helper to get localized error message respecting current selected language
  */
 export function getLocalizedError(tlMsg: string, enMsg: string): string {
-  const lang = typeof window !== 'undefined' ? localStorage.getItem('sakay_language') || 'tl' : 'tl';
+  // English unless Tagalog was chosen
+  const lang = typeof window !== 'undefined' ? localStorage.getItem('sakay_language') : null;
   return lang === 'tl' ? tlMsg : enMsg;
 }
 
@@ -460,6 +461,8 @@ export async function fetchDriverNotifications(): Promise<any[]> {
       message: a.message || a.content || '',
       category: a.category || (a.urgency === 'Urgent' ? 'Dispatch Alert' : 'TODA Announcement'),
       type: a.urgency === 'Urgent' ? 'alert' : 'announcement',
+      // what the announcement is about: its icon follows it
+      eventType: (a.event_type as string | null) || undefined,
       sentAt: (a.created_at as string | null) || null,
       time: a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent',
       timestamp: a.created_at ? new Date(a.created_at).toLocaleDateString('en-US') : 'Recent',
@@ -951,7 +954,8 @@ export async function saveDriverLicenseVerification(
     let frontStoragePath: string | null = null;
     let backStoragePath: string | null = null;
 
-    const frontUploadDataUrl = formData.rawFrontPhoto || formData.frontPhoto;
+    // the cropped licence card is what is stored; the whole camera frame is not kept
+    const frontUploadDataUrl = formData.frontPhoto || formData.rawFrontPhoto;
 
     if (frontUploadDataUrl && frontUploadDataUrl.startsWith('data:')) {
       try {
@@ -1004,7 +1008,7 @@ export async function saveDriverLicenseVerification(
     }
 
     // 4. Upload back photo proof if available
-    const backUploadDataUrl = formData.rawBackPhoto || formData.backPhoto;
+    const backUploadDataUrl = formData.backPhoto || formData.rawBackPhoto;
     if (backUploadDataUrl && backUploadDataUrl.startsWith('data:')) {
       try {
         const backBlobInfo = dataUrlToBlob(backUploadDataUrl);
@@ -1247,7 +1251,7 @@ export async function saveDriverMtopVerification(
     }
 
     // 3. Upload MTOP permit photo proof to Supabase Storage
-    const photoUploadUrl = formData.rawPhotoUrl || formData.photoUrl;
+    const photoUploadUrl = formData.photoUrl || formData.rawPhotoUrl;
     let mtopStoragePath: string | null = null;
 
     if (photoUploadUrl && photoUploadUrl.startsWith('data:')) {

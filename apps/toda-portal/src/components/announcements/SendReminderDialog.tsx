@@ -71,7 +71,7 @@ export const SendReminderDialog: React.FC<SendReminderDialogProps> = ({ open, on
       maxWidth={512}
       primaryActionLabel={valid && !result ? (sending ? 'Sending...' : 'Send Reminder') : undefined}
       onPrimaryAction={valid && !result ? send : undefined}
-      secondaryActionLabel={result ? 'Close' : 'Cancel'}
+      secondaryActionLabel={result ? undefined : 'Cancel'}
       onSecondaryAction={close}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

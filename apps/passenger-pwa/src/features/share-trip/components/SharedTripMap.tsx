@@ -9,6 +9,18 @@ import {
   createLiveMarker,
   DRIVER_MARKER_SIZE,
   driverMarkerHtml,
+  destinationMarkerHtml,
+  DESTINATION_MARKER_ANCHOR,
+  DESTINATION_MARKER_HEIGHT,
+  DESTINATION_MARKER_WIDTH,
+  DESTINATION_MARKER_Z_OFFSET,
+  DESTINATION_POPUP_OFFSET,
+  pickupMarkerHtml,
+  PICKUP_MARKER_ANCHOR,
+  PICKUP_MARKER_SIZE,
+  PICKUP_MARKER_Z_OFFSET,
+  PICKUP_POPUP_OFFSET,
+  placePopupElement,
   type LiveMarker,
 } from "@sakay/shared";
 
@@ -31,20 +43,6 @@ interface SharedTripMapProps {
 
 const hasPoint = (p: SharedTripPoint | null | undefined): p is SharedTripPoint =>
   Boolean(p) && Number.isFinite(p!.lat) && Number.isFinite(p!.lng) && !(p!.lat === 0 && p!.lng === 0);
-
-const pickupIcon = L.divIcon({
-  className: "leaflet-pickup-marker",
-  html: `<div style="width:14px;height:14px;background-color:#FFFFFF;border:3px solid #FF6600;border-radius:50%;box-shadow:0 2px 6px rgba(15,23,42,0.25);box-sizing:content-box;"></div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
-
-const dropoffIcon = L.divIcon({
-  className: "leaflet-dropoff-marker",
-  html: `<div style="width:28px;height:28px;background-color:#EF4444;border:3px solid #FFFFFF;border-radius:50%;box-shadow:0 4px 12px rgba(239,68,68,0.5);display:flex;align-items:center;justify-content:center;color:#FFFFFF;font-size:11px;font-weight:800;">D</div>`,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-});
 
 /**
  * The map of the public shared-trip page: the road from the pickup to the destination, the two ends, and the driver's tricycle moving as new positions arrive.
@@ -142,8 +140,30 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
     if (!map || !pins || !road) return;
     pins.clearLayers();
     road.clearLayers();
-    if (hasPoint(pickup)) L.marker([pickup.lat, pickup.lng], { icon: pickupIcon, interactive: false }).addTo(pins);
-    if (hasPoint(dropoff)) L.marker([dropoff.lat, dropoff.lng], { icon: dropoffIcon, interactive: false, zIndexOffset: 500 }).addTo(pins);
+    const pickupTitle = "Pickup";
+    const dropoffTitle = language === "tl" ? "Destinasyon" : "Destination";
+    if (hasPoint(pickup)) {
+      L.marker([pickup.lat, pickup.lng], {
+        icon: L.divIcon({ className: "leaflet-pickup-marker", html: pickupMarkerHtml(), iconSize: [PICKUP_MARKER_SIZE, PICKUP_MARKER_SIZE], iconAnchor: PICKUP_MARKER_ANCHOR }),
+        title: pickupTitle,
+        alt: pickupTitle,
+        keyboard: true,
+        zIndexOffset: PICKUP_MARKER_Z_OFFSET,
+      })
+        .bindPopup(placePopupElement(pickupTitle), { offset: PICKUP_POPUP_OFFSET, className: "sakay-place-popup" })
+        .addTo(pins);
+    }
+    if (hasPoint(dropoff)) {
+      L.marker([dropoff.lat, dropoff.lng], {
+        icon: L.divIcon({ className: "leaflet-destination-marker", html: destinationMarkerHtml(), iconSize: [DESTINATION_MARKER_WIDTH, DESTINATION_MARKER_HEIGHT], iconAnchor: DESTINATION_MARKER_ANCHOR }),
+        title: dropoffTitle,
+        alt: dropoffTitle,
+        keyboard: true,
+        zIndexOffset: DESTINATION_MARKER_Z_OFFSET,
+      })
+        .bindPopup(placePopupElement(dropoffTitle), { offset: DESTINATION_POPUP_OFFSET, className: "sakay-place-popup" })
+        .addTo(pins);
+    }
     if (route && route.length >= 2) {
       L.polyline(route, { color: "#FFFFFF", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round" }).addTo(road);
       L.polyline(route, { color: "#FF6600", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(road);

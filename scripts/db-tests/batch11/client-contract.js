@@ -45,7 +45,7 @@ function loadTs(file) {
   console.log('S1 every call the TypeScript makes exists in the database, with exactly the parameters it sends');
   const calls = [...[reviewSrc, safetySrc].flatMap((src) => [...src.matchAll(/(?:callRpc\(client,|client\.rpc\()\s*'([a-z_]+)',\s*\{([^}]*)\}/g)])]
     .map((m) => ({ fn: m[1], params: [...m[2].matchAll(/(p_[a-z_]+)\s*:/g)].map((x) => x[1]).sort() }));
-  check(`the TypeScript names ${calls.length} database calls`, calls.length === 13, calls.map((c) => c.fn));
+  check(`the TypeScript names ${calls.length} database calls`, calls.length === 17, calls.map((c) => c.fn));
   for (const c of calls) {
     const row = (await q(`SELECT proargnames FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = '${c.fn}'`))[0];
     const dbNames = row ? [...(row.proargnames ?? [])].filter((n) => n.startsWith('p_')).sort() : null;

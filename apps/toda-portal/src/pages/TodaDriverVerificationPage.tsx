@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -60,6 +61,7 @@ import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX,
 import { FONT, SHELL, SPACE } from '../styles/density';
 import { SakayToast } from '../components/common/SakayToast';
 import { expiryState, formatDocDate, formatWhen, sharesNameWord } from '../utils/applicantDetails';
+import { SakayDialogTitle } from '@sakay/shared';
 
 // ---- Return for correction (Rules 3.6, 3.8): the TODA names the documents and says why. Rejecting (fraud / ineligible) is a different action.
 const RETURN_DOCUMENTS: { value: ReviewDocumentType; label: string }[] = [
@@ -201,6 +203,21 @@ export const TodaDriverVerificationPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [effectiveTodaId]);
 
+  // a notice opens this application: ?application=<id> (read once, then removed from the address)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const applicationToOpen = searchParams.get('application');
+  useEffect(() => {
+    if (!applicationToOpen || isLoading) return;
+    const found = applicants.find((a) => a.id === applicationToOpen);
+    if (found) {
+      setSelectedApplicant(found);
+      setRosterChecked(found.rosterVerified);
+      setPhotoChecked(found.photoVerified);
+      setForwardError(null);
+    }
+    setSearchParams({}, { replace: true });
+  }, [applicationToOpen, applicants, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter Logic
   const filteredApplicants = applicants.filter((app) => {
     const matchesSearch =
@@ -240,7 +257,10 @@ export const TodaDriverVerificationPage: React.FC = () => {
     { label: 'Resubmitted (back in TODA review)', value: 'Resubmitted' },
     { label: 'Awaiting Screening (Pending TODA)', value: 'Awaiting Screening' },
     { label: 'TODA Review (In Progress)', value: 'TODA Review' },
-    { label: 'Endorsed to LGU (Sent to LGU Review)', value: 'Endorsed to LGU' },
+    { label: 'Endorsed to LGU (waiting for the LGU)', value: 'Endorsed to LGU' },
+    { label: 'Verified by LGU (approved)', value: 'Verified by LGU' },
+    { label: 'Returned by LGU (driver to correct)', value: 'Returned by LGU' },
+    { label: 'Rejected by LGU', value: 'Rejected by LGU' },
     { label: 'Resubmission Required', value: 'Resubmission Required' },
     { label: 'Rejected (TODA Level)', value: 'Rejected' },
   ];
@@ -305,7 +325,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
 
       // ONLY update UI to "Endorsed to LGU" AFTER Supabase update succeeds!
       setApplicants((prev) =>
-        prev.map((a) => (a.id === selectedApplicant.id ? { ...a, todaStageStatus: 'Endorsed to LGU', rosterVerified: true, photoVerified: true } : a))
+        prev.map((a) => (a.id === selectedApplicant.id ? { ...a, todaStageStatus: 'Endorsed to LGU', todaEndorsed: true, lguStageStatus: 'Pending', rosterVerified: true, photoVerified: true } : a))
       );
 
       recordTodaAuditAction({
@@ -450,7 +470,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
         ) : undefined,
     },
     { key: 'overdue', label: 'Overdue (over 3 days)', value: overdueCount, note: 'Past the 3-day limit', tone: overdueCount > 0 ? 'danger' : 'neutral' },
-    { key: 'endorsed', label: 'Endorsed to LGU', value: endorsedCount, note: 'Sent to the City LGU Franchising Office' },
+    { key: 'endorsed', label: 'Waiting for the LGU', value: endorsedCount, note: 'Endorsed and sent to the City LGU Franchising Office' },
     { key: 'verified', label: 'Verified drivers (LGU accredited)', value: lguVerifiedCount, note: 'Verified by the City Franchising Office', tone: lguVerifiedCount > 0 ? 'success' : 'neutral' },
   ];
 
@@ -578,9 +598,9 @@ export const TodaDriverVerificationPage: React.FC = () => {
                     startIcon={<VisibilityIcon sx={{ fontSize: 15 }} />}
                     onClick={() => handleOpenReview(app)}
                     disabled={isTodaLocked(todaStatus)}
-                    sx={rowActionSx(app.todaStageStatus === 'Endorsed to LGU' ? 'neutral' : 'brand')}
+                    sx={rowActionSx(stillDecidable(app) || app.todaStageStatus === 'Resubmission Required' ? 'brand' : 'neutral')}
                   >
-                    {app.todaStageStatus === 'Endorsed to LGU' ? 'View Details' : 'Screen Application'}
+                    {stillDecidable(app) || app.todaStageStatus === 'Resubmission Required' ? 'Screen Application' : 'View Details'}
                   </Button>
                 </TableCell>
               </TableRow>
@@ -610,8 +630,6 @@ export const TodaDriverVerificationPage: React.FC = () => {
           maxWidth={640}
           primaryActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Endorse to City LGU" : undefined}
           onPrimaryAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? handleEndorseClick : undefined}
-          secondaryActionLabel="Close"
-          onSecondaryAction={() => setSelectedApplicant(null)}
           leftActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Reject Application" : undefined}
           onLeftAction={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? openRejectDialog : undefined}
           middleActionLabel={DECIDABLE_STAGES.includes(selectedApplicant.todaStageStatus) ? "Return for Correction" : undefined}
@@ -708,8 +726,25 @@ export const TodaDriverVerificationPage: React.FC = () => {
               <DetailGrid>
                 <DetailField label="Applying to" value={todaAdminProfile?.toda?.toda_name || todaAdminProfile?.toda_acronym} />
                 <DetailField label="TODA Stage 1 Endorsement">
-                  <StatusBadge status={selectedApplicant.todaStageStatus} />
+                  <StatusBadge status={selectedApplicant.todaEndorsed ? 'Endorsed' : selectedApplicant.todaStageStatus} />
                 </DetailField>
+                <DetailField label="City LGU Stage 2 Decision">
+                  {selectedApplicant.todaEndorsed ? (
+                    <StatusBadge
+                      status={
+                        selectedApplicant.lguStageStatus === 'Approved' ? 'Verified by LGU'
+                        : selectedApplicant.lguStageStatus === 'Rejected' ? 'Rejected by LGU'
+                        : selectedApplicant.lguStageStatus === 'Resubmission Required' ? 'Returned by LGU'
+                        : 'Pending LGU Review'
+                      }
+                    />
+                  ) : (
+                    <Typography component="span" sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary }}>Not with the LGU yet</Typography>
+                  )}
+                </DetailField>
+                {selectedApplicant.lguDecisionReason && (selectedApplicant.lguStageStatus === 'Rejected' || selectedApplicant.lguStageStatus === 'Resubmission Required') && (
+                  <DetailField label="LGU's reason" value={selectedApplicant.lguDecisionReason} />
+                )}
                 <DetailField label="TODA Membership No." value={selectedApplicant.membershipNo} />
                 <DetailField label="Assigned Terminal" value={selectedApplicant.assignedTerminal} />
               </DetailGrid>
@@ -896,7 +931,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
         fullWidth
         slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
       >
-        <DialogTitle sx={DIALOG_TITLE_SX}>Return for Correction</DialogTitle>
+        <SakayDialogTitle onClose={() => setReturnDialogOpen(false)} busy={isSubmitting} sx={DIALOG_TITLE_SX}>Return for Correction</SakayDialogTitle>
         <DialogContent sx={DIALOG_CONTENT_SX}>
           <Typography sx={DIALOG_INTRO_SX}>
             Choose the documents <strong>{selectedApplicant?.name}</strong> must send again, and say what is wrong. The driver will only be asked for
@@ -985,7 +1020,7 @@ export const TodaDriverVerificationPage: React.FC = () => {
         fullWidth
         slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
       >
-        <DialogTitle sx={DIALOG_TITLE_SX}>Reject Application</DialogTitle>
+        <SakayDialogTitle onClose={() => setRejectDialogOpen(false)} busy={isSubmitting} sx={DIALOG_TITLE_SX}>Reject Application</SakayDialogTitle>
         <DialogContent sx={DIALOG_CONTENT_SX}>
           <Alert severity="error" icon={<WarningAmberIcon fontSize="inherit" />} sx={{ ...reviewAlertSx, alignItems: 'flex-start' }}>
             <Typography sx={{ fontSize: FONT.body, fontWeight: 700, mb: '3px' }}>Rejection is final.</Typography>

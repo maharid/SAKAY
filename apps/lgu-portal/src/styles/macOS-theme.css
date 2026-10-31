@@ -69,7 +69,9 @@
   --mac-sidebar-transition: width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Typography */
-  --mac-font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+  --mac-font-family: "Poppins", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+  /* the shared components read this variable (their own fallback is the Passenger and Driver Apps' Poppins) */
+  --sakay-font-family: "Poppins";
 }
 
 /* SAKAY Standard Desktop Administrative Typography Scale */

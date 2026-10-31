@@ -60,6 +60,7 @@ import {
 } from '../services/todaApiService';
 import { isTodaLocked } from '../utils/accreditation';
 import { useAuth } from '../contexts/AuthContext';
+import { SakayDialogTitle } from '@sakay/shared';
 
 // toda driver roster membership, strikes record, and suspension management
 export const TodaDriverMembershipPage: React.FC = () => {
@@ -463,7 +464,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
           />
 
           {/* 4. Accredited drivers */}
-          <DataTableCard label="Driver members" minWidth={860} columns={[{ label: 'Driver member' }, { label: 'Franchise and plate' }, { label: 'Service zone' }, { label: 'Strikes' }, { label: 'Account status' }, { label: 'Action', align: 'right' }]}>
+          <DataTableCard label="Driver members" minWidth={860} columns={[{ label: 'Driver member' }, { label: 'Franchise and plate' }, { label: 'LGU verification' }, { label: 'Strikes' }, { label: 'Account status' }, { label: 'Action', align: 'right' }]}>
             <TableBody>
               {isLoading ? (
                 <DataTableMessageRow colSpan={6} kind="loading" loadingText="Loading drivers..." />
@@ -496,8 +497,21 @@ export const TodaDriverMembershipPage: React.FC = () => {
                         <CellStack primary={drv.vehiclePlate} secondary={drv.franchiseNo} />
                       </TableCell>
 
-                      <TableCell sx={{ color: OPS_TEXT.secondary, maxWidth: 260 }}>
-                        {drv.serviceZone}
+                      <TableCell>
+                        {drv.accountStatus === 'Not Registered' || drv.accountStatus === 'Unregistered' ? (
+                          <Typography component="span" sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>No account yet</Typography>
+                        ) : (
+                          <StatusBadge
+                            status={
+                              drv.lguVerificationStatus === 'Verified' ? 'Verified by LGU'
+                              : drv.lguVerificationStatus === 'Returned' ? 'Returned by LGU'
+                              : drv.lguVerificationStatus === 'Rejected' ? 'Rejected by LGU'
+                              : 'Pending LGU Review'
+                            }
+                            highContrast
+                            sx={{ height: '24px', fontSize: FONT.small }}
+                          />
+                        )}
                       </TableCell>
 
                       <TableCell>
@@ -754,8 +768,6 @@ export const TodaDriverMembershipPage: React.FC = () => {
           maxWidth={608}
           primaryActionLabel={selectedExemption.status === 'Pending TODA Review' ? 'Record decision' : undefined}
           onPrimaryAction={handleExemptionDecision}
-          secondaryActionLabel="Close"
-          onSecondaryAction={() => setExemptionDecisionModalOpen(false)}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '19px' }}>
             {/* The decision (Rule 25.6): only an appeal routed to this TODA and still waiting */}
@@ -931,9 +943,9 @@ export const TodaDriverMembershipPage: React.FC = () => {
 
       {/* Add Master Roster Member Dialog (Rule 2.4) */}
       <Dialog open={rosterAddModalOpen} onClose={() => setRosterAddModalOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-        <DialogTitle sx={DIALOG_TITLE_SX}>
+        <SakayDialogTitle onClose={() => setRosterAddModalOpen(false)} sx={DIALOG_TITLE_SX}>
           Add Official Master Roster Entry
-        </DialogTitle>
+        </SakayDialogTitle>
         <DialogContent sx={DIALOG_CONTENT_SX}>
           <Typography sx={DIALOG_INTRO_SX}>
             Register a member's franchise number in the official TODA master roster. An application with the same franchise number, submitted after this entry is added, is matched automatically.
@@ -998,7 +1010,7 @@ export const TodaDriverMembershipPage: React.FC = () => {
 
       {/* Edit Master Roster Member Dialog */}
       <Dialog open={Boolean(editingEntry)} onClose={() => !editSubmitting && setEditingEntry(null)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-        <DialogTitle sx={DIALOG_TITLE_SX}>Update Master Roster Entry</DialogTitle>
+        <SakayDialogTitle onClose={() => setEditingEntry(null)} busy={editSubmitting} sx={DIALOG_TITLE_SX}>Update Master Roster Entry</SakayDialogTitle>
         <DialogContent sx={DIALOG_CONTENT_SX}>
           <Typography sx={DIALOG_INTRO_SX}>
             Correct this member's details. A new franchise or plate number counts for applications submitted from now on; applications already

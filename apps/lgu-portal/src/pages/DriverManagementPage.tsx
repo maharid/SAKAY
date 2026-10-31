@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
 import { DriverRecord } from '../mockData/adminData';
@@ -29,6 +30,15 @@ export const DriverManagementPage: React.FC = () => {
   const [verificationFilter, setVerificationFilter] = useState('All');
   const [onlineFilter, setOnlineFilter] = useState('All');
   const [selectedDriver, setSelectedDriver] = useState<DriverRecord | null>(null);
+  // a notice opens this record: ?affiliation=<id> (read once, then removed from the address)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const affiliationToOpen = searchParams.get('affiliation');
+  useEffect(() => {
+    if (!affiliationToOpen || isLoading) return;
+    const found = drivers.find((d) => (d.affiliations ?? []).some((a) => a.affiliationId === affiliationToOpen));
+    if (found) setSelectedDriver(found);
+    setSearchParams({}, { replace: true });
+  }, [affiliationToOpen, drivers, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Load real drivers from database

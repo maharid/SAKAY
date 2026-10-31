@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Typography, Button, TextField, Box, MenuItem } from '@mui/material';
+import { DialogCloseButton } from '@sakay/shared';
 import { FONT } from '../../styles/density';
 import { PAGE_TEXT, dangerButtonSx, primaryButtonSx, secondaryButtonSx } from '../../styles/pageTheme';
 
@@ -85,9 +86,14 @@ export const MacConfirmDialog: React.FC<MacConfirmDialogProps> = ({
           fontWeight: 600,
           color: 'var(--mac-text-primary)',
           backgroundColor: '#FAFAFC',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.2,
         }}
       >
-        {title}
+        <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{title}</Box>
+        <DialogCloseButton onClick={onClose} />
       </DialogTitle>
 
       <DialogContent sx={{ paddingTop: '22px !important', paddingBottom: '16px !important', paddingLeft: '19px !important', paddingRight: '19px !important' }}>

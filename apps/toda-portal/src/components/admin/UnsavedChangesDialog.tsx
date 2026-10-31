@@ -1,4 +1,5 @@
 import React from 'react';
+import { DialogCloseButton } from '@sakay/shared';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 
 import { dangerOutlineButtonSx, primaryButtonSx, secondaryButtonSx } from '../common/pageButtons';
@@ -31,8 +32,9 @@ export const UnsavedChangesDialog: React.FC<UnsavedChangesDialogProps> = ({ open
       paper: { sx: { borderRadius: 'var(--mac-radius-lg)', maxWidth: 440, width: '100%', backgroundColor: '#FFFFFF', boxShadow: 'var(--mac-shadow-popover)', overflow: 'hidden', m: '16px' } },
     }}
   >
-    <DialogTitle sx={{ padding: '16px 19px 13px', borderBottom: '1px solid var(--mac-border-color)', fontSize: FONT.cardTitle, fontWeight: 600, color: OPS_TEXT.primary, backgroundColor: '#FAFAFC' }}>
-      {title}
+    <DialogTitle sx={{ padding: '16px 19px 13px', borderBottom: '1px solid var(--mac-border-color)', fontSize: FONT.cardTitle, fontWeight: 600, color: OPS_TEXT.primary, backgroundColor: '#FAFAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.2 }}>
+      <span>{title}</span>
+      <DialogCloseButton onClick={onKeepEditing} disabled={busy} label="Keep editing" />
     </DialogTitle>
     <DialogContent sx={{ pt: '20px !important', pb: '16px !important', px: '19px !important' }}>
       <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.secondary, lineHeight: 1.5 }}>{message}</Typography>

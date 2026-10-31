@@ -5,7 +5,6 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -14,6 +13,7 @@ import { useInFlight } from '../hooks/useInFlight';
 import { AVAILABILITY_KINDS, reportProblem } from '../utils/availabilityReports';
 import type { AvailabilityKind } from '../utils/availabilityReports';
 import { DIALOG_ACTIONS_SX, DIALOG_CONTENT_SX, DIALOG_INTRO_SX, DIALOG_PAPER_SX, DIALOG_TITLE_SX, EMPTY_OPTION_SX, WRAPPING_SELECT_SLOTS } from './dialogStyles';
+import { SakayDialogTitle } from './SakayDialogTitle';
 
 export interface ReportDriverAvailabilityDialogProps {
   open: boolean;
@@ -63,7 +63,7 @@ export const ReportDriverAvailabilityDialog: React.FC<ReportDriverAvailabilityDi
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth aria-labelledby={titleId} slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-      <DialogTitle id={titleId} sx={DIALOG_TITLE_SX}>Report a driver</DialogTitle>
+      <SakayDialogTitle onClose={onClose} id={titleId} sx={DIALOG_TITLE_SX}>Report a driver</SakayDialogTitle>
       <DialogContent sx={DIALOG_CONTENT_SX}>
         <Typography sx={DIALOG_INTRO_SX}>
           This files a report only. A strike is issued only when an administrator confirms it, after checking the terminal queue, the dispatch log or the passenger's account.

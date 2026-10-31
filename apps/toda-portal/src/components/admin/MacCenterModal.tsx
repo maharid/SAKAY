@@ -6,10 +6,9 @@ import {
   DialogActions,
   Box,
   Typography,
-  IconButton,
   Button,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import { DialogCloseButton } from '@sakay/shared';
 
 import { CONTROL, FONT } from '../../styles/density';
 import { OPS_TEXT, opsFocusRing } from '../operations/operationsTheme';
@@ -62,7 +61,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
   primaryActionDisabled = false,
   onPrimaryAction,
   primaryActionColor = 'primary',
-  secondaryActionLabel = 'Close',
+  secondaryActionLabel,
   onSecondaryAction,
   leftActionLabel,
   onLeftAction,
@@ -119,24 +118,7 @@ export const MacCenterModal: React.FC<MacCenterModalProps> = ({
           )}
         </Box>
 
-        <IconButton
-          onClick={onClose}
-          size="small"
-          aria-label="Close"
-          sx={{
-            flexShrink: 0,
-            color: OPS_TEXT.secondary,
-            backgroundColor: 'var(--mac-canvas-bg)',
-            ...opsFocusRing,
-            '@media (pointer: coarse)': { width: CONTROL.touchHeight, height: CONTROL.touchHeight },
-            '&:hover': {
-              backgroundColor: 'rgba(0,0,0,0.06)',
-              color: 'var(--mac-text-primary)',
-            },
-          }}
-        >
-          <CloseIcon fontSize="small" sx={{ fontSize: 14 }} />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
       </DialogTitle>
 
       {/* Modal Content with Explicit Top Padding */}

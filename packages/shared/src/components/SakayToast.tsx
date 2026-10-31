@@ -214,7 +214,7 @@ export const SakayToast: React.FC<SakayToastProps> = ({
             borderRadius: '14px',
             backgroundColor: look.background,
             color: look.color,
-            fontFamily: 'Poppins, sans-serif',
+            fontFamily: 'var(--sakay-font-family, Poppins), sans-serif',
             fontSize: mobile ? '14px' : '13px',
             fontWeight: 600,
             lineHeight: 1.4,

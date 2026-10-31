@@ -25,7 +25,6 @@ import { useLanguage } from '../../../utils/LanguageContext';
 import {
   enhanceLicenseDocument,
   assessImageQuality,
-  captureRawFrame,
   ImageQualityAssessment,
 } from '../../../services/imageEnhancementService';
 
@@ -224,12 +223,13 @@ export const DriverScanLicenseBack: React.FC = () => {
     try {
       if (videoRef.current && videoRef.current.videoWidth > 0) {
         try {
-          rawFrameDataUrl = captureRawFrame(videoRef.current);
+          // Only the licence card inside the guide frame is kept. The whole camera frame (the room, the hands, anything else in view) is never stored or uploaded.
           capturedDataUrl = await enhanceLicenseDocument(
             videoRef.current,
             guideRef.current || viewfinderRef.current,
             'back'
           );
+          rawFrameDataUrl = capturedDataUrl;
         } catch (err) {
           console.warn('[DriverScanLicenseBack] Image enhancement error:', err);
           const video = videoRef.current;

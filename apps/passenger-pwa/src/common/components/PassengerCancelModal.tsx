@@ -47,7 +47,7 @@ export const PassengerCancelModal: React.FC<PassengerCancelModalProps> = ({
   phase = "accepted",
 }) => {
   const { language: contextLanguage } = useLanguage();
-  const effectiveLanguage = propLanguage || contextLanguage || "tl";
+  const effectiveLanguage = propLanguage || contextLanguage || "en";
 
   const [selectedOptionId, setSelectedOptionId] = useState<string>("no_longer_needed");
 

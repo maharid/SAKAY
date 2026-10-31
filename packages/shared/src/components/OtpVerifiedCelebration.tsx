@@ -164,10 +164,10 @@ export const OtpVerifiedCelebration: React.FC<OtpVerifiedCelebrationProps> = ({ 
       </Box>
 
       <Box sx={{ animation: `${rise} 400ms ease-out 350ms both`, [reduced]: { animation: 'none' } }}>
-        <Typography component="h1" sx={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3, fontFamily: 'Poppins, sans-serif', overflowWrap: 'anywhere' }}>
+        <Typography component="h1" sx={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', lineHeight: 1.3, fontFamily: 'var(--sakay-font-family, Poppins), sans-serif', overflowWrap: 'anywhere' }}>
           {t.title}
         </Typography>
-        <Typography sx={{ fontSize: '14px', fontWeight: 500, color: '#475569', mt: 0.75, lineHeight: 1.5, fontFamily: 'Poppins, sans-serif' }}>{t.sub}</Typography>
+        <Typography sx={{ fontSize: '14px', fontWeight: 500, color: '#475569', mt: 0.75, lineHeight: 1.5, fontFamily: 'var(--sakay-font-family, Poppins), sans-serif' }}>{t.sub}</Typography>
       </Box>
     </Box>
   );

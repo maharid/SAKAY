@@ -8,6 +8,16 @@ import type { BookingRecord } from '@sakay/shared';
 import { BOOKING_OPEN_STATUSES, FARE_SEAT_CAPACITY, SHARED_BOOKING_MAX_PASSENGERS, describeFareError, describeRestriction, parseFareError, parseRestrictionError } from '@sakay/shared';
 import { saveTripToHistory } from './tripService';
 
+/** The language the person chose (English unless Tagalog was chosen): the booking errors are written in that one language */
+const chosenLanguage = (): 'tl' | 'en' => {
+  try {
+    return typeof window !== 'undefined' && localStorage.getItem('sakay_language') === 'tl' ? 'tl' : 'en';
+  } catch {
+    return 'en';
+  }
+};
+const say = (tl: string, en: string): string => (chosenLanguage() === 'tl' ? tl : en);
+
 export type { BookingRecord };
 
 export interface CreateBookingPayload {
@@ -130,7 +140,7 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
   if (!validPassengerId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validPassengerId)) {
     isCreatingBooking = false;
     throw new Error(
-      'Mag-login muli bago mag-book.\n\n(Please log in again before booking.)'
+      say('Mag-login muli bago mag-book.', 'Please log in again before booking.')
     );
   }
 
@@ -177,34 +187,40 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
       msg.includes('duplicate key value violates unique constraint')
     ) {
       throw new Error(
-        'Mayroon ka nang aktibong booking. Kanselahin muna ang iyong kasalukuyang booking bago gumawa ng bago.\n\n' +
-        '(You already have an active booking. Please cancel it before creating a new one.)'
+        say(
+          'Mayroon ka nang aktibong booking. Kanselahin muna ang iyong kasalukuyang booking bago gumawa ng bago.',
+          'You already have an active booking. Please cancel it before creating a new one.'
+        )
       );
     }
 
     // Suspended / deactivated account: the database guard refuses new bookings (Batch 3)
     const restriction = parseRestrictionError(msg);
     if (restriction) {
-      throw new Error(`${describeRestriction(restriction, 'tl')}\n\n(${describeRestriction(restriction, 'en')})`);
+      throw new Error(describeRestriction(restriction, chosenLanguage()));
     }
 
     // Rules 4.5 / 29.1: the account signed in on another device since this one logged in
     if (msg.includes('ERR_SESSION_SUPERSEDED')) {
       throw new Error(
-        'Nag-login ang iyong account sa ibang device. Mag-login muli bago mag-book.\n\n(Your account signed in on another device. Please log in again before booking.)'
+        say('Nag-login ang iyong account sa ibang device. Mag-login muli bago mag-book.', 'Your account signed in on another device. Please log in again before booking.')
       );
     }
 
     if (msg.includes('ERR_DESTINATION_OUT_OF_SERVICE_AREA')) {
       throw new Error(
-        'Nasa labas ng opisyal na service area ng Calapan City ang napiling destinasyon. Mangyaring pumili ng destinasyon sa loob ng lungsod.\n\n' +
-        '(The selected destination is outside the official Calapan City service area. Please choose a destination inside the city.)'
+        say(
+          'Nasa labas ng opisyal na service area ng Calapan City ang napiling destinasyon. Mangyaring pumili ng destinasyon sa loob ng lungsod.',
+          'The selected destination is outside the official Calapan City service area. Please choose a destination inside the city.'
+        )
       );
     }
     if (msg.includes('ERR_OUT_OF_SERVICE_AREA')) {
       throw new Error(
-        'Nasa labas ng opisyal na service area ng Calapan City ang napiling pickup location. Mangyaring pumili ng lokasyon sa loob ng lungsod.\n\n' +
-        '(The selected pickup location is outside the official Calapan City service area. Please choose a location inside the city.)'
+        say(
+          'Nasa labas ng opisyal na service area ng Calapan City ang napiling pickup location. Mangyaring pumili ng lokasyon sa loob ng lungsod.',
+          'The selected pickup location is outside the official Calapan City service area. Please choose a location inside the city.'
+        )
       );
     }
 
@@ -212,7 +228,7 @@ export const createBooking = async (payload: CreateBookingPayload): Promise<Book
     const fareError = parseFareError(msg);
     if (fareError) {
       throw Object.assign(
-        new Error(`${describeFareError(fareError, 'tl')}\n\n(${describeFareError(fareError, 'en')})`),
+        new Error(describeFareError(fareError, chosenLanguage())),
         { fareCode: fareError.code }
       );
     }

@@ -14,7 +14,7 @@ import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
-import { TYPOGRAPHY_TOKENS, activateWithKeyboard, formatNotificationTime } from "@sakay/shared";
+import { AnnouncementEventIcon, TYPOGRAPHY_TOKENS, activateWithKeyboard, formatNotificationTime } from "@sakay/shared";
 
 export interface NotificationItem {
   id: string;
@@ -25,6 +25,8 @@ export interface NotificationItem {
   createdAt?: string;
   isRead?: boolean;
   category?: 'trips' | 'advisories' | 'all';
+  /** What an announcement is about (announcement.event_type): its icon follows it */
+  eventType?: string;
 }
 
 /** How long ago the notice was sent, in the selected language (shared with the other apps) */
@@ -109,7 +111,8 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     return item.category === activeFilter;
   });
 
-  const getCategoryIcon = (category?: string) => {
+  const getCategoryIcon = (category?: string, eventType?: string) => {
+    if (eventType) return <AnnouncementEventIcon type={eventType} sx={{ color: '#FF6600' }} />;
     switch (category) {
       case 'trips':
         return <LocalTaxiIcon sx={{ color: '#FF6600', fontSize: 20 }} />;
@@ -189,7 +192,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
         {selectedNotif ? (
-          <Box sx={{ flex: 1, overflowY: "auto", p: 2.5 }}>
+          <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2.5 }}>
             {/* Header info */}
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -205,7 +208,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  {getCategoryIcon(selectedNotif.category)}
+                  {getCategoryIcon(selectedNotif.category, selectedNotif.eventType)}
                 </Box>
                 <Box>
                   <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
@@ -407,7 +410,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                           justifyContent: "center",
                         }}
                       >
-                        {getCategoryIcon(item.category)}
+                        {getCategoryIcon(item.category, item.eventType)}
                       </Box>
                       {!item.isRead && (
                         <Box

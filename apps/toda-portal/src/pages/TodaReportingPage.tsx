@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Typography, Tabs, Tab, TableBody, TableCell, TableRow, Button } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
@@ -17,6 +18,7 @@ import { BookingVolumeReport } from '../components/reports/BookingVolumeReport';
 import { DriverActivityReport } from '../components/reports/DriverActivityReport';
 import type { ActivityDriver } from '../components/reports/DriverActivityReport';
 import { ReportExportButtons } from '../components/reports/ReportExportButtons';
+import { ResultsBar } from '../components/reports/ResultsBar';
 import type { ExportFormat } from '../components/reports/ReportExportButtons';
 import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
 import type { OperationsStat } from '../components/operations/OperationsStatStrip';
@@ -25,17 +27,20 @@ import { rowActionSx, secondaryButtonSx } from '../components/common/pageButtons
 import { OPS_BORDER, OPS_TEXT, opsFocusRing } from '../components/operations/operationsTheme';
 import { FONT, SHELL, SPACE } from '../styles/density';
 import { PILOT_COVERAGE_TEXT } from '../components/common/PilotCoverageNote';
-import { IncidentReviewPanel, incidentClocks, type BookingLike, type IncidentRecord, type ReportTable } from '@sakay/shared';
+import { incidentClocks, incidentHandling, type BookingLike, type IncidentFollowupRow, type IncidentRecord, type ReportTable } from '@sakay/shared';
+import { TodaIncidentModal } from '../components/reports/TodaIncidentModal';
 import {
   fetchTodaDrivers,
   fetchTodaOperationsTrips,
   fetchTodaIncidents,
+  fetchIncidentFollowups,
   fetchTodaProfile,
   startIncident,
   escalateIncident,
   decideIncident,
   updateLostItemReport,
   recordTodaAuditAction,
+  recordTodaAuditStrict,
 } from '../services/todaApiService';
 
 export const TodaReportingPage: React.FC = () => {
@@ -53,11 +58,25 @@ export const TodaReportingPage: React.FC = () => {
   const [incidentSearch, setIncidentSearch] = useState('');
   const [incidentStatusFilter, setIncidentStatusFilter] = useState('All');
   const [incidentPriorityFilter, setIncidentPriorityFilter] = useState('All');
+  // which reports need MY action, which only wait for the LGU (monitoring), which are closed
+  const [incidentHandlingFilter, setIncidentHandlingFilter] = useState('All');
+  const [followups, setFollowups] = useState<Map<string, IncidentFollowupRow[]>>(new Map());
 
   // Incident Review Modals & Dialogs
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   // read from the list, so the panel shows what the database says after every action
   const selectedIncident = incidents.find((i) => i.id === selectedIncidentId) ?? null;
+  // a notice opens this record: ?incident=<id> (read once, then removed from the address)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const incidentToOpen = searchParams.get('incident');
+  useEffect(() => {
+    if (!incidentToOpen || isLoading) return;
+    if (incidents.some((i) => i.id === incidentToOpen)) {
+      setActiveTab(3);
+      setSelectedIncidentId(incidentToOpen);
+    }
+    setSearchParams({}, { replace: true });
+  }, [incidentToOpen, incidents, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The raw booking rows and the TODA's registered drivers feed the volume and driver-activity reports
   const [rawTrips, setRawTrips] = useState<BookingLike[]>([]);
@@ -151,6 +170,7 @@ export const TodaReportingPage: React.FC = () => {
 
       setBookings(mappedBookings);
       setIncidents(mappedIncidents);
+      setFollowups(await fetchIncidentFollowups(mappedIncidents.map((i) => i.id)));
     } catch (err) {
       console.error('[TodaReporting] Error loading data from database:', err);
       setBookings([]);
@@ -188,7 +208,8 @@ export const TodaReportingPage: React.FC = () => {
 
     const matchesStatus = incidentStatusFilter === 'All' || inc.status === incidentStatusFilter;
     const matchesPriority = incidentPriorityFilter === 'All' || inc.priority === incidentPriorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
+    const matchesHandling = incidentHandlingFilter === 'All' || (inc.record ? incidentHandling(inc.record, 'toda_admin') === incidentHandlingFilter : true);
+    return matchesSearch && matchesStatus && matchesPriority && matchesHandling;
   });
 
   const modeOptions: FilterOption[] = [
@@ -198,8 +219,15 @@ export const TodaReportingPage: React.FC = () => {
     { label: 'Shared Ride', value: 'Shared Ride' },
   ];
 
+  const incidentHandlingOptions: FilterOption[] = [
+    { label: 'Everything', value: 'All' },
+    { label: 'Needs my action', value: 'action' },
+    { label: 'Monitoring (with the LGU)', value: 'monitoring' },
+    { label: 'Closed', value: 'closed' },
+  ];
+
   const incidentStatusOptions: FilterOption[] = [
-    { label: 'All Incident Statuses', value: 'All' },
+    { label: 'All', value: 'All' },
     { label: 'Pending Review', value: 'Pending Review' },
     { label: 'Under Investigation', value: 'Under Investigation' },
     { label: 'Resolved (TODA Level)', value: 'Resolved (TODA Level)' },
@@ -209,33 +237,36 @@ export const TodaReportingPage: React.FC = () => {
   ];
 
   const incidentPriorityOptions: FilterOption[] = [
-    { label: 'All Priorities', value: 'All' },
+    { label: 'All', value: 'All' },
     { label: 'Serious (with the LGU)', value: 'Serious' },
     { label: 'Emergency', value: 'Emergency' },
     { label: 'Standard', value: 'Standard' },
   ];
 
-  // Export a report as a CSV file (opens in Excel) and record it in the audit log
-  const recordExport = (reportName: string, format: ExportFormat) => {
-    recordTodaAuditAction({
+  // The export is written to the audit log BEFORE the file is handed over (the toolbar makes no file when this fails)
+  const recordExport = (reportName: string, format: ExportFormat): Promise<void> =>
+    recordTodaAuditStrict({
       actionType: 'REPORT_EXPORTED',
       targetId: 'REPORT',
       targetName: reportName,
       details: `Exported ${reportName} (${format}) for ${todaName}.`,
-      category: 'Operations',
     });
-  };
 
   // The two reports of this page as tables: the Excel, CSV and PDF files contain exactly these
   const ledgerTable: ReportTable = {
     title: 'Operations Trip Ledger',
-    notes: [`The trips of ${todaName} that match the filters on screen.`, PILOT_COVERAGE_TEXT],
+    notes: [`The trips of ${todaName} that match the filters on screen. Search: ${bookingSearch.trim() ? `"${bookingSearch.trim()}"` : 'none'}; trip mode: ${modeOptions.find((o) => o.value === modeFilter)?.label ?? modeFilter}.`, PILOT_COVERAGE_TEXT],
     headers: ['Booking Code', 'Passenger', 'Driver', 'Vehicle Plate', 'Pickup', 'Dropoff', 'Distance (km)', 'Fare (PHP)', 'Mode', 'Status', 'Time'],
     rows: filteredBookings.map((b) => [b.bookingCode, b.passengerName, b.driverName, b.vehiclePlate, b.pickupLocation, b.dropoffLocation, b.distanceKm, b.fareAmount, b.tripMode, b.status, b.timestamp]),
   };
   const incidentTable: ReportTable = {
     title: 'Incident Summary Report',
-    notes: [`The incident reports about drivers of ${todaName} that match the filters on screen.`, PILOT_COVERAGE_TEXT],
+    notes: [
+      `The incident reports about drivers of ${todaName} that match the filters on screen. Show: ${incidentHandlingOptions.find((o) => o.value === incidentHandlingFilter)?.label ?? incidentHandlingFilter}; status: ${incidentStatusOptions.find((o) => o.value === incidentStatusFilter)?.label ?? incidentStatusFilter}; priority: ${incidentPriorityOptions.find((o) => o.value === incidentPriorityFilter)?.label ?? incidentPriorityFilter}; search: ${incidentSearch.trim() ? `"${incidentSearch.trim()}"` : 'none'}.`,
+      PILOT_COVERAGE_TEXT,
+    ],
+    pdfColumns: [0, 1, 4, 5, 6, 7, 8, 11],
+    orientation: 'landscape',
     headers: ['Incident Code', 'Driver', 'Vehicle Plate', 'Reported By', 'Category', 'Priority', 'With', 'Date', 'Status', 'Outcome', 'Strike', 'Description'],
     rows: filteredIncidents.map((i) => [i.incidentCode || i.id.slice(0, 8), i.driverName, i.vehiclePlate, `${i.reporterName} (${i.reporterRole})`, i.category, i.priority ?? '', i.routing ?? '', i.submittedAt, i.status, i.record?.outcome ?? '', i.record?.strike_code ?? '', i.description]),
   };
@@ -257,7 +288,7 @@ export const TodaReportingPage: React.FC = () => {
 
   // Why a list is empty, in words: nothing was recorded, or nothing matches the search and filters
   const bookingFilterActive = bookingSearch.trim() !== '' || modeFilter !== 'All';
-  const incidentFilterActive = incidentSearch.trim() !== '' || incidentStatusFilter !== 'All' || incidentPriorityFilter !== 'All';
+  const incidentFilterActive = incidentSearch.trim() !== '' || incidentStatusFilter !== 'All' || incidentPriorityFilter !== 'All' || incidentHandlingFilter !== 'All';
 
   const modalLabel = { fontSize: FONT.small, fontWeight: 600, color: OPS_TEXT.secondary, mb: '6px' } as const;
   const modalPanel = { backgroundColor: '#FAFAF8', p: '16px', borderRadius: '10px', border: `1px solid ${OPS_BORDER}` } as const;
@@ -324,8 +355,11 @@ export const TodaReportingPage: React.FC = () => {
               setBookingSearch('');
               setModeFilter('All');
             }}
-            actionButton={<ReportExportButtons table={ledgerTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />}
+            disableMarginBottom
           />
+          <ResultsBar count={isLoading ? 'Loading trips...' : `Showing ${filteredBookings.length} of ${bookings.length} trip${bookings.length === 1 ? '' : 's'}`}>
+            <ReportExportButtons table={ledgerTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
+          </ResultsBar>
 
           {/* 5. The trips */}
           <DataTableCard
@@ -383,16 +417,27 @@ export const TodaReportingPage: React.FC = () => {
             searchPlaceholder="Search incident ID, driver, category or description"
             selectFilters={[
               {
+                id: 'handling',
+                label: 'Who acts',
+                prefix: 'Show',
+                value: incidentHandlingFilter,
+                options: incidentHandlingOptions,
+                onChange: setIncidentHandlingFilter,
+                width: 232,
+              },
+              {
                 id: 'status',
                 label: 'Incident Status',
+                prefix: 'Status',
                 value: incidentStatusFilter,
                 options: incidentStatusOptions,
                 onChange: setIncidentStatusFilter,
-                width: 204,
+                width: 232,
               },
               {
                 id: 'priority',
                 label: 'Priority',
+                prefix: 'Priority',
                 value: incidentPriorityFilter,
                 options: incidentPriorityOptions,
                 onChange: setIncidentPriorityFilter,
@@ -403,9 +448,13 @@ export const TodaReportingPage: React.FC = () => {
               setIncidentSearch('');
               setIncidentStatusFilter('All');
               setIncidentPriorityFilter('All');
+              setIncidentHandlingFilter('All');
             }}
-            actionButton={<ReportExportButtons table={incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />}
+            disableMarginBottom
           />
+          <ResultsBar count={isLoading ? 'Loading reports...' : `Showing ${filteredIncidents.length} of ${incidents.length} report${incidents.length === 1 ? '' : 's'}`}>
+            <ReportExportButtons table={incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
+          </ResultsBar>
 
           <DataTableCard
             label="Incident reports"
@@ -446,7 +495,8 @@ export const TodaReportingPage: React.FC = () => {
                           <StatusPill label={inc.priority ?? 'Standard'} tone="neutral" />
                         )}
                         {inc.overdue && <StatusPill label="Overdue" tone="danger" icon={<ScheduleIcon aria-hidden sx={{ fontSize: 13 }} />} />}
-                        {inc.routing === 'LGU' && <StatusPill label="With the LGU" tone="neutral" />}
+                        {inc.record && incidentHandling(inc.record, 'toda_admin') === 'action' && <StatusPill label="Needs your action" tone="warning" />}
+                        {inc.record && incidentHandling(inc.record, 'toda_admin') === 'monitoring' && <StatusPill label="Monitoring: with the LGU" tone="info" />}
                       </Box>
                     </TableCell>
 
@@ -458,7 +508,7 @@ export const TodaReportingPage: React.FC = () => {
 
                     <TableCell align="right">
                       <Button variant="outlined" onClick={() => setSelectedIncidentId(inc.id)} sx={rowActionSx('brand')}>
-                        Review Complaint
+                        {inc.record && incidentHandling(inc.record, 'toda_admin') === 'monitoring' ? 'View and follow up' : 'Review Complaint'}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -480,80 +530,17 @@ export const TodaReportingPage: React.FC = () => {
 
       {/* Incident review window */}
       {selectedIncident && selectedIncident.record && (
-        <MacCenterModal
-          open={Boolean(selectedIncident)}
+        <TodaIncidentModal
+          incident={selectedIncident}
+          todaName={todaName}
+          followups={followups.get(selectedIncident.id) ?? []}
           onClose={() => setSelectedIncidentId(null)}
-          title={`Incident Report #${selectedIncident.incidentCode || selectedIncident.id.slice(0, 8).toUpperCase()}`}
-          subtitle={`Category: ${selectedIncident.category} • Submitted by ${selectedIncident.reporterName}`}
-          maxWidth={544}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gapLarge }}>
-            <Box sx={modalPanel}>
-              <Typography sx={modalLabel}>Complaint description</Typography>
-              <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere' }}>
-                {selectedIncident.description || 'No detailed description provided.'}
-              </Typography>
-            </Box>
-
-            <Box sx={modalPanel}>
-              <Typography sx={modalLabel}>The trip</Typography>
-              <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere' }}>
-                Trip {selectedIncident.tripId.slice(0, 8).toUpperCase()} · {selectedIncident.route}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: '10px 26px', flexWrap: 'wrap', mt: '12px' }}>
-                {[
-                  { label: 'Passenger', name: selectedIncident.passengerName, phone: selectedIncident.passengerPhone },
-                  { label: `Driver (${selectedIncident.vehiclePlate})`, name: selectedIncident.driverName, phone: selectedIncident.driverPhone },
-                ].map((p) => (
-                  <Box key={p.label} sx={{ minWidth: 144 }}>
-                    <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary, fontWeight: 600 }}>{p.label}</Typography>
-                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: OPS_TEXT.primary }}>{p.name || '-'}</Typography>
-                    {p.phone ? (
-                      <Typography sx={{ fontSize: FONT.small }}>
-                        <a href={`tel:${p.phone}`} style={{ color: '#1D4ED8', fontWeight: 600 }}>{p.phone}</a>
-                        {' · '}
-                        <a href={`sms:${p.phone}`} style={{ color: '#1D4ED8' }}>SMS</a>
-                      </Typography>
-                    ) : (
-                      <Typography sx={{ fontSize: FONT.small, color: OPS_TEXT.secondary }}>no number on record</Typography>
-                    )}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-
-            {(selectedIncident.evidenceFiles?.length ?? 0) > 0 && (
-              <Box sx={modalPanel}>
-                <Typography sx={modalLabel}>Attached photo evidence ({selectedIncident.evidenceFiles?.length})</Typography>
-                <Box sx={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {selectedIncident.evidenceFiles?.map((file) => (
-                    <Box key={file.url} component="a" href={file.url} target="_blank" rel="noreferrer" sx={{ display: 'block', lineHeight: 0, borderRadius: '8px', ...opsFocusRing }}>
-                      <Box component="img" src={file.url} alt={file.name} sx={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '8px', border: `1px solid ${OPS_BORDER}` }} />
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            )}
-
-            {selectedIncident.findings && (
-              <Box sx={{ ...modalPanel, backgroundColor: '#FFFFFF', borderColor: 'var(--sakay-orange-border)' }}>
-                <Typography sx={{ ...modalLabel, color: OPS_TEXT.brand }}>Review notes</Typography>
-                <Typography sx={{ fontSize: FONT.body, color: OPS_TEXT.primary, lineHeight: 1.6, overflowWrap: 'anywhere' }}>{selectedIncident.findings}</Typography>
-              </Box>
-            )}
-
-            <Box sx={{ pt: '13px', borderTop: `1px solid ${OPS_BORDER}` }}>
-              <IncidentReviewPanel
-                role="toda_admin"
-                incident={selectedIncident.record}
-                onStart={afterAction(() => startIncident(selectedIncident.id))}
-                onEscalate={(reason, serious) => afterAction(() => escalateIncident(selectedIncident.id, reason, serious))()}
-                onDecide={(d) => afterAction(() => decideIncident({ incidentId: selectedIncident.id, ...d }))()}
-                onLostItem={(status, note) => afterAction(() => updateLostItemReport(selectedIncident.id, status, note))()}
-              />
-            </Box>
-          </Box>
-        </MacCenterModal>
+          onChanged={loadData}
+          onStart={afterAction(() => startIncident(selectedIncident.id))}
+          onEscalate={(reason, serious) => afterAction(() => escalateIncident(selectedIncident.id, reason, serious))()}
+          onDecide={(d) => afterAction(() => decideIncident({ incidentId: selectedIncident.id, ...d }))()}
+          onLostItem={(status, note) => afterAction(() => updateLostItemReport(selectedIncident.id, status, note))()}
+        />
       )}
     </Box>
   );

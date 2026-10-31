@@ -49,6 +49,15 @@ export interface IncidentRecord {
   evidence_paths: string[] | null;
   resolved_at: string | null;
   reported_toda_id: string | null;
+  /** the LGU Administrator who took the report in hand (null until one does) */
+  reviewed_by_lgu?: string | null;
+  /** set by the hourly sweep once the report has passed its first-action or decision time (migration 20261102000001) */
+  overdue_kind?: 'first_action' | 'decision' | null;
+  overdue_since?: string | null;
+  /** the findings of the investigation, saved on the report (migration 20261103000001), who was contacted, and when they were saved */
+  investigation_notes?: string | null;
+  investigation_contacted?: string[] | null;
+  investigation_recorded_at?: string | null;
 }
 
 // ---- the calls (the answers are the database's: TripEndResult says ok, the ERR_ code, and its own sentence) ------------------------------------------------------
@@ -57,6 +66,30 @@ export const startIncidentReview = (client: RpcCapableClient, incidentId: string
 /** Rule 19.3: what the TODA cannot resolve, or what could mean a suspension or deactivation, goes to the LGU Administrator; serious=true reclassifies the report as serious (decision PI-11J) */
 export const escalateIncident = (client: RpcCapableClient, incidentId: string, reason: string, serious = false): Promise<TripEndResult> =>
   callRpc(client, 'incident_escalate', { p_incident_id: incidentId, p_reason: reason, p_serious: serious });
+
+/** The LGU Administrator takes a report in hand without deciding it: who is responsible is recorded and the TODA is told (migration 20261102000001) */
+export const acknowledgeIncident = (client: RpcCapableClient, incidentId: string): Promise<TripEndResult> => callRpc(client, 'incident_lgu_acknowledge', { p_incident_id: incidentId });
+/** Who an administrator can say they contacted during an investigation (the database accepts only these) */
+export const INCIDENT_CONTACT_OPTIONS = ['Reporter', 'Driver', 'Passenger', 'TODA Administrator', 'Witness or other'] as const;
+export type IncidentContact = (typeof INCIDENT_CONTACT_OPTIONS)[number];
+/** Saves the findings of an investigation (and who was contacted) on the report, under the administrator's name. It changes no status, outcome, clock or strike. */
+export const recordIncidentInvestigation = (client: RpcCapableClient, incidentId: string, notes: string, contacted: string[]): Promise<TripEndResult> =>
+  callRpc(client, 'incident_record_investigation', { p_incident_id: incidentId, p_notes: notes, p_contacted: contacted });
+/** A TODA administrator asks the LGU to act on a report that is with the LGU. The database refuses a second one inside the cooldown and answers with the time it is allowed again (data.next_allowed_at). */
+export const sendIncidentFollowup = (client: RpcCapableClient, incidentId: string, message: string | null): Promise<TripEndResult> =>
+  callRpc(client, 'incident_send_followup', { p_incident_id: incidentId, p_message: message });
+
+/** One follow-up a TODA sent the LGU (incident_followup): who, when, what, and when another may be sent */
+export interface IncidentFollowupRow {
+  followup_id: string;
+  incident_id: string;
+  kind: 'reminder' | 'escalation';
+  sequence_no: number;
+  message: string | null;
+  sent_by_name: string | null;
+  sent_at: string;
+  next_allowed_at: string;
+}
 
 export interface IncidentDecision {
   incidentId: string;
@@ -150,4 +183,23 @@ export function incidentClocks(i: Pick<IncidentRecord, 'status' | 'outcome' | 'f
   const decisionOverdue = !closed && Number.isFinite(decisionDue) && now > decisionDue;
   const nextDue = closed ? null : i.first_action_at === null && Number.isFinite(firstDue) ? i.first_action_due_at : Number.isFinite(decisionDue) ? i.decision_due_at : null;
   return { firstActionOverdue, decisionOverdue, overdue: firstActionOverdue || decisionOverdue, nextDue };
+}
+
+// ---- who has to act now (the TODA's list of reports separates "needs my action" from "monitoring") -------------------------------------------------------------------
+export type IncidentHandling = 'action' | 'monitoring' | 'closed';
+/** For the administrator looking: an open report with them needs their action; an open report with the other side is only monitored; a decided or withdrawn one is closed. */
+export function incidentHandling(i: Pick<IncidentRecord, 'routing' | 'priority' | 'outcome' | 'status'>, role: IncidentActor): IncidentHandling {
+  if (i.outcome !== null || i.status === 'Cancelled' || i.status === 'Dismissed' || i.status === 'Resolved') return 'closed';
+  const withLgu = i.routing === 'LGU' || i.priority === 'Serious';
+  return (role === 'lgu_admin') === withLgu ? 'action' : 'monitoring';
+}
+
+/** The state of a report in plain words, and who holds it */
+export function incidentStateWords(i: Pick<IncidentRecord, 'routing' | 'priority' | 'outcome' | 'status' | 'decided_by_role' | 'reviewed_by_lgu' | 'first_action_at'>, todaName?: string): { state: string; holder: string } {
+  if (i.status === 'Cancelled') return { state: 'Withdrawn by the reporter', holder: 'Nobody: it is closed' };
+  if (i.outcome !== null) return { state: `Decided (${INCIDENT_OUTCOME_LABEL[i.outcome].toLowerCase()})`, holder: i.decided_by_role === 'lgu_admin' ? 'Decided by the LGU Administrator' : 'Decided by the TODA Administrator' };
+  if (i.routing === 'LGU' || i.priority === 'Serious') {
+    return { state: i.reviewed_by_lgu ? 'Under LGU review' : 'Waiting for the LGU', holder: 'LGU Administrator' };
+  }
+  return { state: i.first_action_at ? 'Under TODA review' : 'Waiting for the first review', holder: todaName ? `TODA Administrator (${todaName})` : 'TODA Administrator' };
 }

@@ -6,7 +6,6 @@ import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
@@ -14,6 +13,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useInFlight } from '../hooks/useInFlight';
+import { SakayDialogTitle } from './SakayDialogTitle';
 
 /** A trip whose driver has been silent for 30 minutes (Rule 9.5), as get_trips_needing_reconciliation() answers. */
 export interface ReconciliationTrip {
@@ -232,7 +232,7 @@ export const TripReconciliationPanel: React.FC<TripReconciliationPanelProps> = (
       )}
 
       <Dialog open={closing !== null} onClose={() => setClosing(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Close the trip after contacting the parties</DialogTitle>
+        <SakayDialogTitle onClose={() => setClosing(null)} sx={{ fontWeight: 700, fontSize: '16px' }}>Close the trip after contacting the parties</SakayDialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
           <TextField select size="small" label="What happened to the trip" value={outcome} onChange={(e) => setOutcome(e.target.value as 'completed' | 'cancelled')} fullWidth>
             <MenuItem value="completed">The trip was completed</MenuItem>
@@ -274,7 +274,7 @@ export const TripReconciliationPanel: React.FC<TripReconciliationPanelProps> = (
       </Dialog>
 
       <Dialog open={reporting !== null} onClose={() => setReporting(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '16px' }}>Report a deliberate offline</DialogTitle>
+        <SakayDialogTitle onClose={() => setReporting(null)} sx={{ fontWeight: 700, fontSize: '16px' }}>Report a deliberate offline</SakayDialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
           <Typography sx={{ fontSize: '13px', color: '#475569', lineHeight: 1.45 }}>
             Only when there is evidence that {reporting?.driverName} switched off on purpose to avoid completing a booking. The LGU Administrator confirms the

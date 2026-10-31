@@ -16,7 +16,8 @@
 import { adminActionMessage, mapServiceAreas, pilotAreaArgs, closeAccountArgs, closeUnfinishedTripArgs, confirmAvailabilityArgs, correctCompletedTripArgs, confirmFlaggedViolationArgs, decideExemptionArgs, mapAppealRows, voidStrikeArgs, escalateFareDisputeArgs, fareDisputesArgs, mapReconciliationTrips, parseFareDisputes, reconcileTripArgs, resolveFareDisputeArgs } from '@sakay/shared';
 import type { ServiceAreaRecord, AppealRecord, AppealSubjectType, ExemptionOutcome, FareDisputeDecision, FareDisputeRow } from '@sakay/shared';
 import type { ReconcileInput, ReconciliationTrip } from '@sakay/shared';
-import { signCaseEvidence } from '@sakay/shared';
+import { signCaseEvidence, asAnnouncementEventType, volumeByPeriod } from '@sakay/shared';
+import type { BookingLike, GeoBoundary, VolumeRow } from '@sakay/shared';
 import type { CaseEvidenceFile } from '@sakay/shared';
 import { supabase } from './supabaseClient';
 import { formatManilaDateTime } from '@sakay/shared/utils/restrictionUtils';
@@ -27,9 +28,13 @@ import {
   decideIncident as decideIncidentReport,
   declareCalamity as declareCalamityReport,
   endCalamity as endCalamityReport,
+  updateCalamity as updateCalamityReport,
   escalateIncident as escalateIncidentReport,
   fetchActiveCalamity,
   incidentClocks,
+  acknowledgeIncident,
+  recordIncidentInvestigation,
+  type IncidentFollowupRow,
   endTripForSafety,
   startIncidentReview,
   updateLostItem,
@@ -43,13 +48,14 @@ import {
 } from '@sakay/shared';
 import type { ApplicationReviewAffiliation, ApplicationReviewDocument, ApplicationStatus, ReviewDocumentType } from '@sakay/shared';
 import {
-  exportAuditLogFile,
+  loadAuditExportTable,
+  recordAuditExportEntry,
   fetchAuditLogPage,
   manilaDayStartIso,
   manilaNextDayStartIso,
   type AuditLogFilters,
   type AuditRpc,
-  type XlsxLike,
+  type ReportTable,
 } from '@sakay/shared';
 import {
   FareMatrixRecord,
@@ -79,12 +85,15 @@ export interface DashboardStats {
     verifications: { pending: number; overdue5Days: number };
     incidents: { open: number; total: number; resolved: number };
   };
+  /** Every driver account is in exactly one group, from its real status: the groups add up to the total */
   driverBreakdown: {
     total: number;
     approved: number;
+    /** still being checked (a TODA or the LGU), or sent back to the driver to fix */
     pending: number;
     rejected: number;
     suspended: number;
+    deactivated: number;
   };
   recentIncidents: Array<{
     id: string;
@@ -151,6 +160,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       supabase.from('incident_report').select('*', { count: 'exact', head: true }).not('outcome', 'is', null),
       supabase.from('incident_report').select('*').order('created_at', { ascending: false }).limit(5),
       supabase.from('incident_report').select('*, driver:driver_id(toda_id), booking:booking_id(toda_id)'),
+    ]);
+
+    // the groups that the first queries do not count (rejected, deactivated): so the driver chart shows the real picture, not a zero
+    const [rejectedRes, deactivatedRes] = await Promise.all([
+      supabase.from('driver').select('*', { count: 'exact', head: true }).eq('account_status', 'Rejected'),
+      supabase.from('driver').select('*', { count: 'exact', head: true }).eq('account_status', 'Deactivated'),
     ]);
 
     const totalP = passengersTotal.count || 0;
@@ -259,9 +274,11 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       driverBreakdown: {
         total: totalD,
         approved: verifiedD,
-        pending: pendingD,
-        rejected: 0,
+        // in review = everyone who is not verified, rejected, suspended or deactivated (a pending application, or one returned for resubmission)
+        pending: Math.max(0, totalD - verifiedD - (rejectedRes.count || 0) - suspendedD - (deactivatedRes.count || 0)),
+        rejected: rejectedRes.count || 0,
         suspended: suspendedD,
+        deactivated: deactivatedRes.count || 0,
       },
       recentIncidents,
       recentApplications,
@@ -278,12 +295,31 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
         verifications: { pending: 0, overdue5Days: 0 },
         incidents: { open: 0, total: 0, resolved: 0 },
       },
-      driverBreakdown: { total: 0, approved: 0, pending: 0, rejected: 0, suspended: 0 },
+      driverBreakdown: { total: 0, approved: 0, pending: 0, rejected: 0, suspended: 0, deactivated: 0 },
       recentIncidents: [],
       recentApplications: [],
       flaggedTodas: [],
     };
   }
+}
+
+/** The last seven days of bookings (the Dashboard's trend), counted from the real bookings, and how many there were in the seven days before them */
+export interface BookingTrend {
+  days: VolumeRow[];
+  previousTotal: number;
+}
+export async function fetchBookingTrend(days = 7): Promise<BookingTrend> {
+  const since = new Date(Date.now() - (2 * days + 1) * 86_400_000).toISOString();
+  const { data, error } = await supabase
+    .from('booking')
+    .select('created_at, booking_status, actual_fare, estimated_fare, is_shared_trip, trip_type')
+    .gte('created_at', since)
+    .limit(20000);
+  if (error) throw new Error(error.message);
+  const rows = (data || []) as BookingLike[];
+  const current = volumeByPeriod(rows, 'day', days);
+  const previous = volumeByPeriod(rows, 'day', days, new Date(Date.now() - days * 86_400_000));
+  return { days: current, previousTotal: previous.reduce((n, d) => n + d.total, 0) };
 }
 
 // ============================================================================
@@ -1746,10 +1782,40 @@ export async function fetchServiceAreas(): Promise<ServiceAreaRecord[] | null> {
   return error || !data ? null : mapServiceAreas(data);
 }
 
+/** One TODA terminal on the service area map (the centre of a pilot area is one of them) */
+export interface TerminalPin {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+}
+
 /** The accredited TODAs that have a terminal on the map (the centre of a pilot area). */
-export async function fetchTodaTerminals(): Promise<Array<{ id: string; name: string }>> {
+export async function fetchTodaTerminals(): Promise<TerminalPin[]> {
   const { data } = await supabase.from('toda').select('toda_id, toda_name, terminal_latitude, terminal_longitude').not('terminal_latitude', 'is', null).not('terminal_longitude', 'is', null).order('toda_name', { ascending: true });
-  return (data ?? []).map((t) => ({ id: String(t.toda_id), name: String(t.toda_name) }));
+  return (data ?? []).map((t) => ({ id: String(t.toda_id), name: String(t.toda_name), lat: Number(t.terminal_latitude), lng: Number(t.terminal_longitude) }));
+}
+
+/** The shape of the service area in force, for the map: the whole city by its boundary, or a circle around a terminal. Null when none is active or it cannot be read. */
+export interface ServiceAreaShapeOnMap {
+  name: string;
+  isWholeCity: boolean;
+  centerLat: number;
+  centerLng: number;
+  radiusKm: number;
+  boundary: GeoBoundary | null;
+}
+export async function fetchActiveServiceAreaShape(): Promise<ServiceAreaShapeOnMap | null> {
+  const { data, error } = await supabase.from('service_area_config').select('area_name, center_latitude, center_longitude, radius_km, boundary_geojson').eq('is_active', true).maybeSingle();
+  if (error || !data) return null;
+  return {
+    name: String(data.area_name),
+    isWholeCity: data.boundary_geojson !== null && data.boundary_geojson !== undefined,
+    centerLat: Number(data.center_latitude),
+    centerLng: Number(data.center_longitude),
+    radiusKm: Number(data.radius_km),
+    boundary: (data.boundary_geojson as GeoBoundary | null) ?? null,
+  };
 }
 
 function rpcOutcome(res: { data: unknown; error: { message: string } | null }, fallback: string): string | null {
@@ -1961,6 +2027,34 @@ export async function fetchIncidents(): Promise<IncidentReportRecord[]> {
 // ---- reviewing a report (Section 19): every action is ONE database function (migration 20261026000001): who may act, the strike, the audit entry and the notices are the database's.
 // The LGU Administrator no longer writes a report from the browser. Each answers null when the database accepted it, else the database's own sentence (shown as it is).
 const incidentSentence = (r: TripEndResult): string | null => (r.ok ? null : r.error ?? 'The action could not be saved. Please try again.');
+/** The LGU Administrator takes a report in hand without deciding it (who is responsible is recorded and the TODA is told). Null when accepted, otherwise the database's sentence. */
+export async function acknowledgeIncidentReport(incidentId: string): Promise<string | null> {
+  return incidentSentence(await acknowledgeIncident(supabase, incidentId));
+}
+
+/** The LGU administrator's own profile: name, position, office and mobile number (+639XXXXXXXXX, or "" for none). The database validates it again and records the change. Null when saved, otherwise its sentence. */
+export async function updateMyLguProfile(input: { fullName: string; position: string; office: string; contactNumber: string }): Promise<string | null> {
+  const { data, error } = await supabase.rpc('update_my_lgu_profile', { p_full_name: input.fullName, p_position: input.position, p_office: input.office, p_contact_number: input.contactNumber });
+  if (error) return adminActionMessage(error.message, 'The profile could not be saved.');
+  const row = data as { success?: boolean } | null;
+  return row?.success === true ? null : 'The profile could not be saved.';
+}
+
+/** Saves the findings of the investigation (and who was contacted) on the report. Null when saved, otherwise the database's sentence. */
+export async function recordIncidentInvestigationFor(incidentId: string, notes: string, contacted: string[]): Promise<string | null> {
+  return incidentSentence(await recordIncidentInvestigation(supabase, incidentId, notes, contacted));
+}
+
+/** The follow-ups TODAs sent the LGU on one report (who, when, what), newest first. An empty list when none, or when they cannot be read. */
+export async function fetchIncidentFollowups(incidentId: string): Promise<IncidentFollowupRow[]> {
+  const { data, error } = await supabase
+    .from('incident_followup')
+    .select('followup_id, incident_id, kind, sequence_no, message, sent_by_name, sent_at, next_allowed_at')
+    .eq('incident_id', incidentId)
+    .order('sent_at', { ascending: false });
+  return error || !data ? [] : (data as IncidentFollowupRow[]);
+}
+
 export async function startIncident(incidentId: string): Promise<string | null> {
   return incidentSentence(await startIncidentReview(supabase, incidentId));
 }
@@ -1985,6 +2079,10 @@ export const fetchCalamity = (): Promise<ActiveCalamity> => fetchActiveCalamity(
 export async function declareCalamity(input: CalamityInput): Promise<string | null> {
   return incidentSentence(await declareCalamityReport(supabase, input));
 }
+/** Changes the title, the announcement and the expected end of the declaration in effect (one audited action). Null when saved, otherwise the database's sentence. */
+export async function updateCalamityDeclaration(input: { title: string; message: string; expectedEndAt: string | null }): Promise<string | null> {
+  return incidentSentence(await updateCalamityReport(supabase, input));
+}
 export async function endCalamity(note: string): Promise<string | null> {
   return incidentSentence(await endCalamityReport(supabase, note));
 }
@@ -2003,6 +2101,7 @@ export async function fetchAnnouncements(): Promise<AnnouncementRecord[]> {
     title: a.title,
     message: a.message,
     target_role: (a.target_audience || 'All') as AnnouncementRecord['target_role'],
+    event_type: asAnnouncementEventType(a.event_type),
     is_published: a.is_published !== false,
     publish_timing: 'Immediate',
     // created_by points at a TODA administrator; a notice written by the LGU Administrator has none
@@ -2020,6 +2119,8 @@ export interface AnnouncementInput {
   /** All | Passenger | Driver | TODA Administrator (stored as target_audience; the apps read the announcements meant for them) */
   targetRole: string;
   targetTodaId: string | null;
+  /** What the announcement is about (one of ANNOUNCEMENT_EVENT_TYPES): its icon follows it */
+  eventType: string;
 }
 
 /** Row security answers "no permission" with zero rows, not an error: a change that touched nothing is reported as a failure. */
@@ -2040,6 +2141,7 @@ export async function createAnnouncement(payload: AnnouncementInput & { publish?
         title: payload.title,
         message: payload.message,
         target_audience: payload.targetRole || 'All',
+        event_type: asAnnouncementEventType(payload.eventType),
         urgency: payload.urgency || 'Normal',
         is_published: publish,
         toda_id: payload.targetTodaId || null,
@@ -2052,7 +2154,7 @@ export async function createAnnouncement(payload: AnnouncementInput & { publish?
     actionType: publish ? 'ANNOUNCEMENT_BROADCASTED' : 'ANNOUNCEMENT_DRAFTED',
     targetId: data?.announcement_id,
     targetName: payload.title,
-    details: `${publish ? 'Published' : 'Saved as a draft'} the announcement '${payload.title}' for: ${payload.targetRole || 'All'}.`,
+    details: `${publish ? 'Published' : 'Saved as a draft'} the announcement '${payload.title}' (${asAnnouncementEventType(payload.eventType)}) for: ${payload.targetRole || 'All'}.`,
     category: 'Announcement',
   });
   return { success: true, data };
@@ -2063,7 +2165,7 @@ export async function updateAnnouncement(announcementId: string, input: Announce
   await announcementChanged(
     await supabase
       .from('announcement')
-      .update({ title: input.title, message: input.message, target_audience: input.targetRole || 'All', toda_id: input.targetTodaId || null })
+      .update({ title: input.title, message: input.message, target_audience: input.targetRole || 'All', event_type: asAnnouncementEventType(input.eventType), toda_id: input.targetTodaId || null })
       .eq('announcement_id', announcementId)
       .select('announcement_id')
   );
@@ -2071,7 +2173,7 @@ export async function updateAnnouncement(announcementId: string, input: Announce
     actionType: 'ANNOUNCEMENT_EDITED',
     targetId: announcementId,
     targetName: input.title,
-    details: `Edited the announcement '${input.title}' (audience: ${input.targetRole || 'All'}).`,
+    details: `Edited the announcement '${input.title}' (${asAnnouncementEventType(input.eventType)}; audience: ${input.targetRole || 'All'}).`,
     category: 'Announcement',
   });
 }
@@ -2120,7 +2222,7 @@ const auditFilters = (q: AuditQuery = {}): AuditLogFilters => ({
   search: q.search || null,
 });
 
-function auditCategoryOf(action: string): AuditLogRecord['category'] {
+export function auditCategoryOf(action: string): AuditLogRecord['category'] {
   if (action.includes('FARE')) return 'Fare Matrix';
   if (action.includes('ANNOUNCEMENT')) return 'Announcement';
   if (action.startsWith('ACCOUNT_') || action.startsWith('STRIKE_') || action.startsWith('EXEMPTION_') || action.startsWith('RATING_') || action.includes('PASSENGER')
@@ -2155,17 +2257,20 @@ export async function fetchAuditLogs(query: AuditQuery = {}): Promise<AuditLogRe
   }
 }
 
-/** Exports every entry the filters match (up to the cap) as Excel, CSV or a PDF (the browser's print dialog: "Save as PDF"); the export is written to the audit log first. */
-export async function exportAuditLog(format: 'xlsx' | 'csv' | 'pdf', query: AuditQuery, generatedBy: string): Promise<{ count: number; truncated: boolean }> {
-  return exportAuditLogFile({
-    rpc: auditRpc,
-    format,
-    filters: auditFilters(query),
-    generatedBy,
-    title: 'SAKAY - Audit Log (LGU Administrator)',
-    loadXlsx: async () => (await import('xlsx')) as unknown as XlsxLike,
-  });
+/**
+ * Every entry the page's filters match (the dates and the search go to the database; the action category is applied here with the same rule as the screen), up to the cap, as the table
+ * of an export (Excel, CSV, PDF: the one export design). The database returns only what this account may read.
+ */
+export async function loadAuditExport(query: AuditQuery, category: string, covers: string[]): Promise<ReportTable> {
+  const wanted = (action: string) => category === 'All' || auditCategoryMatches(auditCategoryOf(action), category);
+  return loadAuditExportTable(auditRpc, auditFilters(query), { title: 'Audit Log (LGU)', covers, keep: (entry) => wanted(entry.action_type) });
 }
+
+/** Writes the export itself to the audit log (who, the format, how many entries, which filters) before any file is made */
+export const recordAuditExport = (format: 'Excel' | 'CSV' | 'PDF', rowCount: number, query: AuditQuery): Promise<void> => recordAuditExportEntry(auditRpc, format, rowCount, auditFilters(query));
+
+/** The page's "System & announcement" choice covers both of those categories */
+export const auditCategoryMatches = (rowCategory: string, chosen: string): boolean => (chosen === 'System' ? rowCategory === 'System' || rowCategory === 'Announcement' : rowCategory === chosen);
 
 /**
  * A free-text note from a screen (an announcement, a reminder, an export of a report). The database stamps WHO (the signed-in administrator) and WHEN (the server's
@@ -2193,6 +2298,14 @@ export async function recordAdminAuditAction(action: {
   } catch (err) {
     console.warn('[adminApiService] recordAdminAuditAction error:', err);
   }
+}
+
+/** Like recordAdminAuditAction, but a failure is raised: an export is not handed over unless it was recorded (Rule 28.4) */
+export async function recordAdminAuditStrict(action: { actionType: string; targetId?: string; targetName?: string; details: string; category?: string }): Promise<void> {
+  const { error } = await supabase.from('audit_log').insert([
+    { action_type: action.actionType, target_id: action.targetId || null, target_name: action.targetName || null, category: action.category || 'General', details: action.details },
+  ]);
+  if (error) throw new Error(error.message);
 }
 
 // ----------------------------------------------------------------------------
@@ -2745,4 +2858,114 @@ export async function sendDriverRenewalReminder(driverId: string): Promise<strin
 export async function referIncidentToToda(incidentId: string, reason: string): Promise<string | null> {
   const { error } = await supabase.rpc('incident_refer_to_toda', { p_incident_id: incidentId, p_reason: reason });
   return error ? adminActionMessage(error.message, 'The report could not be referred.') : null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// Changes an accredited TODA asked for (migration 20261101000001) and the Master Roster of a TODA
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+export interface TodaChangeRequestRow {
+  requestId: string;
+  todaId: string;
+  kind: 'profile' | 'bylaws';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Superseded' | 'Withdrawn';
+  /** What the TODA asks for, and what was in force when it asked */
+  proposed: Record<string, unknown>;
+  previous: Record<string, unknown>;
+  reason?: string | null;
+  fileName?: string | null;
+  requestedByName?: string | null;
+  requestedAt: string;
+  decidedByName?: string | null;
+  decidedAt?: string | null;
+  decisionNote?: string | null;
+}
+
+/** The changes a TODA asked for that wait for the LGU, and the last few decided ones (who decided, when and why). */
+export async function fetchTodaChangeRequests(todaId: string): Promise<TodaChangeRequestRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('toda_change_request')
+      .select('request_id, toda_id, kind, status, proposed, previous, reason, file_name, requested_by_name, requested_at, decided_by_name, decided_at, decision_note')
+      .eq('toda_id', todaId)
+      .in('status', ['Pending', 'Approved', 'Rejected'])
+      .order('requested_at', { ascending: false })
+      .limit(10);
+    if (error || !data) return [];
+    return data.map((r: any) => ({
+      requestId: r.request_id,
+      todaId: r.toda_id,
+      kind: r.kind,
+      status: r.status,
+      proposed: r.proposed || {},
+      previous: r.previous || {},
+      reason: r.reason,
+      fileName: r.file_name,
+      requestedByName: r.requested_by_name,
+      requestedAt: r.requested_at,
+      decidedByName: r.decided_by_name,
+      decidedAt: r.decided_at,
+      decisionNote: r.decision_note,
+    }));
+  } catch (err) {
+    console.error('[adminApiService] fetchTodaChangeRequests error:', err);
+    return [];
+  }
+}
+
+/** Approves or rejects a change request, in the Administrator's own words (10 to 500 characters). Throws the database's explanation when it is refused. */
+export async function decideTodaChangeRequest(requestId: string, approve: boolean, note: string): Promise<void> {
+  const { data, error } = await supabase.rpc('decide_toda_change_request', { p_request_id: requestId, p_approve: approve, p_note: note });
+  if (error) throw new Error(error.message);
+  if (!data || data.success !== true) throw new Error(String(data?.error || 'The decision was not saved.'));
+}
+
+export interface MasterRosterEntryRow {
+  entryId: string;
+  memberName: string;
+  franchiseNumber: string;
+  plateNumber: string;
+  membershipNumber: string;
+  source: 'registration_file' | 'manual' | 'file_update' | string;
+  status: 'Active' | 'Left';
+  addedAt: string;
+  leftAt?: string | null;
+  leftReason?: string | null;
+}
+
+export interface RosterFileVersionRow {
+  versionId: string;
+  kind: 'registration' | 'update';
+  filePath: string;
+  fileName: string;
+  uploadedAt: string;
+}
+
+/** The whole Master Roster of a TODA (members who left included, so the history is readable) and every roster file it has submitted. */
+export async function fetchTodaMasterRoster(todaId: string): Promise<{ entries: MasterRosterEntryRow[]; versions: RosterFileVersionRow[] }> {
+  const [{ data: entryRows }, { data: versionRows }] = await Promise.all([
+    supabase.from('toda_roster_entry').select('*').eq('toda_id', todaId).order('created_at', { ascending: true }),
+    supabase.from('toda_roster_file_version').select('*').eq('toda_id', todaId).order('uploaded_at', { ascending: false }),
+  ]);
+  return {
+    entries: (entryRows || []).map((e: any) => ({
+      entryId: e.entry_id,
+      memberName: e.member_name || '',
+      franchiseNumber: e.franchise_number || '',
+      plateNumber: e.plate_number || '',
+      membershipNumber: e.membership_number || '',
+      source: e.source || 'manual',
+      status: e.status === 'Left' ? 'Left' : 'Active',
+      addedAt: e.created_at,
+      leftAt: e.left_at,
+      leftReason: e.left_reason,
+    })),
+    versions: (versionRows || []).map((v: any) => ({
+      versionId: v.version_id,
+      kind: v.kind,
+      filePath: v.file_path,
+      fileName: v.file_name || String(v.file_path || '').replace(/^.*\//, ''),
+      uploadedAt: v.uploaded_at,
+    })),
+  };
 }

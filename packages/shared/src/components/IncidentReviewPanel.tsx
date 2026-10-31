@@ -36,6 +36,8 @@ export interface IncidentReviewPanelProps {
   onLostItem: (status: Exclude<LostItemStatus, 'Open'>, note: string) => Promise<string | null>;
   /** LGU only: hand a report that was escalated (not a serious one) back to the TODA Administrator of the driver's TODA, with the reason */
   onRefer?: (reason: string) => Promise<string | null>;
+  /** The details are shown elsewhere (IncidentFacts): only the state messages and the actions are drawn */
+  compact?: boolean;
 }
 
 const manila = (iso: string | null): string => {
@@ -60,7 +62,7 @@ const LOST_ITEM_STEPS: Array<{ status: Exclude<LostItemStatus, 'Open'>; label: s
  * Rules 19.3, 19.4, 19.5, 19.6, 19.8, 26.4: what an administrator does with one incident report. The database is the authority (who may act, what each outcome may carry, the strike, the audit entry,
  * the notices); this is only the form. Used by the TODA and the LGU portals. A report that is with the LGU Administrator is read only for the TODA Administrator (decision PI-11I).
  */
-export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, incident, onStart, onEscalate, onDecide, onLostItem, onRefer }) => {
+export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, incident, onStart, onEscalate, onDecide, onLostItem, onRefer, compact = false }) => {
   const flight = useInFlight();
   const [mode, setMode] = useState<null | 'escalate' | 'decide' | 'lost' | 'refer'>(null);
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
@@ -119,6 +121,8 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {!compact && (
+        <>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
         <Chip size="small" label={incident.priority} sx={{ fontWeight: 700, backgroundColor: (PRIORITY_COLOR[incident.priority] ?? PRIORITY_COLOR.Standard).bg, color: (PRIORITY_COLOR[incident.priority] ?? PRIORITY_COLOR.Standard).fg }} />
         <Chip size="small" variant="outlined" label={incident.routing === 'LGU' ? 'With the LGU Administrator' : 'With the TODA Administrator'} />
@@ -145,6 +149,9 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
         </Typography>
       )}
 
+        </>
+      )}
+
       {withdrawn && <Alert severity="info">The reporter withdrew this report{incident.cancellation_reason ? `: ${incident.cancellation_reason}` : '.'}</Alert>}
       {decided && (
         <Alert severity={incident.outcome === 'NOT_UPHELD' ? 'info' : 'success'}>
@@ -165,7 +172,7 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {pending && (
               <Button size="small" variant="outlined" disabled={flight.busy} onClick={() => void run(onStart, 'The review was started.')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                Start review
+                Accept for review
               </Button>
             )}
             {klass === 'LOST_ITEM' && (
@@ -188,6 +195,12 @@ export const IncidentReviewPanel: React.FC<IncidentReviewPanelProps> = ({ role, 
               Record the decision
             </Button>
           </Box>
+
+          {pending && (
+            <Typography sx={{ fontSize: '12px', color: '#4d4d52', lineHeight: 1.5 }}>
+              <b>Accept for review</b> moves the report from waiting to under review, stops its first-action clock and tells the person who filed it. It decides nothing.
+            </Typography>
+          )}
 
           {mode === 'escalate' && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>

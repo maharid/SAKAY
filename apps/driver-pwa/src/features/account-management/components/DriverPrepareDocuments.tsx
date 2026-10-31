@@ -17,7 +17,7 @@ import { useLanguage } from '../../../utils/LanguageContext';
 export const DriverPrepareDocuments: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const state = location.state as {
     phone?: string;
     driverName?: string;
@@ -161,7 +161,7 @@ export const DriverPrepareDocuments: React.FC = () => {
             }}
           >
             <Typography sx={{ fontSize: '12px', fontWeight: 700, color: '#B45309', mb: 0.5 }}>
-              Kailangang Iwasto / Required Correction
+              {language === 'tl' ? 'Kailangang Iwasto' : 'Required Correction'}
             </Typography>
             <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#92400E', mb: 0.5 }}>
               {state.rejectionReason}

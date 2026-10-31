@@ -42,8 +42,82 @@ export interface RouteResult {
   source: 'osrm' | 'road_estimate';
 }
 
+/** How long one routing server may take before it is given up on (a public server that hangs used to hold the road line back for as long as the browser waited) */
+const ROUTE_REQUEST_TIMEOUT_MS = 6000;
+/** The second server is asked this long after the first, if the first has not answered yet (the first answer wins; most of the time only one request is made) */
+const ROUTE_HEDGE_DELAY_MS = 1200;
+/** A road does not move: an answer is kept this long, so the same trip (or the same driver position) is not asked for twice */
+const ROUTE_CACHE_TTL_MS = 10 * 60 * 1000;
+const ROUTE_CACHE_MAX = 60;
+
+const routeCache = new Map<string, { at: number; result: RouteResult }>();
+const routeInFlight = new Map<string, Promise<RouteResult>>();
+
+// Positions are compared to about 11 m (4 decimals): a driver who has not really moved gets the answer already held
+const routeKey = (aLat: number, aLng: number, bLat: number, bLng: number) => `${aLat.toFixed(4)},${aLng.toFixed(4)};${bLat.toFixed(4)},${bLng.toFixed(4)}`;
+
+async function fetchRouteFrom(url: string): Promise<RouteResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ROUTE_REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`routing server answered ${res.status}`);
+    const data = await res.json();
+    if (!data.routes || data.routes.length === 0) throw new Error('no route');
+    const route = data.routes[0];
+    return {
+      distanceKm: Math.round((route.distance / 1000) * 100) / 100,
+      durationMin: Math.max(1, Math.round(route.duration / 60)),
+      coordinates: route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]),
+      source: 'osrm',
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The first server that answers wins. The next server is asked only when the one before it fails, or has not answered after ROUTE_HEDGE_DELAY_MS. */
+function firstRouteAnswer(urls: string[]): Promise<RouteResult> {
+  return new Promise<RouteResult>((resolve, reject) => {
+    let settled = false;
+    let failed = 0;
+    let started = 0;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const finish = () => timers.forEach((t) => clearTimeout(t));
+    const startNext = () => {
+      if (settled || started >= urls.length) return;
+      const url = urls[started++];
+      if (started < urls.length) timers.push(setTimeout(startNext, ROUTE_HEDGE_DELAY_MS));
+      fetchRouteFrom(url).then(
+        (result) => {
+          if (settled) return;
+          settled = true;
+          finish();
+          resolve(result);
+        },
+        (err) => {
+          console.warn(`[getOSRMRoute] Endpoint request issue: ${url}`, err);
+          failed += 1;
+          if (settled) return;
+          if (failed >= urls.length) {
+            settled = true;
+            finish();
+            reject(new Error('every routing server failed'));
+          } else {
+            startNext(); // do not wait for the hedge timer when a server has already failed
+          }
+        },
+      );
+    };
+    startNext();
+  });
+}
+
 /**
- * Queries OSRM road network for accurate driving distance, duration & road geometry coordinates
+ * Queries OSRM road network for accurate driving distance, duration & road geometry coordinates.
+ * The road line is the slowest thing on a trip map to appear, so: an answer already held is returned at once, the same question asked twice at
+ * the same time shares one request, a server that hangs is given up on after a few seconds, and the next server is asked while the first is
+ * still thinking (the first answer wins). A straight "road estimate" is returned (and never kept) only when every server failed.
  */
 export const getOSRMRoute = async (
   pickupLat: number,
@@ -51,51 +125,46 @@ export const getOSRMRoute = async (
   dropoffLat: number,
   dropoffLng: number
 ): Promise<RouteResult> => {
+  const key = routeKey(pickupLat, pickupLng, dropoffLat, dropoffLng);
+  const held = routeCache.get(key);
+  if (held && Date.now() - held.at < ROUTE_CACHE_TTL_MS) return held.result;
+  const running = routeInFlight.get(key);
+  if (running) return running;
+
   // The same two servers, in the same order, as the database's own ETA request (policyConfig OSRM_BASE_URLS, mirrored in _osrm_base_url()).
   const endpoints = OSRM_BASE_URLS.map(
     (base) => `${base}/route/v1/driving/${pickupLng},${pickupLat};${dropoffLng},${dropoffLat}?overview=full&geometries=geojson`
   );
 
-  for (const url of endpoints) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-
-      const data = await res.json();
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        const distanceKm = Math.round((route.distance / 1000) * 100) / 100;
-        const durationMin = Math.max(1, Math.round(route.duration / 60));
-        const coordinates: [number, number][] = route.geometry.coordinates.map(
-          (c: [number, number]) => [c[1], c[0]]
-        );
-
-        return {
-          distanceKm,
-          durationMin,
-          coordinates,
-          source: 'osrm',
-        };
+  const request = firstRouteAnswer(endpoints)
+    .then((result) => {
+      routeCache.set(key, { at: Date.now(), result });
+      if (routeCache.size > ROUTE_CACHE_MAX) {
+        const oldest = routeCache.keys().next().value;
+        if (oldest !== undefined) routeCache.delete(oldest);
       }
-    } catch (err) {
-      console.warn(`[getOSRMRoute] Endpoint request issue: ${url}`, err);
-    }
-  }
-
-  // Fallback if public road routing servers are unreachable
-  const straightKm = calculateDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
-  const estimatedKm = Math.round(straightKm * 1.3 * 100) / 100;
-  const estimatedMin = Math.max(1, Math.round((estimatedKm / 20) * 60));
-
-  return {
-    distanceKm: estimatedKm,
-    durationMin: estimatedMin,
-    coordinates: [
-      [pickupLat, pickupLng],
-      [dropoffLat, dropoffLng],
-    ],
-    source: 'road_estimate',
-  };
+      return result;
+    })
+    .catch((): RouteResult => {
+      // Fallback if public road routing servers are unreachable
+      const straightKm = calculateDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
+      const estimatedKm = Math.round(straightKm * 1.3 * 100) / 100;
+      const estimatedMin = Math.max(1, Math.round((estimatedKm / 20) * 60));
+      return {
+        distanceKm: estimatedKm,
+        durationMin: estimatedMin,
+        coordinates: [
+          [pickupLat, pickupLng],
+          [dropoffLat, dropoffLng],
+        ],
+        source: 'road_estimate',
+      };
+    })
+    .finally(() => {
+      routeInFlight.delete(key);
+    });
+  routeInFlight.set(key, request);
+  return request;
 };
 
 export interface LocationCoords {

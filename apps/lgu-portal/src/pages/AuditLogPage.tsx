@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { ExportToolbar } from '@sakay/shared';
 
 import { AuditLogRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -9,10 +10,11 @@ import { DetailField, DetailGrid, DetailSection } from '../components/common/Det
 import { DateField } from '../components/common/DateField';
 import { PageNotice } from '../components/common/PageNotice';
 import { StatStrip } from '../components/common/StatStrip';
-import { AUDIT_EXPORT_MAX_ROWS } from '@sakay/shared';
-import { fetchAuditLogs, exportAuditLog } from '../services/adminApiService';
+import { fetchAuditLogs, loadAuditExport, recordAuditExport, auditCategoryMatches } from '../services/adminApiService';
+import { useAuth } from '../contexts/AuthContext';
+import { loadXlsx } from '../utils/loadXlsx';
 import { FONT, SPACE } from '../styles/density';
-import { PAGE_BORDER, PAGE_TEXT, pageCardSx, rowActionSx, secondaryButtonSx } from '../styles/pageTheme';
+import { PAGE_BORDER, PAGE_TEXT, rowActionSx } from '../styles/pageTheme';
 
 /**
  * ============================================================================
@@ -45,9 +47,10 @@ const readableAction = (actionType: string): string => {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : actionType;
 };
 
-const FIELD_SX = { flex: '1 1 160px', minWidth: 150, maxWidth: 220 } as const;
+const DATE_FIELD_SX = { width: 158, flexShrink: 0 } as const;
 
 export const AuditLogPage: React.FC = () => {
+  const { adminProfile } = useAuth();
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -57,8 +60,6 @@ export const AuditLogPage: React.FC = () => {
   // Rule 28.4: the day range (Asia/Manila) is asked of the database; the export takes the same range and search text
   const [fromDay, setFromDay] = useState('');
   const [toDay, setToDay] = useState('');
-  const [exporting, setExporting] = useState<string | null>(null);
-  const [exportNote, setExportNote] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   const loadLogs = async () => {
     setIsLoading(true);
@@ -81,22 +82,6 @@ export const AuditLogPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromDay, toDay]);
 
-  const runExport = async (format: 'xlsx' | 'csv' | 'pdf') => {
-    setExporting(format);
-    setExportNote(null);
-    try {
-      const result = await exportAuditLog(format, { fromDay, toDay, search: searchQuery }, 'LGU Administrator');
-      setExportNote({
-        severity: 'success',
-        text: `${result.count} entries exported${result.truncated ? ` (the first ${AUDIT_EXPORT_MAX_ROWS}; narrow the dates to export the rest)` : ''}. The export was recorded in the audit log.`,
-      });
-    } catch (err) {
-      setExportNote({ severity: 'error', text: (err as Error).message });
-    } finally {
-      setExporting(null);
-    }
-  };
-
   const filteredLogs = logs.filter((log) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
@@ -106,7 +91,7 @@ export const AuditLogPage: React.FC = () => {
       (log.details && log.details.toLowerCase().includes(q)) ||
       (log.log_id && log.log_id.toLowerCase().includes(q));
 
-    const matchesCategory = categoryFilter === 'All' || log.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'All' || auditCategoryMatches(log.category, categoryFilter);
     return matchesSearch && matchesCategory;
   });
 
@@ -126,7 +111,13 @@ export const AuditLogPage: React.FC = () => {
   ];
 
   const filtering = Boolean(searchQuery) || categoryFilter !== 'All';
-  const exportDisabled = exporting !== null;
+
+  // What the export follows: the same dates, search text and category as the table above (the words go into the file's header)
+  const exportQuery = { fromDay, toDay, search: searchQuery };
+  const covers = (): string[] => [
+    `Period: ${fromDay || 'the earliest entry'} to ${toDay || 'today'} (Asia/Manila days)`,
+    `Search text: ${searchQuery.trim() ? `"${searchQuery.trim()}"` : 'none'}; action category: ${categoryOptions.find((o) => o.value === categoryFilter)?.label ?? categoryFilter}`,
+  ];
 
   return (
     <Box sx={{ maxWidth: 1600, margin: '0 auto', pb: 4.8 }}>
@@ -141,7 +132,7 @@ export const AuditLogPage: React.FC = () => {
         ]}
       />
 
-      {/* 2. Search and category */}
+      {/* 2. Search, category and dates: one card */}
       <FilterToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -150,44 +141,42 @@ export const AuditLogPage: React.FC = () => {
           {
             id: 'category',
             label: 'Action category',
+            prefix: 'Category',
             value: categoryFilter,
             options: categoryOptions,
             onChange: setCategoryFilter,
-            width: 220,
+            width: 250,
           },
         ]}
+        extraControls={
+          <>
+            <DateField label="From (Manila)" value={fromDay} onChange={setFromDay} sx={DATE_FIELD_SX} />
+            <DateField label="To (Manila)" value={toDay} onChange={setToDay} sx={DATE_FIELD_SX} />
+          </>
+        }
         onResetFilters={() => {
           setSearchQuery('');
           setCategoryFilter('All');
+          setFromDay('');
+          setToDay('');
         }}
+        disableMarginBottom
       />
 
-      {/* 2B. Date range and export (Rule 28.4: exportable to PDF / Excel for compliance review) */}
-      <Box component="section" aria-label="Dates and export" sx={{ ...pageCardSx, p: '12px 16px', mb: SPACE.gapLarge }}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 12px' }}>
-          <DateField label="From (Manila)" value={fromDay} onChange={setFromDay} sx={FIELD_SX} />
-          <DateField label="To (Manila)" value={toDay} onChange={setToDay} sx={FIELD_SX} />
-          <Box role="group" aria-label="Export the log" sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', ml: { sm: 'auto' } }}>
-            <Button disabled={exportDisabled} onClick={() => void runExport('xlsx')} sx={secondaryButtonSx}>
-              {exporting === 'xlsx' ? 'Exporting...' : 'Export Excel'}
-            </Button>
-            <Button disabled={exportDisabled} onClick={() => void runExport('csv')} sx={secondaryButtonSx}>
-              {exporting === 'csv' ? 'Exporting...' : 'Export CSV'}
-            </Button>
-            <Button disabled={exportDisabled} onClick={() => void runExport('pdf')} sx={secondaryButtonSx}>
-              {exporting === 'pdf' ? 'Preparing...' : 'Save as PDF'}
-            </Button>
-          </Box>
-        </Box>
-        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '8px' }}>
-          The export follows the dates and the search text above. Every export is recorded in this log.
+      {/* 2B. How many events are shown, and the export of exactly those (Excel, CSV, PDF) */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 16px', my: SPACE.gap }}>
+        <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary }}>
+          {isLoading ? 'Loading events...' : `Showing ${filteredLogs.length} of ${logs.length} event${logs.length === 1 ? '' : 's'}${logs.length >= 500 ? ' (the latest 500 for these dates: narrow the dates to see older ones)' : ''}`}
         </Typography>
+        <ExportToolbar
+          getTable={() => loadAuditExport(exportQuery, categoryFilter, covers())}
+          meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
+          loadXlsx={loadXlsx}
+          record={({ format, table }) => recordAuditExport(format, table.rows.length, exportQuery)}
+          disabled={isLoading || Boolean(loadError)}
+          disabledReason={loadError ? 'The log could not be loaded' : 'The log is still loading'}
+        />
       </Box>
-      {exportNote && (
-        <Alert severity={exportNote.severity} onClose={() => setExportNote(null)} sx={{ mb: SPACE.gapLarge, borderRadius: '10px' }}>
-          {exportNote.text}
-        </Alert>
-      )}
       {loadError && (
         <PageNotice
           tone="danger"

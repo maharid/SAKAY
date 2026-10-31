@@ -14,7 +14,7 @@ const BASE = {
   lineHeight: 1.2,
   whiteSpace: 'nowrap',
   backgroundColor: '#FFFFFF',
-  fontFamily: 'Poppins, sans-serif',
+  fontFamily: 'var(--sakay-font-family, Poppins), sans-serif',
 } as const;
 
 export const SECONDARY_BUTTON_SX = {

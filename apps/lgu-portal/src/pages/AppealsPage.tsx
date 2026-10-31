@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import { APPEAL_CAUSE_LABELS, isPendingAppeal } from '@sakay/shared';
 import type { AppealRecord } from '@sakay/shared';
@@ -37,6 +38,14 @@ export const AppealsPage: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // read from the list, so the dialog shows what the database says after every action
   const selected = appeals.find((a) => a.requestId === selectedId) ?? null;
+  // a notice opens this record: ?appeal=<id> (read once, then removed from the address)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const appealToOpen = searchParams.get('appeal');
+  useEffect(() => {
+    if (!appealToOpen || isLoading) return;
+    if (appeals.some((a) => a.requestId === appealToOpen)) setSelectedId(appealToOpen);
+    setSearchParams({}, { replace: true });
+  }, [appealToOpen, appeals, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = async () => {
     setIsLoading(true);

@@ -216,6 +216,7 @@ export const DriverNavigation: React.FC = () => {
           lat: pickupLat,
           lng: pickupLng,
         }}
+        pickupLabel={{ title: 'Pickup', address: booking?.pickup_address }}
         insets={mapInsets}
         stageKey="to-pickup"
         closeUpWhileMoving

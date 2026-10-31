@@ -28,7 +28,7 @@ export interface ActivityDriver {
 interface DriverActivityReportProps {
   trips: BookingLike[];
   drivers: ActivityDriver[];
-  onExported: (reportName: string, format: ExportFormat) => void;
+  onExported: (reportName: string, format: ExportFormat) => void | Promise<void>;
   /** Who the PDF says generated it */
   generatedBy?: string;
 }

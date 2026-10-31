@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -78,6 +79,15 @@ export const TodaApplicationsPage: React.FC = () => {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [resubmissionDialogOpen, setResubmissionDialogOpen] = useState(false);
+  // a notice opens this record: ?toda=<id> (read once, then removed from the address)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const todaToOpen = searchParams.get('toda');
+  useEffect(() => {
+    if (!todaToOpen || isLoading) return;
+    const found = applications.find((a) => a.id === todaToOpen);
+    if (found) setSelectedApp(found);
+    setSearchParams({}, { replace: true });
+  }, [todaToOpen, applications, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadApplications = async () => {
     setIsLoading(true);
@@ -336,7 +346,7 @@ export const TodaApplicationsPage: React.FC = () => {
           maxWidth={656}
           primaryActionLabel={selectedApp.status === 'Approved' ? undefined : 'Approve and issue accreditation'}
           onPrimaryAction={selectedApp.status === 'Approved' ? undefined : () => setApproveDialogOpen(true)}
-          secondaryActionLabel={selectedApp.status === 'Approved' ? 'Close' : 'Decline application'}
+          secondaryActionLabel={selectedApp.status === 'Approved' ? undefined : 'Decline application'}
           onSecondaryAction={selectedApp.status === 'Approved' ? () => setSelectedApp(null) : () => setRejectDialogOpen(true)}
           secondaryActionColor={selectedApp.status === 'Approved' ? undefined : 'error'}
         >
