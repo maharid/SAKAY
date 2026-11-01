@@ -23,6 +23,11 @@ export interface HistoryTrip {
   dateGroup: "NGAYONG ARAW" | "NAKARAANG ARAW";
   driverName?: string;
   bodyNumber?: string;
+  /** The vehicle and the TODA of the driver, as get_assigned_driver_details gives them for the passenger's own booking */
+  plateNumber?: string;
+  todaName?: string;
+  /** When the booking was made (ISO), so the screens can word the date and time the same way */
+  createdAt?: string;
   dateString?: string;
   isLiveRecord: boolean;
   status?: "Completed" | "Cancelled";
@@ -111,7 +116,7 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
     if (error || !bookings) return [];
 
     // Who drove each trip (a cancelled booking may have no driver)
-    const drivers = new Map<string, { full_name?: string; franchise_number?: string }>();
+    const drivers = new Map<string, { full_name?: string; franchise_number?: string; plate_number?: string; toda_name?: string }>();
     await Promise.all(
       bookings
         .filter((b: any) => b.driver_id)
@@ -145,6 +150,9 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         dateString: createdDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
         driverName: driver?.full_name || "",
         bodyNumber: driver?.franchise_number || "",
+        plateNumber: driver?.plate_number || "",
+        todaName: driver?.toda_name || "",
+        createdAt: b.created_at || undefined,
         isLiveRecord: true,
         status: b.booking_status,
         paymentStatus: b.payment_status ?? undefined,

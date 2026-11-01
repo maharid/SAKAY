@@ -2,17 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CircularProgress from "@mui/material/CircularProgress";
-import Chip from "@mui/material/Chip";
 
 import type { HistoryTrip } from "../../../services/tripService";
 import { fetchTripHistory } from "../../../services/tripService";
 import { useLanguage } from "../../../utils/LanguageContext";
 import PageHeader from "../../../common/components/PageHeader";
-import { activateWithKeyboard } from "@sakay/shared";
+import { stashRebook } from "../tripFormat";
+import { TripHistoryCard } from "./TripHistoryCard";
 
 const PassengerHistory: React.FC = () => {
   const { language } = useLanguage();
@@ -26,25 +24,14 @@ const PassengerHistory: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Rebook: this trip's own pickup and destination go to the new-trip screen; the passenger still confirms the booking there
   const handleRebook = (trip: HistoryTrip) => {
-    sessionStorage.setItem(
-      "trip_pickup",
-      JSON.stringify({
-        address: trip.pickup,
-        lat: trip.pickupLat,
-        lng: trip.pickupLng,
-      })
-    );
-    sessionStorage.setItem(
-      "trip_dropoff",
-      JSON.stringify({
-        address: trip.dropoff,
-        lat: trip.dropoffLat,
-        lng: trip.dropoffLng,
-      })
-    );
+    stashRebook(trip);
     navigate("/new-trip");
   };
+
+  // See Details: always THIS trip (its id is in the address, and the trip itself travels with the navigation so the screen opens at once)
+  const handleDetails = (trip: HistoryTrip) => navigate(`/trip-details/${encodeURIComponent(trip.id)}`, { state: { trip } });
 
   // Group trips chronologically into Today, Yesterday, Earlier This Week, Previous
   const groupTripsChronologically = (tripsList: HistoryTrip[]) => {
@@ -95,7 +82,7 @@ const PassengerHistory: React.FC = () => {
     if (!items || items.length === 0) return null;
 
     return (
-      <Box key={title} sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      <Box key={title} component="section" aria-label={title} sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         <Typography
           sx={{
             fontSize: "12px",
@@ -108,197 +95,7 @@ const PassengerHistory: React.FC = () => {
         </Typography>
 
         {items.map((trip) => (
-          <Paper
-            key={trip.id}
-            elevation={0}
-            role="button"
-            tabIndex={0}
-            onKeyDown={activateWithKeyboard}
-            onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
-            sx={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #F1F5F9",
-              borderRadius: "20px",
-              padding: "16px",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-              "&:hover": { borderColor: "#CBD5E1" },
-            }}
-          >
-            {/* Upper Header Row: Mode Chip & Time on Left, Price on Right */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 1.5,
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", minWidth: 0 }}>
-                <Chip
-                  label={trip.type === "Share" ? (language === "tl" ? "Shared Trip" : "Shared Trip") : (language === "tl" ? "Solo Trip" : "Solo Trip")}
-                  size="small"
-                  sx={{
-                    backgroundColor: trip.type === "Share" ? "#E6F4EA" : "#FFF5EB",
-                    color: trip.type === "Share" ? "#1E8E3E" : "#FF6600",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    height: "24px",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                />
-                <Typography
-                  sx={{
-                    fontSize: "12px",
-                    color: "#64748B",
-                    fontWeight: 500,
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {trip.time} {trip.distanceKm ? `• ${trip.distanceKm.toFixed(1)} km` : ""}
-                </Typography>
-              </Box>
-
-              <Typography
-                sx={{
-                  fontSize: "18px",
-                  fontWeight: 700,
-                  color: "#FF6600",
-                  fontFamily: "Poppins, sans-serif",
-                  fontVariantNumeric: "tabular-nums",
-                  flexShrink: 0,
-                }}
-              >
-                {trip.price}
-              </Typography>
-            </Box>
-
-            {/* Route Section: Vertical timeline with natural wrapping without truncation */}
-            <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  paddingTop: "6px",
-                  flexShrink: 0,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "50%",
-                    border: "2px solid #64748B",
-                    backgroundColor: "#FFFFFF",
-                  }}
-                />
-                <Box
-                  sx={{
-                    width: "1.5px",
-                    minHeight: "28px",
-                    flexGrow: 1,
-                    backgroundColor: "#CBD5E1",
-                    my: 0.5,
-                  }}
-                />
-                <Box
-                  sx={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "50%",
-                    backgroundColor: "#FF6600",
-                  }}
-                />
-              </Box>
-
-              <Box sx={{ flexGrow: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.25 }}>
-                <Box>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Pickup
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      color: "#0F172A",
-                      fontFamily: "Poppins, sans-serif",
-                      lineHeight: 1.35,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {trip.pickup}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B", fontWeight: 500, fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {language === "tl" ? "Destinasyon" : "Drop-off"}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      color: "#0F172A",
-                      fontFamily: "Poppins, sans-serif",
-                      lineHeight: 1.35,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {trip.dropoff}
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-
-            {/* Bottom Buttons Row */}
-            <Box sx={{ display: "flex", gap: "10px", pt: 0.5 }} onClick={(e) => e.stopPropagation()}>
-              <Button
-                variant="contained"
-                onClick={() => handleRebook(trip)}
-                endIcon={<ArrowForwardIcon sx={{ color: "#FFFFFF" }} />}
-                sx={{
-                  flexGrow: 1,
-                  backgroundColor: "#FF6600",
-                  color: "#FFFFFF",
-                  borderRadius: "14px",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  textTransform: "none",
-                  height: "42px",
-                  boxShadow: "none",
-                  fontFamily: "Poppins, sans-serif",
-                  "&:hover": { backgroundColor: "#E65C00" },
-                }}
-              >
-                {language === "tl" ? "Muling Mag-book" : "Rebook"}
-              </Button>
-
-              <Button
-                variant="contained"
-                onClick={() => navigate(`/trip-details/${trip.id}`, { state: { trip } })}
-                sx={{
-                  flexGrow: 1,
-                  backgroundColor: "#F1F5F9",
-                  color: "#475569",
-                  borderRadius: "14px",
-                  fontWeight: 600,
-                  fontSize: "13px",
-                  textTransform: "none",
-                  height: "42px",
-                  boxShadow: "none",
-                  fontFamily: "Poppins, sans-serif",
-                  "&:hover": { backgroundColor: "#E2E8F0" },
-                }}
-              >
-                {language === "tl" ? "Tignan ang Detalye" : "See Details"}
-              </Button>
-            </Box>
-          </Paper>
+          <TripHistoryCard key={trip.id} trip={trip} language={language} onRebook={handleRebook} onDetails={handleDetails} />
         ))}
       </Box>
     );
