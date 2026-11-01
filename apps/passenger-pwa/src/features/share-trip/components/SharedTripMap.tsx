@@ -7,10 +7,10 @@ import {
   MapControlStack,
   applyMarkerState,
   createLiveMarker,
-  DRIVER_MARKER_SIZE,
-  driverMarkerHtml,
   addPlaceMarkers,
+  ownPinSpec,
   type LiveMarker,
+  type PlaceMarkersHandle,
 } from "@sakay/shared";
 
 export interface SharedTripPoint {
@@ -39,6 +39,12 @@ const hasPoint = (p: SharedTripPoint | null | undefined): p is SharedTripPoint =
  * The camera frames the whole trip once; after the viewer drags or zooms it is left alone, and the two round buttons are actions: the top one frames the whole
  * trip again, the bottom one centres on the driver and keeps the driver in view as the tricycle moves.
  */
+/** The driver's tricycle pin; it leans aside while the driver stands on the same spot as the pickup or the destination (the tip stays on the true position) */
+const driverIcon = (lean: number) => {
+  const spec = ownPinSpec({ face: "tricycle", heading: true, lean });
+  return L.divIcon({ className: "leaflet-driver-marker", html: spec.html, iconSize: spec.size, iconAnchor: spec.anchor });
+};
+
 const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff, route, driver, driverStale }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -47,6 +53,10 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
   const driverMarkerRef = useRef<LiveMarker | null>(null);
   const driverElementRef = useRef<L.Marker | null>(null);
   const followRef = useRef(false);
+  const driverLeanRef = useRef(0);
+  const placesRef = useRef<PlaceMarkersHandle | null>(null);
+  const staleRef = useRef(driverStale);
+  staleRef.current = driverStale;
   const framedKeyRef = useRef<string | null>(null);
   const latest = useRef({ pickup, dropoff, route, driver });
   latest.current = { pickup, dropoff, route, driver };
@@ -91,12 +101,7 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
         const marker = L.marker([p.lat, p.lng], {
           interactive: false,
           zIndexOffset: 1000,
-          icon: L.divIcon({
-            className: "leaflet-driver-marker",
-            html: driverMarkerHtml(),
-            iconSize: [DRIVER_MARKER_SIZE, DRIVER_MARKER_SIZE],
-            iconAnchor: [DRIVER_MARKER_SIZE / 2, DRIVER_MARKER_SIZE / 2],
-          }),
+          icon: driverIcon(driverLeanRef.current),
         }).addTo(liveLayer);
         driverElementRef.current = marker;
         return marker;
@@ -131,10 +136,27 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
     road.clearLayers();
     const pickupTitle = "Pickup";
     const dropoffTitle = language === "tl" ? "Destinasyon" : "Destination";
-    const stopPlaces = addPlaceMarkers(L, map, pins, {
-      pickup: hasPoint(pickup) ? { lat: pickup.lat, lng: pickup.lng, title: pickupTitle } : null,
-      destination: hasPoint(dropoff) ? { lat: dropoff.lat, lng: dropoff.lng, title: dropoffTitle } : null,
-    });
+    const places = addPlaceMarkers(
+      L,
+      map,
+      pins,
+      {
+        pickup: hasPoint(pickup) ? { lat: pickup.lat, lng: pickup.lng, title: pickupTitle } : null,
+        destination: hasPoint(dropoff) ? { lat: dropoff.lat, lng: dropoff.lng, title: dropoffTitle } : null,
+      },
+      {
+        pins: [{ id: "driver", point: () => (hasPoint(latest.current.driver) ? latest.current.driver : null) }],
+        onLean: (_id, lean) => {
+          if (driverLeanRef.current === lean) return;
+          driverLeanRef.current = lean;
+          const marker = driverElementRef.current;
+          if (!marker) return;
+          marker.setIcon(driverIcon(lean));
+          applyMarkerState(marker.getElement(), { stale: staleRef.current });
+        },
+      }
+    );
+    placesRef.current = places;
     if (route && route.length >= 2) {
       L.polyline(route, { color: "#FFFFFF", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round" }).addTo(road);
       L.polyline(route, { color: "#FF6600", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(road);
@@ -144,7 +166,10 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
       framedKeyRef.current = key;
       map.fitBounds(L.latLngBounds(tripPoints()), { padding: [48, 48], maxZoom: 16, animate: false });
     }
-    return stopPlaces;
+    return () => {
+      places.stop();
+      if (placesRef.current === places) placesRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, route]);
 
@@ -154,6 +179,7 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
     const map = mapRef.current;
     if (!controller || !map) return;
     controller.update(hasPoint(driver) ? { lat: driver.lat, lng: driver.lng, at: Date.now() } : null);
+    placesRef.current?.refresh();
     if (hasPoint(driver) && followRef.current) {
       const here = L.latLng(driver.lat, driver.lng);
       if (!map.getBounds().pad(-0.25).contains(here)) map.panTo(here, { animate: true });

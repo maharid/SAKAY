@@ -17,7 +17,7 @@ import {
 const nodeRequire = createRequire(import.meta.url) as NodeJS.Require & { extensions: Record<string, (m: { exports: unknown }) => void> };
 nodeRequire.extensions['.webp'] = (m) => { m.exports = 'icon.webp'; };
 const markers = nodeRequire('../../packages/shared/src/utils/mapMarkers') as typeof import('../../packages/shared/src/utils/mapMarkers');
-const { passengerMarkerHtml, placeIconSpec, placeLabelsShown, placePopupElement, PASSENGER_MARKER_ANCHOR, PASSENGER_MARKER_HEIGHT, PASSENGER_MARKER_WIDTH, PLACE_LABEL_MIN_GAP_PX, PLACE_LABEL_MIN_ZOOM, PLACE_MARKER_COLOR } = markers;
+const { ownPinSpec, OWN_PIN_HEAD, placeIconSpec, placeLabelsShown, placePopupElement, PLACE_LABEL_MIN_GAP_PX, PLACE_LABEL_MIN_ZOOM, PLACE_MARKER_COLOR } = markers;
 
 describe('stepShownProgress', () => {
   it('starts a screen at the figure it is given (no climb from zero when a trip is already under way)', () => {
@@ -118,19 +118,55 @@ describe('the two places of a trip', () => {
   });
 
   it('builds the person\'s own pin from their picture or the first letter of their name', () => {
-    const withPhoto = passengerMarkerHtml({ name: 'alma santos', photoUrl: 'https://example.test/me.jpg?x=1&y=2' });
+    const withPhoto = ownPinSpec({ face: 'profile', profile: { name: 'alma santos', photoUrl: 'https://example.test/me.jpg?x=1&y=2' } }).html;
     assert.ok(withPhoto.includes('<img src="https://example.test/me.jpg?x=1&amp;y=2"'), 'the picture, with its address escaped');
     assert.ok(withPhoto.includes('>A</span>'), 'the letter sits under the picture, so a picture that fails to load leaves it showing');
-    const withoutPhoto = passengerMarkerHtml({ name: 'Bea' });
+    const withoutPhoto = ownPinSpec({ face: 'profile', profile: { name: 'Bea' } }).html;
     assert.ok(!withoutPhoto.includes('<img') && withoutPhoto.includes('>B</span>'));
-    const unknown = passengerMarkerHtml();
+    const unknown = ownPinSpec({ face: 'profile' }).html;
     assert.ok(!unknown.includes('<img') && unknown.includes('<svg'), 'no name: the person glyph');
     assert.ok(withPhoto.includes('sakay-marker-body'), 'the circle can be dimmed when its position is stale');
-    assert.deepEqual(PASSENGER_MARKER_ANCHOR, [PASSENGER_MARKER_WIDTH / 2, PASSENGER_MARKER_HEIGHT - 2]);
+  });
+
+  it('shows the SAKAY tricycle (app-icon-toto) instead of the profile during a booking', () => {
+    const tricycle = ownPinSpec({ face: 'tricycle', profile: { name: 'Alma', photoUrl: 'https://example.test/me.jpg' }, heading: true }).html;
+    assert.ok(tricycle.includes('src="icon.webp"'), 'the app icon');
+    assert.ok(!tricycle.includes('me.jpg') && !tricycle.includes('>A</span>'), 'not the profile');
+  });
+
+  it('draws the direction arrow only when asked, and anchors every own pin at the tip of its pointer', () => {
+    assert.ok(ownPinSpec({ face: 'tricycle', heading: true }).html.includes('sakay-marker-heading'));
+    assert.ok(!ownPinSpec({ face: 'profile' }).html.includes('sakay-marker-heading'));
+    for (const heading of [false, true]) {
+      const spec = ownPinSpec({ face: 'profile', heading });
+      assert.equal(spec.anchor[0], spec.size[0] / 2, 'the tip is the middle of the marker');
+      assert.ok(spec.anchor[1] < spec.size[1] && spec.anchor[1] > OWN_PIN_HEAD, 'the tip is under the circle, at the bottom');
+    }
+  });
+
+  it('leans the circle sideways while the tip stays on the position', () => {
+    const straight = ownPinSpec({ face: 'profile', profile: { name: 'A' } });
+    const leaning = ownPinSpec({ face: 'profile', profile: { name: 'A' }, lean: -23 });
+    assert.equal(leaning.size[0], straight.size[0] + 46, 'room for the lean on both sides, so the tip stays in the middle');
+    assert.equal(leaning.anchor[0], leaning.size[0] / 2);
+    assert.equal(leaning.anchor[1], straight.anchor[1], 'the tip is as low as before');
+    assert.ok(leaning.html.includes('<line'), 'a stem runs from the circle back to the tip');
+    assert.ok(!straight.html.includes('<line'), 'a straight pin has its pointer instead');
+    assert.deepEqual(ownPinSpec({ face: 'profile', lean: Number.NaN }).size, straight.size, 'a bad lean is no lean');
+  });
+
+  it('leans a place the same way: the tip stays put and the popup opens above the head', () => {
+    const straight = placeIconSpec('pickup', false);
+    const leaning = placeIconSpec('pickup', false, 'Pickup', 23);
+    assert.equal(leaning.size[0], straight.size[0] + 46);
+    assert.equal(leaning.anchor[0], leaning.size[0] / 2);
+    assert.equal(leaning.anchor[1], straight.anchor[1]);
+    assert.equal(leaning.popupAnchor[0], 23);
+    assert.ok(leaning.html.includes('>P</div>') && leaning.html.includes('<line'));
   });
 
   it('never lets a name or a picture address break out of the markup', () => {
-    const html = passengerMarkerHtml({ name: '<script>alert(1)</script>', photoUrl: 'x" onerror="alert(1)' });
+    const html = ownPinSpec({ face: 'profile', profile: { name: '<script>alert(1)</script>', photoUrl: 'x" onerror="alert(1)' } }).html;
     assert.ok(!html.includes('<script>') && !html.includes('" onerror="'));
     assert.ok(html.includes('&lt;') && html.includes('&quot; onerror=&quot;'));
   });

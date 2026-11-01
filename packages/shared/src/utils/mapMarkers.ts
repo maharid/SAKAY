@@ -1,15 +1,16 @@
 /**
  * The markers of the Passenger and the Driver map, drawn the same way in both apps so a person learns them once:
  *
- *   you (passenger)  an ORANGE circle with a white ring showing the person's own profile picture (or the first letter of their name), on a short pointer whose tip is the position
- *   pickup           a BLACK circle with a white ring and a white "P" on a thin stem; close up it opens into a black label that says "Pickup"
- *   destination      the same with a "D", and the label "Destination"
- *   driver           an ORANGE circle with a white tricycle, plus a small arrow around its edge that points the way it is travelling when a heading is known.
- *                    The tricycle itself stays upright; only the arrow turns.
+ *   own pin      an ORANGE circle with a white ring on a short pointer whose tip is the position. The circle shows the person's profile picture (or the first letter of their name);
+ *                during a booking the driver's pin shows the SAKAY tricycle (app-icon-toto) instead, with a small arrow around the circle that points the way it is travelling when a
+ *                heading is known (the circle itself stays upright; only the arrow turns). The passenger sees the driver's tricycle pin the same way.
+ *   pickup       a BLACK circle with a white ring and a white "P" on a thin stem; close up it opens into a black label that says "Pickup"
+ *   destination  the same with a "D", and the label "Destination"
  *
- * Every pin is anchored at the bottom of its stem or pointer, so the tip is the exact place on the map. Leaflet-free: these return the HTML for an `L.divIcon` (and its size and
- * anchor), and `applyMarkerState` updates an element that is already on the map (turn the arrow, dim a position that has gone stale) without rebuilding it. Inline styles only, so
- * they look right without any stylesheet.
+ * Every pin is anchored at the tip of its pointer or stem, so the tip is the exact place on the map. When pins stand almost on the same spot (the person at the pickup, the
+ * driver arriving there) their heads lean apart sideways while the tips stay on the true position (see markerSeparation.ts and placeMarkers.ts); every spec takes a `lean` for that.
+ * Leaflet-free: these return the HTML for an `L.divIcon` (and its size and anchor), and `applyMarkerState` updates an element that is already on the map (turn the arrow, dim a
+ * position that has gone stale) without rebuilding it. Inline styles only, so they look right without any stylesheet.
  */
 
 import appIconToto from '../assets/icons/app-icon-toto.webp';
@@ -17,14 +18,12 @@ import appIconToto from '../assets/icons/app-icon-toto.webp';
 const PERSON_PATH =
   'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4';
 
-export const PASSENGER_MARKER_COLOR = '#FF6600';
-export const DRIVER_MARKER_COLOR = '#FF6600';
+export const OWN_PIN_COLOR = '#FF6600';
 
-/** `divIcon` size and anchor. The driver's marker sits ON its position (anchored at its centre); the passenger's pin stands ON it (anchored at the tip of its pointer). */
-export const DRIVER_MARKER_SIZE = 52;
-export const PASSENGER_MARKER_WIDTH = 40;
-export const PASSENGER_MARKER_HEIGHT = 48;
-export const PASSENGER_MARKER_ANCHOR: [number, number] = [PASSENGER_MARKER_WIDTH / 2, PASSENGER_MARKER_HEIGHT - 2];
+/** The circle of an own pin, the room around it for the direction arrow, and the pointer under it */
+export const OWN_PIN_HEAD = 40;
+const OWN_PIN_RING = 6;
+const OWN_PIN_TAIL = 6;
 
 const svg = (path: string, size: number) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true" focusable="false"><path d="${path}"/></svg>`;
@@ -37,6 +36,11 @@ function escapeHtml(text: string): string {
 /** A small flat shadow on the ground at the tip of a pin (the same under every pin) */
 const GROUND_SHADOW = 'position:absolute;left:50%;bottom:0;width:12px;height:5px;margin-left:-6px;border-radius:50%;background:rgba(15,23,42,0.32);filter:blur(1px);';
 
+/** The thin white stem from a leaning head down to the tip (a straight one when the head is not leaning), with a soft shadow */
+function stemHtml(width: number, height: number, x1: number, y1: number, x2: number, y2: number): string {
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false" style="position:absolute;left:0;top:0;overflow:visible;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(15,23,42,0.4));"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/></svg>`;
+}
+
 export interface OwnMarkerProfile {
   /** The person's name: its first letter is shown when there is no picture (or the picture cannot be loaded) */
   name?: string | null;
@@ -44,42 +48,68 @@ export interface OwnMarkerProfile {
   photoUrl?: string | null;
 }
 
-/**
- * The person's own position on the map: their profile picture in an orange circle with a white ring, on a short pointer. Without a picture the circle shows the first letter of
- * the name (or the person glyph when even that is unknown); a picture that cannot be loaded leaves the letter showing, since the picture is drawn over it.
- */
-export function passengerMarkerHtml(profile: OwnMarkerProfile = {}): string {
-  const w = PASSENGER_MARKER_WIDTH;
-  const h = PASSENGER_MARKER_HEIGHT;
-  const initial = (profile.name ?? '').trim().charAt(0).toUpperCase();
-  const photo = (profile.photoUrl ?? '').trim();
-  const face = initial
-    ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font:700 17px/1 Poppins,sans-serif;">${escapeHtml(initial)}</span>`
-    : `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">${svg(PERSON_PATH, 22)}</span>`;
-  const picture = photo
-    ? `<img src="${escapeHtml(photo)}" alt="" draggable="false" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
-    : '';
-  return `
-    <div class="sakay-marker sakay-passenger-marker" role="img" aria-label="Your location" style="position:relative;width:${w}px;height:${h}px;">
-      <div style="${GROUND_SHADOW}"></div>
-      <div style="position:absolute;left:50%;top:31px;width:12px;height:12px;margin-left:-6px;background:#FFFFFF;transform:rotate(45deg);border-radius:2px;box-shadow:1px 2px 3px rgba(15,23,42,0.28);"></div>
-      <div class="sakay-marker-body" style="position:absolute;left:0;top:0;width:${w}px;height:${w}px;box-sizing:border-box;border-radius:50%;background:${PASSENGER_MARKER_COLOR};border:3px solid #FFFFFF;overflow:hidden;box-shadow:0 3px 8px rgba(255,102,0,0.45);">
-        ${face}${picture}
-      </div>
-    </div>`;
+/** A pin's `divIcon` pieces: its markup, its size, and the anchor (the tip of the pin) */
+export interface PinIconSpec {
+  html: string;
+  size: [number, number];
+  anchor: [number, number];
 }
 
-export function driverMarkerHtml(): string {
-  const s = DRIVER_MARKER_SIZE;
-  return `
-    <div class="sakay-marker sakay-driver-marker" style="position:relative;width:${s}px;height:${s}px;">
-      <div class="sakay-marker-heading" style="position:absolute;inset:0;opacity:0;transition:transform 0.35s linear, opacity 0.2s ease;transform-origin:50% 50%;">
-        <svg width="${s}" height="${s}" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path d="M26 1 L35 13 L26 9.5 L17 13 Z" fill="#FF6600" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg>
-      </div>
-      <div class="sakay-marker-body" style="position:absolute;left:7px;top:7px;width:32px;height:32px;border-radius:50%;background:${DRIVER_MARKER_COLOR};border:3px solid #FFFFFF;box-shadow:0 4px 14px rgba(255,102,0,0.55);display:flex;align-items:center;justify-content:center;box-sizing:content-box;">
-        <img src="${appIconToto}" alt="Driver" style="width:26px;height:26px;object-fit:contain;display:block;" />
+export interface OwnPinOptions {
+  /** What the circle shows: the person's profile picture or initial, or the SAKAY tricycle (the driver during a booking, and the driver as the passenger sees them) */
+  face: 'profile' | 'tricycle';
+  profile?: OwnMarkerProfile;
+  /** Draws the direction arrow around the circle (it stays hidden until applyMarkerState gives it an angle) */
+  heading?: boolean;
+  /** How far the circle leans sideways, in pixels (positive: right) while the tip stays on the position; 0 stands straight */
+  lean?: number;
+}
+
+/**
+ * A person's or a driver's own position: an orange circle with a white ring on a pointer. A picture that cannot be loaded leaves the letter showing, since the picture is drawn
+ * over it; without a name the person glyph shows. A leaning pin swaps its pointer for a thin stem that runs from the circle back to the true position.
+ */
+export function ownPinSpec(options: OwnPinOptions): PinIconSpec {
+  const lean = Math.round(Number.isFinite(options.lean) ? (options.lean as number) : 0);
+  const ring = options.heading ? OWN_PIN_RING : 0;
+  const head = OWN_PIN_HEAD;
+  const width = head + 2 * ring + 2 * Math.abs(lean);
+  const tipY = ring + head + OWN_PIN_TAIL;
+  const height = tipY + 2;
+  const tipX = width / 2;
+  const headX = tipX + lean;
+
+  let face: string;
+  if (options.face === 'tricycle') {
+    face = `<img src="${appIconToto}" alt="" draggable="false" style="position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);object-fit:contain;display:block;" />`;
+  } else {
+    const initial = (options.profile?.name ?? '').trim().charAt(0).toUpperCase();
+    const photo = (options.profile?.photoUrl ?? '').trim();
+    face = initial
+      ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font:700 17px/1 Poppins,sans-serif;">${escapeHtml(initial)}</span>`
+      : `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">${svg(PERSON_PATH, 22)}</span>`;
+    if (photo) {
+      face += `<img src="${escapeHtml(photo)}" alt="" draggable="false" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`;
+    }
+  }
+
+  const pointer =
+    lean === 0
+      ? `<div style="position:absolute;left:${tipX - 6}px;top:${Math.round(tipY - 15)}px;width:12px;height:12px;background:#FFFFFF;transform:rotate(45deg);border-radius:2px;box-shadow:1px 2px 3px rgba(15,23,42,0.28);"></div>`
+      : stemHtml(width, height, headX, ring + head - 4, tipX, tipY);
+  const arrow = options.heading
+    ? `<div class="sakay-marker-heading" style="position:absolute;left:${headX - 26}px;top:${ring + head / 2 - 26}px;width:52px;height:52px;opacity:0;transition:transform 0.35s linear, opacity 0.2s ease;transform-origin:50% 50%;"><svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path d="M26 1 L35 13 L26 9.5 L17 13 Z" fill="#FF6600" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`
+    : '';
+  const label = options.face === 'tricycle' ? 'Driver' : 'Your location';
+  const html = `
+    <div class="sakay-marker sakay-own-pin" role="img" aria-label="${label}" style="position:relative;width:${width}px;height:${height}px;">
+      <div style="${GROUND_SHADOW}"></div>
+      ${arrow}${pointer}
+      <div class="sakay-marker-body" style="position:absolute;left:${headX - head / 2}px;top:${ring}px;width:${head}px;height:${head}px;box-sizing:border-box;border-radius:50%;background:${OWN_PIN_COLOR};border:3px solid #FFFFFF;overflow:hidden;box-shadow:0 3px 8px rgba(255,102,0,0.45);">
+        ${face}
       </div>
     </div>`;
+  return { html, size: [width, height], anchor: [tipX, tipY] };
 }
 
 export interface MarkerState {
@@ -140,31 +170,35 @@ export function placeLabelsShown(zoom: number, gapPx: number | null): boolean {
   return gapPx === null || !Number.isFinite(gapPx) || gapPx >= PLACE_LABEL_MIN_GAP_PX;
 }
 
-export interface PlaceIconSpec {
-  html: string;
-  /** `divIcon` iconSize, iconAnchor (the tip of the stem) and popupAnchor (just above the head, so the popup opens clear of the marker) */
-  size: [number, number];
-  anchor: [number, number];
+export interface PlaceIconSpec extends PinIconSpec {
+  /** `divIcon` popupAnchor: just above the head, so the popup opens clear of the marker */
   popupAnchor: [number, number];
 }
 
-/** The icon of a place: the letter in a circle, or, when `labelled`, the word in a label (`title` is the word, in the screen's language). */
-export function placeIconSpec(kind: PlaceKind, labelled: boolean, title?: string): PlaceIconSpec {
+/**
+ * The icon of a place: the letter in a circle, or, when `labelled`, the word in a label (`title` is the word, in the screen's language). `lean` moves the head sideways (pixels,
+ * positive: right) while the tip of the stem stays on the place: the stem then slants from the head back to the tip.
+ */
+export function placeIconSpec(kind: PlaceKind, labelled: boolean, title?: string, lean: number = 0): PlaceIconSpec {
   const letter = kind === 'pickup' ? 'P' : 'D';
   const word = (title || (kind === 'pickup' ? 'Pickup' : 'Destination')).trim();
   const label = labelled ? word : letter;
+  const shift = Math.round(Number.isFinite(lean) ? lean : 0);
   // a label is as wide as its text (about 8.5 px a letter at this size) and never wider than the cap: the text then ends with an ellipsis
-  const width = labelled ? Math.min(PLACE_LABEL_MAX_WIDTH, Math.max(PLACE_HEAD, Math.round(label.length * 8.5) + 34)) : PLACE_HEAD;
-  const head = labelled
-    ? `position:absolute;left:50%;top:0;transform:translateX(-50%);max-width:${PLACE_LABEL_MAX_WIDTH}px;height:${PLACE_HEAD}px;box-sizing:border-box;padding:0 13px;border-radius:999px;font:700 14px/28px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`
-    : `position:absolute;left:0;top:0;width:${PLACE_HEAD}px;height:${PLACE_HEAD}px;box-sizing:border-box;border-radius:50%;font:700 15px/28px Poppins,sans-serif;text-align:center;`;
+  const headWidth = labelled ? Math.min(PLACE_LABEL_MAX_WIDTH, Math.max(PLACE_HEAD, Math.round(label.length * 8.5) + 34)) : PLACE_HEAD;
+  const width = headWidth + 2 * Math.abs(shift);
+  const tipX = width / 2;
+  const headX = tipX + shift;
+  const head = `position:absolute;left:${headX - headWidth / 2}px;top:0;width:${headWidth}px;height:${PLACE_HEAD}px;box-sizing:border-box;border-radius:${labelled ? '999px' : '50%'};${
+    labelled ? 'padding:0 13px;font:700 14px/28px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : 'font:700 15px/28px Poppins,sans-serif;text-align:center;'
+  }`;
   const html = `
     <div class="sakay-marker sakay-${kind}-marker" role="img" aria-label="${kind === 'pickup' ? 'Pickup' : 'Destination'}" style="position:relative;width:${width}px;height:${PLACE_HEIGHT}px;cursor:pointer;">
       <div style="${GROUND_SHADOW}"></div>
-      <div style="position:absolute;left:50%;top:${PLACE_HEAD - 6}px;width:3px;height:${PLACE_STEM + 6}px;margin-left:-1.5px;border-radius:2px;background:#FFFFFF;box-shadow:0 1px 3px rgba(15,23,42,0.4);"></div>
+      ${stemHtml(width, PLACE_HEIGHT, headX, PLACE_HEAD - 4, tipX, PLACE_HEIGHT)}
       <div style="${head}background:${PLACE_MARKER_COLOR};color:#FFFFFF;border:3px solid #FFFFFF;box-shadow:0 2px 6px rgba(15,23,42,0.4);">${escapeHtml(label)}</div>
     </div>`;
-  return { html, size: [width, PLACE_HEIGHT], anchor: [width / 2, PLACE_HEIGHT], popupAnchor: [0, -(PLACE_HEIGHT - 2)] };
+  return { html, size: [width, PLACE_HEIGHT], anchor: [tipX, PLACE_HEIGHT], popupAnchor: [shift, -(PLACE_HEIGHT - 2)] };
 }
 
 /**

@@ -7,13 +7,8 @@ import {
   continuousRotation,
   createLiveMarker,
   createMapCamera,
-  DRIVER_MARKER_SIZE,
-  driverMarkerHtml,
   addPlaceMarkers,
-  passengerMarkerHtml,
-  PASSENGER_MARKER_ANCHOR,
-  PASSENGER_MARKER_HEIGHT,
-  PASSENGER_MARKER_WIDTH,
+  ownPinSpec,
   resolveHeading,
   tweenRadius,
   type CameraMap,
@@ -24,6 +19,8 @@ import {
   type MapCamera,
   type MapInsets,
   type OwnMarkerProfile,
+  type OwnPinOptions,
+  type PlaceMarkersHandle,
 } from "@sakay/shared";
 import { DEFAULT_CALAPAN_CENTER, getOSRMRoute } from "../../services/locationService";
 import { fetchOwnMarkerProfile } from "../../services/profileService";
@@ -87,14 +84,11 @@ function circleExtent(center: GeoPoint, radiusMeters: number): GeoPoint[] {
   ];
 }
 
-/** The person's own pin: their profile picture (or the first letter of their name) in an orange circle, standing on the position */
-const ownIcon = (profile: OwnMarkerProfile) =>
-  L.divIcon({
-    className: "leaflet-user-marker",
-    html: passengerMarkerHtml(profile),
-    iconSize: [PASSENGER_MARKER_WIDTH, PASSENGER_MARKER_HEIGHT],
-    iconAnchor: PASSENGER_MARKER_ANCHOR,
-  });
+/** The pin of a position (the person's own, or the driver's): its circle shows a profile picture or the tricycle, and leans aside while it shares a spot with another pin */
+const pinIcon = (className: string, options: OwnPinOptions) => {
+  const spec = ownPinSpec(options);
+  return L.divIcon({ className, html: spec.html, iconSize: spec.size, iconAnchor: spec.anchor });
+};
 
 const reducedMotion = (): boolean => {
   try {
@@ -175,6 +169,24 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const [ownProfile, setOwnProfile] = useState<OwnMarkerProfile>({});
   const ownProfileRef = useRef(ownProfile);
   ownProfileRef.current = ownProfile;
+  // How far the two live pins lean aside now (their tips stay on the true positions) while they share a spot with another pin, and the markers of the places that decide it
+  const ownLeanRef = useRef(0);
+  const driverLeanRef = useRef(0);
+  const placesRef = useRef<PlaceMarkersHandle | null>(null);
+  const staleRef = useRef({ user: userStale, driver: driverStale });
+  staleRef.current = { user: userStale, driver: driverStale };
+  const redrawOwnPin = () => {
+    const marker = userElementRef.current;
+    if (!marker) return;
+    marker.setIcon(pinIcon("leaflet-user-marker", { face: "profile", profile: ownProfileRef.current, lean: ownLeanRef.current }));
+    applyMarkerState(marker.getElement(), { stale: staleRef.current.user });
+  };
+  const redrawDriverPin = () => {
+    const marker = driverElementRef.current;
+    if (!marker) return;
+    marker.setIcon(pinIcon("leaflet-driver-marker", { face: "tricycle", heading: true, lean: driverLeanRef.current }));
+    applyMarkerState(marker.getElement(), { stale: staleRef.current.driver, rotation: driverRotationRef.current });
+  };
   useEffect(() => {
     let alive = true;
     fetchOwnMarkerProfile().then((p) => {
@@ -282,7 +294,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const marker = L.marker([p.lat, p.lng], {
           interactive: false,
           zIndexOffset: 900,
-          icon: ownIcon(ownProfileRef.current),
+          icon: pinIcon("leaflet-user-marker", { face: "profile", profile: ownProfileRef.current, lean: ownLeanRef.current }),
         }).addTo(liveLayer);
         userElementRef.current = marker;
         return marker;
@@ -293,12 +305,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const marker = L.marker([p.lat, p.lng], {
           interactive: false,
           zIndexOffset: 1000,
-          icon: L.divIcon({
-            className: "leaflet-driver-marker",
-            html: driverMarkerHtml(),
-            iconSize: [DRIVER_MARKER_SIZE, DRIVER_MARKER_SIZE],
-            iconAnchor: [DRIVER_MARKER_SIZE / 2, DRIVER_MARKER_SIZE / 2],
-          }),
+          icon: pinIcon("leaflet-driver-marker", { face: "tricycle", heading: true, lean: driverLeanRef.current }),
         }).addTo(liveLayer);
         driverElementRef.current = marker;
         return marker;
@@ -433,6 +440,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       driverPrevRef.current = null;
       driverHeadingRef.current = null;
       driverRotationRef.current = null;
+      placesRef.current?.refresh();
       return;
     }
     // Which way it points: the device's own heading, else the direction it actually moved, else the last known one; none when unknown
@@ -454,6 +462,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         applyMarkerState(driverElementRef.current?.getElement(), { rotation: driverRotationRef.current });
       }
     }
+    placesRef.current?.refresh();
     cameraRef.current?.followMarker("driver", driverLocation, result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverLocation?.lat, driverLocation?.lng, driverLocation?.at, driverLocation?.heading, interactive]);
@@ -465,6 +474,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     if (!controller) return;
     const result = controller.update(showUserDot && userLocation ? userLocation : null);
     if (!showUserDot) userElementRef.current = null;
+    placesRef.current?.refresh();
     if (showUserDot && userLocation) cameraRef.current?.followMarker("user", userLocation, result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation?.lat, userLocation?.lng, userLocation?.at, showUserDot, interactive]);
@@ -557,8 +567,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     const marker = userElementRef.current;
     if (!marker) return;
-    marker.setIcon(ownIcon(ownProfile));
-    applyMarkerState(marker.getElement(), { stale: userStale });
+    redrawOwnPin();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownProfile]);
 
@@ -577,10 +586,32 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared placeMarkers): a black "P" and "D" circle on a stem that opens into the
     //    "Pickup" / "Destination" label close up. Pressing either opens a popup that names the place.
-    const stopPlaces = addPlaceMarkers(L, map, markersLayer, {
+    const places = addPlaceMarkers(L, map, markersLayer, {
       pickup: pickupLocation && pickupLocation.lat !== 0 ? { lat: pickupLocation.lat, lng: pickupLocation.lng, title: pickupLabel?.title || "Pickup", address: pickupLabel?.address } : null,
       destination: dropoffLocation && dropoffLocation.lat !== 0 ? { lat: dropoffLocation.lat, lng: dropoffLocation.lng, title: dropoffLabel?.title || "Destination", address: dropoffLabel?.address } : null,
+    }, {
+      // the person's own pin and the driver's are kept clear of the places (and of each other) when they stand on the same spot: only the heads lean, never a position
+      pins: [
+        {
+          id: "own",
+          point: () => {
+            const l = latest.current;
+            return hasPoint(l.userLocation) && (l.showUserMarker || !hasPoint(l.pickupLocation) || !hasPoint(l.dropoffLocation)) ? l.userLocation : null;
+          },
+        },
+        { id: "driver", point: () => (hasPoint(latest.current.driverLocation) ? latest.current.driverLocation : null) },
+      ],
+      onLean: (id, lean) => {
+        if (id === "own" && ownLeanRef.current !== lean) {
+          ownLeanRef.current = lean;
+          redrawOwnPin();
+        } else if (id === "driver" && driverLeanRef.current !== lean) {
+          driverLeanRef.current = lean;
+          redrawDriverPin();
+        }
+      },
     });
+    placesRef.current = places;
 
     // 5. Draw Road-Based Route Polyline (Google Maps style) & Fit Bounds (No straight-line fallback)
     const activeRoutePoints: [number, number][] =
@@ -626,7 +657,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         cameraRef.current.centerOn(pickupLocation, { minZoom: 0 });
       }
     }
-    return stopPlaces;
+    return () => {
+      places.stop();
+      if (placesRef.current === places) placesRef.current = null;
+    };
     // The pins and the route are redrawn only when they change (the live markers have their own effects), so the dependencies are their numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, pickupLabel?.title, pickupLabel?.address, dropoffLabel?.title, dropoffLabel?.address, roadCoords, routeCoordinates, searchActive, stageKey]);
