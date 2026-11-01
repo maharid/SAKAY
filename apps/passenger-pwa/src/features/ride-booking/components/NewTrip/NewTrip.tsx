@@ -195,6 +195,8 @@ const NewTrip: React.FC = () => {
   // A quote is only good for the headcount it was priced for: while the new one is on its way there is no fare to confirm.
   const quote = fetchedQuote && fetchedQuote.passenger_count === passengers ? fetchedQuote : null;
   const estimatedFare = quote ? estimatedFareFor(quote, tripType) : null;
+  const quoteComps = quote ? componentsFor(quote, tripType) : null;
+  const exactFare = quote && quoteComps ? Math.max(quote.minimum_fare, Number((quoteComps.base + quoteComps.distance).toFixed(2))) : null;
   const routeErrorText =
     language === "tl"
       ? "Hindi makuha ang ruta sa mapa ngayon. Pakisubukang muli."
@@ -1040,7 +1042,7 @@ const NewTrip: React.FC = () => {
                       fontVariantNumeric: "tabular-nums",
                     }}
                   >
-                    {estimatedFare !== null ? `₱${estimatedFare.toFixed(2)}` : routeStatus === "loading" || (routeStatus === "ready" && !fareNotice) ? "…" : "—"}
+                    {exactFare !== null ? formatPeso(exactFare) : routeStatus === "loading" || (routeStatus === "ready" && !fareNotice) ? "…" : "—"}
                   </Typography>
                 </Box>
 
@@ -1239,7 +1241,7 @@ const NewTrip: React.FC = () => {
         {/* Receipt Container Body: every figure below comes from the database quote */}
         {quote ? (() => {
           const comps = componentsFor(quote, tripType);
-          const displayedTotal = estimatedFareFor(quote, tripType);
+          const displayedTotal = Math.max(quote.minimum_fare, Number((comps.base + comps.distance).toFixed(2)));
           const rule = quote.rule;
           const money = formatPeso;
           const shareSeats = Math.min(passengers + quote.partner_assumption_passengers, quote.seat_capacity);
@@ -1292,13 +1294,6 @@ const NewTrip: React.FC = () => {
                 <Divider sx={{ borderColor: "#CBD5E1", borderStyle: "dashed", my: 0.5 }} />
 
                 <FareLine emphasis="total" label={language === "tl" ? "Kabuuan" : "Total fare"} amount={money(displayedTotal)} />
-
-                {/* The database charges whole pesos (Rule 6.1.2), so the lines above can differ from the total by a few centavos. One quiet line says so, only when it is true. */}
-                {comps.adjustment !== 0 && (
-                  <Typography sx={{ fontSize: "12px", lineHeight: 1.4, color: "#64748B", fontFamily: "Poppins, sans-serif", textAlign: "right" }}>
-                    {language === "tl" ? "Buong piso ang singil ayon sa fare rule ng LGU." : "Charged in whole pesos under the LGU fare rule."}
-                  </Typography>
-                )}
               </Box>
 
               {/* Payment Method Badge */}

@@ -4,7 +4,7 @@
  */
 
 import { supabase } from "./supabaseClient";
-import type { EarlyEndKind, FareBreakdown, PaymentStatus } from "@sakay/shared";
+import { formatPeso, type EarlyEndKind, type FareBreakdown, type PaymentStatus } from "@sakay/shared";
 
 export interface HistoryTrip {
   id: string;
@@ -133,7 +133,10 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
       const createdDate = new Date(b.created_at);
       const isToday = new Date().toDateString() === createdDate.toDateString();
       // The final fare once the trip arrived (written by the database), otherwise the estimate
-      const fare = b.actual_fare ?? b.estimated_fare ?? 0;
+      const fin = b.fare_breakdown?.final?.components;
+      const exactFare = fin
+        ? Math.max(Number(b.fare_breakdown?.final?.minimum_fare) || 0, Number((fin.base + fin.distance).toFixed(2)))
+        : Number(b.actual_fare ?? b.estimated_fare) || 0;
       const driver = drivers.get(b.booking_id);
       return {
         id: b.booking_id,
@@ -143,7 +146,7 @@ export const fetchTripHistory = async (): Promise<HistoryTrip[]> => {
         dropoff: b.dropoff_address || "Calapan City",
         dropoffLat: Number(b.dropoff_latitude) || 13.4150,
         dropoffLng: Number(b.dropoff_longitude) || 121.1810,
-        price: `₱${parseFloat(fare).toFixed(2)}`,
+        price: formatPeso(exactFare),
         type: b.is_shared_trip ? "Share" : "Solo",
         distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || undefined,
         fareBreakdown: b.fare_breakdown ?? null,

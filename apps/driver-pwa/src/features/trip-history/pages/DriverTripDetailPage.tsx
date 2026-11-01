@@ -31,6 +31,7 @@ interface DriverTripView {
   dropoffLocation?: string;
   distanceKm?: number;
   fareAmount?: number;
+  fareBreakdown?: any;
   tripMode?: string;
   status?: string;
   date?: string;
@@ -87,8 +88,11 @@ export const DriverTripDetailPage: React.FC = () => {
   const rawTripId = trip?.id ?? params.id ?? "";
   const passengerName = trip?.passengerName ?? "";
   const passengerPhone = trip?.passengerPhone ?? "";
-  // The final fare the database wrote (Rule 6.2), else the estimate; no invented amount.
-  const fareAmount = Number(trip?.fareAmount ?? 0) || 0;
+  // The final fare the database wrote (Rule 6.2), else the estimate; exact centavos when components exist.
+  const fin = (trip as any)?.fareBreakdown?.final?.components;
+  const fareAmount = fin
+    ? Math.max(Number((trip as any)?.fareBreakdown?.final?.minimum_fare) || 0, Number((fin.base + fin.distance).toFixed(2)))
+    : (Number(trip?.fareAmount ?? 0) || 0);
   const tripMode = trip?.tripMode === "Shared Ride" ? "Shared Ride" : "Solo Trip";
   const lang = language === "tl" ? "tl" : "en";
   const tl = lang === "tl";

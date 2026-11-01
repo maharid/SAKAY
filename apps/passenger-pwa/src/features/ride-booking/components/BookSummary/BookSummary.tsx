@@ -25,6 +25,7 @@ import { getOSRMRoute, saveRecentDestination } from "../../../../services/locati
 import {
   fetchFareQuote,
   estimatedFareFor,
+  componentsFor,
   parseFareError,
   describeFareError,
   type FareQuote,
@@ -147,6 +148,8 @@ const BookSummary: React.FC = () => {
   };
 
   const fare = quote ? estimatedFareFor(quote, tripType) : null;
+  const quoteComps = quote ? componentsFor(quote, tripType) : null;
+  const exactFare = quote && quoteComps ? Math.max(quote.minimum_fare, Number((quoteComps.base + quoteComps.distance).toFixed(2))) : null;
 
   const [createdBookingId, setCreatedBookingId] = useState<string>("");
 
@@ -468,7 +471,7 @@ const BookSummary: React.FC = () => {
                   ₱
                 </Typography>
                 <Typography sx={{ fontSize: "28px", whiteSpace: "nowrap", fontWeight: 700, color: "#FFFFFF", lineHeight: 1 }}>
-                  {fare !== null ? fare.toFixed(2) : "—"}
+                  {exactFare !== null ? exactFare.toFixed(2) : "—"}
                 </Typography>
               </Box>
             </Box>

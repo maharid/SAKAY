@@ -17,7 +17,7 @@ export interface DriverSummary {
   hasDriver: boolean;
   name: string;
   todaName: string;
-  /** "Plate ABC 123 · Body no. 1673", only the parts the record has */
+  /** "Plate ABC 123 · DWCC2025", only the parts the record has */
   vehicleLine: string;
 }
 
@@ -29,7 +29,7 @@ export function driverSummary(trip: Pick<HistoryTrip, "driverName" | "todaName" 
     hasDriver: name !== "",
     name: name || (lang === "tl" ? "Walang drayber" : "No driver assigned"),
     todaName: (trip.todaName ?? "").trim(),
-    vehicleLine: [plate && (lang === "tl" ? `Plaka ${plate}` : `Plate ${plate}`), body && (lang === "tl" ? `Body no. ${body}` : `Body no. ${body}`)].filter(Boolean).join(" · "),
+    vehicleLine: [plate && (lang === "tl" ? `Plaka ${plate}` : `Plate ${plate}`), body].filter(Boolean).join(" · "),
   };
 }
 

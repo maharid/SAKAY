@@ -8,12 +8,11 @@ import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Rating from "@mui/material/Rating";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { ContactCard, ReportIssueButton, TripRoute, TripStatusChip, formatTripWhen, formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso, describePayment, earlyEndReasonLabel } from "@sakay/shared";
+import { ContactCard, ReportIssueButton, TripRoute, TripStatusChip, formatTripWhen, formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso, earlyEndReasonLabel } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -22,19 +21,6 @@ import { fetchTripHistory } from "../../../services/tripService";
 import type { HistoryTrip } from "../../../services/tripService";
 import { fetchReportableTrips } from "../../../services/incidentService";
 import { driverSummary, stashRebook, tripTypeLabel } from "../tripFormat";
-
-const ReceiptLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>{children}</Typography>
-);
-
-/** One step of the receipt: done (a check), what it was, and when (the time never wraps, the label may) */
-const ReceiptStep: React.FC<{ label: string; time: string }> = ({ label, time }) => (
-  <Box component="li" sx={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto", columnGap: 1.25, alignItems: "baseline" }}>
-    <CheckCircleIcon aria-hidden sx={{ fontSize: 17, color: "#16A34A", alignSelf: "center" }} />
-    <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.35 }}>{label}</Typography>
-    <Typography sx={{ fontSize: "12.5px", color: "#475569", fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{time}</Typography>
-  </Box>
-);
 
 /** A label with its icon on the left and its value on the right (the fare and the payment method) */
 const FactRow: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
@@ -90,10 +76,6 @@ export const TripDetailPage: React.FC = () => {
   }, [params.id, usable?.id]);
 
   const tripId = trip?.id ?? "";
-  const manilaTime = (iso: string) => new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
-  const paymentText = trip?.paymentStatus
-    ? describePayment({ paymentStatus: trip.paymentStatus, fareUnconfirmed: Boolean(trip.fareUnconfirmed) }, tl ? "tl" : "en")
-    : "";
 
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [passengerRatingGiven, setPassengerRatingGiven] = React.useState<any>(null);
@@ -191,7 +173,6 @@ export const TripDetailPage: React.FC = () => {
 
   const fb = trip?.fareBreakdown as FareBreakdown | null | undefined;
   const fin = fb?.final;
-  const hasReceipt = trip?.status === "Completed" && Boolean(trip?.paymentStatus);
 
   return (
     <Box
@@ -341,8 +322,8 @@ export const TripDetailPage: React.FC = () => {
               </Box>
             )}
 
-            {/* 4. How the fare was worked out, and the receipt: what the database stored */}
-            {(fin || hasReceipt) && (
+            {/* 4. How the fare was worked out: what the database stored */}
+            {(fin || trip?.earlyEndKind || fb?.resolution) && (
               <Paper elevation={0} sx={{ ...cardSx, p: 2.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <Typography component="h2" sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
                   {language === "tl" ? "Kalkulasyon ng pamasahe" : "Fare details"}
@@ -396,80 +377,33 @@ export const TripDetailPage: React.FC = () => {
                             : "Based on the actual distance travelled (the route differed from the estimate)."}
                         </Typography>
                       )}
-                      {/* The database charges whole pesos (Rule 6.1.2): when the lines above differ from the total, say why in one quiet line */}
-                      {fin.components.adjustment ? (
-                        <Typography sx={noteSx}>
-                          {language === "tl" ? "Buong piso ang singil ayon sa fare rule ng LGU." : "Charged in whole pesos under the LGU fare rule."}
-                        </Typography>
-                      ) : null}
                     </>
                   );
                 })()}
 
-                {/* The receipt (Rules 16.2 / 18.3): the payment as the database recorded it, the moments, and how the trip ended. Nothing here is typed on a phone.
-                    Three groups: who and how it was paid, what happened and when, and (only when it applies) how the trip ended early. */}
-                {hasReceipt && trip.paymentStatus && (
-                  <Box component="section" aria-label={tl ? "Resibo" : "Receipt"} sx={{ display: "flex", flexDirection: "column", gap: 1.25, pt: fin ? 1.5 : 0, borderTop: fin ? "1px dashed #E2E8F0" : "none" }}>
-                    <Typography component="h3" sx={{ fontSize: "12px", fontWeight: 700, color: "#475569", letterSpacing: "0.04em", textTransform: "uppercase", fontFamily: "Poppins, sans-serif" }}>
-                      {tl ? "Resibo" : "Receipt"}
+                {/* How it ended, only when it ended early: the reason in full and what it means for the fare, in its own quiet note */}
+                {trip?.earlyEndKind && (
+                  <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#FFFBEB", border: "1px solid #FDE68A", display: "flex", flexDirection: "column", gap: 0.25 }}>
+                    <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#92400E", fontFamily: "Poppins, sans-serif" }}>{tl ? "Tinapos nang maaga" : "Ended early"}</Typography>
+                    <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+                      {earlyEndReasonLabel(trip.earlyEndReason, tl ? "tl" : "en")}
                     </Typography>
-
-                    {/* 1. The receipt number and the payment: the two facts people look for first */}
-                    <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", columnGap: 2, rowGap: 1, alignItems: "center", p: 1.5, borderRadius: "14px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                      <ReceiptLabel>{tl ? "Resibo bilang" : "Receipt no."}</ReceiptLabel>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", letterSpacing: "0.02em", textAlign: "right", whiteSpace: "nowrap" }}>
-                        {formatShortBookingId(tripId)}
-                      </Typography>
-                      <ReceiptLabel>{tl ? "Bayad" : "Payment"}</ReceiptLabel>
-                      <Chip
-                        size="small"
-                        label={paymentText}
-                        sx={{
-                          justifySelf: "end",
-                          maxWidth: "100%",
-                          height: 26,
-                          fontWeight: 700,
-                          fontSize: "12px",
-                          backgroundColor: trip.paymentStatus === "Paid" ? "#DCFCE7" : trip.paymentStatus === "Waived" ? "#E0F2FE" : "#FEF3C7",
-                          color: trip.paymentStatus === "Paid" ? "#166534" : trip.paymentStatus === "Waived" ? "#075985" : "#92400E",
-                        }}
-                      />
-                    </Box>
-
-                    {/* 2. What happened and when, as a short list of completed steps */}
-                    {(trip.confirmFareAt || trip.paymentReceivedAt || trip.tripCompletedAt) && (
-                      <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}>
-                        {trip.confirmFareAt && <ReceiptStep label={tl ? "Kinumpirma ang pamasahe" : "Fare confirmed"} time={manilaTime(trip.confirmFareAt)} />}
-                        {trip.paymentReceivedAt && <ReceiptStep label={tl ? "Natanggap ang bayad" : "Payment received"} time={manilaTime(trip.paymentReceivedAt)} />}
-                        {trip.tripCompletedAt && <ReceiptStep label={tl ? "Natapos ang biyahe" : "Trip completed"} time={manilaTime(trip.tripCompletedAt)} />}
-                      </Box>
-                    )}
-
-                    {/* 3. How it ended, only when it ended early: the reason in full and what it means for the fare, in its own quiet note */}
-                    {trip.earlyEndKind && (
-                      <Box sx={{ p: 1.5, borderRadius: "14px", backgroundColor: "#FFFBEB", border: "1px solid #FDE68A", display: "flex", flexDirection: "column", gap: 0.25 }}>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#92400E", fontFamily: "Poppins, sans-serif" }}>{tl ? "Tinapos nang maaga" : "Ended early"}</Typography>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.35, overflowWrap: "anywhere" }}>
-                          {earlyEndReasonLabel(trip.earlyEndReason, tl ? "tl" : "en")}
-                        </Typography>
-                        <Typography sx={{ fontSize: "12.5px", color: "#475569", fontFamily: "Poppins, sans-serif", lineHeight: 1.45 }}>
-                          {trip.earlyEndKind === "SAFETY"
-                            ? tl ? "Pansamantalang pamasahe habang hinihintay ang pagsusuri" : "Provisional fare until it is reviewed"
-                            : trip.earlyEndKind === "DRIVER"
-                            ? tl ? "Layong nalakbay lamang ang sinisingil" : "Only the distance travelled is charged"
-                            : tl ? "Ang mas mataas sa pamasahe noong nag-book at sa layong nalakbay" : "The greater of the booked fare and the distance travelled"}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {fb?.resolution && (
-                      <FareLine
-                        label={tl ? "Pamasahe pagkatapos ng pagsusuri" : "Fare after review"}
-                        detail={tl ? `Dati: ${formatPeso(fb.resolution.previous_fare)}` : `Before: ${formatPeso(fb.resolution.previous_fare)}`}
-                        amount={formatPeso(fb.resolution.final_fare)}
-                      />
-                    )}
+                    <Typography sx={{ fontSize: "12.5px", color: "#475569", fontFamily: "Poppins, sans-serif", lineHeight: 1.45 }}>
+                      {trip.earlyEndKind === "SAFETY"
+                        ? tl ? "Pansamantalang pamasahe habang hinihintay ang pagsusuri" : "Provisional fare until it is reviewed"
+                        : trip.earlyEndKind === "DRIVER"
+                        ? tl ? "Layong nalakbay lamang ang sinisingil" : "Only the distance travelled is charged"
+                        : tl ? "Ang mas mataas sa pamasahe noong nag-book at sa layong nalakbay" : "The greater of the booked fare and the distance travelled"}
+                    </Typography>
                   </Box>
+                )}
+
+                {fb?.resolution && (
+                  <FareLine
+                    label={tl ? "Pamasahe pagkatapos ng pagsusuri" : "Fare after review"}
+                    detail={tl ? `Dati: ${formatPeso(fb.resolution.previous_fare)}` : `Before: ${formatPeso(fb.resolution.previous_fare)}`}
+                    amount={formatPeso(fb.resolution.final_fare)}
+                  />
                 )}
               </Paper>
             )}

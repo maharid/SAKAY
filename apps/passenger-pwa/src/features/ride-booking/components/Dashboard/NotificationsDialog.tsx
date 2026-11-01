@@ -107,7 +107,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
 
   // An action opens the page of the record the notice is about: the notice is read, the screen closes and the page opens
-  const actionsOf = (item: NotificationItem): NoticeAction[] => noticeActions("passenger", { type: item.type, subjectId: item.subjectId });
+  const actionsOf = (item: NotificationItem): NoticeAction[] => noticeActions("passenger", { type: item.type || (item as any).notificationType, subjectId: item.subjectId });
   const runAction = (item: NotificationItem, action: NoticeAction) => {
     handleMarkAsRead(item.id);
     setSelectedNotif(null);
@@ -118,7 +118,17 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     const list = actionsOf(item);
     if (list.length === 0) return null;
     return (
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: size === "small" ? 0.75 : 2.5 }}>
+      <Box
+        className="hide-scrollbar"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          mt: size === "small" ? 0.5 : 2,
+          overflowX: "auto",
+          flexShrink: 0,
+        }}
+      >
         {list.map((a, i) => (
           <Button
             key={a.key}
@@ -132,10 +142,13 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               textTransform: "none",
               fontWeight: 700,
               fontFamily: "Poppins, sans-serif",
-              fontSize: size === "small" ? "12.5px" : "14px",
-              minHeight: size === "small" ? 36 : 44,
-              px: size === "small" ? 1.75 : 2.5,
-              borderRadius: "12px",
+              fontSize: size === "small" ? "11.5px" : "14px",
+              minHeight: size === "small" ? 28 : 44,
+              height: size === "small" ? 28 : 44,
+              px: size === "small" ? 1.25 : 2.5,
+              borderRadius: size === "small" ? "8px" : "12px",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
               ...(i === 0
                 ? { backgroundColor: "#FF6600", color: "#FFFFFF", "&:hover": { backgroundColor: "#E65C00" } }
                 : { borderColor: "#FF6600", color: "#C2410C", "&:hover": { backgroundColor: "#FFF7ED", borderColor: "#E65C00" } }),
@@ -240,67 +253,74 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
 
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", "& > *": { flexShrink: 0 }, pb: "var(--safe-area-bottom)" }}>
         {selectedNotif ? (
-          <Box sx={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", px: 2, py: 2.5 }}>
-            {/* Header info */}
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    backgroundColor: "#FFF2E9",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  {getCategoryIcon(selectedNotif.category, selectedNotif.eventType)}
-                </Box>
-                <Box>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
-                    {/* what the database wrote for this passenger comes from SAKAY; an announcement is written by the TODA / LGU administration */}
-                    {selectedNotif.id.startsWith("db:")
-                      ? "SAKAY"
-                      : (isTagalog ? "TODA / LGU Tagapamahala" : "TODA / LGU Administration")}
-                  </Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#64748B" }}>
-                    {getRelativeTime(selectedNotif.createdAt, language)}
-                  </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}>
+            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 2, py: 2.5 }}>
+              {/* Header info */}
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      backgroundColor: "#FFF2E9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {getCategoryIcon(selectedNotif.category, selectedNotif.eventType)}
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#FF6600" }}>
+                      {/* what the database wrote for this passenger comes from SAKAY; an announcement is written by the TODA / LGU administration */}
+                      {selectedNotif.id.startsWith("db:")
+                        ? "SAKAY"
+                        : (isTagalog ? "TODA / LGU Tagapamahala" : "TODA / LGU Administration")}
+                    </Typography>
+                    <Typography sx={{ fontSize: "12px", color: "#64748B" }}>
+                      {getRelativeTime(selectedNotif.createdAt, language)}
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
+
+              <Typography
+                sx={{
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: "#0F172A",
+                  lineHeight: 1.3,
+                  mb: 2,
+                }}
+              >
+                {isTagalog
+                  ? (selectedNotif.titleTl || selectedNotif.titleEn)
+                  : (selectedNotif.titleEn || selectedNotif.titleTl)}
+              </Typography>
+
+              <Divider sx={{ mb: 2.5, borderColor: "#F1F5F9" }} />
+
+              <Typography
+                sx={{
+                  fontSize: "14px",
+                  color: "#334155",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {isTagalog
+                  ? (selectedNotif.bodyTl || selectedNotif.bodyEn)
+                  : (selectedNotif.bodyEn || selectedNotif.bodyTl)}
+              </Typography>
             </Box>
 
-            <Typography
-              sx={{
-                fontSize: "18px",
-                fontWeight: 700,
-                color: "#0F172A",
-                lineHeight: 1.3,
-                mb: 2,
-              }}
-            >
-              {isTagalog
-                ? (selectedNotif.titleTl || selectedNotif.titleEn)
-                : (selectedNotif.titleEn || selectedNotif.titleTl)}
-            </Typography>
-
-            <Divider sx={{ mb: 2.5, borderColor: "#F1F5F9" }} />
-
-            <Typography
-              sx={{
-                fontSize: "14px",
-                color: "#334155",
-                lineHeight: 1.6,
-                whiteSpace: "pre-line",
-              }}
-            >
-              {isTagalog
-                ? (selectedNotif.bodyTl || selectedNotif.bodyEn)
-                : (selectedNotif.bodyEn || selectedNotif.bodyTl)}
-            </Typography>
-            {actionButtons(selectedNotif, "regular")}
+            {actionsOf(selectedNotif).length > 0 && (
+              <Box sx={{ p: 2, pt: 1.5, borderTop: "1px solid #F1F5F9", backgroundColor: "#FFFFFF", flexShrink: 0 }}>
+                {actionButtons(selectedNotif, "regular")}
+              </Box>
+            )}
           </Box>
         ) : (
           <>
@@ -421,6 +441,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               const title = language === "tl" ? item.titleTl : item.titleEn;
               const body = language === "tl" ? item.bodyTl : item.bodyEn;
               const time = getRelativeTime(item.createdAt, language);
+              const hasActions = actionsOf(item).length > 0;
 
               return (
                 <React.Fragment key={item.id}>
@@ -433,10 +454,15 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       handleNotificationClick(item);
                     }}
                     sx={{
+                      height: "116px",
+                      minHeight: "116px",
+                      maxHeight: "116px",
+                      boxSizing: "border-box",
+                      overflow: "hidden",
                       py: 1.5,
                       px: 2,
                       display: "flex",
-                      alignItems: "flex-start",
+                      alignItems: "center",
                       gap: 1.5,
                       backgroundColor: "#FFFFFF",
                       cursor: "pointer",
@@ -477,20 +503,38 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       )}
                     </Box>
 
-                    {/* Title (14px), Body (13px), Timestamp (12px caption) */}
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        sx={{
-                          fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
-                          fontWeight: item.isRead ? TYPOGRAPHY_TOKENS.fontWeight.semibold : TYPOGRAPHY_TOKENS.fontWeight.bold,
-                          color: "#0F172A",
-                          fontFamily: "Poppins, sans-serif",
-                          lineHeight: 1.25,
-                          mb: 0.2,
-                        }}
-                      >
-                        {title}
-                      </Typography>
+                    {/* Content area: Title, Body, Timestamp / Actions */}
+                    <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", overflow: "hidden" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, minWidth: 0, mb: 0.25 }}>
+                        <Typography
+                          sx={{
+                            fontSize: TYPOGRAPHY_TOKENS.fontSize.buttonMobile,
+                            fontWeight: item.isRead ? TYPOGRAPHY_TOKENS.fontWeight.semibold : TYPOGRAPHY_TOKENS.fontWeight.bold,
+                            color: "#0F172A",
+                            fontFamily: "Poppins, sans-serif",
+                            lineHeight: 1.25,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {title}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
+                            fontWeight: TYPOGRAPHY_TOKENS.fontWeight.regular,
+                            color: "#64748B",
+                            fontFamily: "Poppins, sans-serif",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {time}
+                        </Typography>
+                      </Box>
 
                       <Typography
                         sx={{
@@ -499,28 +543,23 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                           color: "#64748B",
                           fontFamily: "Poppins, sans-serif",
                           lineHeight: 1.35,
-                          mb: 0.25,
+                          display: "-webkit-box",
+                          WebkitLineClamp: hasActions ? 1 : 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          mb: hasActions ? 0.25 : 0,
                         }}
                       >
                         {body}
                       </Typography>
 
-                      <Typography
-                        sx={{
-                          fontSize: TYPOGRAPHY_TOKENS.fontSize.caption,
-                          fontWeight: TYPOGRAPHY_TOKENS.fontWeight.regular,
-                          color: "#64748B",
-                          fontFamily: "Poppins, sans-serif",
-                        }}
-                      >
-                        {time}
-                      </Typography>
-                      {actionButtons(item, "small")}
+                      {hasActions && actionButtons(item, "small")}
                     </Box>
 
                     {/* Chevron right icon only for announcements / advisories */}
-                    {item.category === "advisories" && (
-                      <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20, mt: 0.5, flexShrink: 0 }} />
+                    {item.category === "advisories" && !hasActions && (
+                      <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20, flexShrink: 0 }} />
                     )}
                   </Box>
                 </React.Fragment>

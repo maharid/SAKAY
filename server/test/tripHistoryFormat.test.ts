@@ -65,9 +65,9 @@ describe('trip status and type', () => {
 describe('driver lines', () => {
   it('gives the name, the TODA and the vehicle, only the parts the record has', () => {
     const full = driverSummary({ driverName: ' Miguel Gacho ', todaName: 'PPC TODA', plateNumber: 'ABC 123', bodyNumber: '1673' }, 'en');
-    assert.deepEqual(full, { hasDriver: true, name: 'Miguel Gacho', todaName: 'PPC TODA', vehicleLine: 'Plate ABC 123 · Body no. 1673' });
+    assert.deepEqual(full, { hasDriver: true, name: 'Miguel Gacho', todaName: 'PPC TODA', vehicleLine: 'Plate ABC 123 · 1673' });
     assert.equal(driverSummary({ driverName: 'Ana', plateNumber: 'XYZ 9' }, 'tl').vehicleLine, 'Plaka XYZ 9');
-    assert.equal(driverSummary({ driverName: 'Ana', bodyNumber: '77' }, 'en').vehicleLine, 'Body no. 77');
+    assert.equal(driverSummary({ driverName: 'Ana', bodyNumber: '77' }, 'en').vehicleLine, '77');
     assert.equal(driverSummary({ driverName: 'Ana' }, 'en').vehicleLine, '');
   });
 

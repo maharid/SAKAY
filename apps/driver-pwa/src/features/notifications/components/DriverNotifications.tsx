@@ -131,7 +131,7 @@ export const DriverNotifications: React.FC = () => {
   const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
 
   // An action opens the page of the record the notice is about (only pages the Driver app has; a notice with none shows no button): the notice is read, then the page opens
-  const actionsOf = (item: NotificationItem): NoticeAction[] => noticeActions('driver', { type: item.notificationType, subjectId: item.subjectId });
+  const actionsOf = (item: NotificationItem): NoticeAction[] => noticeActions('driver', { type: item.notificationType || (item as any).type, subjectId: item.subjectId });
   const runAction = (item: NotificationItem, action: NoticeAction) => {
     handleMarkAsRead(item.id);
     navigate(action.to);
@@ -140,7 +140,17 @@ export const DriverNotifications: React.FC = () => {
     const list = actionsOf(item);
     if (list.length === 0) return null;
     return (
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: size === 'small' ? 0.75 : 2.5 }}>
+      <Box
+        className="hide-scrollbar"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          mt: size === 'small' ? 0.5 : 2,
+          overflowX: 'auto',
+          flexShrink: 0,
+        }}
+      >
         {list.map((a, i) => (
           <Button
             key={a.key}
@@ -154,10 +164,13 @@ export const DriverNotifications: React.FC = () => {
               textTransform: 'none',
               fontWeight: 700,
               fontFamily: 'Poppins, sans-serif',
-              fontSize: size === 'small' ? '12.5px' : '14px',
-              minHeight: size === 'small' ? 36 : 44,
-              px: size === 'small' ? 1.75 : 2.5,
-              borderRadius: '12px',
+              fontSize: size === 'small' ? '11.5px' : '14px',
+              minHeight: size === 'small' ? 28 : 44,
+              height: size === 'small' ? 28 : 44,
+              px: size === 'small' ? 1.25 : 2.5,
+              borderRadius: size === 'small' ? '8px' : '12px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
               ...(i === 0
                 ? { backgroundColor: '#FF6600', color: '#FFFFFF', '&:hover': { backgroundColor: '#E65C00' } }
                 : { borderColor: '#FF6600', color: '#C2410C', '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#E65C00' } }),
@@ -215,7 +228,7 @@ export const DriverNotifications: React.FC = () => {
           onBack={() => setSelectedNotif(null)}
         />
 
-        <Box sx={{ flex: 1, overflowY: 'auto', px: 2, pt: 2.5, pb: 'calc(var(--safe-area-bottom) + 24px)' }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 2, pt: 2.5, pb: 2 }}>
           {/* Header info */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -268,10 +281,14 @@ export const DriverNotifications: React.FC = () => {
           >
             {displayBody}
           </Typography>
-
-          {/* Rules 8.6 / 9.4: a strike notice leads to his strikes and to the appeal; the other notices open their own record */}
-          {actionButtons(selectedNotif, 'regular')}
         </Box>
+
+        {/* Action buttons kept prominently visible inside expanded notification */}
+        {actionsOf(selectedNotif).length > 0 && (
+          <Box sx={{ p: 2, pt: 1.5, borderTop: '1px solid #F1F5F9', backgroundColor: '#FFFFFF', flexShrink: 0, pb: 'calc(var(--safe-area-bottom) + 16px)' }}>
+            {actionButtons(selectedNotif, 'regular')}
+          </Box>
+        )}
       </Box>
     );
   }
@@ -404,6 +421,7 @@ export const DriverNotifications: React.FC = () => {
               const title = isTagalog ? item.titleTl : item.titleEn;
               const body = isTagalog ? item.bodyTl : item.bodyEn;
               const time = getRelativeTime(item.createdAt, language);
+              const hasActions = actionsOf(item).length > 0;
 
               return (
                 <React.Fragment key={item.id}>
@@ -414,10 +432,15 @@ export const DriverNotifications: React.FC = () => {
                     onKeyDown={activateWithKeyboard}
                     onClick={() => handleNotificationClick(item)}
                     sx={{
+                      height: '116px',
+                      minHeight: '116px',
+                      maxHeight: '116px',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
                       py: 1.5,
                       px: 2,
                       display: 'flex',
-                      alignItems: 'flex-start',
+                      alignItems: 'center',
                       gap: 1.5,
                       backgroundColor: '#FFFFFF',
                       cursor: 'pointer',
@@ -458,51 +481,64 @@ export const DriverNotifications: React.FC = () => {
                       )}
                     </Box>
 
-                    {/* Title, Body, Timestamp */}
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        sx={{
-                          fontSize: '14px',
-                          fontWeight: item.isRead ? 600 : 700,
-                          color: '#0F172A',
-                          lineHeight: 1.25,
-                          mb: 0.2,
-                        }}
-                      >
-                        {title}
-                      </Typography>
+                    {/* Content area: Title, Body, Timestamp / Actions */}
+                    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', overflow: 'hidden' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, minWidth: 0, mb: 0.25 }}>
+                        <Typography
+                          sx={{
+                            fontSize: '14px',
+                            fontWeight: item.isRead ? 600 : 700,
+                            color: '#0F172A',
+                            fontFamily: 'Poppins, sans-serif',
+                            lineHeight: 1.25,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {title}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '12px',
+                            fontWeight: 400,
+                            color: '#64748B',
+                            fontFamily: 'Poppins, sans-serif',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {time}
+                        </Typography>
+                      </Box>
 
                       <Typography
                         sx={{
                           fontSize: '13px',
                           fontWeight: 400,
                           color: '#475569',
+                          fontFamily: 'Poppins, sans-serif',
                           lineHeight: 1.35,
-                          mb: 0.25,
-                          // a short preview: two lines; the whole notice opens when tapped
                           display: '-webkit-box',
-                          WebkitLineClamp: 2,
+                          WebkitLineClamp: hasActions ? 1 : 2,
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
-                          overflowWrap: 'anywhere',
+                          textOverflow: 'ellipsis',
+                          mb: hasActions ? 0.25 : 0,
                         }}
                       >
                         {body}
                       </Typography>
 
-                      <Typography
-                        sx={{
-                          fontSize: '12px',
-                          fontWeight: 400,
-                          color: '#64748B',
-                        }}
-                      >
-                        {time}
-                      </Typography>
-                      {actionButtons(item, 'small')}
+                      {hasActions && actionButtons(item, 'small')}
                     </Box>
 
-                    <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20, mt: 0.5, flexShrink: 0 }} />
+                    {/* Chevron right icon only when no actions */}
+                    {!hasActions && (
+                      <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20, flexShrink: 0 }} />
+                    )}
                   </Box>
                 </React.Fragment>
               );

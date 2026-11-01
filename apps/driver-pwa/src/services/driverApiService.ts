@@ -332,6 +332,10 @@ export async function fetchDriverTrips(_driverId?: string) {
 
     return data.map((b: any) => {
       const p = parties.get(b.booking_id);
+      const fin = b.fare_breakdown?.final?.components;
+      const exactFare = fin
+        ? Math.max(Number(b.fare_breakdown?.final?.minimum_fare) || 0, Number((fin.base + fin.distance).toFixed(2)))
+        : Number(b.actual_fare ?? b.estimated_fare) || 0;
       return {
         id: b.booking_id,
         bookingCode: `BKG-${b.booking_id.slice(0, 8).toUpperCase()}`,
@@ -345,7 +349,8 @@ export async function fetchDriverTrips(_driverId?: string) {
         dropoffLng: Number(b.dropoff_longitude) || 121.1785,
         distanceKm: Number(b.actual_distance_km ?? b.estimated_distance_km) || 0,
         // the final fare once the trip arrived (written by the database, Rule 6.2), otherwise the estimate
-        fareAmount: Number(b.actual_fare ?? b.estimated_fare) || 0,
+        fareAmount: exactFare,
+        fareBreakdown: b.fare_breakdown ?? null,
         tripMode: (b.is_shared_trip || b.trip_type === 'shared' ? 'Shared Ride' : 'Solo Trip') as any,
         status: (b.booking_status === 'Completed' ? 'Completed' : b.booking_status?.includes('Cancel') ? 'Cancelled' : 'In Progress') as any,
         date: b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
