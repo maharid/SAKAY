@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
-import { StrikesAppealsView } from "@sakay/shared";
+import { StrikesAppealsView, appealTargetFromSearch } from "@sakay/shared";
 
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
@@ -16,6 +16,7 @@ import { usePassengerStrikes } from "../hooks/usePassengerStrikes";
  */
 const StrikesAppealsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useLanguage();
   const tl = language === "tl";
   const strikes = usePassengerStrikes();
@@ -32,6 +33,8 @@ const StrikesAppealsPage: React.FC = () => {
         appeals={strikes.appeals}
         loading={strikes.loading}
         failed={strikes.failed}
+        openAppealFor={appealTargetFromSearch(location.search)}
+        onOpenAppealHandled={() => navigate(location.pathname, { replace: true })}
         onAppeal={submitStrikeAppeal}
         onAppealSent={async (message) => {
           setToast(message);

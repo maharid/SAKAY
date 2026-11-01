@@ -3,14 +3,12 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import { formatShortBookingId } from "@sakay/shared";
+import { TripRoute, TripStatusChip, formatShortBookingId, formatTripWhen } from "@sakay/shared";
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
 
 import type { HistoryTrip } from "../../../services/tripService";
-import { formatTripWhen, tripTypeLabel } from "../tripFormat";
+import { tripTypeLabel } from "../tripFormat";
 import type { Lang } from "../tripFormat";
-import { TripRoute } from "./TripRoute";
-import { TripStatusChip } from "./TripStatusChip";
 
 interface TripHistoryCardProps {
   trip: HistoryTrip;

@@ -1,13 +1,15 @@
 /**
- * The two live markers, drawn the same way in the Passenger and the Driver app so a person learns them once:
+ * The markers of the Passenger and the Driver map, drawn the same way in both apps so a person learns them once:
  *
- *   passenger   a BLUE circle with a white person (the colour maps use for "you / someone on foot")
- *   driver      an ORANGE circle with a white tricycle (the SAKAY colour), plus a small arrow around its edge that points the way it is
- *               travelling when a heading is known. The tricycle itself stays upright; only the arrow turns.
+ *   you (passenger)  an ORANGE circle with a white ring showing the person's own profile picture (or the first letter of their name), on a short pointer whose tip is the position
+ *   pickup           a BLACK circle with a white ring and a white "P" on a thin stem; close up it opens into a black label that says "Pickup"
+ *   destination      the same with a "D", and the label "Destination"
+ *   driver           an ORANGE circle with a white tricycle, plus a small arrow around its edge that points the way it is travelling when a heading is known.
+ *                    The tricycle itself stays upright; only the arrow turns.
  *
- * Leaflet-free: these return the HTML for an `L.divIcon`, and `applyMarkerState` updates an element that is already on the map (turn the
- * arrow, dim a position that has gone stale) without rebuilding it. The icon shapes are the Material "Person" and "ElectricRickshaw"
- * glyphs. Inline styles only, so they look right without any stylesheet; the pulse is a CSS class each app defines (see animations.css).
+ * Every pin is anchored at the bottom of its stem or pointer, so the tip is the exact place on the map. Leaflet-free: these return the HTML for an `L.divIcon` (and its size and
+ * anchor), and `applyMarkerState` updates an element that is already on the map (turn the arrow, dim a position that has gone stale) without rebuilding it. Inline styles only, so
+ * they look right without any stylesheet.
  */
 
 import appIconToto from '../assets/icons/app-icon-toto.webp';
@@ -18,20 +20,51 @@ const PERSON_PATH =
 export const PASSENGER_MARKER_COLOR = '#FF6600';
 export const DRIVER_MARKER_COLOR = '#FF6600';
 
-/** `divIcon` size and anchor for each marker (the anchor is the centre: the marker sits ON its position) */
-export const PASSENGER_MARKER_SIZE = 44;
+/** `divIcon` size and anchor. The driver's marker sits ON its position (anchored at its centre); the passenger's pin stands ON it (anchored at the tip of its pointer). */
 export const DRIVER_MARKER_SIZE = 52;
+export const PASSENGER_MARKER_WIDTH = 40;
+export const PASSENGER_MARKER_HEIGHT = 48;
+export const PASSENGER_MARKER_ANCHOR: [number, number] = [PASSENGER_MARKER_WIDTH / 2, PASSENGER_MARKER_HEIGHT - 2];
 
 const svg = (path: string, size: number) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true" focusable="false"><path d="${path}"/></svg>`;
 
-export function passengerMarkerHtml(): string {
-  const s = PASSENGER_MARKER_SIZE;
+/** Text that came from a person (a name, an address, a picture address) is only ever put into the markup escaped */
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** A small flat shadow on the ground at the tip of a pin (the same under every pin) */
+const GROUND_SHADOW = 'position:absolute;left:50%;bottom:0;width:12px;height:5px;margin-left:-6px;border-radius:50%;background:rgba(15,23,42,0.32);filter:blur(1px);';
+
+export interface OwnMarkerProfile {
+  /** The person's name: its first letter is shown when there is no picture (or the picture cannot be loaded) */
+  name?: string | null;
+  /** The profile picture, when the account has one */
+  photoUrl?: string | null;
+}
+
+/**
+ * The person's own position on the map: their profile picture in an orange circle with a white ring, on a short pointer. Without a picture the circle shows the first letter of
+ * the name (or the person glyph when even that is unknown); a picture that cannot be loaded leaves the letter showing, since the picture is drawn over it.
+ */
+export function passengerMarkerHtml(profile: OwnMarkerProfile = {}): string {
+  const w = PASSENGER_MARKER_WIDTH;
+  const h = PASSENGER_MARKER_HEIGHT;
+  const initial = (profile.name ?? '').trim().charAt(0).toUpperCase();
+  const photo = (profile.photoUrl ?? '').trim();
+  const face = initial
+    ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#FFFFFF;font:700 17px/1 Poppins,sans-serif;">${escapeHtml(initial)}</span>`
+    : `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">${svg(PERSON_PATH, 22)}</span>`;
+  const picture = photo
+    ? `<img src="${escapeHtml(photo)}" alt="" draggable="false" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
+    : '';
   return `
-    <div class="sakay-marker sakay-passenger-marker" style="position:relative;width:${s}px;height:${s}px;">
-      <div class="sakay-marker-pulse" style="position:absolute;inset:2px;border-radius:50%;background:${PASSENGER_MARKER_COLOR};opacity:0.22;"></div>
-      <div class="sakay-marker-body" style="position:absolute;left:4px;top:4px;width:30px;height:30px;border-radius:50%;background:${PASSENGER_MARKER_COLOR};border:3px solid #FFFFFF;box-shadow:0 3px 10px rgba(255,102,0,0.45);display:flex;align-items:center;justify-content:center;box-sizing:content-box;">
-        ${svg(PERSON_PATH, 18)}
+    <div class="sakay-marker sakay-passenger-marker" role="img" aria-label="Your location" style="position:relative;width:${w}px;height:${h}px;">
+      <div style="${GROUND_SHADOW}"></div>
+      <div style="position:absolute;left:50%;top:31px;width:12px;height:12px;margin-left:-6px;background:#FFFFFF;transform:rotate(45deg);border-radius:2px;box-shadow:1px 2px 3px rgba(15,23,42,0.28);"></div>
+      <div class="sakay-marker-body" style="position:absolute;left:0;top:0;width:${w}px;height:${w}px;box-sizing:border-box;border-radius:50%;background:${PASSENGER_MARKER_COLOR};border:3px solid #FFFFFF;overflow:hidden;box-shadow:0 3px 8px rgba(255,102,0,0.45);">
+        ${face}${picture}
       </div>
     </div>`;
 }
@@ -78,52 +111,60 @@ export function applyMarkerState(root: HTMLElement | null | undefined, state: Ma
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // The two PLACES of a trip, drawn the same way in the Passenger and the Driver app:
 //
-//   pickup        a GREEN round badge with a white ring and centre (the start of the trip), centred on its position
-//   destination   a RED map pin (the classic location pin) whose point is on its position
+//   pickup        a black circle with a white ring and a "P" on a thin white stem, or, close up, a black label that says "Pickup"
+//   destination   the same with a "D", and "Destination"
 //
-// They differ in colour AND in shape, so they cannot be mistaken for each other or for the orange person / tricycle (the live markers above).
-// Both are SVG with a white outline and a soft shadow, drawn at a fixed pixel size, so they stay sharp and readable at every zoom; when the two
-// places are close the destination is drawn on top (see DESTINATION_MARKER_Z_OFFSET). Pressing either opens a small popup naming the place.
+// The tip of the stem is the place. Far away the small circle keeps the map readable; close up the label says which is which. When the two places are too near each other on the
+// screen for two labels, both stay circles (see placeLabelsShown). Both are drawn at a fixed pixel size with a white ring, so they stay sharp on any map colour and at every zoom.
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-export const PICKUP_MARKER_COLOR = '#15803D';
-export const DESTINATION_MARKER_COLOR = '#DC2626';
+export type PlaceKind = 'pickup' | 'destination';
 
-/** `divIcon` size and anchor: the pickup badge is anchored at its centre, the destination pin at the tip of its point */
-export const PICKUP_MARKER_SIZE = 34;
-export const DESTINATION_MARKER_WIDTH = 34;
-export const DESTINATION_MARKER_HEIGHT = 46;
-export const PICKUP_MARKER_ANCHOR: [number, number] = [PICKUP_MARKER_SIZE / 2, PICKUP_MARKER_SIZE / 2];
-export const DESTINATION_MARKER_ANCHOR: [number, number] = [DESTINATION_MARKER_WIDTH / 2, DESTINATION_MARKER_HEIGHT];
-/** Where a popup opens relative to the anchor: above the marker, clear of it */
-export const PICKUP_POPUP_OFFSET: [number, number] = [0, -(PICKUP_MARKER_SIZE / 2) - 2];
-export const DESTINATION_POPUP_OFFSET: [number, number] = [0, -(DESTINATION_MARKER_HEIGHT - 4)];
+export const PLACE_MARKER_COLOR = '#111111';
+const PLACE_HEAD = 34;
+const PLACE_STEM = 16;
+const PLACE_HEIGHT = PLACE_HEAD + PLACE_STEM;
+const PLACE_LABEL_MAX_WIDTH = 190;
+
 /** Leaflet draws a higher offset on top: the destination wins where the two overlap, and both stay above the route line */
 export const PICKUP_MARKER_Z_OFFSET = 600;
 export const DESTINATION_MARKER_Z_OFFSET = 700;
 
-export function pickupMarkerHtml(): string {
-  const s = PICKUP_MARKER_SIZE;
-  return `
-    <div class="sakay-marker sakay-pickup-marker" role="img" aria-label="Pickup" style="position:relative;width:${s}px;height:${s}px;cursor:pointer;filter:drop-shadow(0 3px 5px rgba(15,23,42,0.35));">
-      <svg width="${s}" height="${s}" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
-        <circle cx="17" cy="17" r="15" fill="#FFFFFF"/>
-        <circle cx="17" cy="17" r="12" fill="${PICKUP_MARKER_COLOR}"/>
-        <circle cx="17" cy="17" r="4.6" fill="#FFFFFF"/>
-      </svg>
-    </div>`;
+/** The labels show from this zoom on (street level), and only when the two places are at least this far apart on the screen, in pixels */
+export const PLACE_LABEL_MIN_ZOOM = 15;
+export const PLACE_LABEL_MIN_GAP_PX = 140;
+
+/** Whether the places are drawn with their word ("Pickup") instead of their letter. `gapPx` is the distance between the two places on the screen, null when only one is on the map. */
+export function placeLabelsShown(zoom: number, gapPx: number | null): boolean {
+  if (!(zoom >= PLACE_LABEL_MIN_ZOOM)) return false;
+  return gapPx === null || !Number.isFinite(gapPx) || gapPx >= PLACE_LABEL_MIN_GAP_PX;
 }
 
-export function destinationMarkerHtml(): string {
-  const w = DESTINATION_MARKER_WIDTH;
-  const h = DESTINATION_MARKER_HEIGHT;
-  return `
-    <div class="sakay-marker sakay-destination-marker" role="img" aria-label="Destination" style="position:relative;width:${w}px;height:${h}px;cursor:pointer;filter:drop-shadow(0 4px 6px rgba(15,23,42,0.4));">
-      <svg width="${w}" height="${h}" viewBox="0 0 34 46" aria-hidden="true" focusable="false">
-        <path d="M17 1.5C8.2 1.5 1.5 8.2 1.5 17c0 11.6 13.4 25.8 14.5 26.9a1.9 1.9 0 0 0 2 0C19.1 42.8 32.5 28.6 32.5 17 32.5 8.2 25.8 1.5 17 1.5Z" fill="${DESTINATION_MARKER_COLOR}" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>
-        <circle cx="17" cy="17" r="6.4" fill="#FFFFFF"/>
-      </svg>
+export interface PlaceIconSpec {
+  html: string;
+  /** `divIcon` iconSize, iconAnchor (the tip of the stem) and popupAnchor (just above the head, so the popup opens clear of the marker) */
+  size: [number, number];
+  anchor: [number, number];
+  popupAnchor: [number, number];
+}
+
+/** The icon of a place: the letter in a circle, or, when `labelled`, the word in a label (`title` is the word, in the screen's language). */
+export function placeIconSpec(kind: PlaceKind, labelled: boolean, title?: string): PlaceIconSpec {
+  const letter = kind === 'pickup' ? 'P' : 'D';
+  const word = (title || (kind === 'pickup' ? 'Pickup' : 'Destination')).trim();
+  const label = labelled ? word : letter;
+  // a label is as wide as its text (about 8.5 px a letter at this size) and never wider than the cap: the text then ends with an ellipsis
+  const width = labelled ? Math.min(PLACE_LABEL_MAX_WIDTH, Math.max(PLACE_HEAD, Math.round(label.length * 8.5) + 34)) : PLACE_HEAD;
+  const head = labelled
+    ? `position:absolute;left:50%;top:0;transform:translateX(-50%);max-width:${PLACE_LABEL_MAX_WIDTH}px;height:${PLACE_HEAD}px;box-sizing:border-box;padding:0 13px;border-radius:999px;font:700 14px/28px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`
+    : `position:absolute;left:0;top:0;width:${PLACE_HEAD}px;height:${PLACE_HEAD}px;box-sizing:border-box;border-radius:50%;font:700 15px/28px Poppins,sans-serif;text-align:center;`;
+  const html = `
+    <div class="sakay-marker sakay-${kind}-marker" role="img" aria-label="${kind === 'pickup' ? 'Pickup' : 'Destination'}" style="position:relative;width:${width}px;height:${PLACE_HEIGHT}px;cursor:pointer;">
+      <div style="${GROUND_SHADOW}"></div>
+      <div style="position:absolute;left:50%;top:${PLACE_HEAD - 6}px;width:3px;height:${PLACE_STEM + 6}px;margin-left:-1.5px;border-radius:2px;background:#FFFFFF;box-shadow:0 1px 3px rgba(15,23,42,0.4);"></div>
+      <div style="${head}background:${PLACE_MARKER_COLOR};color:#FFFFFF;border:3px solid #FFFFFF;box-shadow:0 2px 6px rgba(15,23,42,0.4);">${escapeHtml(label)}</div>
     </div>`;
+  return { html, size: [width, PLACE_HEIGHT], anchor: [width / 2, PLACE_HEIGHT], popupAnchor: [0, -(PLACE_HEIGHT - 2)] };
 }
 
 /**
@@ -151,9 +192,9 @@ export function placePopupElement(heading: string, address?: string | null): HTM
 // in the middle so it is never taken for a trip's destination.
 export const TERMINAL_PIN_COLOR = '#C75000';
 export const PROPOSED_TERMINAL_PIN_COLOR = '#B45309';
-export const TERMINAL_PIN_WIDTH = DESTINATION_MARKER_WIDTH;
-export const TERMINAL_PIN_HEIGHT = DESTINATION_MARKER_HEIGHT;
-export const TERMINAL_PIN_ANCHOR: [number, number] = DESTINATION_MARKER_ANCHOR;
+export const TERMINAL_PIN_WIDTH = 34;
+export const TERMINAL_PIN_HEIGHT = 46;
+export const TERMINAL_PIN_ANCHOR: [number, number] = [TERMINAL_PIN_WIDTH / 2, TERMINAL_PIN_HEIGHT];
 
 export function terminalPinHtml(color: string = TERMINAL_PIN_COLOR): string {
   const w = TERMINAL_PIN_WIDTH;

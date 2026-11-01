@@ -9,20 +9,11 @@ import {
   createMapCamera,
   DRIVER_MARKER_SIZE,
   driverMarkerHtml,
-  destinationMarkerHtml,
-  DESTINATION_MARKER_ANCHOR,
-  DESTINATION_MARKER_HEIGHT,
-  DESTINATION_MARKER_WIDTH,
-  DESTINATION_MARKER_Z_OFFSET,
-  DESTINATION_POPUP_OFFSET,
-  pickupMarkerHtml,
-  PICKUP_MARKER_ANCHOR,
-  PICKUP_MARKER_SIZE,
-  PICKUP_MARKER_Z_OFFSET,
-  PICKUP_POPUP_OFFSET,
-  placePopupElement,
+  addPlaceMarkers,
   passengerMarkerHtml,
-  PASSENGER_MARKER_SIZE,
+  PASSENGER_MARKER_ANCHOR,
+  PASSENGER_MARKER_HEIGHT,
+  PASSENGER_MARKER_WIDTH,
   resolveHeading,
   tweenRadius,
   type CameraMap,
@@ -32,8 +23,10 @@ import {
   type LiveMarker,
   type MapCamera,
   type MapInsets,
+  type OwnMarkerProfile,
 } from "@sakay/shared";
 import { DEFAULT_CALAPAN_CENTER, getOSRMRoute } from "../../services/locationService";
+import { fetchOwnMarkerProfile } from "../../services/profileService";
 
 export type { CameraMode };
 
@@ -93,6 +86,15 @@ function circleExtent(center: GeoPoint, radiusMeters: number): GeoPoint[] {
     { lat: center.lat, lng: center.lng - dLng },
   ];
 }
+
+/** The person's own pin: their profile picture (or the first letter of their name) in an orange circle, standing on the position */
+const ownIcon = (profile: OwnMarkerProfile) =>
+  L.divIcon({
+    className: "leaflet-user-marker",
+    html: passengerMarkerHtml(profile),
+    iconSize: [PASSENGER_MARKER_WIDTH, PASSENGER_MARKER_HEIGHT],
+    iconAnchor: PASSENGER_MARKER_ANCHOR,
+  });
 
 const reducedMotion = (): boolean => {
   try {
@@ -169,6 +171,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const latest = useRef({ userLocation, driverLocation, pickupLocation, dropoffLocation, searchRadiusMeters, showUserMarker });
   latest.current = { userLocation, driverLocation, pickupLocation, dropoffLocation, searchRadiusMeters, showUserMarker };
   const routePointsRef = useRef<[number, number][]>([]);
+  // Who the person is, for their own pin: read once; the pin is drawn with it as soon as it arrives
+  const [ownProfile, setOwnProfile] = useState<OwnMarkerProfile>({});
+  const ownProfileRef = useRef(ownProfile);
+  ownProfileRef.current = ownProfile;
+  useEffect(() => {
+    let alive = true;
+    fetchOwnMarkerProfile().then((p) => {
+      if (alive) setOwnProfile(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   /** The points that make "the whole trip": the route and the pins the trip is about */
   const tripPoints = (): GeoPoint[] => {
@@ -267,12 +282,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const marker = L.marker([p.lat, p.lng], {
           interactive: false,
           zIndexOffset: 900,
-          icon: L.divIcon({
-            className: "leaflet-user-marker",
-            html: passengerMarkerHtml(),
-            iconSize: [PASSENGER_MARKER_SIZE, PASSENGER_MARKER_SIZE],
-            iconAnchor: [PASSENGER_MARKER_SIZE / 2, PASSENGER_MARKER_SIZE / 2],
-          }),
+          icon: ownIcon(ownProfileRef.current),
         }).addTo(liveLayer);
         userElementRef.current = marker;
         return marker;
@@ -544,6 +554,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     routeCoordinates,
   ]);
 
+  useEffect(() => {
+    const marker = userElementRef.current;
+    if (!marker) return;
+    marker.setIcon(ownIcon(ownProfile));
+    applyMarkerState(marker.getElement(), { stale: userStale });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownProfile]);
+
   // The pins and the road route. The camera fits the whole trip into the VISIBLE area once per destination (and again when the stage changes).
   const searchActive = Boolean(searchRadiusMeters) && hasPoint(pickupLocation);
   useEffect(() => {
@@ -557,43 +575,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     // (The person's position and the driver's tricycle are live markers, moved by their own effects above.)
 
-    // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared mapMarkers): a green pickup badge and a red
-    //    destination pin. Pressing either opens a popup that names the place.
-    if (pickupLocation && pickupLocation.lat !== 0) {
-      const title = pickupLabel?.title || "Pickup";
-      const marker = L.marker([pickupLocation.lat, pickupLocation.lng], {
-        icon: L.divIcon({
-          className: "leaflet-pickup-marker",
-          html: pickupMarkerHtml(),
-          iconSize: [PICKUP_MARKER_SIZE, PICKUP_MARKER_SIZE],
-          iconAnchor: PICKUP_MARKER_ANCHOR,
-        }),
-        title: pickupLabel?.address ? `${title}: ${pickupLabel.address}` : title,
-        alt: title,
-        keyboard: true,
-        zIndexOffset: PICKUP_MARKER_Z_OFFSET,
-      });
-      marker.bindPopup(placePopupElement(title, pickupLabel?.address), { offset: PICKUP_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
-      marker.addTo(markersLayer);
-    }
-
-    if (dropoffLocation && dropoffLocation.lat !== 0) {
-      const title = dropoffLabel?.title || "Destination";
-      const marker = L.marker([dropoffLocation.lat, dropoffLocation.lng], {
-        icon: L.divIcon({
-          className: "leaflet-destination-marker",
-          html: destinationMarkerHtml(),
-          iconSize: [DESTINATION_MARKER_WIDTH, DESTINATION_MARKER_HEIGHT],
-          iconAnchor: DESTINATION_MARKER_ANCHOR,
-        }),
-        title: dropoffLabel?.address ? `${title}: ${dropoffLabel.address}` : title,
-        alt: title,
-        keyboard: true,
-        zIndexOffset: DESTINATION_MARKER_Z_OFFSET,
-      });
-      marker.bindPopup(placePopupElement(title, dropoffLabel?.address), { offset: DESTINATION_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
-      marker.addTo(markersLayer);
-    }
+    // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared placeMarkers): a black "P" and "D" circle on a stem that opens into the
+    //    "Pickup" / "Destination" label close up. Pressing either opens a popup that names the place.
+    const stopPlaces = addPlaceMarkers(L, map, markersLayer, {
+      pickup: pickupLocation && pickupLocation.lat !== 0 ? { lat: pickupLocation.lat, lng: pickupLocation.lng, title: pickupLabel?.title || "Pickup", address: pickupLabel?.address } : null,
+      destination: dropoffLocation && dropoffLocation.lat !== 0 ? { lat: dropoffLocation.lat, lng: dropoffLocation.lng, title: dropoffLabel?.title || "Destination", address: dropoffLabel?.address } : null,
+    });
 
     // 5. Draw Road-Based Route Polyline (Google Maps style) & Fit Bounds (No straight-line fallback)
     const activeRoutePoints: [number, number][] =
@@ -639,6 +626,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         cameraRef.current.centerOn(pickupLocation, { minZoom: 0 });
       }
     }
+    return stopPlaces;
     // The pins and the route are redrawn only when they change (the live markers have their own effects), so the dependencies are their numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, pickupLabel?.title, pickupLabel?.address, dropoffLabel?.title, dropoffLabel?.address, roadCoords, routeCoordinates, searchActive, stageKey]);

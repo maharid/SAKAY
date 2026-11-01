@@ -18,6 +18,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import PhoneIcon from '@mui/icons-material/Phone';
 import MessageIcon from '@mui/icons-material/Message';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 
 import MapView, { type MapViewHandle } from '../../../common/components/MapView';
 import { supabase } from '../../../services/supabaseClient';
@@ -669,6 +671,9 @@ export const DriverActiveTrip: React.FC = () => {
                 {passengerName.charAt(0)}
               </Avatar>
               <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography sx={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#C2410C', fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
+                  {tl ? 'Pasahero' : 'Passenger'}
+                </Typography>
                 <Typography noWrap title={passengerName} sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.3 }}>
                   {passengerName}
                 </Typography>
@@ -707,10 +712,31 @@ export const DriverActiveTrip: React.FC = () => {
             {booking && ['Accepted', 'Assigned', 'Driver Assigned', 'Driver En Route', 'Heading to Passenger', 'In Transit', 'Driver Arrived', 'Arrived at Pickup', 'Trip Ongoing', 'Ongoing'].includes(booking.booking_status) && (
               <Button
                 variant="outlined"
+                fullWidth
+                startIcon={<GroupsOutlinedIcon />}
+                endIcon={<ChevronRightIcon />}
                 onClick={() => setCountReportOpen(true)}
-                sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap', color: '#92400E', borderColor: '#FCD34D', backgroundColor: '#FFFBEB', fontFamily: 'Poppins, sans-serif', '&:hover': { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' } }}
+                sx={{
+                  minHeight: 48,
+                  justifyContent: 'flex-start',
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  color: '#C2410C',
+                  borderColor: '#FF6600',
+                  borderWidth: '1.5px',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)',
+                  fontFamily: 'Poppins, sans-serif',
+                  textAlign: 'left',
+                  '& .MuiButton-endIcon': { ml: 'auto' },
+                  '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#E65C00', borderWidth: '1.5px' },
+                  '&:active': { backgroundColor: '#FFEDD5' },
+                  '&:focus-visible': { outline: '2px solid #E65C00', outlineOffset: 2 },
+                }}
               >
-                {tl ? 'Iba ang bilang ng pasahero? Iulat' : 'Different number of passengers? Report it'}
+                {tl ? 'Iba ang bilang ng pasahero? Iulat' : 'Wrong passenger count? Report it'}
               </Button>
             )}
 

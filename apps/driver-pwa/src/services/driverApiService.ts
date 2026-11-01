@@ -442,6 +442,8 @@ export async function fetchDriverNotifications(): Promise<any[]> {
       title: n.title,
       message: n.message,
       notificationType: n.notification_type,
+      // the record the notice is about (a strike, a booking): the notice's action opens that record's page
+      subjectId: (n.subject_id as string | null) ?? undefined,
       category: n.notification_type === 'TODA_REMINDER' ? 'TODA Reminder' : 'TODA Announcement',
       type: 'alert',
       sentAt: (n.sent_at as string | null) || null,

@@ -1045,7 +1045,7 @@ export const TripMonitoring: React.FC = () => {
                     </Typography>
                     {/* the number is written out (not only behind the call button) so it can be read to a relative or noted down */}
                     {status !== 'Searching Driver' && driverPhone && (
-                      <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#166534', lineHeight: 1.3 }}>{driverPhone}</Typography>
+                      <Typography noWrap title={driverPhone} sx={{ fontSize: '13px', fontWeight: 600, color: '#166534', lineHeight: 1.4, fontVariantNumeric: 'tabular-nums' }}>{driverPhone}</Typography>
                     )}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                       {driverRating !== null && (
@@ -1107,19 +1107,19 @@ export const TripMonitoring: React.FC = () => {
 
             {/* Tricycle: the franchise body number and plate, to recognise it at the pickup */}
             {status !== 'Searching Driver' && status !== 'No Driver Found' && (franchiseNo !== '-' || plateNo !== '-') && (
-              <Box sx={{ p: '12px 16px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+              <Box sx={{ p: '10px 14px', borderRadius: '12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', columnGap: '14px' }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, lineHeight: 1.4 }}>
                     {language === 'tl' ? 'Franchise body no.' : 'Franchise body no.'}
                   </Typography>
-                  <Typography sx={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', overflowWrap: 'anywhere' }}>{franchiseNo}</Typography>
+                  <Typography noWrap title={franchiseNo} sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.35, letterSpacing: '0.01em' }}>{franchiseNo}</Typography>
                 </Box>
-                {/* Panel comment (D-P2): the plate is what the passenger looks for on the road, so it is large and boxed */}
-                <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>{language === 'tl' ? 'Numero ng plaka' : 'Plate number'}</Typography>
+                {/* Panel comment (D-P2): the plate is what the passenger looks for on the road, so it stays boxed and easy to read, at the size of a plate on a card, not of the screen */}
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: '12px', color: '#475569', fontWeight: 600, lineHeight: 1.4 }}>{language === 'tl' ? 'Numero ng plaka' : 'Plate number'}</Typography>
                   <Typography
                     aria-label={`${language === 'tl' ? 'Numero ng plaka' : 'Plate number'}: ${plateNo}`}
-                    sx={{ display: 'inline-block', fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.05em', lineHeight: 1.2, border: '3px solid #0F172A', borderRadius: '10px', backgroundColor: '#FEF9C3', px: 1.25, py: 0.25, overflowWrap: 'anywhere' }}
+                    sx={{ display: 'inline-block', fontSize: '16px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.06em', lineHeight: 1.25, border: '2px solid #0F172A', borderRadius: '8px', backgroundColor: '#FEF9C3', px: 1, py: '1px', whiteSpace: 'nowrap' }}
                   >
                     {plateNo}
                   </Typography>

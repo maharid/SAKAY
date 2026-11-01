@@ -15,7 +15,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PageHeader from '../../../common/components/PageHeader';
 import { fetchDriverNotifications } from '../../../services/driverApiService';
 import { useLanguage } from '../../../utils/LanguageContext';
-import { AnnouncementEventIcon, activateWithKeyboard, formatNotificationTime, localizeSystemNotification, notificationCategory } from '@sakay/shared';
+import { AnnouncementEventIcon, activateWithKeyboard, formatNotificationTime, localizeSystemNotification, noticeActions, notificationCategory } from '@sakay/shared';
+import type { NoticeAction } from '@sakay/shared';
 
 export interface NotificationItem {
   id: string;
@@ -30,6 +31,8 @@ export interface NotificationItem {
   eventType?: string;
   /** The kind of system notice (the strike notices take the driver to his strikes and the way to appeal them) */
   notificationType?: string;
+  /** The record the notice is about (notification.subject_id): a strike, a booking */
+  subjectId?: string;
 }
 
 /** Who a notice is from: the TODA or LGU administrator for an announcement or a reminder they sent, SAKAY for everything the system wrote */
@@ -87,6 +90,7 @@ export const DriverNotifications: React.FC = () => {
               createdAt: d.sentAt || undefined,
               isRead: d.read === true,
               notificationType: d.notificationType,
+              subjectId: d.subjectId,
               eventType: d.eventType,
               category: notificationCategory(d.notificationType),
             };
@@ -125,6 +129,46 @@ export const DriverNotifications: React.FC = () => {
   };
 
   const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
+
+  // An action opens the page of the record the notice is about (only pages the Driver app has; a notice with none shows no button): the notice is read, then the page opens
+  const actionsOf = (item: NotificationItem): NoticeAction[] => noticeActions('driver', { type: item.notificationType, subjectId: item.subjectId });
+  const runAction = (item: NotificationItem, action: NoticeAction) => {
+    handleMarkAsRead(item.id);
+    navigate(action.to);
+  };
+  const actionButtons = (item: NotificationItem, size: 'small' | 'regular') => {
+    const list = actionsOf(item);
+    if (list.length === 0) return null;
+    return (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: size === 'small' ? 0.75 : 2.5 }}>
+        {list.map((a, i) => (
+          <Button
+            key={a.key}
+            variant={i === 0 ? 'contained' : 'outlined'}
+            disableElevation
+            onClick={(e) => {
+              e.stopPropagation();
+              runAction(item, a);
+            }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 700,
+              fontFamily: 'Poppins, sans-serif',
+              fontSize: size === 'small' ? '12.5px' : '14px',
+              minHeight: size === 'small' ? 36 : 44,
+              px: size === 'small' ? 1.75 : 2.5,
+              borderRadius: '12px',
+              ...(i === 0
+                ? { backgroundColor: '#FF6600', color: '#FFFFFF', '&:hover': { backgroundColor: '#E65C00' } }
+                : { borderColor: '#FF6600', color: '#C2410C', '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#E65C00' } }),
+            }}
+          >
+            {isTagalog ? a.tl : a.en}
+          </Button>
+        ))}
+      </Box>
+    );
+  };
 
   const filters = [
     { key: 'all', labelTl: 'Lahat', labelEn: 'All' },
@@ -171,7 +215,7 @@ export const DriverNotifications: React.FC = () => {
           onBack={() => setSelectedNotif(null)}
         />
 
-        <Box sx={{ flex: 1, overflowY: 'auto', px: 2, py: 2.5 }}>
+        <Box sx={{ flex: 1, overflowY: 'auto', px: 2, pt: 2.5, pb: 'calc(var(--safe-area-bottom) + 24px)' }}>
           {/* Header info */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -225,16 +269,8 @@ export const DriverNotifications: React.FC = () => {
             {displayBody}
           </Typography>
 
-          {/* Rules 8.6 / 9.4: a strike notice (or a booking cancelled for him) leads to his strikes, where he can appeal within the window */}
-          {(selectedNotif.notificationType === 'STRIKE_ISSUED' || selectedNotif.notificationType === 'BOOKING_AUTO_CANCELLED') && (
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/driver/strikes')}
-              sx={{ mt: 2.5, textTransform: 'none', fontWeight: 700, borderRadius: '12px', minHeight: 44, borderColor: '#FF6600', color: '#FF6600' }}
-            >
-              {isTagalog ? 'Tingnan ang mga strike at mag-apela' : 'View my strikes and appeal'}
-            </Button>
-          )}
+          {/* Rules 8.6 / 9.4: a strike notice leads to his strikes and to the appeal; the other notices open their own record */}
+          {actionButtons(selectedNotif, 'regular')}
         </Box>
       </Box>
     );
@@ -255,7 +291,7 @@ export const DriverNotifications: React.FC = () => {
         onBack={() => navigate('/driver/home')}
       />
 
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', '& > *': { flexShrink: 0 }, pb: 'var(--safe-area-bottom)' }}>
         {/* Filter Pills */}
         <Box
           className="hide-scrollbar"
@@ -463,6 +499,7 @@ export const DriverNotifications: React.FC = () => {
                       >
                         {time}
                       </Typography>
+                      {actionButtons(item, 'small')}
                     </Box>
 
                     <ChevronRightIcon sx={{ color: '#64748B', fontSize: 20, mt: 0.5, flexShrink: 0 }} />

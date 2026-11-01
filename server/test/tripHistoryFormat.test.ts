@@ -3,7 +3,8 @@
 //   run:  cd server && npx tsx --test test/*.test.ts
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { driverSummary, formatTripWhen, rebookPoints, stashRebook, tripStatusColors, tripStatusLabel, tripTypeLabel } from '../../apps/passenger-pwa/src/features/trip-history/tripFormat';
+import { driverSummary, rebookPoints, stashRebook, tripTypeLabel } from '../../apps/passenger-pwa/src/features/trip-history/tripFormat';
+import { formatTripDistance, formatTripWhen, tripStatusColors, tripStatusLabel } from '../../packages/shared/src/utils/tripStatus';
 
 const TRIP = {
   pickup: 'Island Divers, Manalo Extension, Bancao-Bancao, Puerto Princesa',
@@ -25,6 +26,17 @@ describe('trip date and time', () => {
     assert.equal(formatTripWhen({ dateString: 'October 10, 2025', time: '08:22 AM' }), 'October 10, 2025, 08:22 AM');
     assert.equal(formatTripWhen({ createdAt: 'not a date', dateString: 'October 10, 2025' }), 'October 10, 2025');
     assert.equal(formatTripWhen({}), '');
+  });
+});
+
+describe('trip distance', () => {
+  it('is the recorded distance with its unit, to one decimal', () => {
+    assert.equal(formatTripDistance(4.2), '4.2 km');
+    assert.equal(formatTripDistance(12), '12.0 km');
+    assert.equal(formatTripDistance(0.46), '0.5 km');
+  });
+  it('is nothing when the record holds none, never a made-up number', () => {
+    for (const none of [0, -1, null, undefined, Number.NaN, Number.POSITIVE_INFINITY]) assert.equal(formatTripDistance(none as number | null | undefined), null, String(none));
   });
 });
 

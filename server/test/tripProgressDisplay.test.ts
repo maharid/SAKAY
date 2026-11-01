@@ -17,7 +17,7 @@ import {
 const nodeRequire = createRequire(import.meta.url) as NodeJS.Require & { extensions: Record<string, (m: { exports: unknown }) => void> };
 nodeRequire.extensions['.webp'] = (m) => { m.exports = 'icon.webp'; };
 const markers = nodeRequire('../../packages/shared/src/utils/mapMarkers') as typeof import('../../packages/shared/src/utils/mapMarkers');
-const { destinationMarkerHtml, pickupMarkerHtml, placePopupElement, DESTINATION_MARKER_COLOR, PICKUP_MARKER_COLOR } = markers;
+const { passengerMarkerHtml, placeIconSpec, placeLabelsShown, placePopupElement, PASSENGER_MARKER_ANCHOR, PASSENGER_MARKER_HEIGHT, PASSENGER_MARKER_WIDTH, PLACE_LABEL_MIN_GAP_PX, PLACE_LABEL_MIN_ZOOM, PLACE_MARKER_COLOR } = markers;
 
 describe('stepShownProgress', () => {
   it('starts a screen at the figure it is given (no climb from zero when a trip is already under way)', () => {
@@ -78,13 +78,61 @@ describe('the progress formula the figure comes from', () => {
 });
 
 describe('the two places of a trip', () => {
-  it('differ in colour and shape, and are SVG (sharp at every zoom)', () => {
-    assert.notEqual(PICKUP_MARKER_COLOR, DESTINATION_MARKER_COLOR);
-    const pickup = pickupMarkerHtml();
-    const destination = destinationMarkerHtml();
-    assert.ok(pickup.includes(PICKUP_MARKER_COLOR) && pickup.includes('<svg'));
-    assert.ok(destination.includes(DESTINATION_MARKER_COLOR) && destination.includes('<svg') && destination.includes('<path'));
-    assert.ok(!pickup.includes('<path'), 'the pickup is a badge, not a pin');
+  it('are a black circle with the letter P or D, anchored at the tip of their stem', () => {
+    const pickup = placeIconSpec('pickup', false);
+    const destination = placeIconSpec('destination', false);
+    assert.ok(pickup.html.includes(PLACE_MARKER_COLOR) && pickup.html.includes('>P</div>') && pickup.html.includes('sakay-pickup-marker'));
+    assert.ok(destination.html.includes(PLACE_MARKER_COLOR) && destination.html.includes('>D</div>') && destination.html.includes('sakay-destination-marker'));
+    // the anchor is the bottom centre of the marker: the stem's tip is the place
+    for (const spec of [pickup, destination]) {
+      assert.deepEqual(spec.anchor, [spec.size[0] / 2, spec.size[1]]);
+      assert.ok(spec.popupAnchor[1] < 0, 'the popup opens above the marker');
+    }
+    assert.ok(pickup.size[0] <= 40 && pickup.size[1] <= 56, 'not oversized');
+  });
+
+  it('open into a label with the word, centred on the same tip, and never wider than the cap', () => {
+    const label = placeIconSpec('pickup', true, 'Pickup');
+    assert.ok(label.html.includes('>Pickup</div>'));
+    assert.deepEqual(label.anchor, [label.size[0] / 2, label.size[1]]);
+    const word = placeIconSpec('destination', true, 'Destinasyon');
+    assert.ok(word.html.includes('>Destinasyon</div>'));
+    assert.ok(word.size[0] > label.size[0], 'a longer word is a wider label');
+    assert.equal(placeIconSpec('destination', true, 'x'.repeat(200)).size[0], 190);
+    assert.ok(placeIconSpec('pickup', true).html.includes('>Pickup</div>'), 'the default word');
+  });
+
+  it('write the word as text only: a title can never inject markup', () => {
+    const spec = placeIconSpec('pickup', true, '<img src=x onerror=alert(1)>');
+    assert.ok(!spec.html.includes('<img'), 'no element is made from the title');
+    assert.ok(spec.html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  });
+
+  it('show their words only close up, and only when the two places have room for two labels', () => {
+    assert.equal(placeLabelsShown(PLACE_LABEL_MIN_ZOOM - 1, null), false);
+    assert.equal(placeLabelsShown(PLACE_LABEL_MIN_ZOOM, null), true, 'a single place has no neighbour to crowd');
+    assert.equal(placeLabelsShown(17, PLACE_LABEL_MIN_GAP_PX), true);
+    assert.equal(placeLabelsShown(17, PLACE_LABEL_MIN_GAP_PX - 1), false, 'two labels would overlap: both stay circles');
+    assert.equal(placeLabelsShown(Number.NaN, null), false, 'no zoom yet: the small circles');
+    assert.equal(placeLabelsShown(undefined as unknown as number, 500), false);
+  });
+
+  it('builds the person\'s own pin from their picture or the first letter of their name', () => {
+    const withPhoto = passengerMarkerHtml({ name: 'alma santos', photoUrl: 'https://example.test/me.jpg?x=1&y=2' });
+    assert.ok(withPhoto.includes('<img src="https://example.test/me.jpg?x=1&amp;y=2"'), 'the picture, with its address escaped');
+    assert.ok(withPhoto.includes('>A</span>'), 'the letter sits under the picture, so a picture that fails to load leaves it showing');
+    const withoutPhoto = passengerMarkerHtml({ name: 'Bea' });
+    assert.ok(!withoutPhoto.includes('<img') && withoutPhoto.includes('>B</span>'));
+    const unknown = passengerMarkerHtml();
+    assert.ok(!unknown.includes('<img') && unknown.includes('<svg'), 'no name: the person glyph');
+    assert.ok(withPhoto.includes('sakay-marker-body'), 'the circle can be dimmed when its position is stale');
+    assert.deepEqual(PASSENGER_MARKER_ANCHOR, [PASSENGER_MARKER_WIDTH / 2, PASSENGER_MARKER_HEIGHT - 2]);
+  });
+
+  it('never lets a name or a picture address break out of the markup', () => {
+    const html = passengerMarkerHtml({ name: '<script>alert(1)</script>', photoUrl: 'x" onerror="alert(1)' });
+    assert.ok(!html.includes('<script>') && !html.includes('" onerror="'));
+    assert.ok(html.includes('&lt;') && html.includes('&quot; onerror=&quot;'));
   });
 
   it('builds a popup from text only: an address can never inject markup', () => {

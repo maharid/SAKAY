@@ -34,6 +34,12 @@ export interface AppealRow {
   decisionDueAt: string | null;
   decisionReason: string | null;
   decidedAt: string | null;
+  /** what the person wrote when they appealed */
+  justification: string;
+  /** who the request was sent to: 'toda_admin' or 'lgu_admin' */
+  assignedRole: string | null;
+  /** who decided it: 'toda_admin', 'lgu_admin', or 'system' when it was denied at once because the same cause had been used too often (Rule 25.7) */
+  decidedByRole: string | null;
 }
 
 export interface StrikeHistory {
@@ -48,6 +54,8 @@ export interface AppealResult {
   error: string | null;
   /** Who will decide: the TODA Administrator, or the LGU Administrator (always for a passenger, and for a serious strike of a driver) */
   assignedRole: string | null;
+  /** present (true) only when the database denied the request at once (Rule 25.7): it was recorded, but no administrator will review it */
+  autoDenied?: true;
 }
 
 /** The part of a Supabase client these calls need. */
@@ -94,7 +102,7 @@ export async function fetchStrikeHistory(client: StrikeAppealClient, subjectType
 export async function fetchOwnAppeals(client: StrikeAppealClient): Promise<AppealRow[]> {
   const { data, error } = await client
     .from('exemption_request')
-    .select('request_id, strike_id, status, cause_code, requested_at, decision_due_at, decision_reason, decided_at')
+    .select('request_id, strike_id, status, cause_code, requested_at, decision_due_at, decision_reason, decided_at, justification, assigned_role, decided_by_role')
     .order('requested_at', { ascending: false })
     .limit(50);
   reportNetworkOutcome(error);
@@ -108,6 +116,9 @@ export async function fetchOwnAppeals(client: StrikeAppealClient): Promise<Appea
     decisionDueAt: (r.decision_due_at as string | null) ?? null,
     decisionReason: (r.decision_reason as string | null) ?? null,
     decidedAt: (r.decided_at as string | null) ?? null,
+    justification: String(r.justification ?? ''),
+    assignedRole: (r.assigned_role as string | null) ?? null,
+    decidedByRole: (r.decided_by_role as string | null) ?? null,
   }));
 }
 
@@ -128,9 +139,9 @@ export async function submitStrikeAppeal(
   });
   reportNetworkOutcome(error);
   if (error) return { ok: false, error: error.message.replace(/^Access Denied:\s*/, ''), assignedRole: null };
-  const row = data as { success?: boolean; assigned_role?: string } | null;
+  const row = data as { success?: boolean; assigned_role?: string; auto_denied?: boolean } | null;
   return row?.success
-    ? { ok: true, error: null, assignedRole: row.assigned_role ?? null }
+    ? { ok: true, error: null, assignedRole: row.assigned_role ?? null, ...(row.auto_denied === true ? { autoDenied: true as const } : {}) }
     : { ok: false, error: 'The appeal could not be sent. Please try again.', assignedRole: null };
 }
 
@@ -167,13 +178,47 @@ export function newestAppealByStrike(appeals: AppealRow[]): Map<string, AppealRo
   return byStrike;
 }
 
+/** Why a strike cannot be appealed (or that it can, until `until`): the screen says it, instead of just leaving the button out. */
+export type AppealEligibility =
+  | { can: true; until: number }
+  | { can: false; why: 'not-counting' | 'pending' | 'window-passed'; until: number | null };
+
 /**
- * Whether the "Appeal" button is offered (Rule 25.1): the strike still counts, no appeal of it is waiting for a decision, and the 48 hours from
- * its issue have not passed. It is only an offer: the database decides again when the request arrives.
+ * Whether the "Appeal" button is offered (Rule 25.1) and, when it is not, the reason: the strike no longer counts, an appeal of it is waiting for a decision, or the 48 hours from
+ * its issue have passed. It is only an offer: the database decides again when the request arrives.
  */
-export function canAppealStrike(strike: StrikeRow, newestAppeal: AppealRow | undefined, nowMs: number = Date.now()): boolean {
-  if (!APPEALABLE_STATUSES.has(strike.status) || strike.pointsActive <= 0) return false;
-  if (newestAppeal && OPEN_APPEAL_STATUSES.has(newestAppeal.status)) return false;
+export function strikeAppealEligibility(strike: StrikeRow, newestAppeal: AppealRow | undefined, nowMs: number = Date.now()): AppealEligibility {
   const issued = Date.parse(strike.issuedAt);
-  return Number.isFinite(issued) && nowMs <= issued + EXEMPTION_REQUEST_WINDOW_HOURS * 3_600_000;
+  const until = Number.isFinite(issued) ? issued + EXEMPTION_REQUEST_WINDOW_HOURS * 3_600_000 : null;
+  if (!APPEALABLE_STATUSES.has(strike.status) || strike.pointsActive <= 0) return { can: false, why: 'not-counting', until };
+  if (newestAppeal && OPEN_APPEAL_STATUSES.has(newestAppeal.status)) return { can: false, why: 'pending', until };
+  if (until === null || nowMs > until) return { can: false, why: 'window-passed', until };
+  return { can: true, until };
+}
+
+/** Whether the "Appeal" button is offered (Rule 25.1). */
+export function canAppealStrike(strike: StrikeRow, newestAppeal: AppealRow | undefined, nowMs: number = Date.now()): boolean {
+  return strikeAppealEligibility(strike, newestAppeal, nowMs).can;
+}
+
+export type AppealOutcome = 'pending' | 'approved' | 'rejected';
+
+/** Pending while an administrator has not decided, approved for a full or partial waiver, rejected for a denial. */
+export function appealOutcome(status: string): AppealOutcome {
+  if (status === 'Full Waiver' || status === 'Partial Waiver') return 'approved';
+  if (status === 'Denied') return 'rejected';
+  return 'pending';
+}
+
+export type AppealReviewer = 'toda' | 'lgu' | 'system' | null;
+
+/** Who reviews (or reviewed) an appeal: the one who decided it, else the one it was sent to, else what its status says. */
+export function appealReviewer(appeal: Pick<AppealRow, 'status' | 'assignedRole' | 'decidedByRole'>): AppealReviewer {
+  const role = appeal.decidedByRole ?? appeal.assignedRole;
+  if (role === 'system') return 'system';
+  if (role === 'toda_admin') return 'toda';
+  if (role === 'lgu_admin') return 'lgu';
+  if (appeal.status === 'Pending TODA Review') return 'toda';
+  if (appeal.status === 'Pending LGU Review') return 'lgu';
+  return null;
 }

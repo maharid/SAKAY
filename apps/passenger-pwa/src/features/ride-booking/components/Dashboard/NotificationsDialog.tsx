@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -14,7 +15,8 @@ import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { useLanguage } from "../../../../utils/LanguageContext";
-import { AnnouncementEventIcon, TYPOGRAPHY_TOKENS, activateWithKeyboard, formatNotificationTime } from "@sakay/shared";
+import { AnnouncementEventIcon, TYPOGRAPHY_TOKENS, activateWithKeyboard, formatNotificationTime, noticeActions } from "@sakay/shared";
+import type { NoticeAction } from "@sakay/shared";
 
 export interface NotificationItem {
   id: string;
@@ -27,6 +29,9 @@ export interface NotificationItem {
   category?: 'trips' | 'advisories' | 'all';
   /** What an announcement is about (announcement.event_type): its icon follows it */
   eventType?: string;
+  /** The kind of notice the database wrote, and the record it is about: together they decide the action under it (a trip, a strike, a report) */
+  type?: string;
+  subjectId?: string;
 }
 
 /** How long ago the notice was sent, in the selected language (shared with the other apps) */
@@ -50,6 +55,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   onMarkAllAsRead = () => {},
 }) => {
   const { language } = useLanguage();
+  const navigate = useNavigate();
   const isTagalog = language === "tl";
   const [activeFilter, setActiveFilter] = useState<'all' | 'trips' | 'advisories'>('all');
   const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
@@ -99,6 +105,48 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
   };
 
   const unreadCount = mergedNotifications.filter((n) => !n.isRead).length;
+
+  // An action opens the page of the record the notice is about: the notice is read, the screen closes and the page opens
+  const actionsOf = (item: NotificationItem): NoticeAction[] => noticeActions("passenger", { type: item.type, subjectId: item.subjectId });
+  const runAction = (item: NotificationItem, action: NoticeAction) => {
+    handleMarkAsRead(item.id);
+    setSelectedNotif(null);
+    onClose();
+    navigate(action.to);
+  };
+  const actionButtons = (item: NotificationItem, size: "small" | "regular") => {
+    const list = actionsOf(item);
+    if (list.length === 0) return null;
+    return (
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: size === "small" ? 0.75 : 2.5 }}>
+        {list.map((a, i) => (
+          <Button
+            key={a.key}
+            variant={i === 0 ? "contained" : "outlined"}
+            disableElevation
+            onClick={(e) => {
+              e.stopPropagation();
+              runAction(item, a);
+            }}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              fontFamily: "Poppins, sans-serif",
+              fontSize: size === "small" ? "12.5px" : "14px",
+              minHeight: size === "small" ? 36 : 44,
+              px: size === "small" ? 1.75 : 2.5,
+              borderRadius: "12px",
+              ...(i === 0
+                ? { backgroundColor: "#FF6600", color: "#FFFFFF", "&:hover": { backgroundColor: "#E65C00" } }
+                : { borderColor: "#FF6600", color: "#C2410C", "&:hover": { backgroundColor: "#FFF7ED", borderColor: "#E65C00" } }),
+            }}
+          >
+            {isTagalog ? a.tl : a.en}
+          </Button>
+        ))}
+      </Box>
+    );
+  };
 
   const filters = [
     { key: 'all', labelTl: 'Lahat', labelEn: 'All' },
@@ -190,9 +238,9 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
         <Box sx={{ width: "44px" }} /> {/* spacer */}
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
+      <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", "& > *": { flexShrink: 0 }, pb: "var(--safe-area-bottom)" }}>
         {selectedNotif ? (
-          <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2.5 }}>
+          <Box sx={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", px: 2, py: 2.5 }}>
             {/* Header info */}
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -252,6 +300,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                 ? (selectedNotif.bodyTl || selectedNotif.bodyEn)
                 : (selectedNotif.bodyEn || selectedNotif.bodyTl)}
             </Typography>
+            {actionButtons(selectedNotif, "regular")}
           </Box>
         ) : (
           <>
@@ -466,6 +515,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       >
                         {time}
                       </Typography>
+                      {actionButtons(item, "small")}
                     </Box>
 
                     {/* Chevron right icon only for announcements / advisories */}

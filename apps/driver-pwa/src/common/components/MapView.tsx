@@ -9,18 +9,7 @@ import {
   createMapCamera,
   DRIVER_MARKER_SIZE,
   driverMarkerHtml,
-  destinationMarkerHtml,
-  DESTINATION_MARKER_ANCHOR,
-  DESTINATION_MARKER_HEIGHT,
-  DESTINATION_MARKER_WIDTH,
-  DESTINATION_MARKER_Z_OFFSET,
-  DESTINATION_POPUP_OFFSET,
-  pickupMarkerHtml,
-  PICKUP_MARKER_ANCHOR,
-  PICKUP_MARKER_SIZE,
-  PICKUP_MARKER_Z_OFFSET,
-  PICKUP_POPUP_OFFSET,
-  placePopupElement,
+  addPlaceMarkers,
   getOSRMRoute,
   resolveHeading,
   type CameraMap,
@@ -443,43 +432,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     // (The driver's own marker is a live marker, moved by its own effect above.)
 
-    // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared mapMarkers): a green pickup badge and a red
-    //    destination pin. Pressing either opens a popup that names the place.
-    if (pickupLocation && pickupLocation.lat !== 0) {
-      const title = pickupLabel?.title || "Pickup";
-      const marker = L.marker([pickupLocation.lat, pickupLocation.lng], {
-        icon: L.divIcon({
-          className: "leaflet-pickup-marker",
-          html: pickupMarkerHtml(),
-          iconSize: [PICKUP_MARKER_SIZE, PICKUP_MARKER_SIZE],
-          iconAnchor: PICKUP_MARKER_ANCHOR,
-        }),
-        title: pickupLabel?.address ? `${title}: ${pickupLabel.address}` : title,
-        alt: title,
-        keyboard: true,
-        zIndexOffset: PICKUP_MARKER_Z_OFFSET,
-      });
-      marker.bindPopup(placePopupElement(title, pickupLabel?.address), { offset: PICKUP_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
-      marker.addTo(markersLayer);
-    }
-
-    if (dropoffLocation && dropoffLocation.lat !== 0) {
-      const title = dropoffLabel?.title || "Destination";
-      const marker = L.marker([dropoffLocation.lat, dropoffLocation.lng], {
-        icon: L.divIcon({
-          className: "leaflet-destination-marker",
-          html: destinationMarkerHtml(),
-          iconSize: [DESTINATION_MARKER_WIDTH, DESTINATION_MARKER_HEIGHT],
-          iconAnchor: DESTINATION_MARKER_ANCHOR,
-        }),
-        title: dropoffLabel?.address ? `${title}: ${dropoffLabel.address}` : title,
-        alt: title,
-        keyboard: true,
-        zIndexOffset: DESTINATION_MARKER_Z_OFFSET,
-      });
-      marker.bindPopup(placePopupElement(title, dropoffLabel?.address), { offset: DESTINATION_POPUP_OFFSET, className: "sakay-place-popup", autoPanPadding: [24, 24] });
-      marker.addTo(markersLayer);
-    }
+    // 2. The two places of the trip, drawn the same way in the Passenger and the Driver app (shared placeMarkers): a black "P" and "D" circle on a stem that opens into the
+    //    "Pickup" / "Destination" label close up. Pressing either opens a popup that names the place.
+    const stopPlaces = addPlaceMarkers(L, map, markersLayer, {
+      pickup: pickupLocation && pickupLocation.lat !== 0 ? { lat: pickupLocation.lat, lng: pickupLocation.lng, title: pickupLabel?.title || "Pickup", address: pickupLabel?.address } : null,
+      destination: dropoffLocation && dropoffLocation.lat !== 0 ? { lat: dropoffLocation.lat, lng: dropoffLocation.lng, title: dropoffLabel?.title || "Destination", address: dropoffLabel?.address } : null,
+    });
 
     // 4. Draw Road-Based Route Polyline (OSRM geometry) & Fit Bounds (No ugly straight line fallback)
     const activeRoutePoints: [number, number][] =
@@ -518,6 +476,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const last = activeRoutePoints[activeRoutePoints.length - 1];
       cameraRef.current?.fit({ points: tripPoints(), key: `route:${last[0]}_${last[1]}`, kind: "route" });
     }
+    return stopPlaces;
     // The pins and the route are redrawn only when they change (the driver's marker has its own effect), so the dependencies are their numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickupLocation?.lat, pickupLocation?.lng, dropoffLocation?.lat, dropoffLocation?.lng, pickupLabel?.title, pickupLabel?.address, dropoffLabel?.title, dropoffLabel?.address, roadCoords, routeCoordinates, stageKey]);

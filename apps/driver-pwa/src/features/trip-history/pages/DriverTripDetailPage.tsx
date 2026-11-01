@@ -4,25 +4,48 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
-import Avatar from "@mui/material/Avatar";
 import Rating from "@mui/material/Rating";
-import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
-import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
-import PlaceIcon from "@mui/icons-material/Place";
-import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import CircularProgress from "@mui/material/CircularProgress";
+import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import StarIcon from "@mui/icons-material/Star";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId, activateWithKeyboard, FareLine, formatPeso } from "@sakay/shared";
+import { ContactCard, ReportIssueButton, TripRoute, TripStatusChip, formatShortBookingId, formatTripWhen, activateWithKeyboard, formatPeso } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
 import { supabase } from "../../../services/supabaseClient";
 import { DriverFeedbackModal } from "../../feedback/components/DriverFeedbackModal";
+import { fetchDriverTrips } from "../../../services/driverApiService";
+import { fetchReportableTrips } from "../../../services/incidentService";
+
+/** What the screen reads of a trip (the history passes the list's row; the full record comes from the database) */
+interface DriverTripView {
+  id: string;
+  passengerName?: string;
+  passengerPhone?: string;
+  pickupLocation?: string;
+  dropoffLocation?: string;
+  distanceKm?: number;
+  fareAmount?: number;
+  tripMode?: string;
+  status?: string;
+  date?: string;
+  time?: string;
+  createdAt?: string;
+}
+
+/** A line of a fact (the fare, the payment method) with its icon on the left and its value on the right */
+const FactRow: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+    <Box aria-hidden sx={{ display: "flex", flexShrink: 0, color: "#FF6600" }}>{icon}</Box>
+    <Typography sx={{ flex: 1, minWidth: 0, fontSize: "14px", color: "#475569", fontFamily: "Poppins, sans-serif" }}>{label}</Typography>
+    <Typography component="div" sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", fontVariantNumeric: "tabular-nums", textAlign: "right", flexShrink: 0 }}>{value}</Typography>
+  </Box>
+);
 
 export const DriverTripDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,19 +53,58 @@ export const DriverTripDetailPage: React.FC = () => {
   const params = useParams<{ id: string }>();
   const { language } = useLanguage();
 
-  const stateTrip = (location.state as { trip?: any })?.trip;
+  // The trip comes with the navigation when it is opened from the history; the full record (the passenger's number, the time) is read from the database. A trip passed
+  // along for ANOTHER id is never used, and when the trip cannot be found the screen says so: no sample trip is ever shown.
+  const passed = (location.state as { trip?: DriverTripView } | null)?.trip;
+  const usable = passed && (!params.id || passed.id === params.id) ? passed : null;
+  const [trip, setTrip] = useState<DriverTripView | null>(usable);
+  const [lookup, setLookup] = useState<"ready" | "loading" | "missing">(usable ? "ready" : params.id ? "loading" : "missing");
+  useEffect(() => {
+    if (!params.id) {
+      setLookup(usable ? "ready" : "missing");
+      return;
+    }
+    let alive = true;
+    fetchDriverTrips()
+      .then((list: DriverTripView[]) => {
+        if (!alive) return;
+        const found = list.find((t) => t.id === params.id) ?? null;
+        if (found) {
+          setTrip(found);
+          setLookup("ready");
+        } else if (!usable) {
+          setTrip(null);
+          setLookup("missing");
+        }
+      })
+      .catch(() => alive && !usable && setLookup("missing"));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
 
-  const rawTripId = params.id || stateTrip?.id || stateTrip?.bookingCode || "";
-  const passengerName = stateTrip?.passengerName || stateTrip?.passenger_name || "Juan Dela Cruz";
-  const passengerPhone: string = stateTrip?.passengerPhone || stateTrip?.passenger_phone || "";
-  const pickupAddress = stateTrip?.pickupLocation || stateTrip?.pickup || "Rizal Ave, Batangas City, Batangas, Philippines";
-  const dropoffAddress = stateTrip?.dropoffLocation || stateTrip?.dropoff || "Batangas State University-Alangilan Campus";
-  const dateString = stateTrip?.date || "22 Sep 2026";
-  const timeString = stateTrip?.time || "07:49 PM";
+  const rawTripId = trip?.id ?? params.id ?? "";
+  const passengerName = trip?.passengerName ?? "";
+  const passengerPhone = trip?.passengerPhone ?? "";
   // The final fare the database wrote (Rule 6.2), else the estimate; no invented amount.
-  const fareAmount = Number(stateTrip?.fareAmount ?? stateTrip?.actual_fare ?? stateTrip?.estimated_fare ?? 0) || 0;
-  const tripMode = stateTrip?.tripMode || (stateTrip?.is_shared_trip ? "Shared Ride" : "Solo Trip");
-  const distanceKm = Number(stateTrip?.distanceKm || stateTrip?.estimated_distance_km || 2.4);
+  const fareAmount = Number(trip?.fareAmount ?? 0) || 0;
+  const tripMode = trip?.tripMode === "Shared Ride" ? "Shared Ride" : "Solo Trip";
+  const lang = language === "tl" ? "tl" : "en";
+  const tl = lang === "tl";
+  // Whether the driver's incident flow lists this trip (the rule it already applies); unknown until it answers, and a failed answer does not hide the button
+  const [reportable, setReportable] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!rawTripId || lookup !== "ready") return;
+    let alive = true;
+    setReportable(null);
+    fetchReportableTrips()
+      .then((list) => alive && setReportable(list.some((t) => t.bookingId === rawTripId)))
+      .catch(() => alive && setReportable(true));
+    return () => {
+      alive = false;
+    };
+  }, [rawTripId, lookup]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [passengerRatingReceived, setPassengerRatingReceived] = useState<any | null>(null);
@@ -111,14 +173,6 @@ export const DriverTripDetailPage: React.FC = () => {
     }
   };
 
-  const handleOpenSMS = () => {
-    window.location.href = `sms:${passengerPhone}`;
-  };
-
-  const handleCallPassenger = () => {
-    window.location.href = `tel:${passengerPhone}`;
-  };
-
   return (
     <Box
       sx={{
@@ -132,7 +186,7 @@ export const DriverTripDetailPage: React.FC = () => {
     >
       {/* Settings PageHeader */}
       <PageHeader
-        title={language === "tl" ? "Detalyadong Biyahe" : "Trip Details"}
+        title={trip ? formatTripWhen({ createdAt: trip.createdAt, dateString: trip.date, time: trip.time }) || (tl ? "Detalyadong Biyahe" : "Trip Details") : tl ? "Detalyadong Biyahe" : "Trip Details"}
         onBack={() => navigate(-1)}
       />
 
@@ -150,201 +204,79 @@ export const DriverTripDetailPage: React.FC = () => {
           pb: "calc(var(--safe-area-bottom) + 24px)",
         }}
       >
-        {/* Main Trip Overview Card */}
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: "20px",
-            backgroundColor: "#FFFFFF",
-            p: 2.5,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            border: "1px solid #F1F5F9",
-            boxShadow: "0 4px 20px rgba(255, 102, 0, 0.05)",
-          }}
-        >
-          <Chip
-            label={language === "tl" ? "Nakumpleto" : "Completed"}
-            sx={{
-              backgroundColor: "#10B981",
-              color: "#FFFFFF",
-              fontWeight: 700,
-              fontSize: "12px",
-              height: "26px",
-              px: 1,
-              mb: 1,
-            }}
-          />
-
-          <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-            Booking ID
-          </Typography>
-          <Typography
-            role="button"
-            tabIndex={0}
-            onKeyDown={activateWithKeyboard}
-            onClick={handleCopyTripId}
-            sx={{
-              fontSize: "14px",
-              fontWeight: 700,
-              color: "#0F172A",
-              fontFamily: "Poppins, sans-serif",
-              mb: 0.5,
-              cursor: "pointer",
-              "&:active": { opacity: 0.7 },
-            }}
-          >
-            {formatShortBookingId(rawTripId)}
-          </Typography>
-          <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#64748B", fontFamily: "Poppins, sans-serif", mb: 2 }}>
-            {dateString}{timeString ? `, ${timeString}` : ""}
-          </Typography>
-
-          <Divider sx={{ width: "100%", borderColor: "#F1F5F9", mb: 2 }} />
-
-          {/* Vehicle Info */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%", mb: 2 }}>
-            <Box component="img" src={appIconImg} alt="SAKAY Tricycle" sx={{ width: 36, height: 36, objectFit: "contain" }} />
-            <Box>
-              <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                SAKAY Tricycle Service
-              </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                {tripMode === "Shared Ride" ? (language === "tl" ? "Shared Commuter Mode" : "Shared Ride Mode") : (language === "tl" ? "Solo Trip Mode" : "Solo Trip Mode")}
-              </Typography>
-            </Box>
+        {lookup === "loading" && (
+          <Box role="status" sx={{ display: "flex", justifyContent: "center", p: 6 }}>
+            <CircularProgress sx={{ color: "#FF6600" }} aria-label={tl ? "Kinukuha ang biyahe" : "Loading the trip"} />
           </Box>
+        )}
 
-          <Divider sx={{ width: "100%", borderColor: "#F1F5F9", borderStyle: "dashed", mb: 2 }} />
+        {lookup === "missing" && (
+          <Paper elevation={0} sx={{ backgroundColor: "#FFFFFF", border: "1px solid #E8ECF1", borderRadius: "16px", p: 3, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
+            <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>{tl ? "Hindi makita ang biyaheng ito" : "This trip could not be found"}</Typography>
+            <Typography sx={{ fontSize: "13px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>{tl ? "Buksan ito mula sa iyong Kasaysayan ng Biyahe." : "Open it from your Trip History."}</Typography>
+            <Button onClick={() => navigate("/driver/history")} sx={{ height: 44, px: 3, borderRadius: "14px", backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, textTransform: "none", fontFamily: "Poppins, sans-serif", "&:hover": { backgroundColor: "#E65C00" } }}>
+              {tl ? "Kasaysayan ng Biyahe" : "Trip History"}
+            </Button>
+          </Paper>
+        )}
 
-          {/* Pickup & Dropoff Route Timeline (Requirement 5) */}
-          <Box sx={{ width: "100%", display: "flex", gap: 2, mb: 1 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.5 }}>
-              {/* Pickup location orange circle marker */}
-              <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: "#FF6600", stroke: "#FF6600", strokeWidth: 1.5 }} />
-              <Box
-                sx={{
-                  height: 38,
-                  borderLeft: "2px dotted #FFD8BE",
-                  my: 0.5,
-                }}
+        {trip && lookup !== "missing" && (
+          <>
+            {/* 1. The passenger comes first, and says so */}
+            <ContactCard
+              role="passenger"
+              language={lang}
+              name={passengerName}
+              lines={[tripMode === "Shared Ride" ? (tl ? "Shared Trip" : "Shared Trip") : "Solo Trip"]}
+              phone={passengerPhone}
+              emptyNote={tl ? "Walang pangalan ng pasahero sa talaan." : "No passenger name on the record."}
+            />
+
+            {/* 2. The trip: the same card as the passenger's */}
+            <Paper elevation={0} sx={{ backgroundColor: "#FFFFFF", border: "1px solid #E8ECF1", borderRadius: "16px", p: 2.5, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75 }}>
+                <TripStatusChip status={trip.status} language={lang} size="medium" />
+                <Typography
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateWithKeyboard}
+                  onClick={handleCopyTripId}
+                  aria-label={tl ? `Booking ID ${formatShortBookingId(rawTripId)}. I-tap para kopyahin` : `Booking ID ${formatShortBookingId(rawTripId)}. Tap to copy`}
+                  sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", cursor: "pointer", "&:active": { opacity: 0.7 }, "&:focus-visible": { outline: "2px solid #E65C00", outlineOffset: 2, borderRadius: "6px" } }}
+                >
+                  {formatShortBookingId(rawTripId)}
+                </Typography>
+              </Box>
+
+              <Divider sx={{ borderColor: "#EEF1F5" }} />
+
+              <Box sx={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                <Box component="img" src={appIconImg} alt="" aria-hidden sx={{ width: 34, height: 34, objectFit: "contain", flexShrink: 0 }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>SAKAY Tricycle</Typography>
+                  <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>{tripMode === "Shared Ride" ? "Shared Trip" : "Solo Trip"}</Typography>
+                </Box>
+              </Box>
+
+              <Divider sx={{ borderColor: "#EEF1F5" }} />
+
+              <TripRoute pickup={trip.pickupLocation ?? ""} dropoff={trip.dropoffLocation ?? ""} labelled distanceKm={trip.distanceKm ?? null} language={lang} />
+
+              <Divider sx={{ borderColor: "#EEF1F5" }} />
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <FactRow icon={<PaidOutlinedIcon />} label={tl ? "Kabuuang nakolekta (gross)" : "Gross fare collected"} value={formatPeso(fareAmount)} />
+                <FactRow icon={<PaymentsOutlinedIcon />} label={tl ? "Paraan ng pagbayad" : "Payment method"} value="Cash" />
+              </Box>
+            </Paper>
+
+            {/* 3. Report an issue: the same button as the passenger's, into the DRIVER's own reporting (a trip its flow lists) */}
+            {reportable === true && (
+              <ReportIssueButton
+                label={tl ? "Mag-ulat ng problema sa biyahe" : "Report an issue"}
+                onClick={() => navigate("/driver/report-incident", { state: { bookingId: rawTripId, from: location.pathname } })}
               />
-              {/* Dropoff location orange pin icon */}
-              <PlaceIcon sx={{ fontSize: 20, color: "#FF6600" }} />
-            </Box>
-
-            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <Box>
-                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif", }}>
-                  {language === "tl" ? "Pinanggalingan (pickup)" : "Pickup location"}
-                </Typography>
-                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>
-                  {pickupAddress}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif", }}>
-                  {language === "tl" ? "Destinasyon (drop-off)" : "Drop-off location"}
-                </Typography>
-                <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>
-                  {dropoffAddress}
-                </Typography>
-                <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                  Calapan City, Oriental Mindoro {distanceKm > 0 ? `• ${distanceKm} km` : ""}
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-
-        {/* Passenger Info Card */}
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: "20px",
-            backgroundColor: "#FFFFFF",
-            p: 2,
-            border: "1px solid #F1F5F9",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar sx={{ width: 44, height: 44, backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "16px" }}>
-              {passengerName.charAt(0)}
-            </Avatar>
-            <Box>
-              <Typography sx={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-                {passengerName}
-              </Typography>
-              {passengerPhone && (
-                <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-                  {passengerPhone}
-                </Typography>
-              )}
-            </Box>
-          </Box>
-
-          {passengerPhone && (
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <IconButton aria-label={language === "tl" ? "Tawagan ang pasahero" : "Call passenger"} onClick={handleCallPassenger} sx={{ backgroundColor: "#E6F4EA", color: "#1E8E3E" }}>
-                <PhoneOutlinedIcon fontSize="small" />
-              </IconButton>
-              <IconButton aria-label={language === "tl" ? "Magpadala ng text" : "Send a text message"} onClick={handleOpenSMS} sx={{ backgroundColor: "#FFF8F0", color: "#FF6600" }}>
-                <ChatOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          )}
-        </Paper>
-
-        {/* Driver Earnings Breakdown Card */}
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: "20px",
-            backgroundColor: "#FFFFFF",
-            p: 2.5,
-            border: "1px solid #F1F5F9",
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-          }}
-        >
-          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif" }}>
-            {language === "tl" ? "Kita sa biyahe" : "Trip earnings"}
-          </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography sx={{ fontSize: "14px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Uri ng biyahe" : "Trip mode"}
-            </Typography>
-            <Chip
-              label={tripMode}
-              size="small"
-              sx={{ backgroundColor: tripMode.includes("Shared") ? "#E6F4EA" : "#FFF8F0", color: tripMode.includes("Shared") ? "#1E8E3E" : "#FF6600", fontWeight: 700, fontSize: "12px" }}
-            />
-          </Box>
-
-          <FareLine label={language === "tl" ? "Distansya" : "Distance"} amount={`${distanceKm.toFixed(1)}\u00A0km`} />
-
-          <Divider sx={{ borderColor: "#F1F5F9", my: 0.5 }} />
-
-          <FareLine emphasis="total" label={language === "tl" ? "Kabuuang nakolekta (gross)" : "Gross fare collected"} amount={formatPeso(fareAmount)} />
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1, borderTop: "1px border-dashed #F1F5F9" }}>
-            <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>
-              {language === "tl" ? "Paraan ng pagbayad" : "Payment method"}
-            </Typography>
-            <Chip
-              label="₱ Cash"
-              size="small"
-              sx={{ backgroundColor: "#FF6600", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", height: "26px" }}
-            />
-          </Box>
-        </Paper>
+            )}
 
         {/* Driver & Passenger Ratings Section */}
         <Paper
@@ -450,16 +382,8 @@ export const DriverTripDetailPage: React.FC = () => {
           </Box>
         </Paper>
 
-        {/* A problem on this trip (filed through the same pipeline as the passenger's reports) */}
-        <Button
-          variant="outlined"
-          fullWidth
-          startIcon={<ReportProblemIcon />}
-          onClick={() => navigate('/driver/report-incident', { state: { bookingId: rawTripId, from: location.pathname } })}
-          sx={{ minHeight: 48, borderRadius: '14px', textTransform: 'none', fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: '#B91C1C', borderColor: '#FCA5A5', '&:hover': { backgroundColor: '#FEF2F2', borderColor: '#F87171' } }}
-        >
-          {language === 'tl' ? 'Mag-ulat ng problema sa biyaheng ito' : 'Report a problem with this trip'}
-        </Button>
+          </>
+        )}
       </Box>
 
       {/* Copy Toast */}

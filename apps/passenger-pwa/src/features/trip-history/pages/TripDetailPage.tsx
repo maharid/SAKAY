@@ -11,10 +11,9 @@ import Rating from "@mui/material/Rating";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
-import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 
 import appIconImg from "@sakay/shared/src/assets/icons/app-icon-toto.webp";
-import { formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso, describePayment, earlyEndReasonLabel } from "@sakay/shared";
+import { ContactCard, ReportIssueButton, TripRoute, TripStatusChip, formatTripWhen, formatShortBookingId, type FareBreakdown, activateWithKeyboard, FareLine, formatPeso, describePayment, earlyEndReasonLabel } from "@sakay/shared";
 import PageHeader from "../../../common/components/PageHeader";
 import SakayToast from "../../../common/components/SakayToast";
 import { useLanguage } from "../../../utils/LanguageContext";
@@ -22,10 +21,7 @@ import { supabase } from "../../../services/supabaseClient";
 import { fetchTripHistory } from "../../../services/tripService";
 import type { HistoryTrip } from "../../../services/tripService";
 import { fetchReportableTrips } from "../../../services/incidentService";
-import { DriverCard } from "../components/DriverCard";
-import { TripRoute } from "../components/TripRoute";
-import { TripStatusChip } from "../components/TripStatusChip";
-import { formatTripWhen, stashRebook, tripTypeLabel } from "../tripFormat";
+import { driverSummary, stashRebook, tripTypeLabel } from "../tripFormat";
 
 const ReceiptLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#64748B", fontFamily: "Poppins, sans-serif" }}>{children}</Typography>
@@ -251,7 +247,19 @@ export const TripDetailPage: React.FC = () => {
         {trip && (
           <>
             {/* 1. The driver comes first */}
-            <DriverCard trip={trip} language={lang} />
+            {(() => {
+              const d = driverSummary(trip, lang);
+              return (
+                <ContactCard
+                  role="driver"
+                  language={lang}
+                  name={d.hasDriver ? d.name : ""}
+                  lines={[d.todaName, d.vehicleLine]}
+                  phone={trip.driverPhone}
+                  emptyNote={tl ? "Walang drayber na tumanggap ng biyaheng ito." : "No driver accepted this booking."}
+                />
+              );
+            })()}
 
             {/* 2. The trip */}
             <Paper elevation={0} sx={{ ...cardSx, p: 2.5, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -278,12 +286,11 @@ export const TripDetailPage: React.FC = () => {
                   <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "Poppins, sans-serif", lineHeight: 1.3 }}>SAKAY Tricycle</Typography>
                   <Typography sx={{ fontSize: "12px", color: "#64748B", fontFamily: "Poppins, sans-serif" }}>{tripTypeLabel(trip.type, lang)}</Typography>
                 </Box>
-                <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#475569", fontFamily: "Poppins, sans-serif", flexShrink: 0 }}>{tl ? "Sa App" : "Via App"}</Typography>
               </Box>
 
               <Divider sx={{ borderColor: "#EEF1F5" }} />
 
-              <TripRoute pickup={trip.pickup} dropoff={trip.dropoff} language={lang} />
+              <TripRoute pickup={trip.pickup} dropoff={trip.dropoff} labelled distanceKm={trip.distanceKm ?? null} language={lang} />
 
               {/* Rebook: this trip's route, a new booking the passenger still confirms */}
               <Button
@@ -318,24 +325,10 @@ export const TripDetailPage: React.FC = () => {
             {/* 3. Report an issue: only for a trip the incident flow lists (it decides what can be reported, and when) */}
             {reportable === true && (
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 0.5 }}>
-                <Button
-                  startIcon={<ReportProblemOutlinedIcon />}
+                <ReportIssueButton
+                  label={tl ? "I-ulat ang problema sa biyahe" : "Report an issue"}
                   onClick={() => navigate("/incident-report", { state: { bookingId: tripId } })}
-                  sx={{
-                    height: 48,
-                    borderRadius: "14px",
-                    backgroundColor: "#FEF2F2",
-                    color: "#B91C1C",
-                    fontWeight: 700,
-                    fontSize: "14px",
-                    textTransform: "none",
-                    fontFamily: "Poppins, sans-serif",
-                    "&:hover": { backgroundColor: "#FEE2E2" },
-                    "&:focus-visible": { outline: "2px solid #B91C1C", outlineOffset: 2 },
-                  }}
-                >
-                  {tl ? "I-ulat ang problema sa biyahe" : "Report an issue"}
-                </Button>
+                />
                 {/* Rule 5.7: the driver took the booking while carrying other passengers (or was working the terminal queue) */}
                 {trip.driverName && (
                   <Button

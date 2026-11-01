@@ -5,15 +5,19 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  appealOutcome,
+  appealReviewer,
   canAppealStrike,
   fetchOwnAppeals,
   fetchStrikeHistory,
   newestAppealByStrike,
+  strikeAppealEligibility,
   submitStrikeAppeal,
   type AppealRow,
   type StrikeAppealClient,
   type StrikeRow,
 } from '../../packages/shared/src/utils/strikeAppeals';
+import { strikeLevel, strikeLevelName, strikeNextStepText } from '../../packages/shared/src/utils/strikeLevel';
 
 const HOUR = 3_600_000;
 const NOW = Date.parse('2026-10-18T08:00:00Z');
@@ -24,7 +28,7 @@ const strike = (over: Partial<StrikeRow> = {}): StrikeRow => ({
 });
 const appeal = (over: Partial<AppealRow> = {}): AppealRow => ({
   requestId: 'r1', strikeId: 's1', status: 'Pending LGU Review', causeCode: 'OTHER', requestedAt: new Date(NOW - HOUR).toISOString(),
-  decisionDueAt: null, decisionReason: null, decidedAt: null, ...over,
+  decisionDueAt: null, decisionReason: null, decidedAt: null, justification: 'My phone died.', assignedRole: 'lgu_admin', decidedByRole: null, ...over,
 });
 
 function fakeClient(opts: { rpc?: (fn: string, args: Record<string, unknown>) => { data?: unknown; error?: { message: string } | null }; rows?: Array<Record<string, unknown>> | null; rowsError?: string } = {}) {
@@ -83,10 +87,10 @@ describe('the strike history', () => {
 
 describe('the person\'s appeals', () => {
   it('reads the appeals with their decision date, newest first, at most 50', async () => {
-    const f = fakeClient({ rows: [{ request_id: 'r', strike_id: 's', status: 'Pending LGU Review', cause_code: 'OTHER', requested_at: '2026-10-18T01:00:00Z', decision_due_at: '2026-10-21T01:00:00Z', decision_reason: null, decided_at: null }] });
+    const f = fakeClient({ rows: [{ request_id: 'r', strike_id: 's', status: 'Pending LGU Review', cause_code: 'OTHER', requested_at: '2026-10-18T01:00:00Z', decision_due_at: '2026-10-21T01:00:00Z', decision_reason: null, decided_at: null, justification: 'No signal.', assigned_role: 'toda_admin', decided_by_role: null }] });
     const rows = await fetchOwnAppeals(f.client);
-    assert.deepEqual(f.queries, [{ table: 'exemption_request', columns: 'request_id, strike_id, status, cause_code, requested_at, decision_due_at, decision_reason, decided_at', order: 'requested_at', limit: 50 }]);
-    assert.deepEqual(rows, [{ requestId: 'r', strikeId: 's', status: 'Pending LGU Review', causeCode: 'OTHER', requestedAt: '2026-10-18T01:00:00Z', decisionDueAt: '2026-10-21T01:00:00Z', decisionReason: null, decidedAt: null }]);
+    assert.deepEqual(f.queries, [{ table: 'exemption_request', columns: 'request_id, strike_id, status, cause_code, requested_at, decision_due_at, decision_reason, decided_at, justification, assigned_role, decided_by_role', order: 'requested_at', limit: 50 }]);
+    assert.deepEqual(rows, [{ requestId: 'r', strikeId: 's', status: 'Pending LGU Review', causeCode: 'OTHER', requestedAt: '2026-10-18T01:00:00Z', decisionDueAt: '2026-10-21T01:00:00Z', decisionReason: null, decidedAt: null, justification: 'No signal.', assignedRole: 'toda_admin', decidedByRole: null }]);
   });
   it('is an empty list when it cannot be read', async () => {
     assert.deepEqual(await fetchOwnAppeals(fakeClient({ rowsError: 'network' }).client), []);
@@ -146,5 +150,78 @@ describe('sending an appeal', () => {
     const r = await submitStrikeAppeal(fakeClient({ rpc: () => ({ data: { success: false } }) }).client, 's1', 'OTHER', 'x');
     assert.equal(r.ok, false);
     assert.match(r.error ?? '', /could not be sent/);
+  });
+});
+
+describe('an appeal the database denied at once (Rule 25.7)', () => {
+  it('is reported as recorded and denied, so the screen does not say it was sent for review', async () => {
+    const f = fakeClient({ rpc: () => ({ data: { success: true, assigned_role: 'toda_admin', auto_denied: true } }) });
+    const r = await submitStrikeAppeal(f.client, 's1', 'OTHER', 'again');
+    assert.deepEqual(r, { ok: true, error: null, assignedRole: 'toda_admin', autoDenied: true });
+  });
+});
+
+describe('why "Appeal" is not offered', () => {
+  it('says it can be appealed, and until when', () => {
+    const e = strikeAppealEligibility(strike(), undefined, NOW);
+    assert.equal(e.can, true);
+    assert.equal(e.until, Date.parse(strike().issuedAt) + 48 * HOUR);
+  });
+  it('names the reason: the strike does not count any more, an appeal is waiting, or the 48 hours are over', () => {
+    assert.deepEqual(strikeAppealEligibility(strike({ status: 'WAIVED' }), undefined, NOW), { can: false, why: 'not-counting', until: Date.parse(strike().issuedAt) + 48 * HOUR });
+    assert.equal(strikeAppealEligibility(strike({ pointsActive: 0 }), undefined, NOW).can, false);
+    assert.equal((strikeAppealEligibility(strike(), appeal({ status: 'Pending TODA Review' }), NOW) as { why: string }).why, 'pending');
+    const late = strikeAppealEligibility(strike({ issuedAt: new Date(NOW - 49 * HOUR).toISOString() }), undefined, NOW);
+    assert.equal((late as { why: string }).why, 'window-passed');
+  });
+  it('a strike that no longer counts is "not counting" even when its window is over, and a pending appeal comes before the window', () => {
+    const old = strike({ status: 'WAIVED', issuedAt: new Date(NOW - 99 * HOUR).toISOString() });
+    assert.equal((strikeAppealEligibility(old, undefined, NOW) as { why: string }).why, 'not-counting');
+    const oldPending = strike({ issuedAt: new Date(NOW - 99 * HOUR).toISOString() });
+    assert.equal((strikeAppealEligibility(oldPending, appeal({ status: 'Pending LGU Review' }), NOW) as { why: string }).why, 'pending');
+  });
+  it('an unreadable issue time has no deadline to show, and is not appealable', () => {
+    const e = strikeAppealEligibility(strike({ issuedAt: 'not a date' }), undefined, NOW);
+    assert.deepEqual(e, { can: false, why: 'window-passed', until: null });
+  });
+});
+
+describe('the outcome and the reviewer of an appeal', () => {
+  it('pending until decided, approved for either waiver, rejected for a denial', () => {
+    assert.equal(appealOutcome('Pending TODA Review'), 'pending');
+    assert.equal(appealOutcome('Pending LGU Review'), 'pending');
+    assert.equal(appealOutcome('Full Waiver'), 'approved');
+    assert.equal(appealOutcome('Partial Waiver'), 'approved');
+    assert.equal(appealOutcome('Denied'), 'rejected');
+  });
+  it('names who decided it, else who it was sent to, else what the status says', () => {
+    assert.equal(appealReviewer({ status: 'Full Waiver', assignedRole: 'toda_admin', decidedByRole: 'lgu_admin' }), 'lgu');
+    assert.equal(appealReviewer({ status: 'Pending LGU Review', assignedRole: 'lgu_admin', decidedByRole: null }), 'lgu');
+    assert.equal(appealReviewer({ status: 'Denied', assignedRole: 'toda_admin', decidedByRole: 'system' }), 'system');
+    assert.equal(appealReviewer({ status: 'Pending TODA Review', assignedRole: null, decidedByRole: null }), 'toda');
+    assert.equal(appealReviewer({ status: 'Denied', assignedRole: null, decidedByRole: null }), null);
+  });
+});
+
+describe('the strike ladder for a count of active strikes (Sections 20 and 21)', () => {
+  it('puts the count on the ladder from policyConfig', () => {
+    const tiers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14].map((n) => strikeLevel(n).tier);
+    assert.deepEqual(tiers, [0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5]);
+  });
+  it('says how far the next step is, and that the top has none', () => {
+    assert.deepEqual(strikeLevel(0).next, { remaining: 1, tier: 1 });
+    assert.deepEqual(strikeLevel(3).next, { remaining: 2, tier: 3 });
+    assert.deepEqual(strikeLevel(9).next, { remaining: 1, tier: 5 });
+    assert.equal(strikeLevel(10).next, null);
+    assert.equal(strikeLevel(-4).tier, 0);
+    assert.equal(strikeLevel(Number.NaN).tier, 0);
+  });
+  it('words the level and the next step in both languages', () => {
+    assert.equal(strikeLevelName(3, 'en'), '7-day suspension');
+    assert.equal(strikeLevelName(4, 'tl'), '30-araw na suspensyon');
+    assert.equal(strikeNextStepText(strikeLevel(3), 3, 'en'), '2 more active strikes lead to 7-day suspension.');
+    assert.equal(strikeNextStepText(strikeLevel(4), 4, 'en'), '1 more active strike leads to 7-day suspension.');
+    assert.equal(strikeNextStepText(strikeLevel(10), 10, 'en'), 'This is the highest level.');
+    assert.equal(strikeNextStepText(strikeLevel(0), 0, 'tl'), 'Walang aktibong strike. Ang babala ay nasa 1 strike.');
   });
 });

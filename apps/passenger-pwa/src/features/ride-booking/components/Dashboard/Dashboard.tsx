@@ -332,7 +332,7 @@ const Dashboard: React.FC = () => {
     const load = async () => {
       const { data, error } = await supabase
         .from("notification")
-        .select("notification_id, title, message, notification_type, sent_at")
+        .select("notification_id, title, message, notification_type, subject_id, sent_at")
         .order("sent_at", { ascending: false })
         .limit(30);
       if (!alive || error || !data) return;
@@ -344,10 +344,10 @@ const Dashboard: React.FC = () => {
       // reads the selected one only (the same helper the Driver app uses).
       // Only what is worth the passenger's attention (a live-trip prompt that has passed, a thank-you note and a repeated write are left out; nothing is deleted)
       const important = selectImportantNotifications(
-        data as { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }[],
+        data as { notification_id: string; title: string; message: string; notification_type: string; subject_id?: string | null; sent_at: string }[],
         (n) => ({ type: n.notification_type, title: n.title, message: n.message, sentAt: n.sent_at })
       );
-      const items: NotificationItem[] = important.map((n: { notification_id: string; title: string; message: string; notification_type: string; sent_at: string }) => {
+      const items: NotificationItem[] = important.map((n: { notification_id: string; title: string; message: string; notification_type: string; subject_id?: string | null; sent_at: string }) => {
         const tl = localizeSystemNotification(n.title, n.message, "tl", n.notification_type);
         const en = localizeSystemNotification(n.title, n.message, "en", n.notification_type);
         return {
@@ -359,6 +359,9 @@ const Dashboard: React.FC = () => {
           createdAt: n.sent_at,
           isRead: readIds.includes("db:" + n.notification_id),
           category: notificationCategory(n.notification_type),
+          // what the notice is about: the actions below it open the page of that record
+          type: n.notification_type,
+          subjectId: n.subject_id ?? undefined,
         };
       });
       // the announcements stay; only the notices of this source are replaced

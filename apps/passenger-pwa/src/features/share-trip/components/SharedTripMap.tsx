@@ -9,18 +9,7 @@ import {
   createLiveMarker,
   DRIVER_MARKER_SIZE,
   driverMarkerHtml,
-  destinationMarkerHtml,
-  DESTINATION_MARKER_ANCHOR,
-  DESTINATION_MARKER_HEIGHT,
-  DESTINATION_MARKER_WIDTH,
-  DESTINATION_MARKER_Z_OFFSET,
-  DESTINATION_POPUP_OFFSET,
-  pickupMarkerHtml,
-  PICKUP_MARKER_ANCHOR,
-  PICKUP_MARKER_SIZE,
-  PICKUP_MARKER_Z_OFFSET,
-  PICKUP_POPUP_OFFSET,
-  placePopupElement,
+  addPlaceMarkers,
   type LiveMarker,
 } from "@sakay/shared";
 
@@ -142,28 +131,10 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
     road.clearLayers();
     const pickupTitle = "Pickup";
     const dropoffTitle = language === "tl" ? "Destinasyon" : "Destination";
-    if (hasPoint(pickup)) {
-      L.marker([pickup.lat, pickup.lng], {
-        icon: L.divIcon({ className: "leaflet-pickup-marker", html: pickupMarkerHtml(), iconSize: [PICKUP_MARKER_SIZE, PICKUP_MARKER_SIZE], iconAnchor: PICKUP_MARKER_ANCHOR }),
-        title: pickupTitle,
-        alt: pickupTitle,
-        keyboard: true,
-        zIndexOffset: PICKUP_MARKER_Z_OFFSET,
-      })
-        .bindPopup(placePopupElement(pickupTitle), { offset: PICKUP_POPUP_OFFSET, className: "sakay-place-popup" })
-        .addTo(pins);
-    }
-    if (hasPoint(dropoff)) {
-      L.marker([dropoff.lat, dropoff.lng], {
-        icon: L.divIcon({ className: "leaflet-destination-marker", html: destinationMarkerHtml(), iconSize: [DESTINATION_MARKER_WIDTH, DESTINATION_MARKER_HEIGHT], iconAnchor: DESTINATION_MARKER_ANCHOR }),
-        title: dropoffTitle,
-        alt: dropoffTitle,
-        keyboard: true,
-        zIndexOffset: DESTINATION_MARKER_Z_OFFSET,
-      })
-        .bindPopup(placePopupElement(dropoffTitle), { offset: DESTINATION_POPUP_OFFSET, className: "sakay-place-popup" })
-        .addTo(pins);
-    }
+    const stopPlaces = addPlaceMarkers(L, map, pins, {
+      pickup: hasPoint(pickup) ? { lat: pickup.lat, lng: pickup.lng, title: pickupTitle } : null,
+      destination: hasPoint(dropoff) ? { lat: dropoff.lat, lng: dropoff.lng, title: dropoffTitle } : null,
+    });
     if (route && route.length >= 2) {
       L.polyline(route, { color: "#FFFFFF", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round" }).addTo(road);
       L.polyline(route, { color: "#FF6600", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(road);
@@ -173,6 +144,7 @@ const SharedTripMap: React.FC<SharedTripMapProps> = ({ language, pickup, dropoff
       framedKeyRef.current = key;
       map.fitBounds(L.latLngBounds(tripPoints()), { padding: [48, 48], maxZoom: 16, animate: false });
     }
+    return stopPlaces;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, route]);
 

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
-import { StrikesAppealsView } from '@sakay/shared';
+import { StrikesAppealsView, appealTargetFromSearch } from '@sakay/shared';
 
 import PageHeader from '../../../common/components/PageHeader';
 import SakayToast from '../../../common/components/SakayToast';
@@ -21,6 +21,7 @@ import { useLanguage } from '../../../utils/LanguageContext';
  */
 const DriverStrikesPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useLanguage();
   const tl = language === 'tl';
 
@@ -53,6 +54,8 @@ const DriverStrikesPage: React.FC = () => {
         appeals={appeals}
         loading={loading}
         failed={failed}
+        openAppealFor={appealTargetFromSearch(location.search)}
+        onOpenAppealHandled={() => navigate(location.pathname, { replace: true })}
         onAppeal={submitStrikeAppeal}
         onAppealSent={async (message) => {
           setToast(message);
