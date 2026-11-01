@@ -153,7 +153,6 @@ export * from './utils/money';
 export * from './utils/mapCamera';
 export * from './utils/heading';
 export * from './utils/mapMarkers';
-export * from './utils/markerSeparation';
 export * from './utils/placeMarkers';
 export * from './utils/searchRadius';
 export * from './hooks/useServerCountdown';

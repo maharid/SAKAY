@@ -144,27 +144,6 @@ describe('the two places of a trip', () => {
     }
   });
 
-  it('leans the circle sideways while the tip stays on the position', () => {
-    const straight = ownPinSpec({ face: 'profile', profile: { name: 'A' } });
-    const leaning = ownPinSpec({ face: 'profile', profile: { name: 'A' }, lean: -23 });
-    assert.equal(leaning.size[0], straight.size[0] + 46, 'room for the lean on both sides, so the tip stays in the middle');
-    assert.equal(leaning.anchor[0], leaning.size[0] / 2);
-    assert.equal(leaning.anchor[1], straight.anchor[1], 'the tip is as low as before');
-    assert.ok(leaning.html.includes('<line'), 'a stem runs from the circle back to the tip');
-    assert.ok(!straight.html.includes('<line'), 'a straight pin has its pointer instead');
-    assert.deepEqual(ownPinSpec({ face: 'profile', lean: Number.NaN }).size, straight.size, 'a bad lean is no lean');
-  });
-
-  it('leans a place the same way: the tip stays put and the popup opens above the head', () => {
-    const straight = placeIconSpec('pickup', false);
-    const leaning = placeIconSpec('pickup', false, 'Pickup', 23);
-    assert.equal(leaning.size[0], straight.size[0] + 46);
-    assert.equal(leaning.anchor[0], leaning.size[0] / 2);
-    assert.equal(leaning.anchor[1], straight.anchor[1]);
-    assert.equal(leaning.popupAnchor[0], 23);
-    assert.ok(leaning.html.includes('>P</div>') && leaning.html.includes('<line'));
-  });
-
   it('never lets a name or a picture address break out of the markup', () => {
     const html = ownPinSpec({ face: 'profile', profile: { name: '<script>alert(1)</script>', photoUrl: 'x" onerror="alert(1)' } }).html;
     assert.ok(!html.includes('<script>') && !html.includes('" onerror="'));

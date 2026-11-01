@@ -7,8 +7,7 @@
  *   pickup       a BLACK circle with a white ring and a white "P" on a thin stem; close up it opens into a black label that says "Pickup"
  *   destination  the same with a "D", and the label "Destination"
  *
- * Every pin is anchored at the tip of its pointer or stem, so the tip is the exact place on the map. When pins stand almost on the same spot (the person at the pickup, the
- * driver arriving there) their heads lean apart sideways while the tips stay on the true position (see markerSeparation.ts and placeMarkers.ts); every spec takes a `lean` for that.
+ * Every pin is anchored at the tip of its pointer or stem, so the tip is the exact place on the map.
  * Leaflet-free: these return the HTML for an `L.divIcon` (and its size and anchor), and `applyMarkerState` updates an element that is already on the map (turn the arrow, dim a
  * position that has gone stale) without rebuilding it. Inline styles only, so they look right without any stylesheet.
  */
@@ -36,11 +35,6 @@ function escapeHtml(text: string): string {
 /** A small flat shadow on the ground at the tip of a pin (the same under every pin) */
 const GROUND_SHADOW = 'position:absolute;left:50%;bottom:0;width:12px;height:5px;margin-left:-6px;border-radius:50%;background:rgba(15,23,42,0.32);filter:blur(1px);';
 
-/** The thin white stem from a leaning head down to the tip (a straight one when the head is not leaning), with a soft shadow */
-function stemHtml(width: number, height: number, x1: number, y1: number, x2: number, y2: number): string {
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false" style="position:absolute;left:0;top:0;overflow:visible;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(15,23,42,0.4));"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/></svg>`;
-}
-
 export interface OwnMarkerProfile {
   /** The person's name: its first letter is shown when there is no picture (or the picture cannot be loaded) */
   name?: string | null;
@@ -61,23 +55,20 @@ export interface OwnPinOptions {
   profile?: OwnMarkerProfile;
   /** Draws the direction arrow around the circle (it stays hidden until applyMarkerState gives it an angle) */
   heading?: boolean;
-  /** How far the circle leans sideways, in pixels (positive: right) while the tip stays on the position; 0 stands straight */
-  lean?: number;
 }
 
 /**
  * A person's or a driver's own position: an orange circle with a white ring on a pointer. A picture that cannot be loaded leaves the letter showing, since the picture is drawn
- * over it; without a name the person glyph shows. A leaning pin swaps its pointer for a thin stem that runs from the circle back to the true position.
+ * over it; without a name the person glyph shows.
  */
 export function ownPinSpec(options: OwnPinOptions): PinIconSpec {
-  const lean = Math.round(Number.isFinite(options.lean) ? (options.lean as number) : 0);
   const ring = options.heading ? OWN_PIN_RING : 0;
   const head = OWN_PIN_HEAD;
-  const width = head + 2 * ring + 2 * Math.abs(lean);
+  const width = head + 2 * ring;
   const tipY = ring + head + OWN_PIN_TAIL;
   const height = tipY + 2;
   const tipX = width / 2;
-  const headX = tipX + lean;
+  const headX = tipX;
 
   let face: string;
   if (options.face === 'tricycle') {
@@ -93,10 +84,7 @@ export function ownPinSpec(options: OwnPinOptions): PinIconSpec {
     }
   }
 
-  const pointer =
-    lean === 0
-      ? `<div style="position:absolute;left:${tipX - 6}px;top:${Math.round(tipY - 15)}px;width:12px;height:12px;background:#FFFFFF;transform:rotate(45deg);border-radius:2px;box-shadow:1px 2px 3px rgba(15,23,42,0.28);"></div>`
-      : stemHtml(width, height, headX, ring + head - 4, tipX, tipY);
+  const pointer = `<div style="position:absolute;left:${tipX - 6}px;top:${Math.round(tipY - 15)}px;width:12px;height:12px;background:#FFFFFF;transform:rotate(45deg);border-radius:2px;box-shadow:1px 2px 3px rgba(15,23,42,0.28);"></div>`;
   const arrow = options.heading
     ? `<div class="sakay-marker-heading" style="position:absolute;left:${headX - 26}px;top:${ring + head / 2 - 26}px;width:52px;height:52px;opacity:0;transition:transform 0.35s linear, opacity 0.2s ease;transform-origin:50% 50%;"><svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path d="M26 1 L35 13 L26 9.5 L17 13 Z" fill="#FF6600" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`
     : '';
@@ -175,30 +163,23 @@ export interface PlaceIconSpec extends PinIconSpec {
   popupAnchor: [number, number];
 }
 
-/**
- * The icon of a place: the letter in a circle, or, when `labelled`, the word in a label (`title` is the word, in the screen's language). `lean` moves the head sideways (pixels,
- * positive: right) while the tip of the stem stays on the place: the stem then slants from the head back to the tip.
- */
-export function placeIconSpec(kind: PlaceKind, labelled: boolean, title?: string, lean: number = 0): PlaceIconSpec {
+/** The icon of a place: the letter in a circle, or, when `labelled`, the word in a label (`title` is the word, in the screen's language). */
+export function placeIconSpec(kind: PlaceKind, labelled: boolean, title?: string): PlaceIconSpec {
   const letter = kind === 'pickup' ? 'P' : 'D';
   const word = (title || (kind === 'pickup' ? 'Pickup' : 'Destination')).trim();
   const label = labelled ? word : letter;
-  const shift = Math.round(Number.isFinite(lean) ? lean : 0);
   // a label is as wide as its text (about 8.5 px a letter at this size) and never wider than the cap: the text then ends with an ellipsis
-  const headWidth = labelled ? Math.min(PLACE_LABEL_MAX_WIDTH, Math.max(PLACE_HEAD, Math.round(label.length * 8.5) + 34)) : PLACE_HEAD;
-  const width = headWidth + 2 * Math.abs(shift);
-  const tipX = width / 2;
-  const headX = tipX + shift;
-  const head = `position:absolute;left:${headX - headWidth / 2}px;top:0;width:${headWidth}px;height:${PLACE_HEAD}px;box-sizing:border-box;border-radius:${labelled ? '999px' : '50%'};${
-    labelled ? 'padding:0 13px;font:700 14px/28px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : 'font:700 15px/28px Poppins,sans-serif;text-align:center;'
-  }`;
+  const width = labelled ? Math.min(PLACE_LABEL_MAX_WIDTH, Math.max(PLACE_HEAD, Math.round(label.length * 8.5) + 34)) : PLACE_HEAD;
+  const head = labelled
+    ? `position:absolute;left:50%;top:0;transform:translateX(-50%);max-width:${PLACE_LABEL_MAX_WIDTH}px;height:${PLACE_HEAD}px;box-sizing:border-box;padding:0 13px;border-radius:999px;font:700 14px/28px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`
+    : `position:absolute;left:0;top:0;width:${PLACE_HEAD}px;height:${PLACE_HEAD}px;box-sizing:border-box;border-radius:50%;font:700 15px/28px Poppins,sans-serif;text-align:center;`;
   const html = `
     <div class="sakay-marker sakay-${kind}-marker" role="img" aria-label="${kind === 'pickup' ? 'Pickup' : 'Destination'}" style="position:relative;width:${width}px;height:${PLACE_HEIGHT}px;cursor:pointer;">
       <div style="${GROUND_SHADOW}"></div>
-      ${stemHtml(width, PLACE_HEIGHT, headX, PLACE_HEAD - 4, tipX, PLACE_HEIGHT)}
+      <div style="position:absolute;left:50%;top:${PLACE_HEAD - 6}px;width:3px;height:${PLACE_STEM + 6}px;margin-left:-1.5px;border-radius:2px;background:#FFFFFF;box-shadow:0 1px 3px rgba(15,23,42,0.4);"></div>
       <div style="${head}background:${PLACE_MARKER_COLOR};color:#FFFFFF;border:3px solid #FFFFFF;box-shadow:0 2px 6px rgba(15,23,42,0.4);">${escapeHtml(label)}</div>
     </div>`;
-  return { html, size: [width, PLACE_HEIGHT], anchor: [tipX, PLACE_HEIGHT], popupAnchor: [shift, -(PLACE_HEIGHT - 2)] };
+  return { html, size: [width, PLACE_HEIGHT], anchor: [width / 2, PLACE_HEIGHT], popupAnchor: [0, -(PLACE_HEIGHT - 2)] };
 }
 
 /**
