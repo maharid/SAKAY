@@ -450,25 +450,15 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
           </Box>
         )}
 
-        {/* Eligible for Appeal: Prominent Appeal Strike Button with Window Notice */}
+        {/* Eligible for Appeal: Display Appeal Strike button directly inside the strike card */}
         {eligibility.can && (
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: '12px',
-              backgroundColor: '#FFF7ED',
-              border: '1px solid #FFEDD5',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-            }}
-          >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, pt: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
               <AccessTimeIcon sx={{ fontSize: 15, color: '#C2410C', flexShrink: 0 }} />
               <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#C2410C', fontFamily: 'Poppins, sans-serif' }}>
                 {tl
-                  ? `Maaari kang mag-apela hanggang ${manila(new Date(eligibility.until).toISOString())}`
-                  : `Appeal window open until ${manila(new Date(eligibility.until).toISOString())}`}
+                  ? `Maaaring mag-apela hanggang ${manila(new Date(eligibility.until).toISOString())}`
+                  : `Eligible for appeal until ${manila(new Date(eligibility.until).toISOString())}`}
               </Typography>
             </Box>
             <Button
@@ -495,8 +485,8 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
           </Box>
         )}
 
-        {/* Why Appeal is Not Allowed (Window passed, Not counting) */}
-        {why && (
+        {/* Ineligible Explanation directly inside the card */}
+        {!eligibility.can && !appeal && why && (
           <Box
             sx={{
               display: 'flex',
