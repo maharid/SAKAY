@@ -14,17 +14,20 @@ interface ReportExportButtonsProps {
   generatedBy: string;
   /** Called BEFORE the file is handed over, so the page can write the audit entry (if it throws, no file is made) */
   onExported: (reportName: string, format: ExportFormat) => void | Promise<void>;
+  /** "panel": the card of its own that sits beside a filter card (see ToolbarRow). The default is the small card used inside a report. */
+  appearance?: 'card' | 'bare' | 'panel';
 }
 
 /**
  * Every TODA report exports to Excel (.xlsx), CSV and PDF through the shared export toolbar (the same design as the LGU portal): Excel and PDF carry a header (what the report
  * covers, the TODA, when, and who exported it), the summary above the table and a footer; the PDF has the page number on every page; the success message is a toast.
  */
-export const ReportExportButtons: React.FC<ReportExportButtonsProps> = ({ table, generatedBy, onExported }) => {
+export const ReportExportButtons: React.FC<ReportExportButtonsProps> = ({ table, generatedBy, onExported, appearance }) => {
   const { todaAdminProfile } = useAuth();
   const todaName = todaAdminProfile?.toda?.toda_name || 'TODA';
   return (
     <ExportToolbar
+      appearance={appearance}
       getTable={() => table}
       meta={() => ({ exportedBy: todaAdminProfile?.full_name || 'TODA Administrator', role: generatedBy, organisation: todaName, scope: todaName })}
       loadXlsx={loadXlsx}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
-import { ExportToolbar, ToolbarRow } from '@sakay/shared';
+import { ExportToolbar } from '@sakay/shared';
 
 import { AuditLogRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -133,10 +133,8 @@ export const AuditLogPage: React.FC = () => {
       />
 
       {/* 2. Search, category and dates in one card, the export in a card of its own beside it (exactly what the filters show) */}
-      <ToolbarRow
-        marginBottom={0}
-        side={
-          <ExportToolbar
+      <FilterToolbar
+        sideCard={<ExportToolbar
             appearance="panel"
             getTable={() => loadAuditExport(exportQuery, categoryFilter, covers())}
             meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
@@ -144,10 +142,7 @@ export const AuditLogPage: React.FC = () => {
             record={({ format, table }) => recordAuditExport(format, table.rows.length, exportQuery)}
             disabled={isLoading || Boolean(loadError)}
             disabledReason={loadError ? 'The log could not be loaded' : 'The log is still loading'}
-          />
-        }
-      >
-      <FilterToolbar
+          />}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search details, actor, target, or log ID"
@@ -176,7 +171,6 @@ export const AuditLogPage: React.FC = () => {
         }}
         disableMarginBottom
       />
-      </ToolbarRow>
 
       {/* 2B. How many events are shown */}
       <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, my: SPACE.gap }}>

@@ -345,7 +345,8 @@ export const DocumentViewerDialog: React.FC<DocumentViewerDialogProps> = ({
         </Box>
       )}
 
-      <DialogContent sx={{ p: children ? '16px' : 0, backgroundColor: darkBody ? '#111114' : '#F8F9FA', height: children ? undefined : 'min(460px, 58vh)', minHeight: children ? 200 : 300, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+      {/* MUI removes the top padding of a DialogContent that follows the title; a body of our own (the roster table) needs its 16px there too, or its first row touches the separator */}
+      <DialogContent sx={{ p: children ? '16px' : 0, pt: children ? '16px !important' : undefined, backgroundColor: darkBody ? '#111114' : '#F8F9FA', height: children ? undefined : 'min(460px, 58vh)', minHeight: children ? 200 : 300, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
         {body ?? (resolving ? emptyState('Getting the file ready', 'A secure link is being prepared.', true) : emptyState(imageFailed ? 'The photo could not be loaded' : 'Nothing to show', imageFailed ? 'Try again in a moment, or open it full size.' : emptyMessage))}
       </DialogContent>
 

@@ -285,21 +285,21 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '10px 12px',
+                  flexWrap: 'nowrap',
+                  gap: '12px',
                   padding: '12px 14px',
                   borderRadius: '12px',
                   border: `1px solid ${PAGE_BORDER}`,
                   backgroundColor: '#FFFFFF',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                  <DescriptionIcon aria-hidden sx={{ color: PAGE_TEXT.brand, fontSize: 20 }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
+                  <DescriptionIcon aria-hidden sx={{ color: PAGE_TEXT.brand, fontSize: 20, flexShrink: 0 }} />
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>
+                    <Typography title={doc.name} sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {doc.name}
                     </Typography>
-                    <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px' }}>
+                    <Typography title={`${doc.type} · Submitted ${doc.date}`} sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {doc.type} · Submitted {doc.date}
                     </Typography>
                   </Box>
@@ -307,7 +307,7 @@ export const TodaDetailModal: React.FC<TodaDetailModalProps> = ({ open, onClose,
                 <Button
                   aria-label={`View ${doc.name}`}
                   onClick={() => setSelectedDoc({ name: doc.name, type: doc.type, url: doc.url })}
-                  sx={rowActionSx('brand')}
+                  sx={{ ...rowActionSx('brand'), flexShrink: 0, ml: 'auto' }}
                 >
                   View
                 </Button>

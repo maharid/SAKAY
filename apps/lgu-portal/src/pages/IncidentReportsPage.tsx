@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Box, Button, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 
-import { ExportToolbar, INCIDENT_CATEGORIES, ToolbarRow } from '@sakay/shared';
+import { ExportToolbar, INCIDENT_CATEGORIES } from '@sakay/shared';
 import type { ReportTable } from '@sakay/shared';
 import { IncidentReportRecord } from '../mockData/adminData';
 import { FilterToolbar, FilterOption } from '../components/admin/FilterToolbar';
@@ -187,10 +187,8 @@ export const IncidentReportsPage: React.FC = () => {
       />
 
       {/* 2. Search and filters in one card, the export in a card of its own beside it (exactly what the filters show) */}
-      <ToolbarRow
-        marginBottom={0}
-        side={
-          <ExportToolbar
+      <FilterToolbar
+        sideCard={<ExportToolbar
             appearance="panel"
             getTable={incidentTable}
             meta={() => ({ exportedBy: adminProfile?.full_name || 'LGU Administrator', role: 'LGU Administrator', organisation: 'City Transport Office, Calapan City', scope: 'lgu' })}
@@ -206,11 +204,7 @@ export const IncidentReportsPage: React.FC = () => {
             }
             disabled={isLoading || filteredIncidents.length === 0}
             disabledReason={isLoading ? 'The reports are still loading' : 'There are no reports to export for these filters'}
-          />
-        }
-      >
-      <FilterToolbar
-        stacked
+          />}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search incident, driver, complainant"
@@ -231,7 +225,6 @@ export const IncidentReportsPage: React.FC = () => {
         }}
         disableMarginBottom
       />
-      </ToolbarRow>
 
       {/* 2B. How many reports are shown */}
       <Typography role="status" sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, my: SPACE.gap }}>

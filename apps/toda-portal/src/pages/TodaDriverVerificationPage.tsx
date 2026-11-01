@@ -22,6 +22,7 @@ import {
   Tabs,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import PersonIcon from '@mui/icons-material/Person';
@@ -149,8 +150,8 @@ const ReviewAttention: React.FC<{ applicant: DriverApplicant; onGo: (tab: Review
         {lines.map((l) => (
           <Box component="li" key={l.key} sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
             <Typography component="span" sx={{ fontSize: FONT.body }}>{l.text}</Typography>
-            <Button size="small" onClick={() => onGo(l.tab)} sx={{ textTransform: 'none', fontWeight: 700, fontSize: FONT.small, minWidth: 0, p: '0 4px', color: 'inherit', textDecoration: 'underline' }}>
-              {l.go}
+            <Button size="small" onClick={() => onGo(l.tab)} aria-label={`See more in ${l.go}`} endIcon={<ChevronRightIcon sx={{ fontSize: 16 }} />} sx={{ textTransform: 'none', textDecoration: 'none', fontWeight: 700, fontSize: FONT.small, minWidth: 0, p: '0 6px', color: 'inherit', '&:hover': { textDecoration: 'none', backgroundColor: 'rgba(0, 0, 0, 0.05)' } }}>
+              See more
             </Button>
           </Box>
         ))}

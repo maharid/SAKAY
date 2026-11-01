@@ -180,6 +180,7 @@ export const ReviewFlagsPanel: React.FC<ReviewFlagsPanelProps> = ({ limit, seeMo
       <DashboardCard
         title={view === 'open' ? 'Review flags' : 'Resolved review flags'}
         description={view === 'open' ? "Items that need an administrator's decision." : 'Flags an administrator has already decided.'}
+        action={limit ? { label: 'See all', to: seeMoreTo, ariaLabel: 'See all review flags, waiting and resolved' } : undefined}
         titleAdornment={listed.length > 0 ? <FlagTag label={view === 'open' ? `${listed.length} pending` : `${listed.length} resolved`} tone={view === 'open' ? 'warning' : 'neutral'} /> : undefined}
       >
         {listed.length === 0 ? (

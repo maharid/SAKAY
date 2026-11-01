@@ -90,7 +90,7 @@ export const StatStrip: React.FC<StatStripProps> = ({ stats, label = 'Key number
                   onClick={stat.onSelect}
                   aria-pressed={Boolean(stat.selected)}
                   disableRipple
-                  sx={{ ...cellSx, cursor: 'pointer', alignItems: 'flex-start', '&:hover': { backgroundColor: stat.selected ? '#FFF1E4' : '#FAFAF8' }, ...FOCUS_INSIDE }}
+                  sx={{ ...cellSx, display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', cursor: 'pointer', '&:hover': { backgroundColor: stat.selected ? '#FFF1E4' : '#FAFAF8' }, ...FOCUS_INSIDE }}
                 >
                   {body}
                 </ButtonBase>

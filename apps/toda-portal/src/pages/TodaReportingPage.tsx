@@ -336,8 +336,9 @@ export const TodaReportingPage: React.FC = () => {
           {/* 3. The trip numbers */}
           <OperationsStatStrip stats={ledgerStats} />
 
-          {/* 4. Search, filter, export */}
-          <FilterToolbar
+          {/* 4. Search and filter in one card, the export in a card of its own beside it */}
+                    <FilterToolbar
+        sideCard={<ReportExportButtons appearance="panel" table={ledgerTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />}
             searchQuery={bookingSearch}
             onSearchChange={setBookingSearch}
             searchPlaceholder="Search trip code, passenger, driver or plate"
@@ -357,9 +358,7 @@ export const TodaReportingPage: React.FC = () => {
             }}
             disableMarginBottom
           />
-          <ResultsBar count={isLoading ? 'Loading trips...' : `Showing ${filteredBookings.length} of ${bookings.length} trip${bookings.length === 1 ? '' : 's'}`}>
-            <ReportExportButtons table={ledgerTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
-          </ResultsBar>
+          <ResultsBar count={isLoading ? 'Loading trips...' : `Showing ${filteredBookings.length} of ${bookings.length} trip${bookings.length === 1 ? '' : 's'}`} />
 
           {/* 5. The trips */}
           <DataTableCard
@@ -411,7 +410,9 @@ export const TodaReportingPage: React.FC = () => {
       ) : (
         /* 6. Incident reports and complaints */
         <>
-          <FilterToolbar
+          {/* Search and filters in one card, the export in a card of its own beside it */}
+                    <FilterToolbar
+        sideCard={<ReportExportButtons appearance="panel" table={incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />}
             searchQuery={incidentSearch}
             onSearchChange={setIncidentSearch}
             searchPlaceholder="Search incident ID, driver, category or description"
@@ -452,9 +453,7 @@ export const TodaReportingPage: React.FC = () => {
             }}
             disableMarginBottom
           />
-          <ResultsBar count={isLoading ? 'Loading reports...' : `Showing ${filteredIncidents.length} of ${incidents.length} report${incidents.length === 1 ? '' : 's'}`}>
-            <ReportExportButtons table={incidentTable} generatedBy={`${todaName} Administrator`} onExported={recordExport} />
-          </ResultsBar>
+          <ResultsBar count={isLoading ? 'Loading reports...' : `Showing ${filteredIncidents.length} of ${incidents.length} report${incidents.length === 1 ? '' : 's'}`} />
 
           <DataTableCard
             label="Incident reports"

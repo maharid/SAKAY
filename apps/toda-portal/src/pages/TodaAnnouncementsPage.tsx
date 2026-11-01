@@ -12,7 +12,7 @@ import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { MacConfirmDialog } from '../components/admin/MacConfirmDialog';
 import { UnsavedChangesDialog } from '../components/admin/UnsavedChangesDialog';
 import { SakayToast } from '../components/common/SakayToast';
-import { ToolbarRow, ToolbarSideCard } from '@sakay/shared';
+import { ToolbarSideCard } from '@sakay/shared';
 import { SendReminderDialog } from '../components/announcements/SendReminderDialog';
 import { OperationsStatStrip } from '../components/operations/OperationsStatStrip';
 import type { OperationsStat } from '../components/operations/OperationsStatStrip';
@@ -335,8 +335,8 @@ export const TodaAnnouncementsPage: React.FC = () => {
       />
 
       {/* 3. Search, filters and the two things a president does here */}
-      <ToolbarRow side={actions}>
       <FilterToolbar
+        sideCard={actions}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search title or message"
@@ -363,9 +363,7 @@ export const TodaAnnouncementsPage: React.FC = () => {
           setCategoryFilter('All');
           setStatusFilter('All');
         }}
-        disableMarginBottom
       />
-      </ToolbarRow>
 
       {/* 4. The announcements, one per row */}
       <DataTableCard

@@ -16,6 +16,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 
@@ -49,6 +50,45 @@ const formatDisplayDate = (dateStr?: string | null): string => {
   } catch {
     return dateStr;
   }
+};
+
+const MANILA_DAY = (d: Date): string => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
+/** Whole days from today (Manila) to a stated YYYY-MM-DD day: positive while it is still ahead, negative once it has passed */
+const daysUntil = (day: string): number | null => {
+  const target = Date.parse(`${day}T00:00:00+08:00`);
+  const today = Date.parse(`${MANILA_DAY(new Date())}T00:00:00+08:00`);
+  return Number.isFinite(target) ? Math.round((target - today) / 86_400_000) : null;
+};
+
+// The date the TODA says its Barangay Clearance is valid until: the one fact the LGU must check against the document before it accredits (Rule 24.3), so it is a card of its own at the top
+// of the documents, with the date large and how far away it is. It is the TODA's statement, not a fact: the reviewer reads the document too.
+const ClearanceValidity: React.FC<{ validUntil?: string | null; sentAt?: string | null }> = ({ validUntil, sentAt }) => {
+  const days = validUntil ? daysUntil(validUntil) : null;
+  const when = validUntil ? new Date(`${validUntil}T00:00:00+08:00`).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' }) : null;
+  const tone =
+    days === null ? { bg: '#FFFBEB', border: '#FCD34D', fg: '#92400E', pillBg: '#FEF3C7', label: 'Not stated' }
+    : days < 0 ? { bg: '#FEF2F2', border: '#FECACA', fg: '#991B1B', pillBg: '#FEE2E2', label: `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago` }
+    : days <= 30 ? { bg: '#FFFBEB', border: '#FCD34D', fg: '#92400E', pillBg: '#FEF3C7', label: days === 0 ? 'Expires today' : `${days} day${days === 1 ? '' : 's'} left` }
+    : { bg: '#FFF7ED', border: '#FDBA74', fg: '#9A3412', pillBg: '#FFEDD5', label: `${days} days left` };
+  return (
+    <Box role="group" aria-label="Barangay Clearance validity" sx={{ borderRadius: '12px', border: `1.5px solid ${tone.border}`, backgroundColor: tone.bg, p: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 12px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          <EventAvailableOutlinedIcon aria-hidden sx={{ color: tone.fg, fontSize: 26, flexShrink: 0 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: FONT.small, fontWeight: 700, color: tone.fg, letterSpacing: '0.02em', textTransform: 'uppercase' }}>Barangay Clearance valid until</Typography>
+            <Typography sx={{ fontSize: FONT.heading, fontWeight: 700, color: PAGE_TEXT.primary, lineHeight: 1.25 }}>{when ?? 'Not stated by the TODA'}</Typography>
+          </Box>
+        </Box>
+        <Box component="span" sx={{ px: '12px', py: '3px', borderRadius: '999px', backgroundColor: tone.pillBg, color: tone.fg, fontSize: FONT.small, fontWeight: 700, whiteSpace: 'nowrap' }}>{tone.label}</Box>
+      </Box>
+      <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>
+        As stated by the TODA{sentAt ? `, sent ${new Date(sentAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}` : ''}.{' '}
+        <Box component="span" sx={{ fontWeight: 700, color: PAGE_TEXT.primary }}>Read the date on the document yourself before approving.</Box>
+      </Typography>
+    </Box>
+  );
 };
 
 export const TodaApplicationsPage: React.FC = () => {
@@ -378,6 +418,9 @@ export const TodaApplicationsPage: React.FC = () => {
           {/* Required documents, each with its own "return for correction" */}
           <DetailSection title="Documents" note={`${selectedApp.documents.length} ${selectedApp.documents.length === 1 ? 'file' : 'files'}`}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {selectedApp.hasBarangayClearance !== false && (
+                <ClearanceValidity validUntil={selectedApp.declaredClearanceValidUntil} sentAt={selectedApp.clearanceSubmittedAt} />
+              )}
               {selectedApp.documents.map((doc, idx) => {
                 const isRoster = doc.name.toLowerCase().includes('roster') || doc.type.toLowerCase().includes('spreadsheet') || doc.type.toLowerCase().includes('csv') || doc.type.toLowerCase().includes('excel');
                 const isPdf = doc.type.toLowerCase().includes('pdf');
@@ -389,15 +432,15 @@ export const TodaApplicationsPage: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '10px 12px',
+                      flexWrap: 'nowrap',
+                      gap: '12px',
                       padding: '12px 14px',
                       borderRadius: '12px',
                       border: `1px solid ${PAGE_BORDER}`,
                       backgroundColor: '#FFFFFF',
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
                       {isRoster ? (
                         <TableChartOutlinedIcon aria-hidden sx={{ color: '#15803D', fontSize: 22 }} />
                       ) : isPdf ? (
@@ -406,14 +449,14 @@ export const TodaApplicationsPage: React.FC = () => {
                         <DescriptionIcon aria-hidden sx={{ color: PAGE_TEXT.brand, fontSize: 22 }} />
                       )}
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflowWrap: 'anywhere' }}>{doc.name}</Typography>
-                        <Typography sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px' }}>
+                        <Typography title={doc.name} sx={{ fontSize: FONT.body, fontWeight: 600, color: PAGE_TEXT.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</Typography>
+                        <Typography title={`${doc.type} · Uploaded ${doc.date}`} sx={{ fontSize: FONT.small, color: PAGE_TEXT.secondary, mt: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {doc.type} · Uploaded {doc.date}
                         </Typography>
                       </Box>
                     </Box>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, ml: 'auto', whiteSpace: 'nowrap' }}>
                       <Button
                         startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}
                         aria-label={`View ${doc.name}`}
@@ -438,12 +481,6 @@ export const TodaApplicationsPage: React.FC = () => {
                   </Box>
                 );
               })}
-              {selectedApp.hasBarangayClearance !== false && (
-                <Typography sx={{ fontSize: FONT.body, color: PAGE_TEXT.secondary, lineHeight: 1.5 }}>
-                  Barangay Clearance valid until, as stated by the TODA: <b>{selectedApp.declaredClearanceValidUntil ?? 'not stated'}</b>
-                  {selectedApp.clearanceSubmittedAt ? ` (clearance sent ${new Date(selectedApp.clearanceSubmittedAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })})` : ''}. Read the date on the document yourself before approving.
-                </Typography>
-              )}
               {selectedApp.status !== 'Approved' && selectedApp.hasBarangayClearance === false && (
                 <Alert
                   severity="warning"

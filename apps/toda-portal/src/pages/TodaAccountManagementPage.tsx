@@ -30,6 +30,7 @@ import type { TodaChangeRequest, TodaProfile } from '../types/toda';
 import { MacCenterModal } from '../components/admin/MacCenterModal';
 import { DocumentReviewModal } from '../components/modals/DocumentReviewModal';
 import { TerminalMapPickerModal } from '../components/modals/TerminalMapPickerModal';
+import { TerminalLocationFields } from '../components/common/TerminalLocationFields';
 import { RosterUpdateDialog } from '../components/modals/RosterUpdateDialog';
 import { AccreditationCard } from '../components/common/AccreditationCard';
 import { PendingChangesList } from '../components/common/PendingChangesList';
@@ -118,8 +119,10 @@ export const TodaAccountManagementPage: React.FC = () => {
   const [editBarangay, setEditBarangay] = useState('');
   const [editDateEst, setEditDateEst] = useState('');
   const [editTerminalLoc, setEditTerminalLoc] = useState('');
-  // Panel comment (D-P4): the terminal is a pin on the map, never typed. Moving it is a request the LGU decides, and it needs a reason.
+  // The terminal is a place name and a pin (typing the place moves the pin; the coordinates can be typed or the pin placed on the map). Moving it is a request the LGU decides, and it needs a reason.
   const [editPin, setEditPin] = useState<{ lat: number; lng: number } | null>(null);
+  // the pin is inside Calapan City and on a road (judged by the terminal fields; a pin that is not cannot be sent)
+  const [terminalPinOk, setTerminalPinOk] = useState(true);
   const [pinMapOpen, setPinMapOpen] = useState(false);
   // Decision D-P9: a newer roster file of an Active TODA is a new version; the TODA reconciles it with the Master Roster member by member
   const [rosterUpdateFile, setRosterUpdateFile] = useState<{ path: string; name: string } | null>(null);
@@ -349,6 +352,8 @@ export const TodaAccountManagementPage: React.FC = () => {
       // a moved pin is a request to the LGU, which reads the reason before it decides
       if (pinMoved && editRelocationReason.trim().length < 10) return fail('Say why the terminal is moving (at least 10 characters). The LGU reads it before it decides.');
       if (pinMoved && editTerminalLoc.trim().length < 3) return fail('Name the new terminal place (street and barangay). It is sent with the pin.');
+      if (pinMoved && editTerminalLoc.trim() === (profile.terminalLocation || '').trim()) return fail('The pin moved, but the place name is still the old one. Update the name to match the new place.');
+      if (pinMoved && !terminalPinOk) return fail('The pin must be on a road inside Calapan City.');
       payload = {
         // the name of the terminal place travels with the pin: it is sent only when the pin moved (the LGU approves both together)
         terminalLocation: pinMoved ? editTerminalLoc.trim() : undefined,
@@ -626,6 +631,7 @@ export const TodaAccountManagementPage: React.FC = () => {
           </Box>
         </SectionCard>
 
+        <Box sx={{ gridColumn: { md: '1 / -1' }, minWidth: 0 }}>
         <SectionCard icon={<BusinessIcon aria-hidden sx={{ color: OPS_TEXT.brand, fontSize: 19 }} />} title="Terminal" action={<Button variant="outlined" startIcon={<EditIcon sx={{ fontSize: 16 }} />} onClick={() => openSectionEditor('terminal')} aria-label="Edit the terminal location" sx={secondaryButtonSx}>Edit</Button>}>
           <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px 16px' }}>
             <InfoItem label="Terminal location">{profile.terminalLocation || 'Calapan City Terminal'}</InfoItem>
@@ -650,6 +656,7 @@ export const TodaAccountManagementPage: React.FC = () => {
             </Alert>
           )}
         </SectionCard>
+        </Box>
       </Box>
 
       {/* 4. The compliance files: three cards side by side, one line of file name each (the last block of the page) */}
@@ -760,64 +767,42 @@ export const TodaAccountManagementPage: React.FC = () => {
         </Box>
       </MacCenterModal>
 
-      {/* Edit the terminal: the pin on the map, and why it moves */}
+      {/* Edit the terminal: the place and its coordinates (typing the place moves the pin), and why it moves */}
       <MacCenterModal
         open={editSection === 'terminal'}
         onClose={() => !isSavingEdit && setEditSection(null)}
         title="Edit terminal location"
         subtitle={`Where ${profile.name} queues`}
         maxWidth={560}
-        primaryActionLabel={isSavingEdit ? 'Saving...' : pinMoved ? 'Send to the LGU' : 'Save'}
-        primaryActionDisabled={isSavingEdit || !pinMoved}
+        primaryActionLabel={isSavingEdit ? 'Saving...' : 'Send to the LGU'}
+        primaryActionDisabled={isSavingEdit || !pinMoved || !terminalPinOk}
         onPrimaryAction={handleEditSectionSubmit}
         secondaryActionLabel="Cancel"
         onSecondaryAction={() => setEditSection(null)}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: SPACE.gap, pt: '6px' }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: SPACE.gap }}>
+          <TerminalLocationFields
+            location={editTerminalLoc}
+            onLocationChange={(value) => setEditTerminalLoc(value)}
+            pin={editPin}
+            onPinChange={setEditPin}
+            recordedLocation={profile.terminalLocation || ''}
+            moved={pinMoved}
+            onAcceptableChange={setTerminalPinOk}
+            onPickOnMap={() => setPinMapOpen(true)}
+          />
+          {pinMoved && (
             <TextField
-              label={pinMoved ? 'Name of the new terminal place' : 'Terminal Location'}
-              placeholder="e.g. Calapan Public Market, J.P. Rizal St."
-              value={editTerminalLoc}
-              onChange={(e) => setEditTerminalLoc(e.target.value)}
-              required={pinMoved}
-              disabled={!pinMoved}
-              helperText={pinMoved ? 'Street and barangay of the new place. It is sent with the pin.' : 'Move the pin on the map to propose a new terminal place; the LGU approves the place and the pin together.'}
+              label="Why is the terminal moving?"
+              placeholder="e.g. The old lot was sold; we now queue beside the market."
+              value={editRelocationReason}
+              onChange={(e) => setEditRelocationReason(e.target.value)}
+              required
               fullWidth
+              multiline
+              minRows={2}
               size="small"
             />
-            <Box>
-              <TextField
-                label="Terminal Coordinates (from the map pin)"
-                placeholder="Use Pin on Map"
-                value={editPin ? `${editPin.lat.toFixed(6)}, ${editPin.lng.toFixed(6)}` : ''}
-                fullWidth
-                size="small"
-                slotProps={{ input: { readOnly: true } }}
-                onClick={() => setPinMapOpen(true)}
-              />
-              <Button onClick={() => setPinMapOpen(true)} sx={{ ...secondaryButtonSx, mt: '8px' }}>
-                {editPin ? 'Move the pin on the map' : 'Pin on Map'}
-              </Button>
-            </Box>
-          </Box>
-          {pinMoved && (
-            <Box>
-              <Alert severity="info" sx={{ mb: '8px', fontSize: FONT.body }}>
-                The terminal is moving. The LGU has to approve the move; the current terminal stays in force until it decides.
-              </Alert>
-              <TextField
-                label="Why is the terminal moving?"
-                placeholder="e.g. The old terminal lot was sold; the TODA now queues at the new lot beside the market."
-                value={editRelocationReason}
-                onChange={(e) => setEditRelocationReason(e.target.value)}
-                required
-                fullWidth
-                multiline
-                minRows={2}
-                size="small"
-              />
-            </Box>
           )}
         </Box>
       </MacCenterModal>

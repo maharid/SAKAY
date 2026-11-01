@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { ToolbarRow } from '@sakay/shared';
 import { CONTROL, FONT } from '../../styles/density';
 
 export interface FilterOption {
@@ -41,7 +42,22 @@ export interface FilterToolbarProps {
   disableMarginBottom?: boolean;
   /** For a toolbar with many filters (more than will sit beside the search box): the search box on its own row, and the filters under it in one even row (Reset and the action on the right) */
   stacked?: boolean;
+  /**
+   * A card of its own BESIDE the search (the export, or the page's actions: see ToolbarRow). With one filter or none, the search and the filter share one card next to it; with
+   * more, the search sits alone beside it and the filters get a card of their own under them, so no card ever takes two lines.
+   */
+  sideCard?: React.ReactNode;
+  /** Forces (true) or forbids (false) the filters-in-their-own-card layout; left out, it is used when there are two or more filters */
+  splitFilters?: boolean;
 }
+
+const CARD_SX = {
+  p: 1.6,
+  borderRadius: 'var(--mac-radius-lg)',
+  border: '1px solid var(--mac-border-color)',
+  backgroundColor: '#FFFFFF',
+  boxShadow: 'var(--mac-shadow-card)',
+} as const;
 
 export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   searchQuery = '',
@@ -53,19 +69,170 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   extraControls,
   disableMarginBottom = false,
   stacked = false,
+  sideCard,
+  splitFilters,
 }) => {
-  return (
-    <Card
-      elevation={0}
-      sx={{
-        p: 1.6,
-        borderRadius: 'var(--mac-radius-lg)',
-        border: '1px solid var(--mac-border-color)',
-        backgroundColor: '#FFFFFF',
-        boxShadow: 'var(--mac-shadow-card)',
-        mb: disableMarginBottom ? 0 : 2.8,
+  const marginBottom = disableMarginBottom ? 0 : 22;
+  const hasControls = selectFilters.length > 0 || Boolean(extraControls) || Boolean(onResetFilters) || Boolean(actionButton);
+  const split = Boolean(sideCard) && (splitFilters ?? selectFilters.length + (extraControls ? 1 : 0) >= 2);
+
+  const searchField = onSearchChange ? (
+    <TextField
+      size="small"
+      placeholder={searchPlaceholder}
+      value={searchQuery}
+      onChange={(e) => onSearchChange(e.target.value)}
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: '14px' }} />
+            </InputAdornment>
+          ),
+        },
+        htmlInput: { 'aria-label': searchPlaceholder },
       }}
-    >
+      sx={{
+        width: '100%',
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '10px',
+          backgroundColor: '#FAFAFC',
+          fontSize: FONT.body,
+          height: CONTROL.height,
+          '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+          border: '1px solid var(--mac-border-color)',
+          transition: 'var(--mac-transition-fast)',
+          '& fieldset': { border: 'none' },
+          '&:hover': {
+            backgroundColor: '#FFFFFF',
+            borderColor: 'var(--sakay-orange-border)',
+          },
+          '&.Mui-focused': {
+            backgroundColor: '#FFFFFF',
+            boxShadow: '0 0 0 3px var(--sakay-orange-glow)',
+            border: '1px solid var(--sakay-orange)',
+          },
+        },
+      }}
+    />
+  ) : null;
+
+  // the drop-downs, the extra controls, Reset and the page's action
+  const controls = (inSplitCard: boolean) => (
+    <>
+      {selectFilters.map((filter) => (
+        <FormControl
+          key={filter.id}
+          size="small"
+          sx={stacked && !inSplitCard ? { flex: '1 1 150px', minWidth: 140, maxWidth: 240 } : { minWidth: filter.width || 160, flexShrink: 0 }}
+        >
+          <Select
+            value={filter.value}
+            onChange={(e) => filter.onChange(e.target.value)}
+            displayEmpty
+            renderValue={
+              filter.prefix
+                ? (value) => (
+                    <span>
+                      <Box component="span" sx={{ color: 'var(--mac-text-secondary)', fontWeight: 400 }}>{filter.prefix} · </Box>
+                      {filter.options.find((o) => o.value === value)?.label ?? String(value)}
+                    </span>
+                  )
+                : undefined
+            }
+            SelectDisplayProps={{ 'aria-label': filter.label ?? filter.id }}
+            sx={{
+              borderRadius: '10px',
+              backgroundColor: '#FAFAFC',
+              fontSize: FONT.body,
+              fontWeight: 500,
+              color: 'var(--mac-text-primary)',
+              height: CONTROL.height,
+              '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+              border: '1px solid var(--mac-border-color)',
+              '& fieldset': { border: 'none' },
+              '&:hover': {
+                borderColor: 'var(--sakay-orange-border)',
+                backgroundColor: '#FFFFFF',
+              },
+              '&.Mui-focused': {
+                boxShadow: '0 0 0 3px var(--sakay-orange-glow)',
+                border: '1px solid var(--sakay-orange)',
+                backgroundColor: '#FFFFFF',
+              },
+            }}
+          >
+            {filter.options.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: FONT.body }}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ))}
+
+      {extraControls}
+
+      {onResetFilters && (
+        <Button
+          size="small"
+          onClick={onResetFilters}
+          startIcon={<RestartAltIcon fontSize="small" sx={{ fontSize: '14px' }} />}
+          sx={{
+            height: CONTROL.height,
+            '@media (pointer: coarse)': { height: CONTROL.touchHeight },
+            padding: '0 13px',
+            borderRadius: '10px',
+            border: '1px solid var(--mac-border-color)',
+            backgroundColor: '#FAFAFC',
+            color: 'var(--mac-text-secondary)',
+            fontSize: FONT.small,
+            fontWeight: 500,
+            textTransform: 'none',
+            flexShrink: 0,
+            // stacked: Reset and the action button sit together at the right end of the row
+            ml: stacked && !inSplitCard ? 'auto' : undefined,
+            '&:hover': {
+              backgroundColor: 'var(--sakay-orange-soft)',
+              color: 'var(--sakay-orange)',
+              borderColor: 'var(--sakay-orange-border)',
+            },
+          }}
+        >
+          Reset
+        </Button>
+      )}
+
+      {actionButton && (
+        <Box sx={{ flexShrink: 0, ml: (stacked && !inSplitCard) && !onResetFilters ? 'auto' : 0.4 }}>
+          {actionButton}
+        </Box>
+      )}
+    </>
+  );
+
+  const filterRow = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.2 } as const;
+
+  // the search beside the side card, the filters in a card of their own under both
+  if (split) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px', mb: `${marginBottom}px` }}>
+        <ToolbarRow side={sideCard} marginBottom={0}>
+          <Card elevation={0} sx={CARD_SX}>
+            {searchField}
+          </Card>
+        </ToolbarRow>
+        {hasControls && (
+          <Card elevation={0} sx={CARD_SX}>
+            <Box sx={filterRow}>{controls(true)}</Box>
+          </Card>
+        )}
+      </Box>
+    );
+  }
+
+  const card = (
+    <Card elevation={0} sx={{ ...CARD_SX, mb: sideCard ? 0 : `${marginBottom}px` }}>
       <Box
         sx={{
           display: 'flex',
@@ -76,48 +243,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
         }}
       >
         {/* Left side: Search Field */}
-        <Box sx={stacked ? { width: '100%', maxWidth: 440 } : { flex: { xs: '1 1 100%', md: '0 1 360px' } }}>
-          {onSearchChange && (
-            <TextField
-              size="small"
-              placeholder={searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: 'var(--mac-text-muted)', fontSize: '14px' }} />
-                    </InputAdornment>
-                  ),
-                },
-                htmlInput: { 'aria-label': searchPlaceholder },
-              }}
-              sx={{
-                width: '100%',
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '10px',
-                  backgroundColor: '#FAFAFC',
-                  fontSize: FONT.body,
-                  height: CONTROL.height,
-                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                  border: '1px solid var(--mac-border-color)',
-                  transition: 'var(--mac-transition-fast)',
-                  '& fieldset': { border: 'none' },
-                  '&:hover': {
-                    backgroundColor: '#FFFFFF',
-                    borderColor: 'var(--sakay-orange-border)',
-                  },
-                  '&.Mui-focused': {
-                    backgroundColor: '#FFFFFF',
-                    boxShadow: '0 0 0 3px var(--sakay-orange-glow)',
-                    border: '1px solid var(--sakay-orange)',
-                  },
-                },
-              }}
-            />
-          )}
-        </Box>
+        <Box sx={stacked ? { width: '100%', maxWidth: 440 } : { flex: { xs: '1 1 100%', md: '0 1 360px' } }}>{searchField}</Box>
 
         {/* Rightmost side: Select Dropdowns, Reset Button & Optional Action Button */}
         <Box
@@ -131,99 +257,10 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             width: stacked ? '100%' : undefined,
           }}
         >
-          {/* Dynamic Select Filters */}
-          {selectFilters.map((filter) => (
-            <FormControl
-              key={filter.id}
-              size="small"
-              sx={stacked ? { flex: '1 1 150px', minWidth: 140, maxWidth: 240 } : { minWidth: filter.width || 160, flexShrink: 0 }}
-            >
-              <Select
-                value={filter.value}
-                onChange={(e) => filter.onChange(e.target.value)}
-                displayEmpty
-                renderValue={
-                  filter.prefix
-                    ? (value) => (
-                        <span>
-                          <Box component="span" sx={{ color: 'var(--mac-text-secondary)', fontWeight: 400 }}>{filter.prefix} · </Box>
-                          {filter.options.find((o) => o.value === value)?.label ?? String(value)}
-                        </span>
-                      )
-                    : undefined
-                }
-                SelectDisplayProps={{ 'aria-label': filter.label ?? filter.id }}
-                sx={{
-                  borderRadius: '10px',
-                  backgroundColor: '#FAFAFC',
-                  fontSize: FONT.body,
-                  fontWeight: 500,
-                  color: 'var(--mac-text-primary)',
-                  height: CONTROL.height,
-                  '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                  border: '1px solid var(--mac-border-color)',
-                  '& fieldset': { border: 'none' },
-                  '&:hover': {
-                    borderColor: 'var(--sakay-orange-border)',
-                    backgroundColor: '#FFFFFF',
-                  },
-                  '&.Mui-focused': {
-                    boxShadow: '0 0 0 3px var(--sakay-orange-glow)',
-                    border: '1px solid var(--sakay-orange)',
-                    backgroundColor: '#FFFFFF',
-                  },
-                }}
-              >
-                {filter.options.map((opt) => (
-                   <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: FONT.body }}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          ))}
-
-          {extraControls}
-
-          {/* Reset Filter Button */}
-          {onResetFilters && (
-            <Button
-              size="small"
-              onClick={onResetFilters}
-              startIcon={<RestartAltIcon fontSize="small" sx={{ fontSize: '14px' }} />}
-              sx={{
-                height: CONTROL.height,
-                '@media (pointer: coarse)': { height: CONTROL.touchHeight },
-                padding: '0 13px',
-                borderRadius: '10px',
-                border: '1px solid var(--mac-border-color)',
-                backgroundColor: '#FAFAFC',
-                color: 'var(--mac-text-secondary)',
-                fontSize: FONT.small,
-                fontWeight: 500,
-                textTransform: 'none',
-                flexShrink: 0,
-                // stacked: Reset and the action button sit together at the right end of the row
-                ml: stacked ? 'auto' : undefined,
-                '&:hover': {
-                  backgroundColor: 'var(--sakay-orange-soft)',
-                  color: 'var(--sakay-orange)',
-                  borderColor: 'var(--sakay-orange-border)',
-                },
-              }}
-            >
-              Reset
-            </Button>
-          )}
-
-          {/* Optional Action Button */}
-          {actionButton && (
-            <Box sx={{ flexShrink: 0, ml: stacked && !onResetFilters ? 'auto' : 0.4 }}>
-              {actionButton}
-            </Box>
-          )}
+          {controls(false)}
         </Box>
       </Box>
     </Card>
   );
+  return sideCard ? <ToolbarRow side={sideCard} marginBottom={marginBottom}>{card}</ToolbarRow> : card;
 };
