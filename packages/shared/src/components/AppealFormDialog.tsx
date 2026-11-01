@@ -61,14 +61,14 @@ export const AppealFormDialog: React.FC<AppealFormDialogProps> = ({ open, langua
   return (
     <Dialog open={open} onClose={() => !busy && onClose()} maxWidth="xs" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
       <SakayDialogTitle onClose={onClose} busy={busy} sx={DIALOG_TITLE_SX}>
-        {tl ? 'Mag-apela ng strike' : 'Appeal this strike'}
+        {tl ? 'Iapela ang Strike' : 'Appeal Strike'}
       </SakayDialogTitle>
       <DialogContent sx={DIALOG_CONTENT_SX}>
         <Box sx={{ p: '12px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: '1px solid #E8ECF1' }}>
-          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', lineHeight: 1.35, overflowWrap: 'anywhere' }}>{strikeTitle}</Typography>
-          <Typography sx={{ fontSize: '11.5px', color: '#64748B', mt: '2px' }}>{strikeMeta}</Typography>
+          <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.35, overflowWrap: 'anywhere' }}>{strikeTitle}</Typography>
+          <Typography sx={{ fontSize: '11.5px', color: '#64748B', fontFamily: 'Poppins, sans-serif', mt: '2px' }}>{strikeMeta}</Typography>
           {deadline && (
-            <Typography sx={{ fontSize: '11.5px', color: '#92400E', fontWeight: 600, mt: '6px' }}>
+            <Typography sx={{ fontSize: '11.5px', color: '#92400E', fontWeight: 600, fontFamily: 'Poppins, sans-serif', mt: '6px' }}>
               {tl ? `Maaari kang mag-apela hanggang ${deadline}.` : `You can appeal until ${deadline}.`}
             </Typography>
           )}
@@ -91,7 +91,7 @@ export const AppealFormDialog: React.FC<AppealFormDialogProps> = ({ open, langua
           slotProps={WRAPPING_SELECT_SLOTS}
         >
           {EXEMPTION_CAUSE_CODES.map((c) => (
-            <MenuItem key={c} value={c} sx={{ whiteSpace: 'normal' }}>
+            <MenuItem key={c} value={c} sx={{ whiteSpace: 'normal', fontFamily: 'Poppins, sans-serif' }}>
               {tl ? APPEAL_CAUSE_LABELS[c].tl : APPEAL_CAUSE_LABELS[c].en}
             </MenuItem>
           ))}
@@ -122,7 +122,7 @@ export const AppealFormDialog: React.FC<AppealFormDialogProps> = ({ open, langua
         )}
       </DialogContent>
       <DialogActions sx={DIALOG_ACTIONS_SX}>
-        <Button onClick={onClose} disabled={busy} sx={{ textTransform: 'none', color: '#475569', fontWeight: 700 }}>
+        <Button onClick={onClose} disabled={busy} sx={{ textTransform: 'none', color: '#475569', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>
           {tl ? 'Kanselahin' : 'Cancel'}
         </Button>
         <Button
@@ -131,9 +131,9 @@ export const AppealFormDialog: React.FC<AppealFormDialogProps> = ({ open, langua
           disabled={busy}
           onClick={submit}
           startIcon={busy ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : undefined}
-          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', minHeight: 40, backgroundColor: '#FF6600', '&:hover': { backgroundColor: '#E65C00' } }}
+          sx={{ textTransform: 'none', fontWeight: 700, fontFamily: 'Poppins, sans-serif', borderRadius: '12px', minHeight: 40, backgroundColor: '#FF6600', '&:hover': { backgroundColor: '#E65C00' } }}
         >
-          {busy ? (tl ? 'Ipinapadala…' : 'Sending…') : tl ? 'Ipadala ang apela' : 'Send appeal'}
+          {busy ? (tl ? 'Ipinapadala…' : 'Submitting…') : tl ? 'Ipadala ang Apela' : 'Submit Appeal'}
         </Button>
       </DialogActions>
     </Dialog>

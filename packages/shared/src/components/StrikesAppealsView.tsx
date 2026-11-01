@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { EXEMPTION_REQUEST_WINDOW_HOURS } from '../config/policyConfig';
 import type { ExemptionCauseCode } from '../config/policyConfig';
 import { useInFlight } from '../hooks/useInFlight';
@@ -70,12 +72,33 @@ const manila = (iso: string, withTime = true): string =>
     ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
   });
 
-const cardSx = { p: 2, borderRadius: '16px', border: '1px solid #E8ECF1', backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', gap: 1 } as const;
+const cardSx = {
+  p: 2,
+  borderRadius: '16px',
+  border: '1px solid #E2E8F0',
+  backgroundColor: '#FFFFFF',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 1.5,
+  boxShadow: '0 1px 3px rgba(15,23,42,0.03)',
+} as const;
 
 const Badge: React.FC<{ tone: Tone; children: React.ReactNode }> = ({ tone, children }) => (
   <Box
     component="span"
-    sx={{ display: 'inline-flex', alignItems: 'center', height: 24, px: '10px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0, ...TONES[tone] }}
+    sx={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      height: 24,
+      px: '10px',
+      borderRadius: '999px',
+      fontSize: '11.5px',
+      fontWeight: 700,
+      fontFamily: 'Poppins, sans-serif',
+      whiteSpace: 'nowrap',
+      flexShrink: 0,
+      ...TONES[tone],
+    }}
   >
     {children}
   </Box>
@@ -163,7 +186,6 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
         return;
       }
       setTarget(null);
-      setTab('appeals');
       await onAppealSent(
         result.autoDenied
           ? (tl ? 'Naitala ang apela pero awtomatiko itong tinanggihan: ginamit mo na ang dahilang ito nang ilang beses.' : 'Your appeal was recorded but denied automatically: this cause has been used several times already.')
@@ -215,6 +237,8 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
     const appeal = appealByStrike.get(s.strikeId);
     const eligibility = strikeAppealEligibility(s, appeal);
     const outcome = appeal ? appealOutcome(appeal.status) : null;
+    const reviewer = appeal ? appealReviewer(appeal) : null;
+    const appealCause = appeal ? APPEAL_CAUSE_LABELS[appeal.causeCode as ExemptionCauseCode] : null;
     const reason = eligibility.can === true ? null : eligibility.why;
     const why =
       reason === 'window-passed'
@@ -228,49 +252,267 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
       <Paper
         id={`strike-${s.strikeId}`}
         elevation={0}
-        sx={{ ...cardSx, ...(highlight === s.strikeId ? { borderColor: '#FF6600', boxShadow: '0 0 0 2px rgba(255,102,0,0.25)' } : {}) }}
+        sx={{
+          ...cardSx,
+          ...(highlight === s.strikeId
+            ? { borderColor: '#FF6600', boxShadow: '0 0 0 3px rgba(255,102,0,0.18)' }
+            : {}),
+        }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.35, minWidth: 0, overflowWrap: 'anywhere' }}>{readable(s.description)}</Typography>
+        {/* Header: Violation Title and Status Badge */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+          <Typography
+            sx={{
+              fontSize: '15px',
+              fontWeight: 700,
+              color: '#0F172A',
+              fontFamily: 'Poppins, sans-serif',
+              lineHeight: 1.35,
+              minWidth: 0,
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {readable(s.description)}
+          </Typography>
           <Badge tone={status.tone}>{tl ? status.tl : status.en}</Badge>
         </Box>
-        <Typography sx={{ fontSize: '12px', color: '#64748B' }}>
-          {manila(s.issuedAt)} · {s.pointsActive}/{s.pointsIssued} {tl ? 'puntos' : 'point(s)'}
-        </Typography>
-        {s.reason && <Typography sx={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{readable(s.reason)}</Typography>}
-        {s.status === 'PROVISIONAL' && s.provisionalUntil && (
-          <Typography sx={{ fontSize: '12px', color: '#92400E', fontWeight: 600 }}>
-            {tl ? `Maaaring alisin kung hihilingin bago ${manila(s.provisionalUntil)}.` : `May be waived if you ask before ${manila(s.provisionalUntil)}.`}
-          </Typography>
+
+        {/* Metadata: Date and Points */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+            <CalendarTodayIcon sx={{ fontSize: 13, color: '#94A3B8' }} />
+            <Typography sx={{ fontSize: '12px', fontWeight: 500, color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+              {manila(s.issuedAt)}
+            </Typography>
+          </Box>
+          <Typography sx={{ color: '#CBD5E1', fontSize: '12px' }}>·</Typography>
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              px: '7px',
+              py: '1.5px',
+              borderRadius: '6px',
+              backgroundColor: s.pointsActive > 0 ? '#FFF7ED' : '#F1F5F9',
+              color: s.pointsActive > 0 ? '#C2410C' : '#64748B',
+              fontSize: '11px',
+              fontWeight: 700,
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            {s.pointsActive}/{s.pointsIssued} {tl ? 'puntos' : 'point(s)'}
+          </Box>
+        </Box>
+
+        {/* Reported Reason / Violation Details Block */}
+        {s.reason && (
+          <Box
+            sx={{
+              p: '10px 12px',
+              borderRadius: '10px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #EEF2F6',
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#64748B',
+                fontFamily: 'Poppins, sans-serif',
+                textTransform: 'uppercase',
+                letterSpacing: '0.4px',
+                mb: 0.25,
+              }}
+            >
+              {tl ? 'Dahilan ng ulat / pagkakansela:' : 'Reported reason / details:'}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#1E293B',
+                fontFamily: 'Poppins, sans-serif',
+                lineHeight: 1.4,
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {readable(s.reason)}
+            </Typography>
+          </Box>
         )}
+
+        {/* Provisional Note */}
+        {s.status === 'PROVISIONAL' && s.provisionalUntil && (
+          <Box
+            sx={{
+              p: '8px 12px',
+              borderRadius: '8px',
+              backgroundColor: '#FEF3C7',
+              color: '#92400E',
+              display: 'flex',
+              gap: 0.75,
+              alignItems: 'center',
+            }}
+          >
+            <InfoOutlinedIcon sx={{ fontSize: 16, flexShrink: 0 }} />
+            <Typography sx={{ fontSize: '12px', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
+              {tl
+                ? `Maaaring alisin kung hihilingin bago ${manila(s.provisionalUntil)}.`
+                : `May be waived if requested before ${manila(s.provisionalUntil)}.`}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Appeal Status Section (when an appeal has been submitted) */}
         {appeal && outcome && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Badge tone={OUTCOME[outcome].tone}>{tl ? `Apela: ${OUTCOME[outcome].tl}` : `Appeal: ${OUTCOME[outcome].en}`}</Badge>
-            {outcome === 'pending' && appeal.decisionDueAt && (
-              <Typography sx={{ fontSize: '11.5px', color: '#64748B' }}>
-                {tl ? `Desisyon bago ang ${manila(appeal.decisionDueAt, false)}` : `Decision due by ${manila(appeal.decisionDueAt, false)}`}
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: '12px',
+              border: '1px solid',
+              borderColor:
+                outcome === 'pending'
+                  ? '#FDE68A'
+                  : outcome === 'approved'
+                    ? '#BBF7D0'
+                    : '#FECACA',
+              backgroundColor:
+                outcome === 'pending'
+                  ? '#FFFBEB'
+                  : outcome === 'approved'
+                    ? '#F0FDF4'
+                    : '#FEF2F2',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.75,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+              <Badge tone={OUTCOME[outcome].tone}>
+                {outcome === 'pending'
+                  ? reviewer === 'toda'
+                    ? tl ? 'Apela: Sinusuri ng TODA' : 'Appeal: Pending TODA Review'
+                    : reviewer === 'lgu'
+                      ? tl ? 'Apela: Sinusuri ng LGU' : 'Appeal: Pending LGU Review'
+                      : tl ? `Apela: ${OUTCOME[outcome].tl}` : `Appeal: ${OUTCOME[outcome].en}`
+                  : tl ? `Apela: ${OUTCOME[outcome].tl}` : `Appeal: ${OUTCOME[outcome].en}`}
+              </Badge>
+              <Typography sx={{ fontSize: '11px', color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+                {tl ? 'Ipinadala:' : 'Submitted:'} {manila(appeal.requestedAt)}
+              </Typography>
+            </Box>
+
+            {appealCause && (
+              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#334155', fontFamily: 'Poppins, sans-serif' }}>
+                {tl ? 'Dahilan:' : 'Cause:'}{' '}
+                <Box component="span" sx={{ fontWeight: 700, color: '#0F172A' }}>
+                  {tl ? appealCause.tl : appealCause.en}
+                </Box>
+              </Typography>
+            )}
+
+            {outcome === 'pending' ? (
+              <>
+                {appeal.decisionDueAt && (
+                  <Typography sx={{ fontSize: '11.5px', color: '#B45309', fontFamily: 'Poppins, sans-serif' }}>
+                    {tl
+                      ? `Inaasahang desisyon bago ang ${manila(appeal.decisionDueAt, false)}`
+                      : `Decision expected by ${manila(appeal.decisionDueAt, false)}`}
+                  </Typography>
+                )}
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.6, pt: 0.25 }}>
+                  <InfoOutlinedIcon sx={{ fontSize: 14, color: '#B45309', mt: '2px', flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '11.5px', color: '#B45309', lineHeight: 1.4, fontFamily: 'Poppins, sans-serif' }}>
+                    {tl
+                      ? 'Kasalukuyang naghihintay ng desisyon. Hindi maaaring magsumite ng panibagong apela habang may nakabinbin.'
+                      : 'Appeal is currently under review. Duplicate appeals cannot be submitted while an appeal is pending.'}
+                  </Typography>
+                </Box>
+              </>
+            ) : outcome === 'approved' ? (
+              <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: '#166534', fontFamily: 'Poppins, sans-serif' }}>
+                {appeal.status === 'Full Waiver'
+                  ? tl ? 'Inalis ang strike.' : 'The strike was removed.'
+                  : tl ? 'Bahagyang inalis ang strike.' : 'The strike was partly removed.'}
+              </Typography>
+            ) : (
+              <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: '#B91C1C', fontFamily: 'Poppins, sans-serif' }}>
+                {tl ? 'Nananatili ang strike.' : 'The strike stays.'}
+                {appeal.decisionReason && (
+                  <Box component="span" sx={{ display: 'block', fontWeight: 400, fontSize: '12px', color: '#475569', mt: 0.25 }}>
+                    {readable(appeal.decisionReason)}
+                  </Box>
+                )}
               </Typography>
             )}
           </Box>
         )}
+
+        {/* Eligible for Appeal: Prominent Appeal Strike Button with Window Notice */}
         {eligibility.can && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start', pt: 0.5 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: '12px',
+              backgroundColor: '#FFF7ED',
+              border: '1px solid #FFEDD5',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <AccessTimeIcon sx={{ fontSize: 15, color: '#C2410C', flexShrink: 0 }} />
+              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#C2410C', fontFamily: 'Poppins, sans-serif' }}>
+                {tl
+                  ? `Maaari kang mag-apela hanggang ${manila(new Date(eligibility.until).toISOString())}`
+                  : `Appeal window open until ${manila(new Date(eligibility.until).toISOString())}`}
+              </Typography>
+            </Box>
             <Button
-              variant="outlined"
+              variant="contained"
+              fullWidth
+              disableElevation
               onClick={() => openForm(s)}
-              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', minHeight: 44, borderColor: '#FF6600', color: '#C2410C', '&:hover': { backgroundColor: '#FFF7ED', borderColor: '#E65C00' } }}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 700,
+                fontFamily: 'Poppins, sans-serif',
+                fontSize: '14px',
+                borderRadius: '12px',
+                minHeight: 44,
+                height: 44,
+                backgroundColor: '#FF6600',
+                color: '#FFFFFF',
+                boxShadow: 'none',
+                '&:hover': { backgroundColor: '#E65C00', boxShadow: 'none' },
+              }}
             >
-              {tl ? 'Iapela ang strike' : 'Appeal strike'}
+              {tl ? 'Iapela ang Strike' : 'Appeal Strike'}
             </Button>
-            <Typography sx={{ fontSize: '11.5px', color: '#92400E' }}>
-              {tl ? `Hanggang ${manila(new Date(eligibility.until).toISOString())}` : `Until ${manila(new Date(eligibility.until).toISOString())}`}
-            </Typography>
           </Box>
         )}
+
+        {/* Why Appeal is Not Allowed (Window passed, Not counting) */}
         {why && (
-          <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-start', color: '#64748B' }}>
-            <InfoOutlinedIcon aria-hidden sx={{ fontSize: 16, mt: '2px', flexShrink: 0 }} />
-            <Typography sx={{ fontSize: '12px', lineHeight: 1.45 }}>{why}</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+              p: '10px 12px',
+              borderRadius: '10px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              color: '#64748B',
+            }}
+          >
+            <InfoOutlinedIcon aria-hidden sx={{ fontSize: 16, color: '#94A3B8', flexShrink: 0 }} />
+            <Typography sx={{ fontSize: '12px', lineHeight: 1.45, color: '#64748B', fontFamily: 'Poppins, sans-serif' }}>
+              {why}
+            </Typography>
           </Box>
         )}
       </Paper>
@@ -293,10 +535,16 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
     return (
       <Paper elevation={0} sx={cardSx}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-          <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.35, minWidth: 0, overflowWrap: 'anywhere' }}>{strikeTitle(strike)}</Typography>
+          <Typography sx={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontFamily: 'Poppins, sans-serif', lineHeight: 1.35, minWidth: 0, overflowWrap: 'anywhere' }}>
+            {strikeTitle(strike)}
+          </Typography>
           <Badge tone={OUTCOME[outcome].tone}>{tl ? OUTCOME[outcome].tl : OUTCOME[outcome].en}</Badge>
         </Box>
-        {result && <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: outcome === 'approved' ? '#166534' : '#B91C1C' }}>{result}</Typography>}
+        {result && (
+          <Typography sx={{ fontSize: '12.5px', fontWeight: 600, color: outcome === 'approved' ? '#166534' : '#B91C1C', fontFamily: 'Poppins, sans-serif' }}>
+            {result}
+          </Typography>
+        )}
         <Fact label={tl ? 'Ipinadala noong' : 'Submitted'}>{manila(a.requestedAt)}</Fact>
         <Fact label={tl ? 'Dahilan ng apela' : 'Reason submitted'}>
           {cause ? <b>{tl ? cause.tl : cause.en}</b> : null}
