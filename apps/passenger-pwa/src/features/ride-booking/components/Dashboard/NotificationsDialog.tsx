@@ -114,51 +114,33 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     onClose();
     navigate(action.to);
   };
-  const actionButtons = (item: NotificationItem, size: "small" | "regular") => {
+  const renderActionButtons = (item: NotificationItem) => {
     const list = actionsOf(item);
     if (list.length === 0) return null;
-    return (
-      <Box
-        className="hide-scrollbar"
+    return list.map((a, i) => (
+      <Button
+        key={a.key}
+        fullWidth
+        variant={i === 0 ? "contained" : "outlined"}
+        disableElevation
+        onClick={() => runAction(item, a)}
         sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.75,
-          mt: size === "small" ? 0.5 : 2,
-          overflowX: "auto",
-          flexShrink: 0,
+          width: "100%",
+          textTransform: "none",
+          fontWeight: 700,
+          fontFamily: "Poppins, sans-serif",
+          fontSize: "14px",
+          minHeight: 46,
+          height: 46,
+          borderRadius: "12px",
+          ...(i === 0
+            ? { backgroundColor: "#FF6600", color: "#FFFFFF", "&:hover": { backgroundColor: "#E65C00" } }
+            : { borderColor: "#FF6600", color: "#C2410C", "&:hover": { backgroundColor: "#FFF7ED", borderColor: "#E65C00" } }),
         }}
       >
-        {list.map((a, i) => (
-          <Button
-            key={a.key}
-            variant={i === 0 ? "contained" : "outlined"}
-            disableElevation
-            onClick={(e) => {
-              e.stopPropagation();
-              runAction(item, a);
-            }}
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              fontFamily: "Poppins, sans-serif",
-              fontSize: size === "small" ? "11.5px" : "14px",
-              minHeight: size === "small" ? 28 : 44,
-              height: size === "small" ? 28 : 44,
-              px: size === "small" ? 1.25 : 2.5,
-              borderRadius: size === "small" ? "8px" : "12px",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              ...(i === 0
-                ? { backgroundColor: "#FF6600", color: "#FFFFFF", "&:hover": { backgroundColor: "#E65C00" } }
-                : { borderColor: "#FF6600", color: "#C2410C", "&:hover": { backgroundColor: "#FFF7ED", borderColor: "#E65C00" } }),
-            }}
-          >
-            {isTagalog ? a.tl : a.en}
-          </Button>
-        ))}
-      </Box>
-    );
+        {isTagalog ? a.tl : a.en}
+      </Button>
+    ));
   };
 
   const filters = [
@@ -317,8 +299,19 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
             </Box>
 
             {actionsOf(selectedNotif).length > 0 && (
-              <Box sx={{ p: 2, pt: 1.5, borderTop: "1px solid #F1F5F9", backgroundColor: "#FFFFFF", flexShrink: 0 }}>
-                {actionButtons(selectedNotif, "regular")}
+              <Box
+                sx={{
+                  p: 2.5,
+                  pt: 2,
+                  borderTop: "1px solid #F1F5F9",
+                  backgroundColor: "#FFFFFF",
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.25,
+                }}
+              >
+                {renderActionButtons(selectedNotif)}
               </Box>
             )}
           </Box>
@@ -441,7 +434,6 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               const title = language === "tl" ? item.titleTl : item.titleEn;
               const body = language === "tl" ? item.bodyTl : item.bodyEn;
               const time = getRelativeTime(item.createdAt, language);
-              const hasActions = actionsOf(item).length > 0;
 
               return (
                 <React.Fragment key={item.id}>
@@ -454,9 +446,9 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       handleNotificationClick(item);
                     }}
                     sx={{
-                      height: "116px",
-                      minHeight: "116px",
-                      maxHeight: "116px",
+                      height: "88px",
+                      minHeight: "88px",
+                      maxHeight: "88px",
                       boxSizing: "border-box",
                       overflow: "hidden",
                       py: 1.5,
@@ -503,7 +495,7 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       )}
                     </Box>
 
-                    {/* Content area: Title, Body, Timestamp / Actions */}
+                    {/* Content area: Title, Short Description, Timestamp */}
                     <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", overflow: "hidden" }}>
                       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, minWidth: 0, mb: 0.25 }}>
                         <Typography
@@ -544,23 +536,17 @@ const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                           fontFamily: "Poppins, sans-serif",
                           lineHeight: 1.35,
                           display: "-webkit-box",
-                          WebkitLineClamp: hasActions ? 1 : 2,
+                          WebkitLineClamp: 2,
                           WebkitBoxOrient: "vertical",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
-                          mb: hasActions ? 0.25 : 0,
                         }}
                       >
                         {body}
                       </Typography>
-
-                      {hasActions && actionButtons(item, "small")}
                     </Box>
 
-                    {/* Chevron right icon only for announcements / advisories */}
-                    {item.category === "advisories" && !hasActions && (
-                      <ChevronRightIcon sx={{ color: "#64748B", fontSize: 20, flexShrink: 0 }} />
-                    )}
+                    <ChevronRightIcon sx={{ color: "#94A3B8", fontSize: 20, flexShrink: 0 }} />
                   </Box>
                 </React.Fragment>
               );
