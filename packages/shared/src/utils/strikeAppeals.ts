@@ -22,6 +22,11 @@ export interface StrikeRow {
   issuedAt: string;
   provisionalUntil: string | null;
   reason: string | null;
+  /**
+   * false when the rule of this kind of violation says it cannot be appealed at all (violation_catalog.exemption_eligible: the database refuses such an appeal). Left out when
+   * that could not be read: the strike is then offered as before and the database decides.
+   */
+  appealable?: boolean;
 }
 
 export interface AppealRow {
@@ -80,6 +85,7 @@ export async function fetchStrikeHistory(client: StrikeAppealClient, subjectType
   reportNetworkOutcome(error);
   const row = data as { active_strikes?: number; window_days?: number; strikes?: Array<Record<string, unknown>> } | null;
   if (error || !row) return null;
+  const notAppealable = await fetchNotAppealableCodes(client);
   return {
     activeStrikes: Number(row.active_strikes ?? 0),
     windowDays: Number(row.window_days ?? 90),
@@ -94,8 +100,21 @@ export async function fetchStrikeHistory(client: StrikeAppealClient, subjectType
       issuedAt: String(s.issued_at),
       provisionalUntil: (s.provisional_until as string | null) ?? null,
       reason: (s.reason as string | null) ?? null,
+      ...(notAppealable ? { appealable: !notAppealable.has(String(s.violation_code)) } : {}),
     })),
   };
+}
+
+/** The kinds of violation whose own rule says they cannot be appealed (the catalog is readable by every signed-in person); null when it could not be read. */
+async function fetchNotAppealableCodes(client: StrikeAppealClient): Promise<Set<string> | null> {
+  try {
+    const { data, error } = await client.from('violation_catalog').select('violation_code, exemption_eligible').order('violation_code', { ascending: true }).limit(500);
+    // an empty catalog is not an answer (it always holds the violations): nothing is claimed from it
+    if (error || !data || data.length === 0) return null;
+    return new Set(data.filter((r) => r.exemption_eligible === false).map((r) => String(r.violation_code)));
+  } catch {
+    return null;
+  }
 }
 
 /** The person's own appeals, newest first (row security shows them only their own). */
@@ -181,16 +200,17 @@ export function newestAppealByStrike(appeals: AppealRow[]): Map<string, AppealRo
 /** Why a strike cannot be appealed (or that it can, until `until`): the screen says it, instead of just leaving the button out. */
 export type AppealEligibility =
   | { can: true; until: number }
-  | { can: false; why: 'not-counting' | 'pending' | 'window-passed'; until: number | null };
+  | { can: false; why: 'not-counting' | 'not-appealable' | 'pending' | 'window-passed'; until: number | null };
 
 /**
- * Whether the "Appeal" button is offered (Rule 25.1) and, when it is not, the reason: the strike no longer counts, an appeal of it is waiting for a decision, or the 48 hours from
- * its issue have passed. It is only an offer: the database decides again when the request arrives.
+ * Whether the "Appeal" button is offered (Rule 25.1) and, when it is not, the reason: the strike no longer counts, its kind of violation cannot be appealed, an appeal of it is
+ * waiting for a decision, or the 48 hours from its issue have passed. It is only an offer: the database decides again when the request arrives.
  */
 export function strikeAppealEligibility(strike: StrikeRow, newestAppeal: AppealRow | undefined, nowMs: number = Date.now()): AppealEligibility {
   const issued = Date.parse(strike.issuedAt);
   const until = Number.isFinite(issued) ? issued + EXEMPTION_REQUEST_WINDOW_HOURS * 3_600_000 : null;
   if (!APPEALABLE_STATUSES.has(strike.status) || strike.pointsActive <= 0) return { can: false, why: 'not-counting', until };
+  if (strike.appealable === false) return { can: false, why: 'not-appealable', until };
   if (newestAppeal && OPEN_APPEAL_STATUSES.has(newestAppeal.status)) return { can: false, why: 'pending', until };
   if (until === null || nowMs > until) return { can: false, why: 'window-passed', until };
   return { can: true, until };

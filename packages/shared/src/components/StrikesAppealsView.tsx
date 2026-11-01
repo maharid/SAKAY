@@ -245,9 +245,13 @@ export const StrikesAppealsView: React.FC<StrikesAppealsViewProps> = ({ language
         ? (tl
             ? `Natapos na ang ${EXEMPTION_REQUEST_WINDOW_HOURS} oras na pag-aapela${eligibility.until ? ` noong ${manila(new Date(eligibility.until).toISOString())}` : ''}.`
             : `The ${EXEMPTION_REQUEST_WINDOW_HOURS}-hour window to appeal ended${eligibility.until ? ` on ${manila(new Date(eligibility.until).toISOString())}` : ''}.`)
-        : reason === 'not-counting' && !appeal
-          ? (tl ? 'Hindi na nabibilang ang strike na ito, kaya walang aapelahan.' : 'This strike no longer counts, so there is nothing to appeal.')
-          : null;
+        : reason === 'not-appealable'
+          ? (tl ? 'Hindi maaaring iapela ang ganitong uri ng paglabag.' : 'This kind of violation cannot be appealed.')
+          : reason === 'not-counting' && !appeal
+            ? s.status === 'OBSERVED'
+              ? (tl ? 'Naitala lang ito at hindi pa strike, kaya walang aapelahan.' : 'This is only recorded and is not a strike yet, so there is nothing to appeal.')
+              : (tl ? 'Hindi na nabibilang ang strike na ito, kaya walang aapelahan.' : 'This strike no longer counts, so there is nothing to appeal.')
+            : null;
     return (
       <Paper
         id={`strike-${s.strikeId}`}

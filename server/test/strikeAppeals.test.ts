@@ -186,6 +186,34 @@ describe('why "Appeal" is not offered', () => {
   });
 });
 
+describe('violations whose own rule says they cannot be appealed', () => {
+  const history = { rpc: () => ({ data: { active_strikes: 2, window_days: 90, strikes: [
+    { strike_id: 'a', violation_code: 'DRV_LATE', description: 'Late', status: 'ACTIVE', points_issued: 1, points_active: 1, issued_at: '2026-10-17T01:00:00Z' },
+    { strike_id: 'b', violation_code: 'DRV_SERIOUS', description: 'Serious', status: 'ACTIVE', points_issued: 2, points_active: 2, issued_at: '2026-10-17T02:00:00Z' },
+  ] } }) };
+
+  it('marks each strike from the violation catalog (read-only, one query)', async () => {
+    const f = fakeClient({ ...history, rows: [{ violation_code: 'DRV_LATE', exemption_eligible: true }, { violation_code: 'DRV_SERIOUS', exemption_eligible: false }] });
+    const h = await fetchStrikeHistory(f.client, 'driver', 'd-1');
+    assert.deepEqual(h?.strikes.map((s) => s.appealable), [true, false]);
+    assert.deepEqual(f.queries, [{ table: 'violation_catalog', columns: 'violation_code, exemption_eligible', order: 'violation_code', limit: 500 }]);
+  });
+  it('leaves the answer open when the catalog cannot be read: the strike is offered as before and the database decides', async () => {
+    for (const f of [fakeClient({ ...history, rowsError: 'network' }), fakeClient({ ...history, rows: null })]) {
+      const h = await fetchStrikeHistory(f.client, 'driver', 'd-1');
+      assert.deepEqual(h?.strikes.map((s) => 'appealable' in s), [false, false]);
+    }
+  });
+  it('gives no appeal for such a strike, and says why; a strike that no longer counts is still "not counting"', () => {
+    const e = strikeAppealEligibility(strike({ appealable: false }), undefined, NOW);
+    assert.equal(e.can, false);
+    assert.equal((e as { why: string }).why, 'not-appealable');
+    assert.equal(canAppealStrike(strike({ appealable: false }), undefined, NOW), false);
+    assert.equal(canAppealStrike(strike({ appealable: true }), undefined, NOW), true);
+    assert.equal((strikeAppealEligibility(strike({ appealable: false, status: 'WAIVED' }), undefined, NOW) as { why: string }).why, 'not-counting');
+  });
+});
+
 describe('the outcome and the reviewer of an appeal', () => {
   it('pending until decided, approved for either waiver, rejected for a denial', () => {
     assert.equal(appealOutcome('Pending TODA Review'), 'pending');
