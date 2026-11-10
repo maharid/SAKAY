@@ -1,0 +1,13 @@
+// Cloudflare Workers (static assets) config for the Passenger app. Deployed from the REPO ROOT:
+//   build:  npm run build:passenger
+//   deploy: npx wrangler deploy --config apps/passenger-pwa/wrangler.jsonc
+// "assets.directory" is relative to THIS file. The Worker name must equal the project name in the Cloudflare dashboard.
+{
+  "name": "sakay-passenger",
+  "compatibility_date": "2026-11-10",
+  "assets": {
+    "directory": "./dist",
+    // every path that is not a file (/share/:token, /dashboard, ...) gets index.html, so a hard refresh or a shared link works
+    "not_found_handling": "single-page-application"
+  }
+}

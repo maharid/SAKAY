@@ -1,0 +1,22 @@
+# Headers for Cloudflare Workers static assets (copied from public/ to the root of dist/ by Vite; at most 100 rules).
+#
+# Cache: index.html is re-checked on every visit so a new deployment reaches users at once. Everything in /assets has a hash in its name,
+# so a file never changes under the same name and can be kept for a year.
+#
+# Security: only headers that cannot break the map tiles (OpenStreetMap needs a Referer, so NO "no-referrer"), the routing calls, Supabase
+# or the server API. There is deliberately NO Content-Security-Policy and NO Permissions-Policy: the apps load Leaflet CSS from unpkg, fonts
+# from jsdelivr/Google, and use the camera and location, so a wrong policy would break them.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

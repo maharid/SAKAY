@@ -24,6 +24,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { TodaRegistrationFlow } from '../components/auth/TodaRegistrationFlow';
 import { SakayToast } from '../components/common/SakayToast';
 
+// A TODA administrator who signs in here is sent on to the TODA portal. It is its own site in production: VITE_TODA_PORTAL_URL is its address (the '/toda/' fallback only fits a host that serves both).
+const TODA_PORTAL_URL: string = (import.meta as any).env?.VITE_TODA_PORTAL_URL || '/toda/';
+
 const inputStyles = {
   '& .MuiOutlinedInput-root': {
     borderRadius: '12px',
@@ -105,7 +108,7 @@ export const LoginPage: React.FC = () => {
         setAuthSuccessLoading(true);
         setTimeout(() => {
           if (res.role === 'toda_admin') {
-            window.location.href = window.location.hostname === 'localhost' ? 'http://localhost:5175/operations' : '/toda/';
+            window.location.href = window.location.hostname === 'localhost' ? 'http://localhost:5175/operations' : TODA_PORTAL_URL;
           } else {
             navigate(fromLocation, { replace: true });
           }

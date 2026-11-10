@@ -1,0 +1,13 @@
+// Cloudflare Workers (static assets) config for the Driver app. Deployed from the REPO ROOT:
+//   build:  npm run build:driver
+//   deploy: npx wrangler deploy --config apps/driver-pwa/wrangler.jsonc
+// "assets.directory" is relative to THIS file. The Worker name must equal the project name in the Cloudflare dashboard.
+{
+  "name": "sakay-driver",
+  "compatibility_date": "2026-11-10",
+  "assets": {
+    "directory": "./dist",
+    // every path that is not a file (/driver/home, /driver/trip-detail/:id, ...) gets index.html
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -5,7 +5,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 
-import { RouteTimeline, SHARE_TOKEN_PATTERN, fetchSharedTripView, type SharedTripView as SharedTrip } from '@sakay/shared';
+import { RouteTimeline, SHARE_TOKEN_PATTERN, apiUrl, fetchSharedTripView, type SharedTripView as SharedTrip } from '@sakay/shared';
 import Logo from '../../../common/components/Logo';
 import SharedTripMap from '../components/SharedTripMap';
 import { LIVE_POSITION_MAX_AGE_SECONDS, useSharedTripRoutes } from '../hooks/useSharedTripRoutes';
@@ -247,7 +247,7 @@ const SharedTripView: React.FC = () => {
             <Box sx={{ p: 1.75, borderRadius: '16px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
                 <Avatar
-                  src={trip.driver_has_photo ? `/api/share/${token}/driver-photo` : undefined}
+                  src={trip.driver_has_photo ? apiUrl(`/api/share/${token}/driver-photo`) : undefined}
                   alt={trip.driver_first_name ? `${t.driver} ${trip.driver_first_name}` : t.driver}
                   sx={{ width: 84, height: 84, flexShrink: 0, backgroundColor: '#FF6600', color: '#FFFFFF', fontWeight: 700, fontSize: '34px', fontFamily: FONT }}
                 >

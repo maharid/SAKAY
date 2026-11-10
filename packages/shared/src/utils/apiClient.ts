@@ -19,6 +19,20 @@ export interface ApiFetchInit extends Omit<RequestInit, 'signal'> {
 
 const NOT_SIGNED_IN = 'Please sign in to continue.';
 
+/**
+ * Where the server lives. In development this is empty and "/api/..." stays relative, so the Vite proxy answers it. In production each app is a static site on
+ * its own address, so VITE_API_URL (the server's address, with or without the trailing "/api": the LGU and TODA portals already read it WITH "/api") turns
+ * "/api/..." into an absolute address. A path that is already absolute is left as it is.
+ */
+const API_ORIGIN = String((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '')
+  .trim()
+  .replace(/\/+$/, '')
+  .replace(/\/api$/, '');
+
+export function apiUrl(path: string): string {
+  return API_ORIGIN && path.startsWith('/api/') ? `${API_ORIGIN}${path}` : path;
+}
+
 function notSignedIn(): Response {
   return new Response(JSON.stringify({ success: false, error: NOT_SIGNED_IN }), {
     status: 401,
@@ -48,7 +62,7 @@ export async function apiFetch(client: SessionCapableClient, path: string, init:
     else signal.addEventListener('abort', () => controller.abort(), { once: true });
   }
   try {
-    return await fetch(path, { ...rest, body, headers: merged, signal: controller.signal });
+    return await fetch(apiUrl(path), { ...rest, body, headers: merged, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -66,7 +80,7 @@ export async function apiPostPublic(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? 20000);
   try {
-    const response = await fetch(path, {
+    const response = await fetch(apiUrl(path), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
